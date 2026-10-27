@@ -7,7 +7,25 @@ import pytest
 
 from app.core.config import Settings
 from app.rag.models import RagLlmOutput
-from app.services.rag_service import RAGService
+from app.services.rag_service import RAGService, normalize_rag_llm_output
+
+
+def test_normalize_rag_llm_output_flattens_template_sections():
+    llm_out = RagLlmOutput(
+        grounding="SUPPORTED",
+        direct_answer="Ringkasan dokumen.",
+        executive_summary="Detail tambahan.",
+        insights=["Poin A", "Poin B"],
+        business_implications=["Implikasi 1"],
+        cited_chunk_ids=[],
+    )
+    answer, summary, insights, implications, _ = normalize_rag_llm_output(llm_out)
+    assert insights == []
+    assert implications == []
+    assert "Ringkasan dokumen." in answer
+    assert "Poin A" in answer
+    assert "Implikasi 1" in answer
+    assert summary == answer
 
 
 class _FakeRetrieval:

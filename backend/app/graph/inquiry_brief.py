@@ -7,6 +7,7 @@ from typing import Any
 
 from app.core.config import get_settings
 from app.semantic.domain_graph import build_business_context
+from app.ask_data.presentation_tier import tier_from_inquiry_brief
 from app.services.analysis_enrichment import detect_analysis_mode
 from app.services.puppygraph_client import PuppyGraphClient
 
@@ -84,7 +85,7 @@ def build_inquiry_brief(
 
     analysis_mode = detect_analysis_mode(text, expected_metric)
 
-    return {
+    brief: dict[str, Any] = {
         "question": text,
         "expected_metric": expected_metric,
         "expected_strategy": "governed" if resolution.get("status") == "resolved" else plan.get("strategy"),
@@ -99,3 +100,7 @@ def build_inquiry_brief(
         "business_context": business_context,
         "puppygraph": puppygraph,
     }
+    min_tier = tier_from_inquiry_brief(brief)
+    if min_tier is not None:
+        brief["presentation_min_tier"] = min_tier
+    return brief

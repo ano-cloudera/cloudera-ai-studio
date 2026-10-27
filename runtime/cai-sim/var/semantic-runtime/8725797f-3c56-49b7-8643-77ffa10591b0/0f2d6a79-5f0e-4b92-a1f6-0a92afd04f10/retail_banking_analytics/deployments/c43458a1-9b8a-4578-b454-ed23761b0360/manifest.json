@@ -1,0 +1,20 @@
+{
+  "deployment_id": "c43458a1-9b8a-4578-b454-ed23761b0360",
+  "semantic_version_id": "57867c99-2a6f-4485-98a8-e847cfc6f283",
+  "registry_version": 17,
+  "artifact_checksum": "b1d51c5a1be9eee7525b57c381eeacf50fecd71cd9e5bc8b637e806c4ac38def",
+  "runtime_adapter": "ossie",
+  "generated_at": "2026-10-19T06:34:38.957625+00:00",
+  "source_validation_run_id": "f3f846d3-fc1c-493d-9a3c-2f52e295e7e9",
+  "generator_version": "s4.0",
+  "object_counts": {
+    "entities": 2,
+    "metrics": 7,
+    "dimensions": 14,
+    "relationships": 1,
+    "entity_count": 2,
+    "metric_count": 7,
+    "dimension_count": 14,
+    "relationship_count": 1
+  }
+}

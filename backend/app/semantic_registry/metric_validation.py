@@ -4,6 +4,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from app.semantic_registry.metric_metadata import related_entity_keys
+
 _AGG_NUMERIC = frozenset({"sum", "avg", "average", "min", "max"})
 _AGG_ANY = frozenset({"count", "count_distinct", "count distinct"})
 _SIMPLE_AGG_RE = re.compile(
@@ -29,11 +31,23 @@ class MetricValidationResult:
     form_message: str | None = None
 
 
-def _column_types_for_entity(entity_key: str, dimensions) -> dict[str, str]:
+def _column_types_for_entity(
+    entity_key: str,
+    dimensions,
+    entity_metadata: dict | None = None,
+) -> dict[str, str]:
     out: dict[str, str] = {}
     for d in dimensions:
         if d.source_entity_key == entity_key and d.source_column:
             out[d.source_column] = (d.data_type or "string").lower()
+    if entity_metadata:
+        for col in entity_metadata.get("physical_columns") or []:
+            if not isinstance(col, dict):
+                continue
+            name = str(col.get("name") or "").strip()
+            if not name:
+                continue
+            out.setdefault(name, str(col.get("normalized_type") or "string").lower())
     return out
 
 
@@ -54,6 +68,9 @@ def validate_metric_draft(
     existing_metric_names: set[str],
     metric_id: str | None = None,
     require_definition: bool = True,
+    allowed_dimension_keys: list[str] | None = None,
+    relationships=None,
+    source_entity_metadata: dict | None = None,
 ) -> MetricValidationResult:
     issues: list[MetricFieldIssue] = []
     if not name.strip():
@@ -70,7 +87,7 @@ def validate_metric_draft(
         issues.append(MetricFieldIssue("expression", "Calculation expression is required."))
         return MetricValidationResult(valid=False, issues=issues, form_message=issues[0].message if issues else None)
 
-    col_types = _column_types_for_entity(source_entity_key, dimensions)
+    col_types = _column_types_for_entity(source_entity_key, dimensions, source_entity_metadata)
     agg = (aggregation or "").strip().lower()
 
     m = _COUNT_DISTINCT_RE.match(expr)
@@ -101,6 +118,22 @@ def validate_metric_draft(
                 issues.append(MetricFieldIssue("expression", "Formula contains disallowed SQL statements."))
             elif len(expr) < 2:
                 issues.append(MetricFieldIssue("expression", "Formula could not be parsed."))
+
+    if allowed_dimension_keys and source_entity_key in entity_keys:
+        related = related_entity_keys(source_entity_key, relationships or [])
+        dim_by_key = {d.key: d for d in dimensions}
+        for key in allowed_dimension_keys:
+            k = str(key).strip()
+            if not k:
+                continue
+            dim = dim_by_key.get(k)
+            if dim is None or dim.source_entity_key not in related:
+                issues.append(
+                    MetricFieldIssue(
+                        "allowed_dimension_keys",
+                        f"Dimension `{k}` is not available for this metric's data model.",
+                    )
+                )
 
     valid = not issues
     summary = issues[0].message if len(issues) == 1 else (f"{len(issues)} validation issues" if issues else None)

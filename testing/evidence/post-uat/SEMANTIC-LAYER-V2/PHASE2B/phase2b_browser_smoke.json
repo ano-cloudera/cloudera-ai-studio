@@ -1,0 +1,33 @@
+{
+  "status": "SEMANTIC_LAYER_V2_PHASE2B_PASS",
+  "gates": {
+    "header_copy_simplified": "PASS",
+    "duplicate_project_model_header_removed": "PASS",
+    "draft_badge_not_in_primary_header": "PASS",
+    "import_ossie_not_in_primary_header": "PASS",
+    "create_model_secondary_styling": "PASS",
+    "import_ossie_under_advanced": "PASS",
+    "publish_remains_primary_cta": "PASS",
+    "wizard_opens_step1": "PASS",
+    "wizard_step2_reached": "PASS",
+    "searchable_semantic_model_selector": "PASS",
+    "dirty_switch_tab_shows_custom_modal": "PASS",
+    "dirty_keep_editing": "PASS",
+    "dirty_discard_changes": "PASS",
+    "publish_progress_or_outcome": "PASS",
+    "activation_failure_safe_ux": "PASS",
+    "version_history_surface": "PASS",
+    "version_history_table_scroll": "PASS",
+    "overview_responsive_zoom": "PASS",
+    "recent_definitions_bounded_scroll": "PASS",
+    "recent_definitions_pagination_attached": "PASS",
+    "no_global_artifact_footer": "PASS",
+    "deployment_details_surface": "PASS",
+    "advanced_single_entry_import_ossie": "PASS",
+    "advanced_no_artifact_on_overview": "PASS",
+    "no_native_confirm_semantic_nav": "PASS"
+  },
+  "failed": [],
+  "notes": [],
+  "disposable_model_id": "d69dc003-fa2c-408b-aaa0-5415d9ef4e2a"
+}

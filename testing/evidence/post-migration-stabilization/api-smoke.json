@@ -1,0 +1,26 @@
+{
+  "/health": {
+    "status": 200
+  },
+  "/health/ready": {
+    "status": 200
+  },
+  "/api/v1/libraries": {
+    "status": 200
+  },
+  "/api/v1/connectors": {
+    "status": 200
+  },
+  "/api/v1/prompts": {
+    "status": 200
+  },
+  "/api/v1/skills": {
+    "status": 200
+  },
+  "/api/v1/semantic/models": {
+    "status": 200
+  },
+  "/api/v1/models": {
+    "error": "HTTPError"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "connector_id": "ddc7efd5-0f40-4ba2-823f-1303fdf7e535",
+  "connector_key": "golden_banking_pg",
+  "tables": [
+    "customers",
+    "transactions"
+  ]
+}

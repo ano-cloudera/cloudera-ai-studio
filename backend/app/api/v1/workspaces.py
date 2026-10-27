@@ -9,13 +9,15 @@ from app.db.platform_models import WorkspaceRow
 router = APIRouter(prefix="/workspaces", tags=["platform"])
 
 
-def _require_postgres(request: Request) -> str:
+def _require_platform_database_url(request: Request) -> str:
+    from app.db.metadata_db import platform_metadata_configured
+
     settings = request.app.state.settings
     url = (settings.database_url or "").strip()
-    if settings.state_store.strip().lower() != "postgres" or not url:
+    if not platform_metadata_configured(settings):
         raise HTTPException(
             status_code=503,
-            detail="Platform metadata requires STATE_STORE=postgres and DATABASE_URL",
+            detail="Platform metadata requires DATABASE_URL (PostgreSQL or SQLite)",
         )
     return url
 
@@ -33,7 +35,7 @@ def _workspace_dict(row: WorkspaceRow) -> dict:
 
 @router.get("")
 def list_workspaces(request: Request) -> dict:
-    url = _require_postgres(request)
+    url = _require_platform_database_url(request)
     factory = get_session_factory(url)
     with factory() as session:
         rows = session.execute(select(WorkspaceRow).order_by(WorkspaceRow.slug)).scalars().all()
@@ -42,7 +44,7 @@ def list_workspaces(request: Request) -> dict:
 
 @router.get("/default")
 def get_default_workspace(request: Request) -> dict:
-    url = _require_postgres(request)
+    url = _require_platform_database_url(request)
     factory = get_session_factory(url)
     with factory() as session:
         row = session.execute(

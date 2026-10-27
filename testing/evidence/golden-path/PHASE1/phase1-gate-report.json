@@ -1,0 +1,28 @@
+{
+  "gates": {
+    "Banking schema created": "PASS",
+    "customers seeded": "PASS",
+    "transactions seeded": "PASS",
+    "FK integrity": "PASS",
+    "Deterministic seed": "PASS",
+    "Reusable seed/reset script": "PASS",
+    "Banking PostgreSQL Data Source": "PASS",
+    "Connection test": "PASS",
+    "customers discovered": "PASS",
+    "transactions discovered": "PASS",
+    "Raw @customers Ask": "PASS",
+    "Raw @transactions Ask": "PASS",
+    "Raw aggregation": "PASS",
+    "Raw group-by": "PASS",
+    "Raw multi-table join": "PASS",
+    "SELECT/WITH governance": "PASS",
+    "Regression": "PASS",
+    "Raw data indicator": "PASS",
+    "Ambiguous clarification": "PASS",
+    "Automatic source resolution": "PASS",
+    "Browser evidence": "PASS",
+    "Source monorepo untouched": "PASS"
+  },
+  "blockers": [],
+  "backend_up": true
+}

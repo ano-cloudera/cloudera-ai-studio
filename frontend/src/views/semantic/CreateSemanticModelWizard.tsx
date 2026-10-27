@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ConnectorRecord } from '../../types/api'
 import { api } from '../../lib/api'
 import { isAppApiError } from '../../lib/apiError'
@@ -65,13 +65,18 @@ function parseQualified(qualified: string): { catalog: string | null; schema: st
   return { catalog: null, schema: null, tableName: parts[0] }
 }
 
+const MAX_WIZARD_TABLES = 500
+
 export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated }: Props) {
   const [step, setStep] = useState(1)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [tableSearch, setTableSearch] = useState('')
   const [tablesByConnector, setTablesByConnector] = useState<Record<string, Array<{ name: string; schema?: string | null }>>>({})
+  const [tablesLoadState, setTablesLoadState] = useState<Record<string, 'idle' | 'loading' | 'done' | 'error'>>({})
   const [loadingConnector, setLoadingConnector] = useState<string | null>(null)
+  const tablesLoadingRef = useRef<Set<string>>(new Set())
+  const tablesLoadedRef = useRef<Set<string>>(new Set())
   const [selectedTables, setSelectedTables] = useState<SelectedTable[]>([])
   const [suggestions, setSuggestions] = useState<SuggestionBucket | null>(null)
   const [decisions, setDecisions] = useState<Record<string, SuggestionDecision>>({})
@@ -95,21 +100,52 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
     })
   }, [connectors, tablesByConnector, tableSearch])
 
-  if (!open) return null
+  const loadConnectorTables = useCallback(async (cid: string, refresh = false) => {
+    if (tablesLoadingRef.current.has(cid)) return
+    if (!refresh && tablesLoadedRef.current.has(cid)) return
 
-  async function ensureConnectorTables(cid: string) {
-    if (tablesByConnector[cid]) return
+    tablesLoadingRef.current.add(cid)
     setLoadingConnector(cid)
+    setTablesLoadState(prev => ({ ...prev, [cid]: 'loading' }))
     setError('')
     try {
-      const res = await api.listConnectorTables(cid, { limit: 200 })
-      setTablesByConnector(prev => ({ ...prev, [cid]: res.tables ?? [] }))
+      const schemaRes = await api.listConnectorSchemas(cid, { limit: 500 })
+      const schemaNames = schemaRes.schemas?.map(s => s.name).filter(Boolean) ?? []
+      const merged: Array<{ name: string; schema?: string | null }> = []
+      const schemasToQuery = schemaNames.length ? schemaNames : [null]
+
+      for (const schema of schemasToQuery) {
+        if (merged.length >= MAX_WIZARD_TABLES) break
+        const res = await api.listConnectorTables(cid, {
+          schema: schema ?? undefined,
+          limit: MAX_WIZARD_TABLES,
+        })
+        for (const t of res.tables ?? []) {
+          merged.push(t)
+          if (merged.length >= MAX_WIZARD_TABLES) break
+        }
+      }
+
+      setTablesByConnector(prev => ({ ...prev, [cid]: merged }))
+      tablesLoadedRef.current.add(cid)
+      setTablesLoadState(prev => ({ ...prev, [cid]: 'done' }))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load tables')
+      setTablesLoadState(prev => ({ ...prev, [cid]: 'error' }))
     } finally {
+      tablesLoadingRef.current.delete(cid)
       setLoadingConnector(null)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!open || step !== 2) return
+    for (const c of connectors) {
+      void loadConnectorTables(c.id)
+    }
+  }, [open, step, connectors, loadConnectorTables])
+
+  if (!open) return null
 
   function toggleTable(connector: ConnectorRecord, qualified: string) {
     setSelectedTables(prev => {
@@ -263,12 +299,29 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
             />
             <p className="text-xs text-slate-600">{selectedTables.length} table(s) selected</p>
             <div className="max-h-72 space-y-3 overflow-y-auto">
-              {filteredConnectors.map(({ connector, tables }) => (
+              {filteredConnectors.map(({ connector, tables }) => {
+                const loadState = tablesLoadState[connector.id] ?? 'idle'
+                const isLoading = loadingConnector === connector.id || loadState === 'loading'
+                return (
                 <section key={connector.id} className="rounded-lg border border-slate-100 p-3">
-                  <button type="button" className="text-sm font-semibold text-cloudera-navy" onClick={() => void ensureConnectorTables(connector.id)}>
-                    {connector.name}
-                  </button>
-                  {loadingConnector === connector.id ? <p className="text-xs text-slate-500">Loading tables…</p> : null}
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-cloudera-navy">{connector.name}</span>
+                    <button
+                      type="button"
+                      data-testid={`semantic-wizard-load-tables-${connector.id}`}
+                      className="h-8 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                      disabled={isLoading}
+                      onClick={() => void loadConnectorTables(connector.id, true)}
+                    >
+                      {isLoading ? 'Loading tables…' : loadState === 'done' ? 'Refresh tables' : 'Load tables'}
+                    </button>
+                  </div>
+                  {loadState === 'done' && !tables.length && !isLoading ? (
+                    <p className="mt-2 text-xs text-amber-800">No tables found in any schema. Check the data source connection.</p>
+                  ) : null}
+                  {loadState === 'idle' && !isLoading ? (
+                    <p className="mt-2 text-xs text-slate-500">Loading tables from all schemas…</p>
+                  ) : null}
                   <ul className="mt-2 space-y-1 text-sm">
                     {tables.map(t => {
                       const label = [t.schema, t.name].filter(Boolean).join('.')
@@ -284,7 +337,7 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
                     })}
                   </ul>
                 </section>
-              ))}
+              )})}
             </div>
           </div>
         ) : null}

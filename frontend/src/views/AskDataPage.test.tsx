@@ -13,6 +13,8 @@ vi.mock('../lib/api', () => ({
   api: {
     models: vi.fn(),
     randomQueries: vi.fn(),
+    askDataStarters: vi.fn(),
+    askDataPresentationConfig: vi.fn(),
     chatStream: vi.fn(),
     listLibrariesPaginated: vi.fn().mockResolvedValue({ items: [], page: 1, page_size: 100, total: 0, total_pages: 0 }),
     listChatContextOptions: vi.fn().mockResolvedValue({ groups: [] }),
@@ -38,7 +40,28 @@ describe('V2 Ask Data page', () => {
 
   beforeEach(() => {
     sessionStorage.clear()
-    vi.mocked(api.randomQueries).mockResolvedValue({ questions: [] })
+    vi.mocked(api.askDataStarters).mockResolvedValue({ caption: 'Start with a question', source: 'configured', questions: [] })
+    vi.mocked(api.askDataPresentationConfig).mockResolvedValue({
+      workspace_slug: 'default',
+      presentation: {
+        enabled: true,
+        panel_auto_open: 'heuristic',
+        tier3_min_rows: 13,
+        tier3_min_insights: 3,
+        tier3_min_implications: 2,
+        rank_tier3_above_n: 5,
+        rank_min_tier: 2,
+        tier1_max_rows: 1,
+        tier1_max_columns: 2,
+        force_tier3_on_pareto: true,
+        force_tier3_on_operational_analysis: true,
+        force_tier3_on_visual_chart: true,
+        chat_expand_tier1: true,
+        chat_expand_tier2: true,
+        chat_details_default_open: false,
+        audience_mode: 'executive',
+      },
+    })
     vi.mocked(api.getChatAttachment).mockResolvedValue({
       attachment: {
         id: 'att-1',
@@ -65,11 +88,15 @@ describe('V2 Ask Data page', () => {
 
   it('loads starter questions and submits one directly on click', async () => {
     vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
-    vi.mocked(api.randomQueries).mockResolvedValue({ questions: [
-      { id: 'sales-1', question: 'Berapa total Gross Billing Value?', domain: 'sales', domains: ['sales'], difficulty: 'simple', analysis_type: 'metric', expected_visualization: 'kpi' },
-      { id: 'sales-2', question: 'Produk apa yang paling laku Q4 2024?', domain: 'sales', domains: ['sales'], difficulty: 'simple', analysis_type: 'ranking', expected_visualization: 'bar' },
-      { id: 'stock-1', question: 'Berapa stok gudang Tempo bulan Desember?', domain: 'stock', domains: ['stock'], difficulty: 'simple', analysis_type: 'metric', expected_visualization: 'kpi' },
-    ] })
+    vi.mocked(api.askDataStarters).mockResolvedValue({
+      caption: 'Start with a question',
+      source: 'configured',
+      questions: [
+        { id: 'sales-1', question: 'Berapa total Gross Billing Value?', domain: 'sales', domains: ['sales'], difficulty: 'simple', analysis_type: 'metric', expected_visualization: 'kpi' },
+        { id: 'sales-2', question: 'Produk apa yang paling laku Q4 2024?', domain: 'sales', domains: ['sales'], difficulty: 'simple', analysis_type: 'ranking', expected_visualization: 'bar' },
+        { id: 'stock-1', question: 'Berapa stok gudang Tempo bulan Desember?', domain: 'stock', domains: ['stock'], difficulty: 'simple', analysis_type: 'metric', expected_visualization: 'kpi' },
+      ],
+    })
     vi.mocked(api.chatStream).mockImplementation((async function* () {
       yield { type: 'progress', stage: 'querying_data', label: 'Querying TEMPO data' }
       yield { type: 'done', response: {
@@ -83,8 +110,8 @@ describe('V2 Ask Data page', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Berapa total Gross Billing Value?' }))
 
-    expect((await screen.findAllByText('Total Rp10')).length).toBeGreaterThan(0)
-    expect(screen.getAllByText('Total Sales').length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('Rp10')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('Direct answer')).toBeNull()
     await waitFor(() => expect(api.chatStream).toHaveBeenCalledWith(
       'Berapa total Gross Billing Value?',
       expect.any(String),
@@ -96,7 +123,9 @@ describe('V2 Ask Data page', () => {
 
   it('presents the direct answer, implications, and data reference with clear hierarchy', async () => {
     vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
-    vi.mocked(api.randomQueries).mockResolvedValue({
+    vi.mocked(api.askDataStarters).mockResolvedValue({
+      caption: 'Start with a question',
+      source: 'configured',
       questions: [{
         id: 'sales-q4',
         question: 'Berapa gross sales Q4?',

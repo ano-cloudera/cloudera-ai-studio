@@ -19,6 +19,26 @@ from app.services.retrieval_service import RetrievalService, RetrievalServiceErr
 logger = logging.getLogger(__name__)
 
 
+def normalize_rag_llm_output(llm_out: RagLlmOutput) -> tuple[str, str, list[str], list[str], list[str]]:
+    """Default RAG replies are one prose block; fold legacy section fields into direct_answer."""
+    answer = llm_out.direct_answer.strip()
+    summary = (llm_out.executive_summary or "").strip()
+    insights = [item.strip() for item in llm_out.insights if (item or "").strip()]
+    implications = [item.strip() for item in llm_out.business_implications if (item or "").strip()]
+    caveats = list(llm_out.caveats)
+
+    extras: list[str] = []
+    if summary and summary != answer and summary not in answer:
+        extras.append(summary)
+    for item in insights + implications:
+        if item not in answer:
+            extras.append(item)
+    if extras:
+        answer = f"{answer}\n\n" + "\n\n".join(extras) if answer else "\n\n".join(extras)
+    summary = answer
+    return answer, summary, [], [], caveats
+
+
 @dataclass
 class RagAnswerResult:
     grounding: str
@@ -216,22 +236,24 @@ class RAGService:
             status = "NO_DATA"
             citations = []
         else:
-            answer = llm_out.direct_answer.strip()
-            summary = llm_out.executive_summary.strip() or answer
             status = "SUCCESS"
             if grounding == "PARTIALLY_SUPPORTED" and not llm_out.caveats:
                 llm_out.caveats.append("Jawaban hanya sebagian didukung oleh bukti yang tersedia.")
+            answer, summary, insights, implications, caveats = normalize_rag_llm_output(llm_out)
 
         meta = retrieval_payload.get("metadata") or {}
         ctx = retrieval_payload.get("context") or {}
         elapsed = int((time.perf_counter() - started) * 1000)
+        rag_insights = [] if grounding == "INSUFFICIENT_EVIDENCE" else insights
+        rag_implications = [] if grounding == "INSUFFICIENT_EVIDENCE" else implications
+        rag_caveats = list(llm_out.caveats) if grounding == "INSUFFICIENT_EVIDENCE" else caveats
         return RagAnswerResult(
             grounding=grounding,
             answer_text=answer,
             executive_summary=summary,
-            insights=list(llm_out.insights),
-            caveats=list(llm_out.caveats),
-            business_implications=list(llm_out.business_implications),
+            insights=rag_insights,
+            caveats=rag_caveats,
+            business_implications=rag_implications,
             citations=citation_records(citations),
             retrieval_meta={
                 "candidate_count": int(ctx.get("total_candidates") or 0),

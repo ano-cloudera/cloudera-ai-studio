@@ -3,6 +3,8 @@ const apiTarget = process.env.BACKEND_API_URL || 'http://127.0.0.1:8001'
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   outputFileTracingRoot: process.cwd(),
+  // Dev overlay "1 Issue" when opening http://127.0.0.1:3001 while next dev binds 0.0.0.0
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
   async rewrites() {
     return [
       // v1 management API (mounted at /api/v1 on backend)

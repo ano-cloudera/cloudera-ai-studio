@@ -54,7 +54,7 @@ function summaryPhaseState(phaseIndex: number, activeStepIndex: number, complete
 
 export function ProgressStepsPanel({
   activeStepIndex,
-  technicalTrace: _technicalTrace,
+  technicalTrace,
   complete = false,
   compactOnly = false,
   defaultViewLevel = 1,
@@ -154,6 +154,29 @@ export function ProgressStepsPanel({
               )
             })}
           </ul>
+          {technicalTrace && technicalTrace.length > 0 ? (
+            <div className="space-y-1.5 border-t border-slate-100 pt-3">
+              <p className="type-chat-meta font-semibold text-slate-500">Recorded steps</p>
+              <ul className="type-chat-meta space-y-1.5 text-slate-600">
+                {technicalTrace.map((entry, index) => (
+                  <li key={`${entry.stage}-${entry.label}-${index}`} className="flex gap-2">
+                    <span className="text-emerald-600 shrink-0" aria-hidden>
+                      ✓
+                    </span>
+                    <span>
+                      <span className="font-medium text-slate-700">{entry.label}</span>
+                      {entry.detail ? (
+                        <span className="text-slate-500">
+                          {' '}
+                          — {entry.detail}
+                        </span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <div className="border-t border-slate-100 pt-2">
             <button
               type="button"

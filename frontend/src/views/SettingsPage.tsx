@@ -14,6 +14,8 @@ import {
 import { useModelSelection } from '../lib/modelSelection'
 import type { ModelInfo } from '../types/api'
 import { AiModelsSettingsPanel } from './settings/AiModelsSettingsPanel'
+import { AskDataPresentationSettingsPanel } from './settings/AskDataPresentationSettingsPanel'
+import { AskDataStarterSettingsPanel } from './settings/AskDataStarterSettingsPanel'
 
 const SETTINGS_TABS = ['general', 'models', 'rag', 'features', 'advanced'] as const
 type SettingsTab = (typeof SETTINGS_TABS)[number]
@@ -246,6 +248,12 @@ export function SettingsPage() {
                 <dd className="font-medium text-cloudera-navy">{appConfig.sidebarTagline}</dd>
               </div>
             </dl>
+            {appConfig.features.askData ? (
+              <>
+                <AskDataStarterSettingsPanel />
+                <AskDataPresentationSettingsPanel />
+              </>
+            ) : null}
           </>
         ) : null}
 

@@ -1,0 +1,51 @@
+{
+  "deterministic_seed_rows": 250,
+  "scenarios": [
+    {
+      "scenario": "raw_customers_active_count",
+      "status_code": 200,
+      "status": "SUCCESS",
+      "context_mode": "RAW_TABLE",
+      "strategy": "sql_fallback",
+      "row_count": 1,
+      "raw_data_badge": true
+    },
+    {
+      "scenario": "raw_transactions_total_amount",
+      "status_code": 200,
+      "status": "SUCCESS",
+      "context_mode": "RAW_TABLE",
+      "strategy": "sql_fallback",
+      "row_count": 1,
+      "raw_data_badge": true
+    },
+    {
+      "scenario": "raw_transactions_failed_count",
+      "status_code": 200,
+      "status": "SUCCESS",
+      "context_mode": "RAW_TABLE",
+      "strategy": "sql_fallback",
+      "row_count": 1,
+      "raw_data_badge": true
+    },
+    {
+      "scenario": "raw_transactions_amount_by_channel",
+      "status_code": 200,
+      "status": "SUCCESS",
+      "context_mode": "RAW_TABLE",
+      "strategy": "sql_fallback",
+      "row_count": 5,
+      "raw_data_badge": true
+    },
+    {
+      "scenario": "raw_multi_table_segment_total",
+      "status_code": 200,
+      "status": "SUCCESS",
+      "context_mode": "RAW_TABLE",
+      "strategy": "sql_fallback",
+      "row_count": 3,
+      "raw_data_badge": true
+    }
+  ],
+  "all_success": true
+}

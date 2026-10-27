@@ -157,6 +157,13 @@ class SemanticEntityImportService:
             "column_count": len(detail.columns),
             "source_fingerprint": fingerprint,
             "connector_name": connector.name,
+            "physical_columns": [
+                {
+                    "name": c.name,
+                    "normalized_type": c.normalized_type or c.data_type,
+                }
+                for c in detail.columns
+            ],
         }
         pk = ",".join(detail.primary_key) if detail.primary_key else None
         if not pk:

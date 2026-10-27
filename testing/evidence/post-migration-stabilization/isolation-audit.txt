@@ -1,0 +1,51 @@
+audit_at=2026-10-18T14:24:45Z
+standalone_root=/Users/triano/Documents/Works/cloudera/cloudera-ai-studio
+source_monorepo=/Users/triano/Documents/Works/cloudera/enterprise-ai-poc
+method=non_destructive_path_and_process_audit
+ALREADY_RUNNING
+PID=93109
+PORT=8001
+HEALTH=PASS
+Backend process: RUNNING
+PID: 93109
+Port 8001: LISTENING
+/health: 200
+/health/ready: 200
+core_ready: true
+.......                                                                  [100%]
+=============================== warnings summary ===============================
+../.venv/lib/python3.10/site-packages/starlette/testclient.py:51
+  /Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/starlette/testclient.py:51: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198
+  /Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "schema" in "TrinoConnectorConfig" shadows an attribute in parent "StrictModel"
+    warnings.warn(
+
+../.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198
+  /Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "schema" in "BootstrapTableRequest" shadows an attribute in parent "StrictModel"
+    warnings.warn(
+
+../.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198
+  /Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "schema" in "EntityImportPreviewRequest" shadows an attribute in parent "StrictModel"
+    warnings.warn(
+
+../.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198
+  /Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "schema" in "EntityImportRequest" shadows an attribute in parent "StrictModel"
+    warnings.warn(
+
+../.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198
+  /Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "schema" in "MetadataDescribeRequest" shadows an attribute in parent "StrictModel"
+    warnings.warn(
+
+../.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198
+  /Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name "schema" in "MetadataPreviewRequest" shadows an attribute in parent "StrictModel"
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+7 passed, 1 deselected, 7 warnings in 2.32s
+bad_sys_path []
+cwd /Users/triano/Documents/Works/cloudera/cloudera-ai-studio/backend
+standalone_backend /Users/triano/Documents/Works/cloudera/cloudera-ai-studio/backend
+ISOLATION_AUDIT_PASS_NON_DESTRUCTIVE
+NOTE: Full unavailable-path proof is disabled; see docs/migration/SOURCE_EXTRACTION_POLICY.md

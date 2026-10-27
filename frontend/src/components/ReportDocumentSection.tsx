@@ -90,6 +90,14 @@ export function ReportDocumentSection({ response }: Props) {
   const summarySame =
     response.answer.executive_summary.trim() === response.answer.direct_answer.trim()
   const chartTitle = response.chart_spec?.title || 'Visualization'
+  const governedLabel =
+    response.data.governed_metric_display_name?.trim() ||
+    (response.data.governed_metric
+      ? response.data.governed_metric.replace(/_/g, ' ')
+      : null)
+  const showDefinition =
+    response.context_mode === 'GOVERNED_SEMANTIC' &&
+    Boolean(governedLabel || response.data.governed_metric_expression || response.data.governed_base_dataset)
 
   return (
     <div>
@@ -106,6 +114,34 @@ export function ReportDocumentSection({ response }: Props) {
               )}
             </WorkspaceSectionContent>
           </WorkspaceSection>
+
+          {showDefinition && (
+            <WorkspaceSection>
+              <WorkspaceSectionHeader icon={Briefcase} tone="violet" title="Governed definition" />
+              <WorkspaceSectionContent>
+                <dl className="workspace-body-text space-y-2 text-sm text-slate-700">
+                  {governedLabel ? (
+                    <div>
+                      <dt className="font-semibold text-cloudera-navy">Metric</dt>
+                      <dd>{governedLabel}</dd>
+                    </div>
+                  ) : null}
+                  {response.data.governed_base_dataset ? (
+                    <div>
+                      <dt className="font-semibold text-cloudera-navy">Entity</dt>
+                      <dd>{response.data.governed_base_dataset}</dd>
+                    </div>
+                  ) : null}
+                  {response.data.governed_metric_expression ? (
+                    <div>
+                      <dt className="font-semibold text-cloudera-navy">Expression</dt>
+                      <dd className="font-mono text-xs text-slate-600">{response.data.governed_metric_expression}</dd>
+                    </div>
+                  ) : null}
+                </dl>
+              </WorkspaceSectionContent>
+            </WorkspaceSection>
+          )}
 
           {response.answer.insights.length > 0 && (
             <WorkspaceSection>
@@ -143,13 +179,7 @@ export function ReportDocumentSection({ response }: Props) {
                 icon={BarChart3}
                 tone="orange"
                 title={chartTitle}
-                action={
-                  response.data.governed_metric ? (
-                    <span className="max-w-[140px] truncate font-mono text-[10px] text-slate-500 sm:max-w-none">
-                      {response.data.governed_metric}
-                    </span>
-                  ) : null
-                }
+                action={null}
               />
               <WorkspaceSectionContent className="pb-4">
                 {response.chart_spec?.type === 'kpi' && (

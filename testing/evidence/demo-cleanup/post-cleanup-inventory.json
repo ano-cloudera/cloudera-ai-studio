@@ -1,0 +1,97 @@
+{
+  "captured_at": "2026-10-18T08:16:46+00:00",
+  "database": "127.0.0.1:55432/accelerator",
+  "repo_root": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio",
+  "workspace_slug": "default",
+  "preserved_project_slugs": [
+    "tempo_scan_impala"
+  ],
+  "counts": {
+    "projects": 1,
+    "libraries": 1,
+    "chat_attachment_libraries": 1,
+    "semantic_models": 0,
+    "connectors": 0,
+    "prompts": 3,
+    "skills": 2,
+    "conversations": 0
+  },
+  "records": {
+    "libraries": [
+      {
+        "id": "ef8e22f9-0a32-455d-bc41-8d92992dec4c",
+        "name": "__cai_chat_attachments__",
+        "project_id": "02fa32f4-da2b-414e-b711-36367b732a92",
+        "class": "A"
+      }
+    ],
+    "semantic_models": [],
+    "connectors": [],
+    "prompts": [
+      {
+        "id": "c67682c6-d3db-4f01-bb8b-5bb0ec2c6557",
+        "name": "Ask Data system prompt",
+        "key": "ask_data.system",
+        "scope": "global",
+        "project_id": null,
+        "class": "A"
+      },
+      {
+        "id": "7e8ab514-3515-48b8-8797-3729127db382",
+        "name": "RAG system prompt",
+        "key": "rag.system",
+        "scope": "global",
+        "project_id": null,
+        "class": "A"
+      },
+      {
+        "id": "70ffc931-9717-48fd-9574-c83655e8d377",
+        "name": "RAG insufficient evidence message",
+        "key": "rag.insufficient_evidence",
+        "scope": "global",
+        "project_id": null,
+        "class": "A"
+      }
+    ],
+    "skills": [
+      {
+        "id": "e387f477-26f1-4685-a549-d58d25762bcc",
+        "name": "Ask Data Analyst",
+        "key": "ask_data_analyst",
+        "scope": "workspace",
+        "project_id": null,
+        "class": "A"
+      },
+      {
+        "id": "ea4ed55e-1aa3-43c5-aa19-1558f6103f67",
+        "name": "Document Q&A",
+        "key": "document_qa",
+        "scope": "workspace",
+        "project_id": null,
+        "class": "A"
+      }
+    ],
+    "projects": [
+      {
+        "id": "02fa32f4-da2b-414e-b711-36367b732a92",
+        "slug": "tempo_scan_impala",
+        "name": "Tempo Scan (reference)",
+        "class": "A"
+      }
+    ]
+  },
+  "classification_summary": {
+    "libraries": {
+      "A": 1
+    },
+    "prompts": {
+      "A": 3
+    },
+    "skills": {
+      "A": 2
+    },
+    "projects": {
+      "A": 1
+    }
+  }
+}

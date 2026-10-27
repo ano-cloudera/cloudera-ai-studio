@@ -7,10 +7,12 @@ type Props = {
   artifact: SemanticArtifactPreview | null
   loading?: boolean
   onRefresh?: () => void
+  /** When true, show the full artifact body (Preview tab). */
+  defaultExpanded?: boolean
 }
 
-export function SemanticArtifactPreviewPanel({ artifact, loading, onRefresh }: Props) {
-  const [expanded, setExpanded] = useState(false)
+export function SemanticArtifactPreviewPanel({ artifact, loading, onRefresh, defaultExpanded = false }: Props) {
+  const [expanded, setExpanded] = useState(defaultExpanded)
 
   return (
     <div className="flex flex-col gap-3 p-4" data-testid="semantic-artifact-preview-panel">

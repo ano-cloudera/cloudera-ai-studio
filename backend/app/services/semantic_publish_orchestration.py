@@ -50,12 +50,19 @@ class SemanticPublishOrchestrationService:
         created_by: str | None = None,
     ) -> dict:
         model = self._registry.get_model(model_id, workspace_id=workspace_id, project_id=project_id)
-        version = self._resolve_draft_version(model_id, version_id, workspace_id=workspace_id, project_id=project_id)
+        version, registry_already_active = self._resolve_publish_target(
+            model,
+            model_id,
+            version_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+        )
 
         logger.info(
-            "semantic_publish_to_ask_data started model=%s version=%s project=%s",
+            "semantic_publish_to_ask_data started model=%s version=%s registry_active=%s project=%s",
             model.key,
             version.id,
+            registry_already_active,
             project_id,
         )
 
@@ -74,22 +81,25 @@ class SemanticPublishOrchestrationService:
                 "issues": [i.to_dict() for i in issues],
             }
 
-        try:
-            published = self._registry.publish_version(
-                version.id,
-                workspace_id=workspace_id,
-                project_id=project_id,
-                artifact_preview=True,
-            )
-        except SemanticRegistryError as exc:
-            if exc.code == "validation_failed":
-                return {
-                    "status": "needs_attention",
-                    "model_id": str(model_id),
-                    "version_id": str(version.id),
-                    "issues": [{"object_type": "model", "object_id": str(model_id), "object_name": model.name, "code": exc.code, "message": exc.message}],
-                }
-            raise
+        if registry_already_active:
+            published = version
+        else:
+            try:
+                published = self._registry.publish_version(
+                    version.id,
+                    workspace_id=workspace_id,
+                    project_id=project_id,
+                    artifact_preview=True,
+                )
+            except SemanticRegistryError as exc:
+                if exc.code == "validation_failed":
+                    return {
+                        "status": "needs_attention",
+                        "model_id": str(model_id),
+                        "version_id": str(version.id),
+                        "issues": [{"object_type": "model", "object_id": str(model_id), "object_name": model.name, "code": exc.code, "message": exc.message}],
+                    }
+                raise
 
         deployment = self._runtime.stage_version(
             published.id,
@@ -137,24 +147,40 @@ class SemanticPublishOrchestrationService:
             "checks": [],
         }
 
-    def _resolve_draft_version(
+    def _resolve_publish_target(
         self,
+        model,
         model_id: uuid.UUID,
         version_id: uuid.UUID | None,
         *,
         workspace_id: uuid.UUID,
         project_id: uuid.UUID,
     ):
-        if version_id is not None:
-            version = self._registry.get_version(version_id, workspace_id=workspace_id, project_id=project_id)
+        """Return (version, registry_already_active). Prefer DRAFT; else ACTIVE registry when no draft."""
+
+        def _as_target(version):
             if version.semantic_model_id != model_id:
                 raise SemanticRegistryError("invalid_state", "Version does not belong to model", 400)
-            if version.status != "DRAFT":
-                raise SemanticRegistryError("invalid_state", "Publish requires a DRAFT version", 409)
-            return version
+            if version.status == "DRAFT":
+                return version, False
+            if version.status == "ACTIVE":
+                return version, True
+            raise SemanticRegistryError("invalid_state", "Publish requires a DRAFT or ACTIVE registry version", 409)
+
+        if version_id is not None:
+            version = self._registry.get_version(version_id, workspace_id=workspace_id, project_id=project_id)
+            return _as_target(version)
+
         for row in self._registry.list_versions(model_id, workspace_id=workspace_id, project_id=project_id):
             if row.status == "DRAFT":
-                return row
+                return row, False
+
+        active_id = getattr(model, "active_version_id", None)
+        if active_id:
+            active = self._registry.get_version(active_id, workspace_id=workspace_id, project_id=project_id)
+            if active.status == "ACTIVE":
+                return active, True
+
         raise SemanticRegistryError("not_found", "No DRAFT version available to publish", 404)
 
     @staticmethod

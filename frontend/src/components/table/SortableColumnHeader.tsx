@@ -16,7 +16,7 @@ export function SortableColumnHeader({ label, field, activeField, order, onSort,
   return (
     <button
       type="button"
-      className={`inline-flex items-center gap-0.5 font-semibold hover:text-cloudera-navy ${className}`}
+      className={`inline-flex items-center gap-0.5 text-xs font-semibold uppercase tracking-wide text-cloudera-violet hover:text-cloudera-navy ${className}`}
       onClick={() => onSort(field)}
       aria-sort={active ? (order === 'asc' ? 'ascending' : 'descending') : 'none'}
     >

@@ -10,7 +10,14 @@ from app.ask_data.table_context_id import encode_raw_table_id
 from app.connectors.discovery import MetadataDiscoveryService
 from app.connectors.service import ConnectorRegistryService
 from app.core.config import get_settings
-from app.db.platform_models import LibraryRow, SemanticEntityRow, SemanticMetricRow, SemanticModelRow, SemanticVersionRow
+from app.db.platform_models import (
+    LibraryRow,
+    SemanticEntityRow,
+    SemanticMetricRow,
+    SemanticModelRow,
+    SemanticTermRow,
+    SemanticVersionRow,
+)
 from app.services.library_service import LibraryService
 
 
@@ -140,6 +147,29 @@ class ContextPickerOptionsService:
                         "subtitle": model.name,
                         "group": "semantic",
                         "metadata": {"model_id": str(model.id), "entity_key": ent.key},
+                    }
+                )
+                if len(out) >= limit:
+                    return out
+
+            glossary = list(
+                self._session.execute(
+                    select(SemanticTermRow).where(SemanticTermRow.semantic_version_id == active_vid).limit(50)
+                ).scalars()
+            )
+            for glossary_term in glossary:
+                hay = f"{glossary_term.term} {glossary_term.key} {' '.join(glossary_term.synonyms or [])}".lower()
+                if needle and needle not in hay:
+                    continue
+                subtitle = (glossary_term.definition or model.name)[:120]
+                out.append(
+                    {
+                        "type": "semantic_term",
+                        "id": str(glossary_term.id),
+                        "name": glossary_term.term,
+                        "subtitle": subtitle,
+                        "group": "semantic",
+                        "metadata": {"model_id": str(model.id), "term_key": glossary_term.key},
                     }
                 )
                 if len(out) >= limit:

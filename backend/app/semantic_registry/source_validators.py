@@ -219,5 +219,32 @@ _IDENT = re.compile(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\b")
 
 
 def extract_identifier_candidates(expression: str) -> set[str]:
-    stop = {"sum", "avg", "count", "min", "max", "distinct", "as", "from", "where", "and", "or", "case", "when", "then", "else", "end"}
-    return {m.group(1).lower() for m in _IDENT.finditer(expression) if m.group(1).lower() not in stop}
+    scrubbed = re.sub(r"'(?:[^'\\]|\\.)*'", " ", expression)
+    stop = {
+        "sum",
+        "avg",
+        "count",
+        "min",
+        "max",
+        "distinct",
+        "as",
+        "from",
+        "where",
+        "and",
+        "or",
+        "case",
+        "when",
+        "then",
+        "else",
+        "end",
+        "filter",
+        "nullif",
+        "numeric",
+        "null",
+        "not",
+        "is",
+        "in",
+        "true",
+        "false",
+    }
+    return {m.group(1).lower() for m in _IDENT.finditer(scrubbed) if m.group(1).lower() not in stop}

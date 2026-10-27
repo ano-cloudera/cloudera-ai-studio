@@ -10,13 +10,15 @@ from app.projects.resolver import load_default_project
 router = APIRouter(prefix="/projects", tags=["platform"])
 
 
-def _require_postgres(request: Request) -> str:
+def _require_platform_database_url(request: Request) -> str:
+    from app.db.metadata_db import platform_metadata_configured
+
     settings = request.app.state.settings
     url = (settings.database_url or "").strip()
-    if settings.state_store.strip().lower() != "postgres" or not url:
+    if not platform_metadata_configured(settings):
         raise HTTPException(
             status_code=503,
-            detail="Platform metadata requires STATE_STORE=postgres and DATABASE_URL",
+            detail="Platform metadata requires DATABASE_URL (PostgreSQL or SQLite)",
         )
     return url
 
@@ -40,7 +42,7 @@ def list_projects(
     request: Request,
     workspace_slug: str = Query("default"),
 ) -> dict:
-    url = _require_postgres(request)
+    url = _require_platform_database_url(request)
     factory = get_session_factory(url)
     with factory() as session:
         workspace = session.execute(
@@ -59,7 +61,7 @@ def list_projects(
 @router.get("/default")
 def get_default_project(request: Request) -> dict:
     settings = request.app.state.settings
-    _require_postgres(request)
+    _require_platform_database_url(request)
     project = load_default_project(settings)
     if not project:
         raise HTTPException(status_code=404, detail="Default project not seeded")

@@ -212,6 +212,8 @@ export type SemanticMetricRecord = {
   format: string | null
   unit: string | null
   synonyms: string[]
+  /** Empty = publish uses all dimensions on the metric data model (and related models). */
+  allowed_dimension_keys: string[]
   metadata: Record<string, unknown>
 }
 
@@ -414,6 +416,7 @@ export type ChatContextSourcePayload = {
     | 'semantic_model'
     | 'semantic_entity'
     | 'semantic_metric'
+    | 'semantic_term'
   id: string
   name: string
   metadata?: Record<string, unknown>
@@ -535,6 +538,9 @@ export type ChatResponse = {
     connector_type?: string | null
     connector_name?: string | null
     governed_metric?: string | null
+    governed_metric_display_name?: string | null
+    governed_metric_expression?: string | null
+    governed_base_dataset?: string | null
     unit_format?: string | null
   }
   chart_spec: ChartSpec | null
@@ -557,6 +563,7 @@ export type ChatResponse = {
   governed_sql?: string | null
   context_mode?: 'RAW_TABLE' | 'GOVERNED_SEMANTIC' | null
   clarification?: AskDataClarification | null
+  presentation_tier?: 1 | 2 | 3 | null
 }
 
 export type SemanticOverviewPayload = {
@@ -616,6 +623,54 @@ export type SuggestedQuestion = {
   difficulty: 'simple' | 'medium' | 'complex'
   analysis_type: string
   expected_visualization: string
+}
+
+export type StarterSource = 'configured' | 'question_bank' | 'semantic_runtime'
+
+export type PresentationTierOverridesPayload = {
+  enabled?: boolean | null
+  panel_auto_open?: 'heuristic' | 'always' | 'never' | null
+  tier3_min_rows?: number | null
+  tier3_min_insights?: number | null
+  tier3_min_implications?: number | null
+  rank_tier3_above_n?: number | null
+  rank_min_tier?: 1 | 2 | 3 | null
+  tier1_max_rows?: number | null
+  tier1_max_columns?: number | null
+  force_tier3_on_pareto?: boolean | null
+  force_tier3_on_operational_analysis?: boolean | null
+  force_tier3_on_visual_chart?: boolean | null
+  chat_expand_tier1?: boolean | null
+  chat_expand_tier2?: boolean | null
+  chat_details_default_open?: boolean | null
+  audience_mode?: 'executive' | 'analyst' | null
+  tier1_show_narrative?: boolean | null
+}
+
+export type AskDataSettingsPayload = {
+  starter_questions_caption: string
+  starter_questions: string[]
+  starter_source: StarterSource
+  question_bank_limit: number
+  question_bank_domain: string | null
+  question_bank_difficulty: 'simple' | 'medium' | 'complex' | null
+  presentation?: PresentationTierOverridesPayload | null
+  default_semantic_model_id?: string | null
+  auto_attach_semantic_model?: boolean
+  instruction_prompt_key?: string | null
+}
+
+export type AskDataSemanticCatalogResponse = {
+  workspace_slug: string
+  model: { id: string; name: string; key: string } | null
+  metrics: { id: string; key: string; name: string; description?: string }[]
+  dimensions: { id: string; key: string; name: string; description?: string }[]
+}
+
+export type AskDataStartersResponse = {
+  caption: string
+  source: StarterSource
+  questions: SuggestedQuestion[]
 }
 
 export type ConnectorType = 'impala' | 'trino' | 'postgres'

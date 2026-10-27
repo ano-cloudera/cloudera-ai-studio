@@ -1,0 +1,14 @@
+{
+  "note": "After platform readiness aggregation fix",
+  "endpoint": "http://127.0.0.1:8001/health/ready",
+  "status": "ready",
+  "core_ready": true,
+  "feature_gaps": [],
+  "components_summary": {
+    "llm": "not_configured",
+    "legacy_datasource": "not_configured",
+    "postgres": "ready",
+    "connectors": "optional"
+  },
+  "frontend_badge": "Platform Ready"
+}

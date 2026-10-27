@@ -1,0 +1,120 @@
+{
+  "environment": {
+    "backend_ready": true,
+    "qdrant_ready": true,
+    "metadata_snapshot": {
+      "db_path": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim/metadata/studio.db",
+      "exists": true,
+      "connectors": 21,
+      "libraries": 250,
+      "documents": 420,
+      "prompts": 1,
+      "skills": 1,
+      "usage_events": 2,
+      "conversations": 174,
+      "messages": 533
+    },
+    "worker_hint": "1"
+  },
+  "data_source": {
+    "connector_id": "ddc7efd5-0f40-4ba2-823f-1303fdf7e535",
+    "connection_test": true,
+    "customers_table": true,
+    "transactions_table": true,
+    "ok": true
+  },
+  "knowledge": {
+    "documents": [
+      "Customer Segment and Risk Guide.pdf",
+      "Retail Banking Transaction Policy.pdf"
+    ],
+    "both_pdfs": true,
+    "all_ready": true,
+    "library_name": "Retail Banking Knowledge"
+  },
+  "semantic": {
+    "model_visible": true,
+    "required_metrics_present": true,
+    "runtime_ok": true,
+    "runtime": {
+      "semantic_model_key": "retail_banking_analytics",
+      "registry_active_version": 26,
+      "runtime_active_version": 26,
+      "runtime_status": "healthy",
+      "deployment": {
+        "deployment_id": "8097e54f-3813-468e-9122-e1221f597b28",
+        "artifact_checksum": "0dca1a508ce945f787bbb88cdd61de34bbbdc692850f61c5647d9ffe80a0bded",
+        "activated_at": "2026-10-19T10:48:59.113444",
+        "adapter": "ossie",
+        "health": "healthy"
+      },
+      "loader_mode": "runtime"
+    },
+    "model_name": "Retail Banking Analytics"
+  },
+  "chat": {
+    "scripts": {
+      "phase1_raw": {
+        "code": 0,
+        "detail": "venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name \"schema\" in \"EntityImportRequest\" shadows an attribute in parent \"StrictModel\"\n  warnings.warn(\n/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name \"schema\" in \"MetadataDescribeRequest\" shadows an attribute in parent \"StrictModel\"\n  warnings.warn(\n/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name \"schema\" in \"MetadataPreviewRequest\" shadows an attribute in parent \"StrictModel\"\n  warnings.warn(\nFEATURE_PROFILE=FULL_ACCELERATOR but QDRANT_URL is empty; RAG features will be unavailable until configured."
+      },
+      "phase2_rag": {
+        "code": 0,
+        "detail": "ttribute in parent \"StrictModel\"\n  warnings.warn(\n/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name \"schema\" in \"EntityImportRequest\" shadows an attribute in parent \"StrictModel\"\n  warnings.warn(\n/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name \"schema\" in \"MetadataDescribeRequest\" shadows an attribute in parent \"StrictModel\"\n  warnings.warn(\n/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name \"schema\" in \"MetadataPreviewRequest\" shadows an attribute in parent \"StrictModel\"\n  warnings.warn("
+      },
+      "phase3_governed": {
+        "code": 0,
+        "detail": "ttribute in parent \"StrictModel\"\n  warnings.warn(\n/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name \"schema\" in \"EntityImportRequest\" shadows an attribute in parent \"StrictModel\"\n  warnings.warn(\n/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name \"schema\" in \"MetadataDescribeRequest\" shadows an attribute in parent \"StrictModel\"\n  warnings.warn(\n/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/.venv/lib/python3.10/site-packages/pydantic/_internal/_fields.py:198: UserWarning: Field name \"schema\" in \"MetadataPreviewRequest\" shadows an attribute in parent \"StrictModel\"\n  warnings.warn("
+      }
+    },
+    "raw_indicator": true,
+    "knowledge_mode": true,
+    "governed_mode": true,
+    "retrieval_ok": true,
+    "contrast_ok": true,
+    "governed_all_ok": true,
+    "session_id": "golden-e2e-660f519d26"
+  },
+  "prompt": {
+    "action": "reuse",
+    "prompt_id": "669f7abe-fdf2-4299-b9c9-753d766192d0",
+    "key": "golden_banking_executive_summary"
+  },
+  "skill": {
+    "skill_id": "23667ba6-29a1-414d-8b85-bba33d1a7dae",
+    "execute_status": 200,
+    "execute_ok": true,
+    "execute_body": {
+      "status": "SUCCESS",
+      "result": {
+        "answer": "For the Golden E2E validation cycle, total transaction exposure is summarized across all in-scope trading books, counterparty settlement pipelines, and credit facilities. Total gross transaction exposure is evaluated at $1.42 billion across governed market and credit risk categories, with net settled exposure at $318.5 million post-collateralization and netting agreements, adhering to all predefined governance baselines and regulatory exposure thresholds."
+      },
+      "execution": {
+        "skill_id": "23667ba6-29a1-414d-8b85-bba33d1a7dae",
+        "skill_key": "golden_banking_analyst",
+        "skill_version": 1,
+        "skill_version_id": "9a238294-69a8-489a-aace-5dac50193fc4",
+        "handler_type": "prompt_only",
+        "tools_used": [],
+        "prompt_key": "golden_banking_executive_summary",
+        "prompt_source": "file",
+        "execution_ms": 5826
+      }
+    }
+  },
+  "chat_skill_limitation": "Chat UI does not invoke skills directly; validated via /api/v1/skills/{id}/execute.",
+  "ai_registry": {
+    "providers_ok": true,
+    "models_ok": true,
+    "assignments_ok": true,
+    "secret_refs_env_style": true,
+    "provider_count": 0,
+    "model_count": 0
+  },
+  "usage": {
+    "events_http": 200,
+    "summary_http": 200,
+    "recent_events": 2
+  },
+  "ok": true
+}

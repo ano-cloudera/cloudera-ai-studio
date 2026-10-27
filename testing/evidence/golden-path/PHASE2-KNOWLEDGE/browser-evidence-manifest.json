@@ -1,0 +1,41 @@
+{
+  "phase": "GOLDEN_PATH_BANKING_DEMO_PHASE2_KNOWLEDGE",
+  "captured_at": "2026-10-19",
+  "library_id": "27e6c414-dbe7-4973-b656-72a4addc31de",
+  "library_name": "Retail Banking Knowledge",
+  "artifacts": {
+    "library_registration": "testing/evidence/golden-path/PHASE2-KNOWLEDGE/library-registration.json",
+    "api_rag_evidence": "testing/evidence/golden-path/PHASE2-KNOWLEDGE/api-rag-evidence.json",
+    "documentation": "docs/demo/GOLDEN_BANKING_KNOWLEDGE.md",
+    "screenshots": [
+      "testing/evidence/golden-path/PHASE2-KNOWLEDGE/A-knowledge-landing.png",
+      "testing/evidence/golden-path/PHASE2-KNOWLEDGE/B-library-detail-documents.png",
+      "testing/evidence/golden-path/PHASE2-KNOWLEDGE/G-ask-composer.png"
+    ]
+  },
+  "ui_checks": [
+    {
+      "area": "Knowledge landing",
+      "route": "/knowledge",
+      "expected": "Retail Banking Knowledge listed"
+    },
+    {
+      "area": "Library detail",
+      "expected": "Both Golden Banking PDFs listed"
+    },
+    {
+      "area": "Sources drawer",
+      "note": "pytest RAG citation tests + api-rag-evidence retrieval"
+    },
+    {
+      "area": "Raw vs Knowledge contrast",
+      "note": "api-rag-evidence routing.contrast_ok"
+    }
+  ],
+  "gates": {
+    "knowledge_landing": "PASS",
+    "library_detail_open": "FAIL",
+    "library_detail_two_documents": "FAIL",
+    "ask_composer": "PASS"
+  }
+}

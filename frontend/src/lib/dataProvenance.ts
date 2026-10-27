@@ -25,10 +25,14 @@ function proseWithoutTables(prose: string, tables: string[]): string | null {
   return note
 }
 
+const INTERNAL_DATA_REF =
+  /^(clarification_required|ask_data_scope|explicit structured context|no query result was used\.?)$/i
+
 export function parseDataProvenance(dataReference: string | null | undefined): DataProvenance | null {
   if (!dataReference?.trim()) return null
   const raw = dataReference.trim()
   if (/no governed query result attached/i.test(raw)) return null
+  if (INTERNAL_DATA_REF.test(raw)) return null
 
   const sources = uniqueTables(raw)
   const prose = proseWithoutSql(raw)
@@ -42,8 +46,18 @@ export function parseDataProvenance(dataReference: string | null | undefined): D
   return { note, sources }
 }
 
-export function mergeDataNotes(caveats: string[], provenance: DataProvenance | null): string | null {
-  const parts = [...caveats.map(item => item.trim()).filter(Boolean)]
+const INTERNAL_CAVEAT =
+  /^(metric_ambiguous|clarification_required|explicit_context_unavailable|unsupported_dimension|insufficient_context)$/i
+
+export function mergeDataNotes(
+  caveats: string[],
+  provenance: DataProvenance | null,
+  options?: { hideInternalCodes?: boolean },
+): string | null {
+  let parts = [...caveats.map(item => item.trim()).filter(Boolean)]
+  if (options?.hideInternalCodes) {
+    parts = parts.filter(item => !INTERNAL_CAVEAT.test(item))
+  }
   if (provenance?.note && !parts.some(part => part.includes(provenance.note!))) {
     parts.unshift(provenance.note)
   }

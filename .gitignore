@@ -1,6 +1,7 @@
 .env
 deployment/profiles/runtime-closure.env
 .venv/
+.venv.monorepo-symlink-backup-*/
 node_modules/
 .next/
 .tmp/

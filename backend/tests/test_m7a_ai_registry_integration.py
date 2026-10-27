@@ -94,12 +94,16 @@ def test_m7a_provider_model_assignment_crud(m7a_client):
     assert rag["source"] == "LEGACY_FALLBACK"
 
     del_model = client.delete(f"/api/v1/ai/models/{mid}")
-    assert del_model.status_code == 409
-    assert del_model.json()["detail"]["code"] == "MODEL_IN_USE"
+    assert del_model.status_code == 200
+    assert del_model.json()["deleted"] is True
+
+    listings_after = client.get("/api/v1/ai/assignments")
+    ask_after = next(a for a in listings_after.json()["assignments"] if a["capability"] == "ASK_DATA")
+    assert ask_after["source"] == "LEGACY_FALLBACK"
 
     del_provider = client.delete(f"/api/v1/ai/providers/{pid}")
-    assert del_provider.status_code == 409
-    assert del_provider.json()["detail"]["code"] == "PROVIDER_IN_USE"
+    assert del_provider.status_code == 200
+    assert del_provider.json()["deleted"] is True
 
 
 def test_m7a_provider_test_mocked(m7a_client):

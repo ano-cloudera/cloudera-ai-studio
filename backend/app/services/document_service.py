@@ -5,7 +5,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -107,11 +107,14 @@ class DocumentService:
         total = int(
             self._session.execute(select(func.count()).select_from(DocumentRow).where(*filters)).scalar_one()
         )
+        from app.db.json_helpers import json_int_field
+
+        chunk_count_sort = json_int_field(DocumentRow.metadata_json, "chunk_count")
         allowed_sort = {
             "original_filename": DocumentRow.original_filename,
             "mime_type": DocumentRow.mime_type,
             "size_bytes": DocumentRow.size_bytes,
-            "chunk_count": DocumentRow.chunk_count,
+            "chunk_count": chunk_count_sort,
             "status": DocumentRow.status,
             "created_at": DocumentRow.created_at,
             "updated_at": DocumentRow.updated_at,

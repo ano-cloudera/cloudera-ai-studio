@@ -18,6 +18,7 @@ from app.db.platform_models import (
     SemanticTermRow,
     SemanticVersionRow,
 )
+from app.semantic_registry.metric_metadata import resolve_allowed_dimension_keys_for_publish
 from app.semantic_registry.types import RuntimeArtifact
 
 
@@ -96,7 +97,14 @@ class OssieRuntimeAdapter(SemanticRuntimeAdapter):
         metric_docs: list[dict[str, Any]] = []
         for metric in metrics:
             entity_dims = dims_by_entity.get(metric.source_entity_key, [])
-            allowed_dimension_keys = [d.key for d in sorted(entity_dims, key=lambda d: d.key)]
+            entity_dimension_keys = [d.key for d in sorted(entity_dims, key=lambda d: d.key)]
+            allowed_dimension_keys = resolve_allowed_dimension_keys_for_publish(
+                metric_source_entity_key=metric.source_entity_key,
+                metric_metadata=metric.metadata_,
+                entity_dimension_keys=entity_dimension_keys,
+                dimensions=dimensions,
+                relationships=relationships,
+            )
             doc: dict[str, Any] = {
                 "name": metric.key,
                 "expression": {

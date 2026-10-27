@@ -46,6 +46,17 @@ def validate_ask_data_sql(
             return ValidatedSQL(False, error=f"Function not allowed: {normalized}")
 
     raw_policy = (state or {}).get("raw_table_policy") if isinstance(state, dict) else None
+    table_policies: dict[str, frozenset[str]] = {}
+    if isinstance(raw_policy, dict) and raw_policy.get("tables"):
+        for entry in raw_policy.get("tables") or []:
+            if not isinstance(entry, dict):
+                continue
+            qn = str(entry.get("qualified_name") or "")
+            if not qn:
+                continue
+            table_policies[normalize_table_key(qn)] = frozenset(
+                str(c).casefold() for c in (entry.get("columns") or []) if c
+            )
     ossie_source = _ossie_source_for_state(context, state)
     ctes = {cte.alias_or_name.casefold() for cte in root.find_all(exp.CTE)}
     aliases: dict[str, tuple[str, frozenset[str]]] = {}
@@ -60,17 +71,13 @@ def validate_ask_data_sql(
         if not table.db and not table.catalog and name.casefold() in ctes:
             continue
         if allowed_physical:
-            if normalize_table_key(name) not in allowed_physical:
+            key = normalize_table_key(name)
+            if key not in allowed_physical:
                 return ValidatedSQL(False, error=f"Table not allowed: {name}")
-            if isinstance(raw_policy, dict) and raw_policy.get("columns") is not None:
+            if table_policies and key in table_policies:
+                columns = table_policies[key]
+            elif isinstance(raw_policy, dict) and raw_policy.get("columns") is not None:
                 columns = frozenset(str(c).casefold() for c in raw_policy.get("columns") or [])
-                policy = TablePolicy(
-                    name=str(raw_policy.get("qualified_name") or name),
-                    domain="raw_table",
-                    columns=columns,
-                    time_columns=frozenset(),
-                    description="raw table context",
-                )
             else:
                 policy = context.table_policy(ossie_source) if ossie_source else None
                 if policy is None:
@@ -87,7 +94,7 @@ def validate_ask_data_sql(
         aliases[name.casefold()] = (name, columns)
     if physical_tables == 0:
         return ValidatedSQL(False, error="An approved table is required")
-    if physical_tables > 1:
+    if physical_tables > 1 and not (allowed_physical and physical_tables <= len(allowed_physical)):
         return ValidatedSQL(False, error="Runtime joins are not allowed; use a published cross-domain view")
 
     select_aliases = {alias.alias.casefold() for alias in root.find_all(exp.Alias) if alias.alias}

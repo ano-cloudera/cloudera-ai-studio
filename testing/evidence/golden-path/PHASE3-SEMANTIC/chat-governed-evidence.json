@@ -1,0 +1,66 @@
+{
+  "model_id": "99c7a9f3-6e47-403c-b3d6-988a11ff070a",
+  "scenarios": {
+    "total_amount": {
+      "question": "What is the total transaction amount?",
+      "status": "SUCCESS",
+      "context_mode": "GOVERNED_SEMANTIC",
+      "strategy": "governed",
+      "connector_type": "postgres",
+      "connector_name": "Banking PostgreSQL",
+      "row_count": 1,
+      "governed_sql": "SELECT SUM(amount) AS metric_value FROM banking_demo.transactions AS d ORDER BY metric_value DESC LIMIT 200",
+      "governed_metric": "total_transaction_amount",
+      "ok": true
+    },
+    "by_channel": {
+      "question": "Show total transaction amount by channel.",
+      "status": "SUCCESS",
+      "context_mode": "GOVERNED_SEMANTIC",
+      "strategy": "governed",
+      "connector_type": "postgres",
+      "connector_name": "Banking PostgreSQL",
+      "row_count": 1,
+      "governed_sql": "SELECT SUM(amount) AS metric_value FROM banking_demo.transactions AS d ORDER BY metric_value DESC LIMIT 200",
+      "governed_metric": "total_transaction_amount",
+      "ok": true
+    },
+    "segment_join": {
+      "question": "Which customer segment has the highest total transaction amount?",
+      "status": "SUCCESS",
+      "context_mode": "GOVERNED_SEMANTIC",
+      "strategy": "governed",
+      "connector_type": "postgres",
+      "connector_name": "Banking PostgreSQL",
+      "row_count": 1,
+      "governed_sql": "SELECT SUM(amount) AS metric_value FROM banking_demo.transactions AS d ORDER BY metric_value DESC LIMIT 200",
+      "governed_metric": "total_transaction_amount",
+      "ok": true
+    },
+    "failed_rate": {
+      "question": "What is the failed transaction rate?",
+      "status": "SUCCESS",
+      "context_mode": "GOVERNED_SEMANTIC",
+      "strategy": "governed",
+      "connector_type": "postgres",
+      "connector_name": "Banking PostgreSQL",
+      "row_count": 1,
+      "governed_sql": "SELECT AVG(CASE WHEN status = 'Failed' THEN 1.0 ELSE 0.0 END) AS metric_value FROM banking_demo.transactions AS d ORDER BY metric_value DESC LIMIT 200",
+      "governed_metric": "failed_transaction_rate",
+      "ok": true
+    },
+    "active_customers": {
+      "question": "How many active customers are there?",
+      "status": "SUCCESS",
+      "context_mode": "GOVERNED_SEMANTIC",
+      "strategy": "governed",
+      "connector_type": "postgres",
+      "connector_name": "Banking PostgreSQL",
+      "row_count": 1,
+      "governed_sql": "SELECT COUNT(DISTINCT CASE WHEN customer_status = 'Active' THEN customer_id END) AS metric_value FROM banking_demo.customers AS d ORDER BY metric_value DESC LIMIT 200",
+      "governed_metric": "active_customers",
+      "ok": true
+    }
+  },
+  "all_ok": true
+}

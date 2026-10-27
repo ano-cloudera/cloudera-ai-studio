@@ -5,6 +5,7 @@ export type ChatContextSourceType =
   | 'semantic_model'
   | 'semantic_entity'
   | 'semantic_metric'
+  | 'semantic_term'
 
 export type ChatContextSource = {
   type: ChatContextSourceType
@@ -20,6 +21,7 @@ const STRUCTURED_TYPES: ChatContextSourceType[] = [
   'semantic_model',
   'semantic_entity',
   'semantic_metric',
+  'semantic_term',
 ]
 
 export function knowledgeLibraryContext(library: { id: string; name: string }): ChatContextSource {
@@ -49,6 +51,8 @@ export function contextSourceChipLabel(source: ChatContextSource): string {
       return `@Semantic: ${source.name}`
     case 'semantic_entity':
       return `@Entity: ${source.name}`
+    case 'semantic_term':
+      return `@Term: ${source.name}`
     case 'knowledge_library':
       return source.name
     default:

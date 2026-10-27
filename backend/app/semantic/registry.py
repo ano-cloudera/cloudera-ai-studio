@@ -36,6 +36,25 @@ def _tokenize(value: str) -> set[str]:
     return {word for word in re.findall(r"[a-z0-9]+", value.casefold()) if word and word not in _STOPWORDS}
 
 
+# Registry-staged semantic models (banking demo, user-authored OSSIE): keep
+# "total"/"jumlah" for matching "total amount" style questions.
+_CATALOG_STOPWORDS = _STOPWORDS - frozenset({"total", "jumlah"})
+
+
+def _catalog_tokenize(value: str) -> set[str]:
+    return {word for word in re.findall(r"[a-z0-9]+", value.casefold()) if word and word not in _CATALOG_STOPWORDS}
+
+
+def _is_semantic_registry_catalog(metrics: dict[str, Any]) -> bool:
+    if not metrics:
+        return False
+    for key in metrics:
+        lowered = key.casefold()
+        if lowered.startswith("sat_") or "sell_in" in lowered or "sell_out" in lowered or lowered.startswith("gross_"):
+            return False
+    return True
+
+
 class TempoOssieRegistry:
     """Read-only registry for the official-root Apache Ossie model."""
 
@@ -57,6 +76,24 @@ class TempoOssieRegistry:
         self.metric_configs = {
             name: self.tempo_extension(metric) for name, metric in self.metrics.items()
         }
+        from app.semantic.runtime_extensions import (
+            apply_runtime_extensions,
+            resolve_runtime_extensions,
+        )
+
+        self.runtime_extensions = resolve_runtime_extensions(self.governance, self.datasets)
+        if self.runtime_extensions:
+            apply_runtime_extensions(
+                self.runtime_extensions,
+                datasets=self.datasets,
+                metrics=self.metrics,
+                dataset_fields=self.dataset_fields,
+            )
+        else:
+            self.runtime_extensions = None
+        for name, metric in self.metrics.items():
+            if name not in self.metric_configs:
+                self.metric_configs[name] = self.tempo_extension(metric)
         if validate_profile:
             self.validate()
         else:
@@ -148,11 +185,190 @@ class TempoOssieRegistry:
             raise ValueError("Invalid TEMPO Ossie registry:\n- " + "\n- ".join(errors))
 
     def metric_aliases(self, metric_name: str) -> list[str]:
+        from app.semantic.runtime_extensions import display_name_for_metric
+
         metric = self.metrics[metric_name]
         context = metric.get("ai_context", {})
-        values = [metric_name, metric.get("description", "")]
-        values.extend(context.get("synonyms", []) if isinstance(context, dict) else [])
+        values = [metric_name, metric_name.replace("_", " "), metric.get("description", "")]
+        display = display_name_for_metric(metric_name, self.runtime_extensions)
+        if display:
+            values.append(display)
+        if isinstance(context, dict):
+            if context.get("display_name"):
+                values.append(str(context["display_name"]))
+            values.extend(context.get("synonyms", []))
         return [str(value) for value in values if value]
+
+    def _metric_picker_clarification(self, question: str) -> dict[str, Any]:
+        from app.ask_data.metric_labels import humanize_metric_label
+
+        normalized = _normalize(question)
+        scored: list[tuple[int, str]] = []
+        for metric_name in self.metrics:
+            definition = self.metric_definition(metric_name)
+            score = 0
+            label_blob = " ".join(self.metric_aliases(metric_name)).casefold()
+            for tok in _catalog_tokenize(question):
+                if len(tok) >= 4 and tok in label_blob:
+                    score += 40
+            for alias in self.metric_aliases(metric_name):
+                if _normalize(alias) in normalized:
+                    score += 100
+            entity_hints: set[str] = set()
+            if any(term in normalized for term in ("customer", "nasabah", "pelanggan")):
+                entity_hints.add("customers")
+            if any(term in normalized for term in ("transaction", "transaksi")):
+                entity_hints.add("transactions")
+            dataset_name = str(self.metric_configs.get(metric_name, {}).get("base_dataset") or "")
+            if entity_hints and dataset_name in entity_hints:
+                score += 80
+            if score <= 0:
+                score = 1
+            scored.append((score, metric_name))
+        scored.sort(reverse=True)
+        top = scored[:4]
+        options: list[dict[str, str]] = []
+        for _, metric_name in top:
+            definition = self.metric_definition(metric_name)
+            label = humanize_metric_label(name=metric_name, definition=definition)
+            options.append({"type": "semantic_metric", "id": metric_name, "name": label})
+        return {
+            "status": "needs_clarification",
+            "reason": "metric_ambiguous",
+            "question": self.governance.get(
+                "unknown_metric_question",
+                "Metrik mana yang ingin Anda lihat? Pilih salah satu metric yang terdaftar di semantic layer.",
+            ),
+            "options": options,
+        }
+
+    def _resolve_semantic_registry_catalog_metric(self, question: str) -> dict[str, Any]:
+        normalized = _normalize(question)
+        question_tokens = _catalog_tokenize(question)
+        entity_hints: set[str] = set()
+        if any(term in normalized for term in ("customer", "customers", "nasabah", "pelanggan")):
+            entity_hints.add("customers")
+        if any(term in normalized for term in ("transaction", "transactions", "transaksi", "payment", "pembayaran")):
+            entity_hints.add("transactions")
+
+        has_amount_intent = any(
+            term in normalized for term in ("amount", "nominal", "nilai transaksi", "monetary", "revenue")
+        )
+        wants_total_tx_amount = (
+            "totaltransactionamount" in normalized
+            or (
+                "total" in normalized
+                and ("transaction" in normalized or "transaksi" in normalized)
+                and has_amount_intent
+            )
+        )
+        has_channel_intent = any(
+            term in normalized for term in ("channel", "saluran", "kanal")
+        )
+        wants_channel_rank = has_channel_intent and any(
+            term in normalized
+            for term in ("highest", "largest", "top", "terbesar", "tertinggi", "paling")
+        )
+
+        candidates: list[tuple[int, str, str]] = []
+        for metric_name in self.metrics:
+            config = self.metric_configs.get(metric_name, {})
+            dataset_name = str(config.get("base_dataset") or "")
+            score = 0
+            matched_alias = metric_name
+            mn_cf = metric_name.casefold()
+            expr_cf = str(config.get("expression") or "").casefold().replace(" ", "")
+            for alias in self.metric_aliases(metric_name):
+                normalized_alias = _normalize(alias)
+                alias_tokens = _catalog_tokenize(alias)
+                if normalized_alias and normalized_alias in normalized:
+                    score = max(score, 200 + len(normalized_alias))
+                    matched_alias = alias
+                elif alias_tokens and alias_tokens <= question_tokens:
+                    score = max(score, 120 + len(alias_tokens))
+                    matched_alias = alias
+                elif len(alias_tokens) == 1 and alias_tokens <= question_tokens:
+                    token = next(iter(alias_tokens))
+                    if len(token) >= 4:
+                        score = max(score, 80 + len(token))
+                        matched_alias = alias
+            if entity_hints and dataset_name in entity_hints:
+                score += 150
+            if has_amount_intent:
+                if "amount" in mn_cf or "sum(amount" in expr_cf:
+                    score += 220
+                if "customer_id" in mn_cf and "amount" not in mn_cf:
+                    score -= 200
+            if wants_total_tx_amount and ("amount" in mn_cf or metric_name == "total_amount"):
+                score += 280
+            if has_channel_intent:
+                if "amount" in mn_cf or "sum(amount" in expr_cf:
+                    score += 180
+                if "customer_id" in mn_cf and "amount" not in mn_cf:
+                    score -= 220
+            if wants_channel_rank and ("amount" in mn_cf or "sum(amount" in expr_cf):
+                score += 240
+            if "amount" in normalized and "amount" in mn_cf:
+                score += 60
+            if any(t in normalized for t in ("trend", "pertumbuhan", "per bulan", "bulanan", "monthly", "time series")):
+                if "transaction" in metric_name.casefold():
+                    score += 90
+                if "transaction_id" in metric_name.casefold():
+                    score += 40
+            if any(t in normalized for t in ("jumlah transaksi", "banyak transaksi", "count transaksi")):
+                if "transaction_id" in metric_name.casefold():
+                    score += 120
+                if "amount" in metric_name.casefold():
+                    score -= 40
+            from app.semantic.runtime_extensions import metric_resolver_score_bonus
+
+            score += metric_resolver_score_bonus(normalized, metric_name, self.runtime_extensions)
+            if score > 0:
+                candidates.append((score, metric_name, matched_alias))
+
+        if not candidates:
+            return self._metric_picker_clarification(question)
+
+        candidates.sort(reverse=True)
+        top_score, metric_name, alias = candidates[0]
+        runner_up = candidates[1][0] if len(candidates) > 1 else 0
+        wants_tx_count = entity_hints == {"transactions"} and any(
+            t in normalized
+            for t in (
+                "jumlah transaksi",
+                "banyak transaksi",
+                "count transaksi",
+                "trend",
+                "pertumbuhan",
+                "per bulan",
+                "bulanan",
+                "12 bulan",
+            )
+        )
+        if wants_tx_count:
+            tx_count = next(
+                (item for item in candidates if "transaction_id" in item[1].casefold()),
+                None,
+            )
+            if tx_count is not None:
+                _, metric_name, alias = tx_count
+                return {
+                    "status": "resolved",
+                    "metric": metric_name,
+                    "matched_alias": alias,
+                    "definition": self.metric_definition(metric_name),
+                    "dimension_mismatch": [],
+                }
+        if len(candidates) > 1 and top_score - runner_up < 25:
+            return self._metric_picker_clarification(question)
+
+        return {
+            "status": "resolved",
+            "metric": metric_name,
+            "matched_alias": alias,
+            "definition": self.metric_definition(metric_name),
+            "dimension_mismatch": [],
+        }
 
     def resolve_ambiguity(self, question: str) -> dict[str, Any] | None:
         normalized = _normalize(question)
@@ -568,6 +784,9 @@ class TempoOssieRegistry:
         ambiguity = self.resolve_ambiguity(question)
         if ambiguity:
             return ambiguity
+
+        if _is_semantic_registry_catalog(self.metrics):
+            return self._resolve_semantic_registry_catalog_metric(question)
 
         normalized = _normalize(question)
         mentions_stock = any(term in normalized for term in ("stock", "stok", "inventory", "persediaan"))

@@ -33,7 +33,7 @@ def test_qualified_names() -> None:
         schema="public",
         table_name="sales_monthly",
         view_name=None,
-    ) == "public.`sales_monthly`"
+    ) == "public.sales_monthly"
 
 
 def test_trino_requires_catalog_schema() -> None:

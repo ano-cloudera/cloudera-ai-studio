@@ -1,5 +1,5 @@
 import type { ChatResponse } from '../types/api'
-import { shouldOpenAnalysisPanel } from './analysisArtifact'
+import { computePresentationTier, shouldAutoOpenAnalysisPanel } from './presentationTier'
 
 export type ReportSection = {
   id: string
@@ -17,7 +17,9 @@ export function reportSectionTitle(response: ChatResponse): string {
 
 export function reportSectionsFromMessages(
   messages: { role: string; content: string; response?: ChatResponse }[],
+  options?: { pinnedRequestIds?: string[] },
 ): ReportSection[] {
+  const pinned = new Set(options?.pinnedRequestIds ?? [])
   const sections: ReportSection[] = []
   let lastUser = ''
   for (let i = 0; i < messages.length; i += 1) {
@@ -29,13 +31,20 @@ export function reportSectionsFromMessages(
     if (message.role !== 'assistant' || !message.response) continue
     if (message.response.status !== 'SUCCESS') continue
     if (!responseHasReportEvidence(message.response)) continue
+    const id = message.response.request_id || `turn-${i}`
+    const tier = computePresentationTier(message.response)
+    if (tier !== 3 && !pinned.has(id)) continue
     sections.push({
-      id: message.response.request_id || `turn-${i}`,
+      id,
       userQuestion: lastUser,
       response: message.response,
     })
   }
   return sections
+}
+
+export function canOpenAnalysisWorkspace(response: ChatResponse): boolean {
+  return response.status === 'SUCCESS' && responseHasReportEvidence(response)
 }
 
 export function responseHasReportEvidence(response: ChatResponse): boolean {
@@ -51,5 +60,5 @@ export function responseHasReportEvidence(response: ChatResponse): boolean {
 }
 
 export function responseQualifiesForReportPanel(response: ChatResponse): boolean {
-  return shouldOpenAnalysisPanel(response)
+  return shouldAutoOpenAnalysisPanel(response)
 }

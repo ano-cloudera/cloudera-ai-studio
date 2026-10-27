@@ -1,10 +1,28 @@
 import type { SemanticOverviewPayload } from '../../types/api'
 import { formatSemanticModifiedCompact } from './authoring/semanticFormat'
-import { RecentDefinitionsPanel } from './authoring/RecentDefinitionsPanel'
+import { SemanticOverviewChecklist } from './SemanticOverviewChecklist'
+
+type OverviewNavTab = 'entities' | 'metrics' | 'dimensions' | 'relationships' | 'glossary' | 'preview' | 'publish_config'
 
 type Props = {
   overview: SemanticOverviewPayload | null
-  versionId: string | null
+  editingDraftVersionNumber?: number | null
+  showWelcomeChecklist?: boolean
+  isEditable?: boolean
+  previewReviewed?: boolean
+  publishComplete?: boolean
+  metricsWithExplicitBreakdown?: number
+  publishIssueCount?: number
+  onDismissWelcome?: () => void
+  onNavigateTab?: (tab: OverviewNavTab) => void
+}
+
+const SUMMARY_CARD_TABS: Record<string, OverviewNavTab> = {
+  'Data Models': 'entities',
+  Metrics: 'metrics',
+  Dimensions: 'dimensions',
+  Relationships: 'relationships',
+  'Glossary terms': 'glossary',
 }
 
 function CompactReadiness({ issueCount }: { issueCount: number }) {
@@ -24,7 +42,18 @@ function CompactReadiness({ issueCount }: { issueCount: number }) {
   )
 }
 
-export function SemanticOverviewPanel({ overview, versionId }: Props) {
+export function SemanticOverviewPanel({
+  overview,
+  editingDraftVersionNumber = null,
+  showWelcomeChecklist = false,
+  isEditable = false,
+  previewReviewed = false,
+  publishComplete = false,
+  metricsWithExplicitBreakdown = 0,
+  publishIssueCount = 0,
+  onDismissWelcome,
+  onNavigateTab,
+}: Props) {
   const counts = overview?.counts
   const summaryCards = [
     ['Data Models', counts?.entities ?? 0],
@@ -38,8 +67,12 @@ export function SemanticOverviewPanel({ overview, versionId }: Props) {
   if (overview?.model.updated_at) {
     metadataParts.push(`Last modified ${formatSemanticModifiedCompact(overview.model.updated_at)}`)
   }
-  if (overview?.published_version_number != null) {
+  if (editingDraftVersionNumber != null) {
+    metadataParts.push(`Editing draft v${editingDraftVersionNumber}`)
+  } else if (overview?.published_version_number != null) {
     metadataParts.push(`Published v${overview.published_version_number}`)
+  } else if (overview?.draft_version_number != null) {
+    metadataParts.push(`Draft v${overview.draft_version_number}`)
   }
 
   return (
@@ -55,20 +88,51 @@ export function SemanticOverviewPanel({ overview, versionId }: Props) {
         className="grid grid-cols-2 gap-2 lg:grid-cols-5"
         data-testid="semantic-overview-summary"
       >
-        {summaryCards.map(([label, value]) => (
-          <div
-            key={label}
-            className="flex h-[88px] flex-col justify-between rounded-md border border-slate-100 bg-slate-50/80 px-2.5 py-2"
-          >
-            <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
-            <div className="text-2xl font-semibold leading-none text-cloudera-navy">{value}</div>
-          </div>
-        ))}
+        {summaryCards.map(([label, value]) => {
+          const targetTab = onNavigateTab ? SUMMARY_CARD_TABS[label] : undefined
+          const inner = (
+            <>
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+              <div className="text-2xl font-semibold leading-none text-cloudera-navy">{value}</div>
+            </>
+          )
+          return targetTab ? (
+            <button
+              key={label}
+              type="button"
+              className="flex h-[88px] flex-col justify-between rounded-md border border-slate-100 bg-slate-50/80 px-2.5 py-2 text-left transition hover:border-violet-200 hover:bg-violet-50/40"
+              onClick={() => onNavigateTab!(targetTab)}
+            >
+              {inner}
+            </button>
+          ) : (
+            <div
+              key={label}
+              className="flex h-[88px] flex-col justify-between rounded-md border border-slate-100 bg-slate-50/80 px-2.5 py-2"
+            >
+              {inner}
+            </div>
+          )
+        })}
       </div>
 
-      <div className="mt-1 flex flex-col overflow-visible rounded-lg border border-slate-200 bg-white shadow-sm" data-testid="semantic-recent-definitions-section">
-        <RecentDefinitionsPanel versionId={versionId} />
-      </div>
+      {onNavigateTab ? (
+        <SemanticOverviewChecklist
+          welcome={showWelcomeChecklist}
+          isEditable={isEditable}
+          entityCount={counts?.entities ?? 0}
+          metricCount={counts?.metrics ?? 0}
+          dimensionCount={counts?.dimensions ?? 0}
+          relationshipCount={counts?.relationships ?? 0}
+          termCount={counts?.terms ?? 0}
+          metricsWithExplicitBreakdown={metricsWithExplicitBreakdown}
+          publishIssueCount={publishIssueCount}
+          previewReviewed={previewReviewed}
+          publishComplete={publishComplete}
+          onGoTo={onNavigateTab}
+          onDismissWelcome={onDismissWelcome}
+        />
+      ) : null}
     </div>
   )
 }

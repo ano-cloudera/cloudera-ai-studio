@@ -16,7 +16,10 @@ vi.mock('../../lib/api', () => ({
       models: [{ id: 'm1', workspace_id: 'w1', project_id: 'p1', name: 'Commercial', key: 'commercial', description: null, active_version_id: 'v1', created_at: '', updated_at: '' }],
     }),
     listSemanticVersions: vi.fn().mockResolvedValue({
-      versions: [{ id: 'v-draft', semantic_model_id: 'm1', version_number: 2, status: 'DRAFT', created_by: null, created_at: '', updated_at: '', published_at: null, runtime_adapter: null, runtime_artifact_uri: null, runtime_artifact_checksum: null, runtime_artifact_version: null }],
+      versions: [
+        { id: 'v-draft', semantic_model_id: 'm1', version_number: 2, status: 'DRAFT', created_by: null, created_at: '', updated_at: '', published_at: null, runtime_adapter: null, runtime_artifact_uri: null, runtime_artifact_checksum: null, runtime_artifact_version: null },
+        { id: 'v-active', semantic_model_id: 'm1', version_number: 1, status: 'ACTIVE', created_by: null, created_at: '', updated_at: '', published_at: '', runtime_adapter: 'ossie', runtime_artifact_uri: null, runtime_artifact_checksum: null, runtime_artifact_version: null },
+      ],
     }),
     getSemanticModelOverview: vi.fn().mockResolvedValue({
       model: { id: 'm1', name: 'Commercial', key: 'commercial', updated_at: null },
@@ -36,7 +39,7 @@ vi.mock('../../lib/api', () => ({
     listConnectors: vi.fn().mockResolvedValue({ connectors: [] }),
     getSemanticValidatorHealth: vi.fn().mockResolvedValue({ impala: { status: 'ok', label: 'Impala' }, trino: { status: 'ok', label: 'Trino' } }),
     listSemanticValidationRuns: vi.fn().mockResolvedValue({ runs: [] }),
-    getSemanticRuntimeStatus: vi.fn().mockResolvedValue({ registry_active_version: 1, runtime_active_version: 1, runtime_status: 'ok', loader_mode: 'runtime', deployment: null }),
+    getSemanticRuntimeStatus: vi.fn().mockResolvedValue({ registry_active_version: 1, runtime_active_version: null, runtime_status: 'ok', loader_mode: 'runtime', deployment: null }),
     listSemanticRuntimeDeployments: vi.fn().mockResolvedValue({ deployments: [] }),
     publishSemanticToAskData: vi.fn(),
     listSemanticRecentDefinitions: vi.fn().mockResolvedValue({ definitions: [], total: 0, page: 1, page_size: 10 }),
@@ -60,11 +63,13 @@ describe('SEM-FE2 Phase 2 UX', () => {
     expect(screen.queryByText(/Legacy OSSIE/i)).toBeNull()
   })
 
-  it('SEM-FE2-003 Advanced contains Model Health', async () => {
+  it('SEM-FE2-003 Preview and version history are top-level tabs', async () => {
     render(<SemanticLayerPage />)
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Advanced ▾' })).toBeTruthy())
-    fireEvent.click(screen.getByRole('button', { name: 'Advanced ▾' }))
-    expect(screen.getAllByText('Model health').length).toBeGreaterThan(0)
+    await waitFor(() => expect(screen.getByTestId('semantic-tab-preview')).toBeTruthy())
+    fireEvent.click(screen.getByTestId('semantic-tab-preview'))
+    expect(screen.getByTestId('semantic-preview-tab-panel')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('semantic-tab-version-history'))
+    expect(screen.getByTestId('semantic-version-history-tab-panel')).toBeTruthy()
   })
 
   it('SEM-FE2-023 dirty-state custom modal', () => {
@@ -75,9 +80,46 @@ describe('SEM-FE2 Phase 2 UX', () => {
     expect(onDiscard).toHaveBeenCalled()
   })
 
-  it('SEM-FE2-027 publish button visible', async () => {
+  it('SEM-FE2-027 publish button visible when runtime needs activation', async () => {
     render(<SemanticLayerPage />)
-    await waitFor(() => expect(screen.getAllByText('Publish to Ask Data').length).toBeGreaterThan(0))
+    await waitFor(() => expect(screen.getByTestId('semantic-tab-publish-config')).toBeTruthy())
+    fireEvent.click(screen.getByTestId('semantic-tab-publish-config'))
+    await waitFor(() => expect(screen.getByTestId('semantic-save-publish')).toBeTruthy())
+    expect((screen.getByTestId('semantic-save-publish') as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('SEM-FE2-027b publish button hidden when runtime matches registry', async () => {
+    const { api } = await import('../../lib/api')
+    vi.mocked(api.listSemanticVersions).mockResolvedValue({
+      versions: [
+        {
+          id: 'v-active',
+          semantic_model_id: 'm1',
+          version_number: 1,
+          status: 'ACTIVE',
+          created_by: null,
+          created_at: '',
+          updated_at: '',
+          published_at: '',
+          runtime_adapter: 'ossie',
+          runtime_artifact_uri: null,
+          runtime_artifact_checksum: null,
+          runtime_artifact_version: null,
+        },
+      ],
+    })
+    vi.mocked(api.getSemanticRuntimeStatus).mockResolvedValue({
+      registry_active_version: 1,
+      runtime_active_version: 1,
+      runtime_status: 'ok',
+      loader_mode: 'runtime',
+      deployment: null,
+    })
+    render(<SemanticLayerPage />)
+    await waitFor(() => expect(screen.getByTestId('semantic-tab-publish-config')).toBeTruthy())
+    fireEvent.click(screen.getByTestId('semantic-tab-publish-config'))
+    await waitFor(() => expect(screen.getByTestId('semantic-save-publish')).toBeTruthy())
+    expect((screen.getByTestId('semantic-save-publish') as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('SEM-FE2-030 raw-data chat badge', () => {
@@ -85,13 +127,13 @@ describe('SEM-FE2 Phase 2 UX', () => {
       context_mode: 'RAW_TABLE',
       clarification: { reason: 'x', message: 'm', options: [{ type: 'table', id: '1', name: 'public.sales' }] },
     } as ChatResponse
-    render(<ContextModeBadge response={response} />)
+    render(<ContextModeBadge response={response} executive={false} />)
     expect(screen.getByText(/Raw data/)).toBeTruthy()
   })
 
   it('SEM-FE2-031 governed-semantic chat badge', () => {
     const response = { context_mode: 'GOVERNED_SEMANTIC', data: { governed_metric: 'total_sales' } } as ChatResponse
-    render(<ContextModeBadge response={response} />)
+    render(<ContextModeBadge response={response} executive={false} />)
     expect(screen.getByText(/Governed semantic/)).toBeTruthy()
   })
 

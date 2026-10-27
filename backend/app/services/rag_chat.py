@@ -23,7 +23,9 @@ RAG_PROGRESS = (
 
 
 def _postgres_ready(settings: Settings) -> bool:
-    return settings.state_store.strip().lower() == "postgres" and bool((settings.database_url or "").strip())
+    from app.db.metadata_db import platform_metadata_configured
+
+    return platform_metadata_configured(settings)
 
 
 def _unsupported_message() -> AnalysisOutput:

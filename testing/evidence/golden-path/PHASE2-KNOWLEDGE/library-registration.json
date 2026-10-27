@@ -1,0 +1,18 @@
+{
+  "library_id": "27e6c414-dbe7-4973-b656-72a4addc31de",
+  "library_name": "Retail Banking Knowledge",
+  "documents": [
+    {
+      "id": "490b0e5a-f83b-45bc-83d7-eaa46db421c3",
+      "filename": "Customer Segment and Risk Guide.pdf",
+      "status": "READY",
+      "chunk_count": 2
+    },
+    {
+      "id": "40dcf207-2f4b-477f-9a70-d2b64b0e9025",
+      "filename": "Retail Banking Transaction Policy.pdf",
+      "status": "READY",
+      "chunk_count": 2
+    }
+  ]
+}

@@ -38,8 +38,8 @@ export function TableHeaderCheckbox({ state, onToggle }: HeaderProps) {
       ref={input => {
         if (input) input.indeterminate = state === 'indeterminate'
       }}
-      aria-label="Select all rows on this page"
-      title="Select all rows on this page"
+      aria-label="Select all rows"
+      title="Select all rows"
       onClick={event => event.stopPropagation()}
       onChange={event => {
         event.stopPropagation()

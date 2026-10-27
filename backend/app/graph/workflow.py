@@ -255,10 +255,13 @@ def build_workflow(deps: WorkflowDependencies):
         intent = await _conversational_intent(state)
         intent_payload = intent.model_dump()
         if intent.is_conversational:
+            starters = state.get("capability_starter_questions")
+            configured_starters = starters if isinstance(starters, list) and starters else None
             guidance = deps.semantic_context.guidance_context(
                 original_question,
                 session_last_metric=state.get("session_last_metric"),
                 session_capability_hint=state.get("session_capability_hint"),
+                configured_starters=configured_starters,
             )
             first_turn = not bool(state.get("conversation_history"))
             if intent.rationale == "concept_sell_in_vs_sell_out":
@@ -317,12 +320,15 @@ def build_workflow(deps: WorkflowDependencies):
                     answer = AnalysisOutput.model_validate(deterministic_promo_uplift_proxy_explain())
                 else:
                     answer = AnalysisOutput(
-                        direct_answer="Halo! Senang bisa bantu 👋",
-                        executive_summary="Saya siap membantu analisis data komersial TEMPO untuk periode Q4 2024.",
+                        direct_answer="Halo! Saya asisten Ask Data Cloudera AI Studio.",
+                        executive_summary=(
+                            "Saya menjawab pertanyaan bisnis menggunakan semantic model dan metric "
+                            "yang dipublish. Ajukan pertanyaan spesifik setelah memilih @Semantic model."
+                        ),
                         insights=[],
                         business_implications=[],
-                        caveats=["Cakupan data tersedia untuk Oktober–Desember 2024."],
-                        data_reference="TEMPO governed capability catalog.",
+                        caveats=["Tidak ada query di turn ini."],
+                        data_reference="Published semantic model capability catalog.",
                         chart_spec=None,
                     )
             if intent.attach_domain_catalog:
@@ -442,7 +448,7 @@ def build_workflow(deps: WorkflowDependencies):
             from app.projects.resolver import load_default_project
 
             with deps.session_factory() as session:
-                project = load_default_project(deps.settings, session=session)
+                project = load_default_project(deps.settings)
             if project:
                 workspace_id = project.workspace_id
                 project_id = project.id
@@ -502,6 +508,7 @@ def build_workflow(deps: WorkflowDependencies):
         resolution = state["semantic_resolution"]
         partial_caveats: list[str] = []
         entity_lookup = False
+        runtime_join_patch: dict[str, Any] = {}
         if resolution.get("status") == "raw_table":
             raw = resolution.get("raw_table") if isinstance(resolution.get("raw_table"), dict) else {}
             qualified = str(raw.get("qualified_name") or "")
@@ -510,6 +517,27 @@ def build_workflow(deps: WorkflowDependencies):
 
             ds_ctx = DatasourceExecutionContext.from_dict(state.get("datasource_context"))
             dialect = ds_ctx.dialect if ds_ctx else "hive"
+            raw_policy = state.get("raw_table_policy") if isinstance(state.get("raw_table_policy"), dict) else {}
+            companion_tables = raw_policy.get("tables") if isinstance(raw_policy.get("tables"), list) else []
+            allowed_tables = [
+                str(entry.get("qualified_name"))
+                for entry in companion_tables
+                if isinstance(entry, dict) and entry.get("qualified_name")
+            ]
+            if not allowed_tables:
+                allowed_tables = [qualified] if qualified else []
+            rules = [
+                "Use strategy sql_fallback with a single SELECT or WITH query.",
+                "Do not use INSERT, UPDATE, DELETE, DDL, or multiple statements.",
+            ]
+            if len(allowed_tables) > 1:
+                rules.append(
+                    "You may JOIN only among these qualified tables: "
+                    + ", ".join(allowed_tables)
+                    + ". Use explicit column lists (no SELECT *)."
+                )
+            else:
+                rules.append(f"Query only from {qualified} (alias d).")
             try:
                 plan = await _provider(state, deps).generate_structured(
                     [
@@ -524,12 +552,9 @@ def build_workflow(deps: WorkflowDependencies):
                                         "qualified_name": qualified,
                                         "columns": columns,
                                         "dialect": dialect,
+                                        "allowed_tables": allowed_tables,
                                     },
-                                    "rules": [
-                                        "Use strategy sql_fallback with a single SELECT or WITH query.",
-                                        f"Query only from {qualified} (alias d).",
-                                        "Do not use INSERT, UPDATE, DELETE, DDL, or multiple statements.",
-                                    ],
+                                    "rules": rules,
                                 },
                                 ensure_ascii=False,
                             ),
@@ -632,6 +657,18 @@ def build_workflow(deps: WorkflowDependencies):
                 metrics=[metric],
                 sql=governed_sql,
             )
+            from app.semantic.runtime_extensions import governed_join_state_patch
+
+            join_patch = governed_join_state_patch(
+                extensions=deps.semantic_context.registry.runtime_extensions,
+                datasets=deps.semantic_context.registry.datasets,
+                sql=governed_sql,
+                datasource_context=state.get("datasource_context")
+                if isinstance(state.get("datasource_context"), dict)
+                else None,
+            )
+            if join_patch:
+                runtime_join_patch = join_patch
             if getattr(deps.semantic_context, "_registry_runtime", False):
                 from app.ask_data.intent_satisfaction import validate_governed_sql_covers_intent
 
@@ -713,6 +750,7 @@ def build_workflow(deps: WorkflowDependencies):
         )
         update: AskDataState = {
             **state,
+            **runtime_join_patch,
             "strategy": plan.strategy,
             "query_plan": plan.model_dump(),
             "sql": plan.sql or "",
@@ -959,6 +997,8 @@ def build_workflow(deps: WorkflowDependencies):
         }
         if state.get("judge_synthesis_hint"):
             user_payload["reviewer_hint"] = state["judge_synthesis_hint"]
+        if state.get("ask_data_space_instructions"):
+            user_payload["space_instructions"] = state["ask_data_space_instructions"]
         if state.get("strategy") == "history_only_analysis":
             user_payload["history_only_analysis"] = True
             user_payload["prior_turn"] = (resolution or {}).get("prior_turn")
@@ -1036,10 +1076,28 @@ def build_workflow(deps: WorkflowDependencies):
                 "chart_spec": None,
                 "timings": _with_timing(state, "analysis_ms", _elapsed(started)),
             }
+        from app.ask_data.chart_inference import infer_chart_spec_from_result, repair_chart_spec
+
+        columns_list = list(state["query_result"].get("columns") or [])
+        columns = set(columns_list)
+        rows = state["query_result"].get("rows") or []
         chart = analysis.chart_spec
-        columns = set(state["query_result"].get("columns", []))
+        chart = repair_chart_spec(chart, columns=columns_list, rows=rows)
+        if chart is None and rows:
+            chart = infer_chart_spec_from_result(
+                columns=columns_list,
+                rows=rows,
+                title=(analysis.chart_spec.title if analysis.chart_spec else None)
+                or str(state.get("question") or "")[:80],
+                question=str(state.get("question") or ""),
+            )
+        if chart and any(field and field not in columns for field in (chart.x, chart.y, chart.series)):
+            chart = repair_chart_spec(chart, columns=columns_list, rows=rows)
         if chart and any(field and field not in columns for field in (chart.x, chart.y, chart.series)):
             chart = None
+        if chart is not None:
+            analysis = analysis.model_copy(update={"chart_spec": chart})
+        elif analysis.chart_spec is not None:
             analysis = analysis.model_copy(update={"chart_spec": None})
         # Always override data_reference with just the view name(s) parsed
         # from the executed SQL - never trust the model to keep the raw

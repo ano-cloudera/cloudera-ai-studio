@@ -1,0 +1,28 @@
+version: 0.2.0.dev0
+name: registry_v4
+description: Generated from PostgreSQL Semantic Registry (preview)
+ai_context:
+  instructions: Generated artifact — do not edit manually.
+  synonyms:
+  - Gate Term
+datasets:
+- name: entity_1
+  source: ''
+  primary_key: []
+  description: entity_1
+  fields: []
+- name: entity_2
+  source: ''
+  primary_key: []
+  description: entity_2
+  fields: []
+relationships:
+- name: relationship_1
+  from: entity_1
+  to: entity_2
+  relationship_type: many_to_one
+  join_type: inner
+  join_expression: a.id = b.id
+  description: null
+metrics: []
+_registry_terms_count: 22

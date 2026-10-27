@@ -1,0 +1,117 @@
+{
+  "model_id": "99c7a9f3-6e47-403c-b3d6-988a11ff070a",
+  "scenarios": {
+    "tier1_active_customers": {
+      "question": "How many active customers are there?",
+      "http_status": 200,
+      "status": "ERROR",
+      "presentation_tier": null,
+      "context_mode": null,
+      "row_count": 0,
+      "chart_type": null,
+      "governed_sql_preview": "",
+      "ok": false,
+      "errors": [
+        "status='ERROR' expected 'SUCCESS'",
+        "row_count=0 < min_rows=1",
+        "missing governed_sql",
+        "governed_sql missing 'COUNT'",
+        "context_mode=None expected 'GOVERNED_SEMANTIC'",
+        "connector_type=None expected 'postgres'"
+      ]
+    },
+    "tier1_active_customers_id": {
+      "question": "Berapa jumlah nasabah aktif saat ini?",
+      "http_status": 200,
+      "status": "ERROR",
+      "presentation_tier": null,
+      "context_mode": null,
+      "row_count": 0,
+      "chart_type": null,
+      "governed_sql_preview": "",
+      "ok": false,
+      "errors": [
+        "status='ERROR' expected 'SUCCESS'",
+        "row_count=0 < min_rows=1",
+        "missing governed_sql",
+        "governed_sql missing 'COUNT'",
+        "governed_sql missing 'customer'",
+        "context_mode=None expected 'GOVERNED_SEMANTIC'",
+        "connector_type=None expected 'postgres'"
+      ]
+    },
+    "tier2_by_channel": {
+      "question": "Show total transaction amount by channel.",
+      "http_status": 200,
+      "status": "ERROR",
+      "presentation_tier": null,
+      "context_mode": null,
+      "row_count": 0,
+      "chart_type": null,
+      "governed_sql_preview": "",
+      "ok": false,
+      "errors": [
+        "status='ERROR' expected 'SUCCESS'",
+        "row_count=0 < min_rows=2",
+        "missing governed_sql",
+        "governed_sql missing 'GROUP BY'",
+        "governed_sql missing 'channel'",
+        "context_mode=None expected 'GOVERNED_SEMANTIC'",
+        "connector_type=None expected 'postgres'"
+      ]
+    },
+    "tier3_rank_segments": {
+      "question": "Top 10 customer segments by total transaction amount.",
+      "http_status": 200,
+      "status": "ERROR",
+      "presentation_tier": null,
+      "context_mode": null,
+      "row_count": 0,
+      "chart_type": null,
+      "governed_sql_preview": "",
+      "ok": false,
+      "errors": [
+        "status='ERROR' expected 'SUCCESS'",
+        "row_count=0 < min_rows=1",
+        "missing governed_sql",
+        "governed_sql missing 'segment'",
+        "context_mode=None expected 'GOVERNED_SEMANTIC'",
+        "connector_type=None expected 'postgres'"
+      ]
+    },
+    "tier3_monthly_transactions_id": {
+      "question": "Tampilkan jumlah transaksi per bulan (12 bulan terakhir).",
+      "http_status": 200,
+      "status": "ERROR",
+      "presentation_tier": null,
+      "context_mode": null,
+      "row_count": 0,
+      "chart_type": null,
+      "governed_sql_preview": "",
+      "ok": false,
+      "errors": [
+        "status='ERROR' expected 'SUCCESS'",
+        "row_count=0 < min_rows=2",
+        "missing governed_sql",
+        "governed_sql missing 'transaction'",
+        "context_mode=None expected 'GOVERNED_SEMANTIC'",
+        "connector_type=None expected 'postgres'"
+      ]
+    },
+    "guardrail_python_ml": {
+      "question": "bisa bantu keluarkan contoh python code untuk bikin machine learning ?",
+      "http_status": 200,
+      "status": "ERROR",
+      "presentation_tier": null,
+      "context_mode": null,
+      "row_count": 0,
+      "chart_type": null,
+      "governed_sql_preview": "",
+      "ok": false,
+      "errors": [
+        "status='ERROR' expected 'UNSUPPORTED'"
+      ]
+    }
+  },
+  "all_ok": false
+}

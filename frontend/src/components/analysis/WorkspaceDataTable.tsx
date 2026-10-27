@@ -107,7 +107,7 @@ export function WorkspaceDataTable({ title, columns, rows, metric, unitFormat, r
       <h4 className="text-base font-semibold leading-snug text-cloudera-navy">{title}</h4>
       <div className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
         <div className="scrollbar-pane max-h-[min(520px,60vh)] overflow-auto">
-          <table className="min-w-full text-left text-sm">
+          <table className="app-data-table min-w-full">
             <thead className="app-table-head sticky top-0 z-[1] backdrop-blur-sm">
               <tr>
                 {displayColumns.map(column => {

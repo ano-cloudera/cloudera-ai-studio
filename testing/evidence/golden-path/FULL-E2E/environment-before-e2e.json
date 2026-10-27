@@ -1,0 +1,5 @@
+{
+  "backend_ready": true,
+  "qdrant_ready": true,
+  "sqlite": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim/metadata/studio.db"
+}

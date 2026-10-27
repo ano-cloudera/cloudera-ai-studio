@@ -53,6 +53,28 @@ export const api = {
   },
   models: () => request<{ models: ModelInfo[] }>('/models'),
   randomQueries: (limit = 1) => request<{ questions: SuggestedQuestion[] }>(`/random-queries?limit=${limit}`),
+  askDataStarters: () => request<import('../types/api').AskDataStartersResponse>('/v1/ask-data/starters'),
+  askDataPresentationConfig: () =>
+    request<{ workspace_slug: string; presentation: import('./presentationTierConfig').PresentationTierConfig }>(
+      '/v1/ask-data/presentation-config',
+    ),
+  getAskDataSettings: () =>
+    request<{ settings: import('../types/api').AskDataSettingsPayload; workspace_slug: string }>(
+      '/v1/ask-data/settings',
+    ),
+  putAskDataSettings: (body: import('../types/api').AskDataSettingsPayload) =>
+    request<{ settings: import('../types/api').AskDataSettingsPayload; workspace_slug: string }>(
+      '/v1/ask-data/settings',
+      { method: 'PUT', body: JSON.stringify(body) },
+    ),
+  getAskDataSemanticCatalog: () =>
+    request<import('../types/api').AskDataSemanticCatalogResponse>('/v1/ask-data/semantic-catalog'),
+  postAskDataFeedback: (body: {
+    request_id: string
+    session_id: string
+    rating: 'up' | 'down'
+    comment?: string
+  }) => request<{ ok: boolean }>('/v1/ask-data/feedback', { method: 'POST', body: JSON.stringify(body) }),
   usageSummary: (params: { days?: number; mtd?: boolean } = {}) => {
     const q = new URLSearchParams()
     if (params.mtd) q.set('mtd', 'true')
@@ -297,6 +319,11 @@ export const api = {
   cloneSemanticVersion: (versionId: string) =>
     request<{ version: import('../types/api').SemanticVersionRecord }>(
       `/v1/semantic/versions/${encodeURIComponent(versionId)}/clone`,
+      { method: 'POST' },
+    ),
+  discardSemanticDraftVersion: (versionId: string) =>
+    request<{ discarded: boolean; semantic_model_id: string; version_number: number }>(
+      `/v1/semantic/versions/${encodeURIComponent(versionId)}/discard`,
       { method: 'POST' },
     ),
   validateSemanticVersion: (

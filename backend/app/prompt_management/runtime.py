@@ -22,7 +22,9 @@ def prompt_runtime(settings: Settings, workspace_id: uuid.UUID | None, project_i
     session: Session | None = None
     sess_token: Token | None = None
     url = (settings.database_url or "").strip()
-    if settings.state_store.strip().lower() == "postgres" and url:
+    from app.db.metadata_db import platform_metadata_configured
+
+    if platform_metadata_configured(settings) and url:
         session = get_session_factory(url)()
         sess_token = set_resolver_session(session)
     try:

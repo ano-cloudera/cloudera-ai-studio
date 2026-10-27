@@ -1,0 +1,14 @@
+{
+  "phase": "after",
+  "counts": {
+    "conversations": 12,
+    "messages": 12,
+    "prompts": 0,
+    "skills": 0,
+    "connectors": 6,
+    "libraries": 8,
+    "documents": 14,
+    "usage_events": 0,
+    "ai_providers": 0
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "api_base": "http://127.0.0.1:8001",
+  "sqlite_path": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim/metadata/studio.db",
+  "documents": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim/documents",
+  "semantic": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim/semantic",
+  "health_code": 200,
+  "ready_code": 200,
+  "ready": {
+    "status": "ready",
+    "core_ready": true,
+    "feature_gaps": [],
+    "components": {
+      "backend": {
+        "status": "ready"
+      },
+      "accelerator_version": "1.0.0-m6",
+      "deployment_profile": "local",
+      "feature_profile": "FULL_ACCELERATOR",
+      "state_store": "sqlite",
+      "metadata_database": {
+        "status": "ready",
+        "dialect": "sqlite",
+        "path": "sqlite+pysqlite:////Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim/metadata/studio.db"
+      },
+      "postgres": {
+        "status": "ready",
+        "dialect": "sqlite",
+        "path": "sqlite+pysqlite:////Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim/metadata/studio.db"
+      },
+      "document_storage": {
+        "status": "ready",
+        "path": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim/documents"
+      },
+      "semantic_runtime_storage": {
+        "status": "ready",
+        "path": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim/semantic"
+      },
+      "llm": "ready",
+      "legacy_datasource": "ready",
+      "data_backend": "duckdb",
+      "qdrant": {
+        "status": "ready",
+        "url_configured": true,
+        "collection": "accelerator_chunks"
+      },
+      "embeddings": {
+        "status": "ready",
+        "provider": "mock"
+      },
+      "reranker": {
+        "status": "ready",
+        "provider": "none"
+      },
+      "connectors": {
+        "status": "optional",
+        "note": "Configure via Connector Manager"
+      },
+      "semantic_runtime": {
+        "status": "legacy_fallback",
+        "mode": "legacy",
+        "registry_version_number": null,
+        "deployment_id": null
+      },
+      "puppygraph": {
+        "enabled": false,
+        "base_url": null,
+        "vertex_labels": [
+          "SalesOffice",
+          "Material",
+          "B2BBranch",
+          "SatDC"
+        ],
+        "edge_labels": [
+          "SELLS_IN_OFFICE",
+          "BRANCH_MATCHES_DC"
+        ],
+        "max_hops": 3
+      }
+    }
+  },
+  "platform_seed": {
+    "projects_default_http": 200,
+    "default_project": {
+      "project": {
+        "id": "0f2d6a79-5f0e-4b92-a1f6-0a92afd04f10",
+        "workspace_id": "8725797f-3c56-49b7-8643-77ffa10591b0",
+        "slug": "tempo_scan_impala",
+        "name": "Tempo Scan (reference)",
+        "ossie_root_path": "projects/tempo_scan_impala",
+        "status": "active",
+        "default_connector_id": null
+      }
+    },
+    "workspaces_default_http": 200,
+    "count_workspaces": 1,
+    "count_projects": 1
+  }
+}

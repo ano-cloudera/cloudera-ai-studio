@@ -61,18 +61,32 @@ export function SemanticVersionHistoryTable({ versions, runtimeStatus, saving, o
             <tr key={v.id} className="border-b border-slate-50">
               <td className="whitespace-nowrap px-3 py-2">v{v.version_number}</td>
               <td className="px-3 py-2">
-                <div className="flex flex-wrap gap-1">
-                  {v.status === 'ACTIVE' ? (
-                    <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-900">ACTIVE REGISTRY</span>
-                  ) : (
-                    <span className="text-xs">{v.status}</span>
-                  )}
-                  {runtimeStatus?.runtime_active_version === v.version_number ? (
-                    <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-900">ACTIVE RUNTIME</span>
-                  ) : null}
-                </div>
+                {(() => {
+                  const askDataActive = runtimeStatus?.runtime_active_version === v.version_number
+                  if (askDataActive) {
+                    return (
+                      <span
+                        data-testid="semantic-version-ask-data-active"
+                        className="inline-flex rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-900"
+                      >
+                        ACTIVE
+                      </span>
+                    )
+                  }
+                  if (v.status === 'ACTIVE') {
+                    return (
+                      <span
+                        data-testid="semantic-version-registry-published"
+                        className="inline-flex rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-900"
+                      >
+                        Published
+                      </span>
+                    )
+                  }
+                  return <span className="text-slate-700">{v.status}</span>
+                })()}
               </td>
-              <td className="whitespace-nowrap px-3 py-2 text-xs">{v.published_at ?? '—'}</td>
+              <td className="whitespace-nowrap">{v.published_at ?? '—'}</td>
               <td className="whitespace-nowrap px-3 py-2">
                 {v.status === 'ARCHIVED' ? (
                   <button

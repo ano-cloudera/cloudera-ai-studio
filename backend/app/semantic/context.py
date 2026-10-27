@@ -508,10 +508,20 @@ def _question_implies_capability_elsewhere(question: str) -> bool:
     )
 
 
+def _example_question_for_registry_metric(name: str, label: str) -> str:
+    from app.ask_data.capability_catalog import example_question_for_metric
+
+    return example_question_for_metric(name, label)
+
+
 def guidance_focus_from_metric(metric: str | None) -> str | None:
     if not metric:
         return None
     m = metric.casefold()
+    if m.startswith("customers_") or ".customers" in m:
+        return "customers"
+    if m.startswith("transactions_") or ".transactions" in m:
+        return "transactions"
     if "picking" in m:
         return "picking"
     if "unloading" in m:
@@ -706,6 +716,12 @@ class SemanticContextService:
                 "lanjut",
                 "tersebut",
                 "breakdown",
+                "break down",
+                "break it down",
+                " by ",
+                " per ",
+                "bandingkan",
+                "banding",
                 "per bulan",
                 "bulanan",
                 "oktober",
@@ -725,6 +741,12 @@ class SemanticContextService:
         definition = self.metric_definition(metric)
         allowed = set(definition.get("allowed_dimensions") or [])
         dimensions = [str(d) for d in (analysis_context.get("last_dimensions") or []) if d in allowed]
+        if self.registry.runtime_extensions:
+            from app.semantic.runtime_extensions import infer_breakdown_dimensions
+
+            inferred = infer_breakdown_dimensions(question, allowed, self.registry.runtime_extensions)
+            if inferred:
+                dimensions = inferred
         if any(
             term in normalized
             for term in ("bulan", "bulanan", "oktober", "november", "desember", "month")
@@ -743,6 +765,45 @@ class SemanticContextService:
             "dimension_mismatch": [],
         }
 
+    def _resolve_registry_session_follow_up(
+        self,
+        question: str,
+        session_analysis_context: dict[str, Any] | None,
+        turn_understanding: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        """Registry-staged runtimes skip the TEMPO graph; still honor multi-turn context."""
+        if not session_analysis_context:
+            return None
+        from app.services.conversational import TurnUnderstanding
+        from app.services.follow_up import try_follow_up_governed_resolution
+
+        understanding = None
+        if isinstance(turn_understanding, dict):
+            try:
+                understanding = TurnUnderstanding.model_validate(turn_understanding)
+            except Exception:
+                understanding = None
+        follow = try_follow_up_governed_resolution(
+            question, session_analysis_context, understanding
+        )
+        if not follow:
+            follow = self._try_session_metric_continuation(question, session_analysis_context)
+        if not follow or follow.get("status") != "resolved":
+            return None
+        metric = str(follow["metric"])
+        follow["definition"] = self.metric_definition(metric)
+        allowed = set(follow["definition"].get("allowed_dimensions") or [])
+        dimensions = [str(d) for d in (follow.get("dimensions") or []) if str(d) in allowed]
+        if not dimensions and self.registry.runtime_extensions:
+            from app.semantic.runtime_extensions import infer_breakdown_dimensions
+
+            dimensions = infer_breakdown_dimensions(
+                question, allowed, self.registry.runtime_extensions
+            )
+        follow["dimensions"] = list(dict.fromkeys(dimensions))
+        follow["dimension_mismatch"] = list(follow.get("dimension_mismatch") or [])
+        return follow
+
     def _resolve_registry_runtime(self, question: str) -> dict[str, Any]:
         """Governed resolution for registry-staged OSSIE (no TEMPO domain graph)."""
         from app.ask_data.intent_satisfaction import (
@@ -758,7 +819,20 @@ class SemanticContextService:
             allowed = set(definition.get("allowed_dimensions") or [])
             dimensions = list(resolution.get("dimensions") or [])
             lowered = question.casefold()
-            if not dimensions and any(term in lowered for term in ("month", "bulan", "monthly", "by month")):
+            if not dimensions and any(
+                term in lowered
+                for term in (
+                    "month",
+                    "bulan",
+                    "bulanan",
+                    "monthly",
+                    "by month",
+                    "per bulan",
+                    "trend",
+                    "pertumbuhan",
+                    "12 bulan",
+                )
+            ):
                 dataset_name = str(definition["base_dataset"])
                 fields = self.registry.dataset_fields.get(dataset_name, {})
                 for dim_key in sorted(allowed):
@@ -766,6 +840,13 @@ class SemanticContextService:
                     if field and (field.get("dimension") or {}).get("is_time"):
                         dimensions = [dim_key]
                         break
+            if not dimensions:
+                from app.semantic.runtime_extensions import infer_breakdown_dimensions
+
+                if self.registry.runtime_extensions:
+                    dimensions = infer_breakdown_dimensions(
+                        question, allowed, self.registry.runtime_extensions
+                    )
             resolution["dimensions"] = dimensions
             resolution["dimension_mismatch"] = list(resolution.get("dimension_mismatch") or [])
             constraints = parse_requested_constraints(question)
@@ -798,7 +879,8 @@ class SemanticContextService:
         if not re.match(r"^d\.", base.strip(), flags=re.IGNORECASE):
             base = f"d.{base}"
         if (field.get("dimension") or {}).get("is_time") and any(
-            term in question.casefold() for term in ("month", "bulan", "monthly", "by month")
+            term in question.casefold()
+            for term in ("month", "bulan", "bulanan", "monthly", "by month", "per bulan", "trend", "12 bulan")
         ):
             return f"DATE_TRUNC('month', CAST({base} AS TIMESTAMP))"
         return base
@@ -817,6 +899,29 @@ class SemanticContextService:
         dataset_name = definition["base_dataset"]
         dataset = self.datasets[dataset_name]
         allowed = set(definition["allowed_dimensions"])
+        from app.ask_data.intent_satisfaction import registry_period_sql_predicate
+        from app.core.config import get_settings
+        from app.semantic.runtime_extensions import try_compile_governed_join_sql
+
+        period_predicate = registry_period_sql_predicate(
+            question,
+            dataset_name=dataset_name,
+            registry=self.registry,
+        )
+        if self.registry.runtime_extensions:
+            joined = try_compile_governed_join_sql(
+                extensions=self.registry.runtime_extensions,
+                datasets=self.registry.datasets,
+                metric_base_dataset=dataset_name,
+                metric_expression=definition["expression"],
+                question=question,
+                row_filter=definition.get("row_filter"),
+                period_predicate=period_predicate,
+                extra_predicates=extra_predicates,
+                sql_max_rows=get_settings().sql_max_rows,
+            )
+            if joined:
+                return joined
         lowered = question.casefold()
         if company_total_aggregate:
             dimensions: list[str] = []
@@ -824,13 +929,23 @@ class SemanticContextService:
             dimensions = [d for d in requested_dimensions if d in allowed]
         else:
             dimensions = []
-            if any(term in lowered for term in ("month", "bulan", "monthly", "by month")):
+            if any(
+                term in lowered
+                for term in ("month", "bulan", "bulanan", "monthly", "by month", "per bulan", "trend")
+            ):
                 fields = self.registry.dataset_fields.get(dataset_name, {})
                 for dim_key in sorted(allowed):
                     field = fields.get(dim_key)
                     if field and (field.get("dimension") or {}).get("is_time"):
                         dimensions = [dim_key]
                         break
+            if not dimensions:
+                from app.semantic.runtime_extensions import infer_breakdown_dimensions
+
+                if self.registry.runtime_extensions:
+                    dimensions = infer_breakdown_dimensions(
+                        question, allowed, self.registry.runtime_extensions
+                    )
         dimensions = list(dict.fromkeys(dimensions))
         if any(name not in allowed for name in dimensions):
             raise ValueError("Requested dimension is not governed for this metric")
@@ -843,13 +958,6 @@ class SemanticContextService:
         predicates: list[str] = []
         if definition.get("row_filter"):
             predicates.append(f"({definition['row_filter']})")
-        from app.ask_data.intent_satisfaction import registry_period_sql_predicate
-
-        period_predicate = registry_period_sql_predicate(
-            question,
-            dataset_name=dataset_name,
-            registry=self.registry,
-        )
         if period_predicate:
             predicates.append(period_predicate)
         if extra_predicates:
@@ -886,6 +994,13 @@ class SemanticContextService:
             }
 
         if self._registry_runtime:
+            session_follow = self._resolve_registry_session_follow_up(
+                question,
+                session_analysis_context,
+                turn_understanding,
+            )
+            if session_follow is not None:
+                return session_follow
             return self._resolve_registry_runtime(question)
 
         lowered = question.casefold()
@@ -1703,7 +1818,31 @@ class SemanticContextService:
         return build_business_context(question, session_last_metric=session_last_metric)
 
     def greeting_context(self) -> dict[str, Any]:
+        from app.ask_data.capability_catalog import (
+            is_legacy_tempo_scan_catalog,
+            legacy_tempo_capability_catalog_enabled,
+            resolve_capability_insight_lines,
+            resolve_example_questions,
+            uses_published_metric_catalog,
+        )
+
         summary = self.registry.capability_summary()
+        settings = get_settings()
+        legacy_menu = (
+            legacy_tempo_capability_catalog_enabled(settings)
+            and is_legacy_tempo_scan_catalog(self.metrics)
+            and not uses_published_metric_catalog(self)
+        )
+        if uses_published_metric_catalog(self) or not legacy_menu:
+            return {
+                "scope": summary.get("scope") or "Published semantic model",
+                "domains": sorted({str(d) for d in self.datasets}),
+                "examples": resolve_example_questions(self, limit=4, settings=settings),
+                "domain_options": [],
+                "domain_capability_lines": resolve_capability_insight_lines(self, limit=8, settings=settings),
+                "dataset_count": len(self.datasets),
+                "metric_count": len(self.metrics),
+            }
         return {
             "scope": summary.get("scope") or "TEMPO Q4 2024",
             "domains": [
@@ -1713,24 +1852,28 @@ class SemanticContextService:
             ],
             "examples": list(summary.get("examples") or [])[:4],
             "domain_options": list(_GUIDANCE_DOMAIN_OPTIONS),
-            "domain_capability_lines": self.domain_capability_insight_lines(),
+            "domain_capability_lines": self.domain_capability_insight_lines(settings=settings, limit=9),
             "dataset_count": len(self.datasets),
             "metric_count": len(self.metrics),
         }
 
-    def domain_capability_insight_lines(self, *, exclude_focus: str | None = None) -> list[str]:
-        skip = _DOMAIN_NAMES_BY_GUIDANCE_FOCUS.get(exclude_focus or "", frozenset())
-        lines: list[str] = []
-        for option in _GUIDANCE_DOMAIN_OPTIONS:
-            if option["name"] in skip:
-                continue
-            helps = ", ".join(
-                _METRIC_HELP_ID.get(metric, metric.replace("_", " "))
-                for metric in option["metrics"]
-            )
-            example = option["examples"][0] if option.get("examples") else ""
-            lines.append(f"{option['name']}: {helps}. Contoh: {example}")
-        return lines
+    def domain_capability_insight_lines(
+        self,
+        *,
+        exclude_focus: str | None = None,
+        configured_starters: list[str] | None = None,
+        settings: Any | None = None,
+        limit: int = 6,
+    ) -> list[str]:
+        from app.ask_data.capability_catalog import resolve_capability_insight_lines
+
+        return resolve_capability_insight_lines(
+            self,
+            configured_starters=configured_starters,
+            exclude_focus=exclude_focus,
+            limit=limit,
+            settings=settings or get_settings(),
+        )
 
     def guidance_context(
         self,
@@ -1738,6 +1881,7 @@ class SemanticContextService:
         *,
         session_last_metric: str | None = None,
         session_capability_hint: dict[str, Any] | None = None,
+        configured_starters: list[str] | None = None,
     ) -> dict[str, Any]:
         normalized = question.casefold().replace("–", "-")
         mentioned_topic = next(
@@ -1766,6 +1910,7 @@ class SemanticContextService:
         if not topic:
             lines = self.domain_capability_insight_lines(
                 exclude_focus=excluded_topic,
+                configured_starters=configured_starters,
             )
             return {
                 **context,

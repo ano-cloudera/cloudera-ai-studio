@@ -4,8 +4,15 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 
+def _alembic_platform_schema(engine: Engine) -> bool:
+    """When True, platform tables come from Alembic (SQLite CAI sim / fresh migrates)."""
+    return engine.dialect.name == "sqlite"
+
+
 def ensure_s3_governance_schema(engine: Engine) -> None:
     """Apply S3 DDL idempotently for integration tests (create_all + partial migrations)."""
+    if _alembic_platform_schema(engine):
+        return
     stmts = [
         "ALTER TABLE semantic_versions ADD COLUMN IF NOT EXISTS last_validation_run_id UUID",
         "ALTER TABLE semantic_versions ADD COLUMN IF NOT EXISTS activation_readiness VARCHAR(32)",
@@ -60,6 +67,8 @@ def ensure_s3_governance_schema(engine: Engine) -> None:
 
 
 def ensure_c4_semantic_connection_schema(engine: Engine) -> None:
+    if _alembic_platform_schema(engine):
+        return
     stmts = [
         "ALTER TABLE semantic_entities ADD COLUMN IF NOT EXISTS connection_id UUID",
         """
@@ -79,6 +88,8 @@ def ensure_c4_semantic_connection_schema(engine: Engine) -> None:
 
 def ensure_s4_runtime_schema(engine: Engine) -> None:
     """Apply S4 DDL idempotently for integration tests."""
+    if _alembic_platform_schema(engine):
+        return
     stmts = [
         """
         CREATE TABLE IF NOT EXISTS semantic_runtime_deployments (

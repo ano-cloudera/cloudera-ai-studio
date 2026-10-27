@@ -13,6 +13,7 @@ export type ContextPickerOption = {
 function optionIcon(type: ChatContextSource['type']) {
   if (type === 'table') return Database
   if (type === 'semantic_metric') return Sigma
+  if (type === 'semantic_term') return BookOpen
   if (type === 'semantic_model' || type === 'semantic_entity') return Layers
   return BookOpen
 }

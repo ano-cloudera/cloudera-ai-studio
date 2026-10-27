@@ -1,0 +1,158 @@
+{
+  "model_key": "retail_banking_analytics",
+  "model_id": "99c7a9f3-6e47-403c-b3d6-988a11ff070a",
+  "active_version": {
+    "id": "c47b103d-7838-4db9-89c5-d9f77de1bc44",
+    "semantic_model_id": "99c7a9f3-6e47-403c-b3d6-988a11ff070a",
+    "version_number": 29,
+    "status": "ACTIVE",
+    "created_by": null,
+    "created_at": "2026-10-19T10:56:03.970609",
+    "updated_at": "2026-10-19T11:00:09.730882",
+    "published_at": "2026-10-19T11:00:09.730818",
+    "runtime_adapter": "ossie",
+    "runtime_artifact_uri": "var/semantic-artifacts/8725797f-3c56-49b7-8643-77ffa10591b0/0f2d6a79-5f0e-4b92-a1f6-0a92afd04f10/retail_banking_analytics/v29/ossie.yaml",
+    "runtime_artifact_checksum": "798e4473e50bbdc5e6245ba56a4435904db84a4686ba7c9812662f4819ea8614",
+    "runtime_artifact_version": "29",
+    "last_validation_run_id": "563513bd-1409-4a30-bc7b-fd4c36c8e726",
+    "activation_readiness": "READY",
+    "validated_at": "2026-10-19T11:00:09.723623"
+  },
+  "runtime": {
+    "semantic_model_key": "retail_banking_analytics",
+    "registry_active_version": 29,
+    "runtime_active_version": 29,
+    "runtime_status": "healthy",
+    "deployment": {
+      "deployment_id": "9c3ca700-483f-4b7b-8121-94ef505ac0b0",
+      "artifact_checksum": "798e4473e50bbdc5e6245ba56a4435904db84a4686ba7c9812662f4819ea8614",
+      "activated_at": "2026-10-19T11:00:09.791415",
+      "adapter": "ossie",
+      "health": "healthy"
+    },
+    "loader_mode": "runtime"
+  },
+  "entity_keys": [
+    "customers",
+    "transactions"
+  ],
+  "metric_keys": [
+    "active_customers",
+    "average_transaction_value",
+    "failed_transaction_count",
+    "failed_transaction_rate",
+    "successful_transaction_count",
+    "total_transaction_amount",
+    "transaction_count"
+  ],
+  "dimension_keys": [
+    "amount",
+    "channel",
+    "city",
+    "customer_id",
+    "customer_name",
+    "customer_status",
+    "join_date",
+    "merchant_category",
+    "risk_tier",
+    "segment",
+    "status",
+    "transaction_date",
+    "transaction_month",
+    "transaction_type"
+  ],
+  "relationship_keys": [
+    "transactions_to_customers"
+  ],
+  "glossary_keys": [
+    "failed_transaction",
+    "high_risk",
+    "priority_customer",
+    "transaction_attempt"
+  ],
+  "registry_checks": {
+    "customers_entity": true,
+    "transactions_entity": true,
+    "relationship": true,
+    "required_metrics": true,
+    "required_dimensions": true,
+    "required_glossary": true,
+    "runtime_healthy": true
+  },
+  "raw_postgres": {
+    "total_transaction_amount": 3814754462.0,
+    "transaction_count": 1000.0,
+    "average_transaction_value": 3814754.462,
+    "active_customers": 215.0,
+    "failed_transaction_rate": 0.069,
+    "by_channel": [
+      [
+        "ATM",
+        "783314269.00"
+      ],
+      [
+        "Branch",
+        "872293219.00"
+      ],
+      [
+        "EDC",
+        "776983645.00"
+      ],
+      [
+        "Internet Banking",
+        "742424159.00"
+      ],
+      [
+        "Mobile Banking",
+        "639739170.00"
+      ]
+    ],
+    "top_segment": [
+      "Retail",
+      "1313538137.00"
+    ]
+  },
+  "compile_samples": {
+    "What is the total transaction amount?": "SELECT\n  SUM(amount) AS metric_value\nFROM banking_demo.transactions d\nORDER BY metric_value DESC\nLIMIT 200",
+    "Show total transaction amount by channel.": "SELECT\n  SUM(amount) AS metric_value\nFROM banking_demo.transactions d\nORDER BY metric_value DESC\nLIMIT 200",
+    "Which customer segment has the highest total transaction amount?": "SELECT\n  SUM(amount) AS metric_value\nFROM banking_demo.transactions d\nORDER BY metric_value DESC\nLIMIT 200"
+  },
+  "semantic_sql_execution": {
+    "What is the total transaction amount?": {
+      "row_count": 1,
+      "sample": [
+        [
+          "3814754462.00"
+        ]
+      ]
+    },
+    "Show total transaction amount by channel.": {
+      "row_count": 1,
+      "sample": [
+        [
+          "3814754462.00"
+        ]
+      ]
+    },
+    "Which customer segment has the highest total transaction amount?": {
+      "row_count": 1,
+      "sample": [
+        [
+          "3814754462.00"
+        ]
+      ]
+    }
+  },
+  "failed_rate_alignment": {
+    "glossary_definition": "A transaction attempt recorded with status Failed (not completed successfully).",
+    "metric_business_definition": "Failed transaction attempts divided by total transaction attempts (aligned with Retail Banking Knowledge policy).",
+    "metric_expression": "AVG(CASE WHEN status = 'Failed' THEN 1.0 ELSE 0.0 END)"
+  },
+  "governed_structured_ask": {
+    "context_mode": "GOVERNED_SEMANTIC",
+    "explicit_error": null,
+    "resolution_status": "resolved",
+    "metric": "total_transaction_amount"
+  },
+  "sql_governance": "SELECT/WITH only in compile_samples"
+}

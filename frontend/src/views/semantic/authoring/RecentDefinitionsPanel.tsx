@@ -1,16 +1,22 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { SortableColumnHeader } from '../../../components/table/SortableColumnHeader'
 import { RowActionsMenu } from '../../../components/table/RowActionsMenu'
 import { api } from '../../../lib/api'
 import { SemanticAuthoringTableShell } from './SemanticAuthoringTableShell'
+import { SemanticAuthoringSelectCell, SemanticAuthoringSelectHeader } from './SemanticAuthoringSelectionCells'
 import { formatSemanticModifiedCompact } from './semanticFormat'
+import type { SemanticRecentDefinitionRecord } from '../../../types/api'
 import { useSemanticPaginatedList } from './useSemanticPaginatedList'
+import { SemanticSelectionBar, useSemanticAuthoringSelection } from './useSemanticAuthoringSelection'
 
-type Props = { versionId: string | null }
+type Props = {
+  versionId: string | null
+  onViewInTab?: (row: SemanticRecentDefinitionRecord) => void
+}
 
-export function RecentDefinitionsPanel({ versionId }: Props) {
+export function RecentDefinitionsPanel({ versionId, onViewInTab }: Props) {
   const [typeFilter, setTypeFilter] = useStateFilter()
   const fetchPage = useCallback(
     async (vid: string, params: Parameters<typeof api.listSemanticRecentDefinitions>[1]) => {
@@ -23,6 +29,14 @@ export function RecentDefinitionsPanel({ versionId }: Props) {
     [typeFilter],
   )
   const list = useSemanticPaginatedList(versionId, fetchPage, [typeFilter])
+  const { selection, mode: selectionMode } = useSemanticAuthoringSelection()
+  const clearSelection = selection.clear
+
+  useEffect(() => {
+    clearSelection()
+  }, [list.search, list.page, list.pageSize, list.sort, list.order, clearSelection])
+
+  const colSpan = selectionMode.active ? 8 : 7
 
   return (
     <div className="pt-2">
@@ -39,12 +53,19 @@ export function RecentDefinitionsPanel({ versionId }: Props) {
         error={list.error}
         onRetry={() => void list.reload()}
         emptyMessage="No definitions yet."
-        emptyColSpan={7}
+        emptyColSpan={colSpan}
         hasRows={list.items.length > 0}
         addLabel=""
         onAdd={() => undefined}
         readOnly
-        selectionMode={{ active: false, enter: () => undefined, exit: () => undefined }}
+        selectionMode={selectionMode}
+        selectionBar={
+          <SemanticSelectionBar
+            entityLabel="definitions"
+            selectedCount={selection.selectedCount}
+            onCancel={() => selectionMode.exit()}
+          />
+        }
         page={list.page}
         pageSize={list.pageSize}
         total={list.total}
@@ -53,11 +74,16 @@ export function RecentDefinitionsPanel({ versionId }: Props) {
       >
         <thead className="app-table-head">
           <tr>
+            <SemanticAuthoringSelectHeader
+              active={selectionMode.active}
+              pageIds={list.items.map(row => row.object_id)}
+              selection={selection}
+            />
             <th className="px-3 py-2">
               <SortableColumnHeader label="Name" field="name" activeField={list.sort} order={list.order} onSort={list.applySort} />
             </th>
             <th className="px-3 py-2">
-              <select className="rounded border border-slate-200 text-xs normal-case" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); list.setPage(1) }} aria-label="Type filter">
+              <select className="app-select-compact normal-case" value={typeFilter} onChange={e => { setTypeFilter(e.target.value); list.setPage(1) }} aria-label="Type filter">
                 <option value="">All types</option>
                 <option value="metric">Metric</option>
                 <option value="dimension">Dimension</option>
@@ -77,14 +103,29 @@ export function RecentDefinitionsPanel({ versionId }: Props) {
         <tbody className="align-middle">
           {list.items.map(row => (
             <tr key={`${row.object_kind}-${row.object_id}`} className="border-b border-slate-50">
+              <SemanticAuthoringSelectCell
+                active={selectionMode.active}
+                id={row.object_id}
+                label={row.name}
+                selection={selection}
+              />
               <td className="whitespace-nowrap px-3 py-2 font-medium">{row.name}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-xs">{row.type}</td>
-              <td className="max-w-[12rem] truncate px-3 py-2">{row.definition || '—'}</td>
-              <td className="max-w-[10rem] truncate px-3 py-2 text-xs">{row.source}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-xs text-emerald-800">{row.status}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-600">{formatSemanticModifiedCompact(row.modified_at)}</td>
+              <td className="whitespace-nowrap">{row.type}</td>
+              <td className="max-w-[12rem] truncate">{row.definition || '—'}</td>
+              <td className="max-w-[10rem] truncate">{row.source}</td>
+              <td className="whitespace-nowrap text-emerald-800">{row.status}</td>
+              <td className="whitespace-nowrap text-slate-600">{formatSemanticModifiedCompact(row.modified_at)}</td>
               <td className="w-24 whitespace-nowrap px-3 py-2">
-                <RowActionsMenu label={`Actions for ${row.name}`} items={[{ key: 'view', label: 'View in tab', onClick: () => undefined }]} />
+                <RowActionsMenu
+                  label={`Actions for ${row.name}`}
+                  items={[
+                    {
+                      key: 'view',
+                      label: 'View in tab',
+                      onClick: () => onViewInTab?.(row),
+                    },
+                  ]}
+                />
               </td>
             </tr>
           ))}

@@ -1,0 +1,4 @@
+audit_at=2026-10-18T14:24:45Z
+standalone_root=/Users/triano/Documents/Works/cloudera/cloudera-ai-studio
+source_monorepo=/Users/triano/Documents/Works/cloudera/enterprise-ai-poc
+method=non_destructive_path_and_process_audit

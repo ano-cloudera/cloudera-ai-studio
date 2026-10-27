@@ -1,0 +1,9 @@
+{
+  "backend_ready": true,
+  "qdrant_ready": true,
+  "sqlite_exists": true,
+  "connector_registration": true,
+  "knowledge_registration": true,
+  "semantic_registration": true,
+  "connector_test": false
+}

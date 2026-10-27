@@ -47,7 +47,7 @@ export function SemanticAuthoringTableShell(props: Props) {
   const sectionClass =
     layout === 'overview'
       ? 'flex flex-col overflow-visible border-t border-slate-100'
-      : 'flex max-h-full flex-col overflow-hidden border-t border-slate-100'
+      : 'flex min-h-0 flex-1 flex-col overflow-hidden border-t border-slate-100'
 
   return (
     <section
@@ -88,7 +88,7 @@ export function SemanticAuthoringTableShell(props: Props) {
             className={`min-h-0 shrink overflow-x-auto overflow-y-auto ${scrollMax} [&_thead]:border-b [&_thead]:border-violet-100 [&_thead_th]:sticky [&_thead_th]:top-0 [&_thead_th]:z-10 [&_thead_th]:bg-violet-50 [&_thead_th]:text-cloudera-violet [&_thead_th]:shadow-[0_1px_0_0_rgb(237,233,254)]`}
           >
             <table
-              className={`${minWidth} w-full text-left text-sm ${props.tableLayout === 'auto' ? 'table-auto' : 'table-fixed'}`}
+              className={`app-data-table ${minWidth} ${props.tableLayout === 'auto' ? 'table-auto' : 'table-fixed'}`}
             >
               {props.children}
             </table>

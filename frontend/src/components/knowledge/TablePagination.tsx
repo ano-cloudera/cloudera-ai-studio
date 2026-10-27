@@ -27,7 +27,7 @@ export function TablePagination({
   const end = total ? Math.min(page * pageSize, total) : 0
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-3 py-2 text-xs text-slate-600">
+    <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-sm text-slate-600">
       <span>
         Showing {start}–{end} of {total}
       </span>
@@ -35,7 +35,7 @@ export function TablePagination({
         <label className="flex items-center gap-1">
           Rows
           <select
-            className="rounded border border-slate-200 px-1 py-0.5"
+            className="app-select-compact"
             value={pageSize}
             onChange={e => onPageSizeChange(Number(e.target.value))}
           >

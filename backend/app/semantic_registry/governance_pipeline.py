@@ -503,6 +503,19 @@ class SemanticGovernancePipeline:
             if entity.source_type == "logical":
                 continue
             table = entity.table_name or entity.view_name or ""
+            if entity.source_type in ("postgres", "trino", "impala") and not entity.connection_id:
+                checks += 1
+                add(
+                    ValidationIssue(
+                        "missing_connector_binding",
+                        f"Entity `{entity.key}` requires a connector binding for source type `{entity.source_type}`.",
+                        "ERROR",
+                        category="SOURCE",
+                        object_type="entity",
+                        object_key=entity.key,
+                    )
+                )
+                continue
             if entity.connection_id:
                 exists = connector_resolver.table_exists_for_entity(
                     entity, workspace_id=workspace_id, project_id=project_id
@@ -628,7 +641,7 @@ class SemanticGovernancePipeline:
                     from app.semantic_registry.connector_reference import validate_entity_connector
 
                     conn = validate_entity_connector(
-                        session,
+                        self._session,
                         connection_id=entity.connection_id,
                         workspace_id=workspace_id,
                         project_id=project_id,
@@ -647,7 +660,7 @@ class SemanticGovernancePipeline:
                         )
                         sql = f"SELECT {metric.expression} AS m FROM {qual} d"
                         assert_connector_readonly_sql(f"{sql} LIMIT 0")
-                        adapter = ConnectorFactory(settings=settings).create(
+                        adapter = ConnectorFactory(settings=self._settings).create(
                             conn.connector_type,
                             dict(conn.config or {}),
                             secret_ref=conn.secret_ref,
@@ -711,12 +724,16 @@ class SemanticGovernancePipeline:
                     )
                 )
                 continue
+            entity_keys = {rel.from_entity_key, rel.to_entity_key}
+            join_alias_stop = {"a", "b"}
             for key in (rel.from_entity_key, rel.to_entity_key):
                 entity = entity_map.get(key)
                 if not entity or entity.source_type == "logical":
                     continue
                 cols = columns_for(entity)
                 for ident in extract_identifier_candidates(rel.join_expression):
+                    if ident in join_alias_stop or ident in entity_keys:
+                        continue
                     checks += 1
                     if cols and ident not in cols:
                         add(

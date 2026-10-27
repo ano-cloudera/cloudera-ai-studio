@@ -1,0 +1,34 @@
+{
+  "gates": {
+    "semantic_overview": "PASS",
+    "shot_A-semantic-overview.png": "PASS",
+    "shot_B-data-models.png": "PASS",
+    "shot_C-relationship.png": "PASS",
+    "shot_D-metrics.png": "PASS",
+    "shot_E-dimensions.png": "PASS",
+    "shot_F-model-health.png": "PASS",
+    "shot_G-publish-active.png": "PASS",
+    "shot_H-governed-total-amount.png": "PASS",
+    "shot_I-governed-by-channel.png": "PASS",
+    "shot_J-governed-segment-join.png": "PASS",
+    "shot_K-raw-vs-governed.png": "PASS",
+    "shot_L-knowledge-vs-semantic-failed-rate.png": "PASS",
+    "shot_M-version-history.png": "PASS"
+  },
+  "screenshots": [
+    "A-semantic-overview.png",
+    "B-data-models.png",
+    "C-relationship.png",
+    "D-metrics.png",
+    "E-dimensions.png",
+    "F-model-health.png",
+    "G-publish-active.png",
+    "H-governed-total-amount.png",
+    "I-governed-by-channel.png",
+    "J-governed-segment-join.png",
+    "K-raw-vs-governed.png",
+    "L-knowledge-vs-semantic-failed-rate.png",
+    "M-version-history.png"
+  ],
+  "dir": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/testing/evidence/golden-path/PHASE3-SEMANTIC/browser"
+}

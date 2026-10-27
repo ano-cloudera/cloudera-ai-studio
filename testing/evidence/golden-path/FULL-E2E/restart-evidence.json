@@ -1,0 +1,64 @@
+{
+  "phases": [
+    {
+      "name": "backend_restart",
+      "metadata_preserved": true,
+      "governed_after": true
+    },
+    {
+      "name": "qdrant_restart",
+      "restarted": false,
+      "ready_before_after": true,
+      "note": "No Qdrant container restart command succeeded; RAG re-probed only.",
+      "rag_ok": true
+    },
+    {
+      "name": "frontend_restart",
+      "stop_code": 0,
+      "start_code": 0,
+      "http_ok": true
+    },
+    {
+      "name": "full_stack_restart",
+      "ok": true
+    }
+  ],
+  "before": {
+    "db_path": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim/metadata/studio.db",
+    "exists": true,
+    "connectors": 22,
+    "libraries": 251,
+    "documents": 422,
+    "prompts": 1,
+    "skills": 1,
+    "usage_events": 2,
+    "conversations": 175,
+    "messages": 544
+  },
+  "after_chat": {
+    "db_path": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim/metadata/studio.db",
+    "exists": true,
+    "connectors": 22,
+    "libraries": 251,
+    "documents": 422,
+    "prompts": 1,
+    "skills": 1,
+    "usage_events": 2,
+    "conversations": 176,
+    "messages": 549
+  },
+  "after": {
+    "db_path": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim/metadata/studio.db",
+    "exists": true,
+    "connectors": 22,
+    "libraries": 251,
+    "documents": 422,
+    "prompts": 1,
+    "skills": 1,
+    "usage_events": 2,
+    "conversations": 178,
+    "messages": 559
+  },
+  "session_mark": "golden-e2e-restart-session",
+  "ok": true
+}

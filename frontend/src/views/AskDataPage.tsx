@@ -51,6 +51,14 @@ import { AnalysisSplitHandle } from '../components/AnalysisSplitHandle'
 import { useReportSplitPane } from '../lib/useReportSplitPane'
 import { ReportArtifactCard } from '../components/ReportArtifactCard'
 import {
+  ChatAnalysisDetailsExpand,
+  expandTableBlock,
+} from '../components/chat/ChatAnalysisDetailsExpand'
+import { isExecutiveAudience, noteForExecutive } from '../lib/audienceMode'
+import { computePresentationTier, shouldShowChatExpand } from '../lib/presentationTier'
+import { mergePresentationTierConfig, tier1ShowNarrativeEnabled } from '../lib/presentationTierConfig'
+import {
+  canOpenAnalysisWorkspace,
   reportSectionTitle,
   reportSectionsFromMessages,
   responseQualifiesForReportPanel,
@@ -67,8 +75,10 @@ import {
 } from '../lib/chatContext'
 import { attachmentContextBlocksSend, type ChatAttachmentStatus } from '../lib/chatAttachments'
 import { RagSourcesDrawer } from '../components/chat/RagSourcesDrawer'
+import { AskDataSemanticCatalogPanel } from '../components/ask/AskDataSemanticCatalogPanel'
 import { SaveToKnowledgeModal } from '../components/knowledge/SaveToKnowledgeModal'
 import type { ChatResponse, LibraryRecord, SuggestedQuestion } from '../types/api'
+import { useHydrated } from '../lib/useHydrated'
 
 const STARTER_QUESTION_COUNT = 3
 
@@ -77,6 +87,8 @@ export function AskDataPage() {
   const { setChatSessionSidebar, setChatPageChrome } = useChatLayout()
   const { selection, select, loading: modelsLoading, loadedOnce: modelsLoadedOnce, error: modelError } =
     useModelSelection()
+  const hydrated = useHydrated()
+  const composerDisabled = hydrated && !selection && (modelsLoading || !modelsLoadedOnce)
   const [contextSources, setContextSources] = useState<ChatContextSource[]>([])
   const [libraryPickerOptions, setLibraryPickerOptions] = useState<LibraryRecord[]>([])
   const [input, setInput] = useState('')
@@ -88,10 +100,12 @@ export function AskDataPage() {
   const [technicalTrace, setTechnicalTrace] = useState<ProgressTraceEntry[]>([])
   const [error, setError] = useState('')
   const [starterQuestions, setStarterQuestions] = useState<SuggestedQuestion[]>([])
+  const [starterQuestionsCaption, setStarterQuestionsCaption] = useState(appConfig.starterQuestionsCaption)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [pdfExportPreview, setPdfExportPreview] = useState(false)
   const [reportPanelOpen, setReportPanelOpen] = useState(false)
   const [activeReportSectionId, setActiveReportSectionId] = useState<string | null>(null)
+  const [pinnedReportIds, setPinnedReportIds] = useState<string[]>([])
   const end = useRef<HTMLDivElement>(null)
   const conversationExportRef = useRef<HTMLDivElement>(null)
   const activeRequest = useRef<AbortController | null>(null)
@@ -242,9 +256,32 @@ export function AskDataPage() {
   useEffect(() => { if (messages.length) { saveSession({ id: sessionId, title: sessionTitle(messages), updatedAt: Date.now(), messages, selection: selection || undefined }); setSessions(loadSessions()) } }, [messages, selection, sessionId])
   useEffect(() => { end.current?.scrollIntoView?.({ behavior: 'smooth' }) }, [messages, loading, progressStep])
   useEffect(() => () => activeRequest.current?.abort(), [])
-  useEffect(() => { api.randomQueries(STARTER_QUESTION_COUNT).then(response => setStarterQuestions(response.questions)).catch(() => setStarterQuestions([])) }, [])
+  useEffect(() => {
+    api
+      .askDataStarters()
+      .then(response => {
+        setStarterQuestionsCaption(response.caption || appConfig.starterQuestionsCaption)
+        setStarterQuestions(response.questions.slice(0, STARTER_QUESTION_COUNT))
+      })
+      .catch(() => {
+        setStarterQuestions([])
+        setStarterQuestionsCaption(appConfig.starterQuestionsCaption)
+      })
+  }, [])
 
-  const reportSections = useMemo(() => reportSectionsFromMessages(messages), [messages])
+  useEffect(() => {
+    api
+      .askDataPresentationConfig()
+      .then(response => {
+        mergePresentationTierConfig(response.presentation)
+      })
+      .catch(() => undefined)
+  }, [])
+
+  const reportSections = useMemo(
+    () => reportSectionsFromMessages(messages, { pinnedRequestIds: pinnedReportIds }),
+    [messages, pinnedReportIds],
+  )
   const activeReportSection = useMemo(() => {
     if (activeReportSectionId) {
       return reportSections.find(s => s.id === activeReportSectionId) ?? reportSections[reportSections.length - 1]
@@ -266,10 +303,12 @@ export function AskDataPage() {
   async function submit(
     question = input,
     _source: 'send_button' | 'enter_key' | 'starter_question' | 'clarification' = 'send_button',
+    contextOverride?: ChatContextSource[],
   ) {
     const value = question.trim()
-    if (!value || loading || !selection || turnInFlightRef.current || submitDisabledReason) return
-    const mixError = validateContextMix(contextSources)
+    const activeContext = contextOverride ?? contextSources
+    if (!value || loading || !selection || turnInFlightRef.current) return
+    const mixError = validateContextMix(activeContext)
     if (mixError) {
       setError(mixError)
       turnInFlightRef.current = false
@@ -291,9 +330,9 @@ export function AskDataPage() {
     let streamSucceeded = false
     try {
       for await (const event of api.chatStream(value, sessionId, selection, controller.signal, {
-        ...(hasContextSources
+        ...(activeContext.length
           ? {
-              context_sources: contextSources.map(source => ({
+              context_sources: activeContext.map(source => ({
                 type: source.type,
                 id: source.id,
                 name: source.name,
@@ -375,9 +414,11 @@ export function AskDataPage() {
     setError('')
     setReportPanelOpen(false)
     setActiveReportSectionId(null)
+    setPinnedReportIds([])
   }, [])
 
   const openReportSection = useCallback((requestId: string) => {
+    setPinnedReportIds(current => (current.includes(requestId) ? current : [...current, requestId]))
     setActiveReportSectionId(requestId)
     setReportPanelOpen(true)
   }, [])
@@ -387,6 +428,9 @@ export function AskDataPage() {
       setSessionId(session.id)
       setMessages(session.messages)
       setInput('')
+      setReportPanelOpen(false)
+      setActiveReportSectionId(null)
+      setPinnedReportIds([])
       if (session.selection) select(session.selection)
     },
     [select],
@@ -509,7 +553,7 @@ export function AskDataPage() {
                 {starterQuestions.length > 0 && (
                   <div className="mt-7 text-left">
                     <p className="mb-2.5 text-sm font-medium text-cloudera-navy">
-                      {appConfig.starterQuestionsCaption}
+                      {starterQuestionsCaption}
                     </p>
                     <div className="grid gap-2 sm:grid-cols-3">
                     {starterQuestions.map(item => (
@@ -540,19 +584,23 @@ export function AskDataPage() {
                       <StructuredAnswer
                         response={message.response}
                         processSnapshot={message.processSnapshot}
+                        sessionId={sessionId}
                         expandForExport={pdfExportPreview}
                         onClarificationPick={choice => {
+                          const nextContext = choice.contextSource
+                            ? [
+                                structuredContextSource({
+                                  type: choice.contextSource.type as ChatContextSourceType,
+                                  id: choice.contextSource.id,
+                                  name: choice.contextSource.name,
+                                }),
+                              ]
+                            : contextSources
                           if (choice.contextSource) {
-                            setContextSources([
-                              structuredContextSource({
-                                type: choice.contextSource.type as ChatContextSourceType,
-                                id: choice.contextSource.id,
-                                name: choice.contextSource.name,
-                              }),
-                            ])
+                            setContextSources(nextContext)
                           }
                           const prior = [...messages].reverse().find(m => m.role === 'user')?.content
-                          if (prior) void submit(prior, 'clarification')
+                          if (prior) void submit(prior, 'clarification', nextContext)
                         }}
                         clarificationDisabled={loading}
                         reportArtifact={
@@ -567,6 +615,15 @@ export function AskDataPage() {
                             : undefined
                         }
                         onViewRagSources={() => setRagSourcesResponse(message.response ?? null)}
+                        onOpenWorkspace={
+                          appConfig.analysisReportPanel &&
+                          message.response &&
+                          canOpenAnalysisWorkspace(message.response) &&
+                          computePresentationTier(message.response) < 3 &&
+                          !(isExecutiveAudience() && computePresentationTier(message.response) === 1)
+                            ? () => openReportSection(message.response!.request_id)
+                            : undefined
+                        }
                       />
                     ) : (
                       <p className="type-chat-body text-slate-700">{message.content}</p>
@@ -595,10 +652,13 @@ export function AskDataPage() {
               Attached knowledge libraries scope answers to indexed documents. Remove chips to return to Ask Data.
             </p>
           ) : null}
+          {!knowledgeAttached ? (
+            <AskDataSemanticCatalogPanel onPickQuestion={text => submit(text, 'starter_question')} />
+          ) : null}
           <ContextAwareChatComposer
             value={input}
             loading={loading}
-            disabled={!selection}
+            disabled={composerDisabled}
             modelHint={modelHint}
             contextSources={contextSources}
             contextOptions={contextPickerOptions}
@@ -734,21 +794,27 @@ export function AskDataPage() {
 function StructuredAnswer({
   response,
   processSnapshot,
+  sessionId,
   expandForExport = false,
   onClarificationPick,
   onViewRagSources,
   clarificationDisabled = false,
   reportArtifact,
+  onOpenWorkspace,
 }: {
   response: ChatResponse
   processSnapshot?: ProcessSnapshot
+  sessionId?: string
   expandForExport?: boolean
   onClarificationPick?: (choice: ClarificationChoice) => void
   onViewRagSources?: () => void
   clarificationDisabled?: boolean
   reportArtifact?: { title: string; active: boolean; onOpen: () => void }
+  onOpenWorkspace?: () => void
 }) {
   const presentation = answerPresentation(response)
+  const presentationTier = computePresentationTier(response)
+  const chatInlineEvidence = presentationTier === 1 || presentationTier === 2
   const missingGovernedEvidence = response.status === 'SUCCESS' && response.strategy === 'governed' && !hasGovernedEvidence(response)
   const kpiField = response.chart_spec?.type === 'kpi' ? response.chart_spec.y || response.data.columns[0] : null
   const kpiValue = kpiField ? response.data.rows[0]?.[kpiField] : undefined
@@ -767,7 +833,10 @@ function StructuredAnswer({
   }
 
   const provenance = parseDataProvenance(response.answer.data_reference)
-  const dataNote = mergeDataNotes(response.answer.caveats, provenance)
+  const executiveView = isExecutiveAudience() && chatInlineEvidence
+  const dataNote = mergeDataNotes(response.answer.caveats, provenance, {
+    hideInternalCodes: isExecutiveAudience(),
+  })
   const omitTablesInProse = response.data.rows.length > 0
 
   const showEvidenceBlock =
@@ -777,6 +846,12 @@ function StructuredAnswer({
 
   const provenanceSources = provenance?.sources ?? []
   const hasDataNoteContent = Boolean(dataNote || provenanceSources.length > 0)
+  const executiveQueryOnlyExpand =
+    executiveView &&
+    presentationTier === 1 &&
+    Boolean(response.governed_sql?.trim())
+  const displayDataNote = executiveView ? noteForExecutive(dataNote, provenanceSources) : dataNote
+  const showDataNoteBlock = executiveView ? Boolean(displayDataNote) : hasDataNoteContent
   /** Welcome / prose-only: tuck note into the main card as a footnote */
   const dataNoteInNarrative = hasDataNoteContent && !showEvidenceBlock
   const chartFirst = hasVisualChart
@@ -786,19 +861,25 @@ function StructuredAnswer({
     response.data.rows.length === 1
       ? compactSingleRowEvidence(response.data.columns, response.data.rows)
       : null
+  const ragProseOnly = isRagResponse(response)
+  const tier1Narrative = tier1ShowNarrativeEnabled()
+  const hideTier1Narrative = chatInlineEvidence && presentationTier === 1 && !tier1Narrative
+  const showTier1Insights = presentationTier === 1 && tier1Narrative
   const showExecutiveSummary =
-    response.answer.executive_summary.trim() !== response.answer.direct_answer.trim()
+    !ragProseOnly &&
+    response.answer.executive_summary.trim() !== response.answer.direct_answer.trim() &&
+    !hideTier1Narrative
   const hasAnalysisBody =
     showExecutiveSummary ||
-    response.answer.insights.length > 0 ||
-    response.answer.business_implications.length > 0 ||
+    (!ragProseOnly && response.answer.insights.length > 0) ||
+    (!ragProseOnly && response.answer.business_implications.length > 0) ||
     dataNoteInNarrative
 
   const headerRow = (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="type-answer-kicker">{presentation.title}</div>
+      {presentation.title ? <div className="type-answer-kicker">{presentation.title}</div> : <div />}
       <div className="flex flex-wrap items-center gap-2">
-        <ContextModeBadge response={response} />
+        <ContextModeBadge response={response} executive={executiveView || isExecutiveAudience()} />
         {presentation.showStatusChip && presentation.statusChip && presentation.statusChip !== 'ERROR' && (
           <span className={`type-chip rounded-full px-2.5 py-0.5 ${statusStyles[presentation.statusChip]}`}>
             {presentation.statusChip}
@@ -835,7 +916,7 @@ function StructuredAnswer({
   })()
 
   const insightsBlock =
-    response.answer.insights.length > 0 ? (
+    !ragProseOnly && response.answer.insights.length > 0 ? (
       <div className="answer-section-divider space-y-3">
         <div className="type-section-label flex items-center gap-2">
           <Lightbulb size={14} className="text-cloudera-orange" aria-hidden />
@@ -855,7 +936,7 @@ function StructuredAnswer({
     ) : null
 
   const implicationsBlock =
-    response.answer.business_implications.length > 0 ? (
+    !ragProseOnly && response.answer.business_implications.length > 0 ? (
       <div className="answer-section-divider space-y-3">
         <div className="type-section-label">Business implications</div>
         <div className="rounded-lg border border-slate-200/90 bg-slate-50/50 p-4 shadow-[inset_3px_0_0_0_rgba(154,140,255,0.55)]">
@@ -873,7 +954,9 @@ function StructuredAnswer({
       </div>
     ) : null
 
-  const chatDocumentSplit = Boolean(reportArtifact && !expandForExport)
+  const chatDocumentSplit = Boolean(
+    presentationTier === 3 && reportArtifact && !expandForExport,
+  )
 
   if (chatDocumentSplit) {
     const teaser = response.answer.direct_answer.trim()
@@ -905,6 +988,8 @@ function StructuredAnswer({
         <ResponseFooter
           response={response}
           processSnapshot={processSnapshot}
+          sessionId={sessionId}
+          enableFeedback
           variant="inline"
           metadataClassName="answer-response-metadata"
         />
@@ -912,7 +997,14 @@ function StructuredAnswer({
     )
   }
 
-  const evidenceBlock = showEvidenceBlock ? (
+  const kpiOnlyBlock =
+    response.chart_spec?.type === 'kpi' ? (
+      <div className="max-w-md">
+        <KpiCard label={response.chart_spec.title} value={kpiValue} format="" icon={BarChart3} />
+      </div>
+    ) : null
+
+  const evidenceBlock = showEvidenceBlock && !chatInlineEvidence ? (
     <section className={`answer-surface ${hasVisualChart ? 'space-y-0' : 'space-y-3'}`}>
       {response.chart_spec?.type === 'kpi' && (
         <div className="max-w-md">
@@ -976,11 +1068,17 @@ function StructuredAnswer({
         {clarificationBlock}
         {!chartFirst && (
           <>
-            {insightsBlock}
-            {implicationsBlock}
-            {dataNoteInNarrative && (
+            {!chatInlineEvidence || presentationTier >= 2 || showTier1Insights ? insightsBlock : null}
+            {!chatInlineEvidence || presentationTier >= 2 ? implicationsBlock : null}
+            {dataNoteInNarrative && showDataNoteBlock && (
               <div className="answer-section-divider !pt-3">
-                <DataNote note={dataNote} sources={provenanceSources} inChatResponse />
+                <DataNote
+                  note={displayDataNote}
+                  sources={provenanceSources}
+                  inChatResponse
+                  noteLabel={executiveView ? '' : 'Data note.'}
+                  hideSourceChips={executiveView}
+                />
               </div>
             )}
           </>
@@ -994,8 +1092,8 @@ function StructuredAnswer({
           {showExecutiveSummary && (
             <AnswerProse text={response.answer.executive_summary} omitTables={omitTablesInProse} variant="support" />
           )}
-          {insightsBlock}
-          {implicationsBlock}
+          {!chatInlineEvidence || presentationTier >= 2 || showTier1Insights ? insightsBlock : null}
+          {!chatInlineEvidence || presentationTier >= 2 ? implicationsBlock : null}
           {dataNoteInNarrative && (
             <div className={showExecutiveSummary || insightsBlock || implicationsBlock ? 'answer-section-divider !pt-3' : ''}>
               <DataNote note={dataNote} sources={provenanceSources} inChatResponse />
@@ -1004,7 +1102,7 @@ function StructuredAnswer({
         </section>
       )}
 
-      {reportArtifact && (
+      {presentationTier === 3 && reportArtifact && (
         <ReportArtifactCard
           title={reportArtifact.title}
           subtitle={appConfig.reportDocumentLabel}
@@ -1012,6 +1110,29 @@ function StructuredAnswer({
           onOpen={reportArtifact.onOpen}
         />
       )}
+
+      {((chatInlineEvidence && shouldShowChatExpand(response, presentationTier)) ||
+        executiveQueryOnlyExpand) &&
+      !expandForExport ? (
+        <ChatAnalysisDetailsExpand
+          response={response}
+          tier={presentationTier}
+          kpiBlock={kpiOnlyBlock}
+          tableBlock={expandTableBlock(response)}
+          executiveMode={executiveView}
+          executiveQueryOnly={executiveQueryOnlyExpand}
+        />
+      ) : null}
+
+      {onOpenWorkspace ? (
+        <button
+          type="button"
+          onClick={onOpenWorkspace}
+          className="text-left text-xs font-semibold text-cloudera-navy underline-offset-2 hover:underline"
+        >
+          Buka {appConfig.reportDocumentLabel}
+        </button>
+      ) : null}
 
       <div className={`answer-meta-stack ${dataNoteInNarrative ? 'answer-meta-stack-flush' : ''}`}>
         {isRagResponse(response) && ragCitationCount(response) > 0 ? (
@@ -1032,14 +1153,23 @@ function StructuredAnswer({
             </button>
           </div>
         ) : null}
-        {hasDataNoteContent && !dataNoteInNarrative && (
-          <DataNote note={dataNote} sources={provenanceSources} inChatResponse />
+        {showDataNoteBlock && !dataNoteInNarrative && (
+          <DataNote
+            note={displayDataNote}
+            sources={provenanceSources}
+            inChatResponse
+            noteLabel={executiveView ? '' : 'Data note.'}
+            hideSourceChips={executiveView}
+          />
         )}
         <ResponseFooter
           response={response}
           processSnapshot={processSnapshot}
+          sessionId={sessionId}
+          enableFeedback
           variant="inline"
           metadataClassName="answer-response-metadata"
+          hideTelemetry={executiveView && presentationTier <= 2}
         />
       </div>
     </div>

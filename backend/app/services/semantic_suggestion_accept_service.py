@@ -206,19 +206,41 @@ class SemanticSuggestionAcceptService:
         if f"metric:{key}" in existing_keys:
             result.conflicts.append(AcceptConflict(sid, "duplicate", f"Metric `{key}` already exists."))
             return
-        expr = _normalize_metric_expression(str(payload.get("expression") or ""))
+        from app.semantic.runtime_extensions.config import list_profile_names, load_profile
+        from app.semantic.runtime_extensions.engine import coerce_suggested_metric_metadata
+
+        profile_ext: dict | None = None
+        for pname in list_profile_names():
+            prof = load_profile(pname)
+            if key in (prof.get("metric_enrichment") or {}):
+                profile_ext = prof
+                break
+        raw_expr = _normalize_metric_expression(str(payload.get("expression") or ""))
+        display_name, expr, business_definition = coerce_suggested_metric_metadata(
+            key=key,
+            expression=raw_expr,
+            name=str(payload.get("name") or "") or None,
+            extensions=profile_ext,
+        )
+        enrich = (profile_ext or {}).get("metric_enrichment", {}).get(key) or {}
+        synonyms = list(payload.get("synonyms") or [])
+        for syn in enrich.get("synonyms") or []:
+            if syn not in synonyms:
+                synonyms.append(syn)
         row = self._registry.create_metric(
             version_id,
             workspace_id=ws,
             project_id=proj,
             data={
                 "key": key,
-                "name": payload.get("name") or key,
-                "business_definition": payload.get("business_definition") or payload.get("description") or f"Suggested metric {key}",
+                "name": display_name,
+                "business_definition": payload.get("business_definition")
+                or payload.get("description")
+                or business_definition,
                 "expression": expr,
                 "aggregation": payload.get("aggregation") or _infer_aggregation(expr),
                 "source_entity_key": payload.get("source_entity_key"),
-                "synonyms": payload.get("synonyms") or [],
+                "synonyms": synonyms,
             },
         )
         existing_keys.add(f"metric:{key}")

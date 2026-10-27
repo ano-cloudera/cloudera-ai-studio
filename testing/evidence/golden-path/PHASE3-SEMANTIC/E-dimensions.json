@@ -1,0 +1,200 @@
+{
+  "dimensions": [
+    {
+      "id": "183d56eb-bb6a-436c-903d-c73bd94e26f2",
+      "key": "amount",
+      "name": "Transaction Amount",
+      "description": "Transaction monetary amount.",
+      "source_entity_key": "transactions",
+      "source_column": "amount",
+      "data_type": "DECIMAL",
+      "synonyms": [],
+      "metadata": {
+        "normalized_type": "DECIMAL"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "a6fd9897-5693-4828-a793-26076703241c",
+      "key": "channel",
+      "name": "Channel",
+      "description": "Origination channel (Branch, Mobile, etc.).",
+      "source_entity_key": "transactions",
+      "source_column": "channel",
+      "data_type": "STRING",
+      "synonyms": [],
+      "metadata": {
+        "normalized_type": "STRING"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "77a06c4d-3232-4784-b62e-4e2037bc793e",
+      "key": "city",
+      "name": "Customer City",
+      "description": "Customer city.",
+      "source_entity_key": "customers",
+      "source_column": "city",
+      "data_type": "STRING",
+      "synonyms": [],
+      "metadata": {
+        "normalized_type": "STRING"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "a7658bdc-bde4-458a-b905-64456e8f5a15",
+      "key": "customer_id",
+      "name": "Customer Id",
+      "description": "Surrogate customer identifier.",
+      "source_entity_key": "customers",
+      "source_column": "customer_id",
+      "data_type": "INTEGER",
+      "synonyms": [],
+      "metadata": {
+        "normalized_type": "INTEGER"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "435e07ce-5645-4a0c-9c35-78866fc16fc6",
+      "key": "customer_name",
+      "name": "Customer Name",
+      "description": "Customer display name.",
+      "source_entity_key": "customers",
+      "source_column": "customer_name",
+      "data_type": "STRING",
+      "synonyms": [],
+      "metadata": {
+        "normalized_type": "STRING"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "ead7a326-44a2-46c3-8aa8-3d2984991e80",
+      "key": "customer_status",
+      "name": "Customer Status",
+      "description": "Customer lifecycle status (Active/Inactive).",
+      "source_entity_key": "customers",
+      "source_column": "customer_status",
+      "data_type": "STRING",
+      "synonyms": [],
+      "metadata": {
+        "normalized_type": "STRING"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "4a86dc3b-c6e5-44e3-907a-f2607c86e881",
+      "key": "join_date",
+      "name": "Customer Join Date",
+      "description": "Date the customer joined.",
+      "source_entity_key": "customers",
+      "source_column": "join_date",
+      "data_type": "DATE",
+      "synonyms": [],
+      "metadata": {
+        "normalized_type": "DATE"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "1dc9755a-bc22-4dcc-a7d9-1905afa6bf7e",
+      "key": "merchant_category",
+      "name": "Merchant Category",
+      "description": "Merchant category for the transaction.",
+      "source_entity_key": "transactions",
+      "source_column": "merchant_category",
+      "data_type": "STRING",
+      "synonyms": [],
+      "metadata": {
+        "normalized_type": "STRING"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "fcac5bbd-f20c-4b93-9082-75a76915ce66",
+      "key": "risk_tier",
+      "name": "Risk Tier",
+      "description": "Synthetic risk tier classification.",
+      "source_entity_key": "customers",
+      "source_column": "risk_tier",
+      "data_type": "STRING",
+      "synonyms": [],
+      "metadata": {
+        "normalized_type": "STRING"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "4437537e-d464-46fb-a105-060d98b336f2",
+      "key": "segment",
+      "name": "Customer Segment",
+      "description": "Banking customer segment (e.g. Priority, Standard).",
+      "source_entity_key": "customers",
+      "source_column": "segment",
+      "data_type": "STRING",
+      "synonyms": [],
+      "metadata": {
+        "normalized_type": "STRING"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "61740c35-7c41-43c5-944b-8145623c6d8f",
+      "key": "status",
+      "name": "Transaction Status",
+      "description": "Transaction attempt outcome (Success or Failed).",
+      "source_entity_key": "transactions",
+      "source_column": "status",
+      "data_type": "STRING",
+      "synonyms": [],
+      "metadata": {
+        "normalized_type": "STRING"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "f37ecfc2-c1f2-4202-947e-ff07c8340fd7",
+      "key": "transaction_date",
+      "name": "Transaction Date",
+      "description": "Calendar date of the transaction.",
+      "source_entity_key": "transactions",
+      "source_column": "transaction_date",
+      "data_type": "DATE",
+      "synonyms": [],
+      "metadata": {
+        "normalized_type": "DATE"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "1b179d9f-dcdf-4f86-880b-6dd72e6b08ac",
+      "key": "transaction_month",
+      "name": "Transaction Month",
+      "description": "Calendar month derived from transaction_date.",
+      "source_entity_key": "transactions",
+      "source_column": "transaction_date",
+      "data_type": "date",
+      "synonyms": [],
+      "metadata": {
+        "time_grain": "month"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "2f21c325-8b21-45a7-b266-bbf26e848c1a",
+      "key": "transaction_type",
+      "name": "Transaction Type",
+      "description": "Transaction type label.",
+      "source_entity_key": "transactions",
+      "source_column": "transaction_type",
+      "data_type": "STRING",
+      "synonyms": [],
+      "metadata": {
+        "normalized_type": "STRING"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+Backend process: RUNNING
+PID: 93109
+Port 8001: LISTENING
+/health: 200
+/health/ready: 200
+core_ready: true

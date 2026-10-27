@@ -44,7 +44,16 @@ from app.core.models import ModelResolutionMeta
 from app.llm.registry import ProviderRegistry
 from app.semantic.context import SemanticContextService
 from app.services.ask_data_routing import resolve_ask_data_route, v3_agent_available
-from app.services.conversational import TurnUnderstanding, understand_turn
+from app.ask_data.presentation_tier import attach_presentation_tier
+from app.ask_data.presentation_tier_config import PresentationTierConfig
+from app.workspace.presentation_config_resolver import load_presentation_tier_config
+from app.graph.inquiry_brief import build_inquiry_brief
+from app.services.conversational import (
+    TurnUnderstanding,
+    understand_turn,
+    _is_capability_meta_question,
+)
+from app.services.guardrails import out_of_scope_message, should_block_ask_data_scope
 from app.services.follow_up import analysis_context_from_history, try_history_only_analysis_resolution
 from app.services.question_contextualize import resolve_question_for_pipeline
 from app.services.session_context import build_session_frame, capability_session_hint
@@ -134,7 +143,19 @@ class ChatService:
         self._runtime_bundle: RuntimeContextBundle | None = None
         self._project_scope: tuple[str, str] | None = None
         self._active_resolution: ModelResolutionMeta | None = None
+        self._active_presentation_config = PresentationTierConfig.from_settings(settings)
         self.apply_runtime_bundle(SemanticRuntimeLoader.get(settings).get_bundle())
+
+    def _presentation_tier_config(self) -> PresentationTierConfig:
+        return self._active_presentation_config
+
+    def _refresh_presentation_tier_config(self) -> None:
+        workspace_id = self._project_scope[0] if self._project_scope else None
+        self._active_presentation_config = load_presentation_tier_config(
+            self.settings,
+            session_factory=self.dependencies.session_factory,
+            workspace_id=workspace_id,
+        )
 
     def _validate_ask_data_sql(self, sql: str, state: dict[str, Any]) -> Any:
         return validate_ask_data_sql(
@@ -172,21 +193,42 @@ class ChatService:
         )
 
     def bootstrap_runtime_from_db(self) -> None:
-        if self.settings.state_store.strip().lower() != "postgres" or not (self.settings.database_url or "").strip():
+        from app.db.metadata_db import platform_metadata_configured
+
+        if not platform_metadata_configured(self.settings):
             self.apply_runtime_bundle(SemanticRuntimeLoader.get(self.settings).get_bundle())
             return
-        project = load_default_project(self.settings)
-        if project is None:
-            self.apply_runtime_bundle(SemanticRuntimeLoader.get(self.settings).get_bundle())
-            return
-        self._project_scope = (str(project.workspace_id), str(project.id))
         factory = get_session_factory(self.settings.database_url)
+        model_key = (self.settings.semantic_default_model_key or "").strip()
         with factory() as session:
-            bundle = SemanticRuntimeLoader.get(self.settings).refresh(
+            from app.projects.scope import load_project_for_semantic_model_key
+
+            project = (
+                load_project_for_semantic_model_key(session, self.settings, model_key)
+                if model_key
+                else load_default_project(self.settings)
+            )
+            if project is None:
+                self.apply_runtime_bundle(SemanticRuntimeLoader.get(self.settings).get_bundle())
+                return
+            self._project_scope = (str(project.workspace_id), str(project.id))
+            SemanticRuntimeLoader._instance = None  # noqa: SLF001
+            loader = SemanticRuntimeLoader.get(self.settings)
+            bundle = loader.refresh(
                 session,
                 workspace_id=project.workspace_id,
                 project_id=project.id,
+                model_key=model_key or None,
             )
+            if bundle.mode == "legacy":
+                active = loader.load_first_active_runtime(
+                    session,
+                    workspace_id=project.workspace_id,
+                    project_id=project.id,
+                )
+                if active is not None:
+                    loader.swap_bundle(active)
+                    bundle = active
         self.apply_runtime_bundle(bundle)
 
     def _sync_runtime_for_request(self) -> None:
@@ -216,6 +258,19 @@ class ChatService:
         if meta is None:
             return response
         return response.model_copy(update={"model_resolution": meta})
+
+    def _finalize_response(
+        self,
+        response: AskDataResponse,
+        *,
+        inquiry_brief: dict[str, Any] | None = None,
+    ) -> AskDataResponse:
+        response = attach_presentation_tier(
+            response,
+            inquiry_brief=inquiry_brief,
+            config=self._presentation_tier_config(),
+        )
+        return self._with_resolution_meta(response)
 
     def _registry_error_response(
         self,
@@ -253,7 +308,9 @@ class ChatService:
     def normalize_request(self, request: AskDataRequest) -> AskDataRequest:
         if not request.context_sources:
             return request
-        if self.settings.state_store.strip().lower() != "postgres" or not (self.settings.database_url or "").strip():
+        from app.db.metadata_db import platform_metadata_configured
+
+        if not platform_metadata_configured(self.settings):
             raise ContextSourceError(
                 "context_unavailable",
                 "Knowledge library context requires platform metadata storage",
@@ -362,6 +419,7 @@ class ChatService:
         request: AskDataRequest,
         *,
         question: str,
+        session_analysis_context: dict[str, Any] | None = None,
     ) -> StructuredAskPrecedence | None:
         if self.dependencies.session_factory is None or not (self.settings.database_url or "").strip():
             if structured_data_sources(request.context_sources):
@@ -375,11 +433,13 @@ class ChatService:
                     context_mode=None,
                 )
             return None
-        project = load_default_project(self.settings)
-        if project is None:
-            return None
-        self._project_scope = (str(project.workspace_id), str(project.id))
         with self.dependencies.session_factory() as session:
+            from app.projects.scope import resolve_structured_project_scope
+
+            project = resolve_structured_project_scope(session, self.settings, request)
+            if project is None:
+                return None
+            self._project_scope = (str(project.workspace_id), str(project.id))
             return resolve_structured_ask(
                 session,
                 settings=self.settings,
@@ -388,7 +448,83 @@ class ChatService:
                 request=request,
                 semantic_context=self.dependencies.semantic_context,
                 question=question,
+                session_analysis_context=session_analysis_context,
             )
+
+    @staticmethod
+    def _skip_structured_clarification(turn: TurnUnderstanding, raw_question: str) -> bool:
+        """Greeting / capability turns must not be short-circuited by structured metric clarification."""
+        if turn.is_conversational:
+            return True
+        return _is_capability_meta_question(raw_question)
+
+    @staticmethod
+    def _ignore_structured_explicit_error(
+        turn: TurnUnderstanding,
+        question: str,
+        precedence: StructuredAskPrecedence,
+    ) -> bool:
+        if not precedence.explicit_error:
+            return False
+        if precedence.runtime_bundle is None:
+            return False
+        if turn.is_conversational and turn.attach_domain_catalog:
+            return True
+        return _is_capability_meta_question(question)
+
+    def _ask_data_space_instructions(self) -> str:
+        factory = self.dependencies.session_factory
+        scope = self._project_scope
+        if factory is None or not scope:
+            return ""
+        try:
+            workspace_id = uuid.UUID(scope[0])
+            project_id = uuid.UUID(scope[1])
+        except ValueError:
+            return ""
+        from app.db.platform_models import WorkspaceRow
+        from app.prompt_management.resolver import resolve_prompt_text
+        from app.workspace.ask_data_settings import read_ask_data_settings
+
+        with factory() as session:
+            row = session.get(WorkspaceRow, workspace_id)
+            if row is None:
+                return ""
+            settings = read_ask_data_settings(row.settings_json)
+            key = (settings.instruction_prompt_key or "").strip()
+            if not key:
+                return ""
+            try:
+                return resolve_prompt_text(
+                    self.settings,
+                    key,
+                    session=session,
+                    workspace_id=workspace_id,
+                    project_id=project_id,
+                ).strip()[:4000]
+            except Exception:
+                return ""
+
+    def _capability_starter_questions(self) -> list[str]:
+        factory = self.dependencies.session_factory
+        scope = self._project_scope
+        if factory is None or not scope:
+            return []
+        try:
+            workspace_id = uuid.UUID(scope[0])
+        except ValueError:
+            return []
+        from app.db.platform_models import WorkspaceRow
+        from app.workspace.ask_data_settings import read_ask_data_settings
+
+        with factory() as session:
+            row = session.get(WorkspaceRow, workspace_id)
+            if row is None:
+                return []
+            settings = read_ask_data_settings(row.settings_json)
+        if settings.starter_source != "configured":
+            return []
+        return list(settings.starter_questions or [])
 
     def _clarification_response(
         self,
@@ -418,7 +554,7 @@ class ChatService:
                 executive_summary=message,
                 insights=[],
                 business_implications=[],
-                caveats=[payload.reason],
+                caveats=[],
                 data_reference="clarification_required",
                 chart_spec=None,
             ),
@@ -426,6 +562,38 @@ class ChatService:
             chart_spec=None,
             timings=Timings(total_ms=elapsed),
             clarification=AskDataClarification(reason=payload.reason, message=message, options=options),
+        )
+
+    def _out_of_scope_response(
+        self,
+        request: AskDataRequest,
+        *,
+        request_id: str,
+        started: float,
+    ) -> AskDataResponse:
+        from time import perf_counter
+
+        elapsed = round((perf_counter() - started) * 1000, 3) if started else 0.0
+        text = out_of_scope_message()
+        return AskDataResponse(
+            request_id=request_id,
+            session_id=request.session_id,
+            status="UNSUPPORTED",
+            provider=request.provider,
+            model=request.model,
+            strategy="unsupported",
+            answer=AnalysisOutput(
+                direct_answer=text,
+                executive_summary=text,
+                insights=[],
+                business_implications=[],
+                caveats=[],
+                data_reference="ask_data_scope",
+                chart_spec=None,
+            ),
+            data=QueryData(),
+            chart_spec=None,
+            timings=Timings(total_ms=elapsed),
         )
 
     def _explicit_context_error_response(
@@ -612,6 +780,11 @@ class ChatService:
         response = polish_v3_answer(
             _normalize_governed_v3_response(response.model_copy(update={"timings": timings}))
         )
+        response = attach_presentation_tier(
+            response,
+            inquiry_brief=build_inquiry_brief(question),
+            config=self._presentation_tier_config(),
+        )
         self._persist_turn(request, response, response.chart_spec)
         logger.info(
             "ask_data_v3 request_id=%s session_id=%s strategy=%s status=%s total_ms=%s",
@@ -676,6 +849,12 @@ class ChatService:
             state["session_analysis_context"] = session_analysis_context
         if conversation_history:
             state["session_capability_hint"] = capability_session_hint(conversation_history)
+        starters = self._capability_starter_questions()
+        if starters:
+            state["capability_starter_questions"] = starters
+        space_instructions = self._ask_data_space_instructions()
+        if space_instructions:
+            state["ask_data_space_instructions"] = space_instructions
         bundle = self._runtime_bundle
         if bundle is not None:
             state["runtime_mode"] = bundle.mode
@@ -730,6 +909,23 @@ class ChatService:
                     unit_format = None
         if governed_metric:
             raw_data["governed_metric"] = str(governed_metric)
+            definition = resolution.get("definition") if isinstance(resolution.get("definition"), dict) else None
+            if definition is None:
+                try:
+                    definition = self.dependencies.semantic_context.metric_definition(str(governed_metric))
+                except Exception:
+                    definition = None
+            if isinstance(definition, dict):
+                expr = str(definition.get("expression") or "").strip()
+                if expr:
+                    raw_data["governed_metric_expression"] = expr[:500]
+                base = definition.get("base_dataset")
+                if base:
+                    raw_data["governed_base_dataset"] = str(base)
+                ai_ctx = definition.get("ai_context") if isinstance(definition.get("ai_context"), dict) else {}
+                display = (ai_ctx or {}).get("display_name") or definition.get("description")
+                if display:
+                    raw_data["governed_metric_display_name"] = str(display).strip()[:200]
         if unit_format:
             raw_data["unit_format"] = str(unit_format)
         query_result = state.get("query_result") if isinstance(state.get("query_result"), dict) else {}
@@ -748,7 +944,8 @@ class ChatService:
             context_mode = "RAW_TABLE"
         if not context_mode and resolution.get("explicit_structured"):
             context_mode = "GOVERNED_SEMANTIC"
-        return AskDataResponse(
+        inquiry_brief = state.get("inquiry_brief") if isinstance(state.get("inquiry_brief"), dict) else None
+        response = AskDataResponse(
             request_id=request_id,
             session_id=request.session_id,
             status=state.get("status", "ERROR"),
@@ -763,6 +960,11 @@ class ChatService:
             governed_sql=governed_sql,
             semantic_runtime=self._runtime_meta,
             context_mode=context_mode if context_mode in {"RAW_TABLE", "GOVERNED_SEMANTIC"} else None,
+        )
+        return attach_presentation_tier(
+            response,
+            inquiry_brief=inquiry_brief,
+            config=self._presentation_tier_config(),
         )
 
     async def _stream_ossie_workflow(
@@ -883,19 +1085,31 @@ class ChatService:
                 if request.mode == "rag":
                     logger.info("ask_data_route=rag request_id=%s session_id=%s", request_id, request.session_id)
                     out = await self._run_rag(request, request_id=request_id)
-                    return self._with_resolution_meta(out)
+                    return self._finalize_response(out)
                 conversation_history = self.history.load(request.session_id, limit=8)
                 session_metric = _session_last_metric(conversation_history)
                 session_ctx = analysis_context_from_history(conversation_history)
                 turn = await self._understand_turn(request, conversation_history, request_id=request_id)
                 question = resolve_question_for_pipeline(request.question, conversation_history, turn)
-                precedence = self._structured_precedence(request, question=question)
+                if should_block_ask_data_scope(
+                    question, raw_question=request.question, history=conversation_history
+                ):
+                    return self._finalize_response(
+                        self._out_of_scope_response(request, request_id=request_id, started=started)
+                    )
+                precedence = self._structured_precedence(
+                    request,
+                    question=question,
+                    session_analysis_context=session_ctx or None,
+                )
                 structured_resolution: dict[str, Any] | None = None
                 if precedence is not None:
                     if precedence.runtime_bundle is not None:
                         self.apply_runtime_bundle(precedence.runtime_bundle)
-                    if precedence.clarification is not None:
-                        return self._with_resolution_meta(
+                    if precedence.clarification is not None and not self._skip_structured_clarification(
+                        turn, request.question
+                    ):
+                        return self._finalize_response(
                             self._clarification_response(
                                 request,
                                 request_id=request_id,
@@ -903,8 +1117,10 @@ class ChatService:
                                 started=started,
                             )
                         )
-                    if precedence.explicit_error:
-                        return self._with_resolution_meta(
+                    if precedence.explicit_error and not self._ignore_structured_explicit_error(
+                        turn, question, precedence
+                    ):
+                        return self._finalize_response(
                             self._explicit_context_error_response(
                                 request,
                                 request_id=request_id,
@@ -912,9 +1128,25 @@ class ChatService:
                                 started=started,
                             )
                         )
-                    if precedence.resolution is not None:
+                    if precedence.resolution is not None and not self._skip_structured_clarification(
+                        turn, request.question
+                    ):
                         structured_resolution = precedence.resolution
+                        if structured_resolution.get("status") == "needs_clarification":
+                            from app.ask_data.structured_context_resolver import _clarification_from_resolution
+
+                            payload = _clarification_from_resolution(structured_resolution)
+                            if payload is not None:
+                                return self._finalize_response(
+                                    self._clarification_response(
+                                        request,
+                                        request_id=request_id,
+                                        payload=payload,
+                                        started=started,
+                                    )
+                                )
                         force_ossie = True
+                self._refresh_presentation_tier_config()
                 if structured_resolution is not None:
                     route, resolution = "ossie", structured_resolution
                 else:
@@ -940,7 +1172,7 @@ class ChatService:
                             request, request_id=request_id, question=question, client=client
                         )
                         if v3_response.status != "ERROR" or not self._v3_fallback_to_ossie_on_error():
-                            return self._with_resolution_meta(v3_response)
+                            return self._finalize_response(v3_response)
                         logger.info("ask_data_v3_failed_fallback_ossie request_id=%s", request_id)
                 logger.info("ask_data_route=ossie request_id=%s session_id=%s", request_id, request.session_id)
                 initial = self._build_initial_state(
@@ -963,7 +1195,7 @@ class ChatService:
                         "ask_data request_id=%s session_id=%s provider=%s model=%s strategy=%s status=%s retry_count=%s timings=%s turn_rationale=%s",
                         request_id, request.session_id, request.provider, request.model, response.strategy, response.status, response.retry_count, response.timings.model_dump_json(), turn.rationale[:120],
                     )
-                    return self._with_resolution_meta(response)
+                    return self._finalize_response(response)
                 except DataBackendError as exc:
                     logger.warning(
                         "ask_data_backend_failed request_id=%s session_id=%s provider=%s model=%s safe_error_code=%s",
@@ -977,7 +1209,7 @@ class ChatService:
                         failure={"kind": "data_backend", "code": exc.code},
                         request_id=request_id,
                     )
-                    return self._with_resolution_meta(
+                    return self._finalize_response(
                         AskDataResponse(
                             request_id=request_id,
                             session_id=request.session_id,
@@ -999,7 +1231,7 @@ class ChatService:
                         failure={"kind": "internal", "code": "UNEXPECTED"},
                         request_id=request_id,
                     )
-                    return self._with_resolution_meta(
+                    return self._finalize_response(
                         AskDataResponse(
                             request_id=request_id,
                             session_id=request.session_id,
@@ -1030,7 +1262,7 @@ class ChatService:
                 request = self._prepare_registry_request(request, capability=cap)
             except (RegistryRuntimeError, AiRegistryError) as exc:
                 err = self._registry_error_response(request, request_id=request_id, exc=exc, started=started)
-                yield {"type": "done", "response": self._with_resolution_meta(err)}
+                yield {"type": "done", "response": self._finalize_response(err)}
                 return
             if request.mode == "rag":
                 logger.info("ask_data_route=rag stream request_id=%s session_id=%s", request_id, request.session_id)
@@ -1039,7 +1271,7 @@ class ChatService:
                         if event.get("type") == "done":
                             event = {
                                 **event,
-                                "response": self._with_resolution_meta(event["response"]),
+                                "response": self._finalize_response(event["response"]),
                             }
                         yield event
                 finally:
@@ -1051,15 +1283,31 @@ class ChatService:
             session_ctx = analysis_context_from_history(conversation_history)
             turn = await self._understand_turn(request, conversation_history, request_id=request_id)
             question = resolve_question_for_pipeline(request.question, conversation_history, turn)
-            precedence = self._structured_precedence(request, question=question)
+            if should_block_ask_data_scope(
+                question, raw_question=request.question, history=conversation_history
+            ):
+                yield {
+                    "type": "done",
+                    "response": self._finalize_response(
+                        self._out_of_scope_response(request, request_id=request_id, started=started)
+                    ),
+                }
+                return
+            precedence = self._structured_precedence(
+                request,
+                question=question,
+                session_analysis_context=session_ctx or None,
+            )
             structured_resolution: dict[str, Any] | None = None
             if precedence is not None:
                 if precedence.runtime_bundle is not None:
                     self.apply_runtime_bundle(precedence.runtime_bundle)
-                if precedence.clarification is not None:
+                if precedence.clarification is not None and not self._skip_structured_clarification(
+                    turn, request.question
+                ):
                     yield {
                         "type": "done",
-                        "response": self._with_resolution_meta(
+                        "response": self._finalize_response(
                             self._clarification_response(
                                 request,
                                 request_id=request_id,
@@ -1069,10 +1317,12 @@ class ChatService:
                         ),
                     }
                     return
-                if precedence.explicit_error:
+                if precedence.explicit_error and not self._ignore_structured_explicit_error(
+                    turn, question, precedence
+                ):
                     yield {
                         "type": "done",
-                        "response": self._with_resolution_meta(
+                        "response": self._finalize_response(
                             self._explicit_context_error_response(
                                 request,
                                 request_id=request_id,
@@ -1082,8 +1332,28 @@ class ChatService:
                         ),
                     }
                     return
-                if precedence.resolution is not None:
+                if precedence.resolution is not None and not self._skip_structured_clarification(
+                    turn, request.question
+                ):
                     structured_resolution = precedence.resolution
+                    if structured_resolution.get("status") == "needs_clarification":
+                        from app.ask_data.structured_context_resolver import _clarification_from_resolution
+
+                        payload = _clarification_from_resolution(structured_resolution)
+                        if payload is not None:
+                            yield {
+                                "type": "done",
+                                "response": self._finalize_response(
+                                    self._clarification_response(
+                                        request,
+                                        request_id=request_id,
+                                        payload=payload,
+                                        started=started,
+                                    )
+                                ),
+                            }
+                            return
+            self._refresh_presentation_tier_config()
             if structured_resolution is not None:
                 route, resolution = "ossie", structured_resolution
             else:
@@ -1134,9 +1404,14 @@ class ChatService:
                                 response = polish_v3_answer(
                                     _normalize_governed_v3_response(AskDataResponse.model_validate(payload))
                                 )
+                                response = attach_presentation_tier(
+                                    response,
+                                    inquiry_brief=build_inquiry_brief(question),
+                                    config=self._presentation_tier_config(),
+                                )
                                 response = self._attach_usage(request, response)
                                 self._persist_turn(request, response, response.chart_spec)
-                                yield {"type": "done", "response": response}
+                                yield {"type": "done", "response": self._finalize_response(response)}
                             else:
                                 yield event
                             return
@@ -1144,16 +1419,21 @@ class ChatService:
                             response = polish_v3_answer(
                                 _normalize_governed_v3_response(AskDataResponse.model_validate(event))
                             )
+                            response = attach_presentation_tier(
+                                response,
+                                inquiry_brief=build_inquiry_brief(question),
+                                config=self._presentation_tier_config(),
+                            )
                             response = self._attach_usage(request, response)
                             self._persist_turn(request, response, response.chart_spec)
-                            yield {"type": "done", "response": response}
+                            yield {"type": "done", "response": self._finalize_response(response)}
                             return
                     fallback = self._v3_fallback_to_ossie_on_error()
                     response = await self._run_via_tempo_agent_v3(
                         request, request_id=request_id, question=question, client=client
                     )
                     if response.status != "ERROR" or not fallback:
-                        yield {"type": "done", "response": response}
+                        yield {"type": "done", "response": self._finalize_response(response)}
                         return
                     logger.info("ask_data_v3_stream_fallback_ossie request_id=%s", request_id)
                 except LocalAgentError:
@@ -1161,7 +1441,7 @@ class ChatService:
                         response = await self._run_via_tempo_agent_v3(
                             request, request_id=request_id, question=question, client=client
                         )
-                        yield {"type": "done", "response": response}
+                        yield {"type": "done", "response": self._finalize_response(response)}
                         return
                     logger.info("ask_data_v3_stream_fallback_ossie request_id=%s", request_id)
 
@@ -1177,7 +1457,7 @@ class ChatService:
                     turn_understanding=turn,
                 ):
                     if event.get("type") == "done":
-                        event = {**event, "response": self._with_resolution_meta(event["response"])}
+                        event = {**event, "response": self._finalize_response(event["response"])}
                     yield event
             finally:
                 if isinstance(reg, HybridProviderRegistry):

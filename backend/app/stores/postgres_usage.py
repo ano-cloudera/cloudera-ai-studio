@@ -7,9 +7,26 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 from app.db.platform_engine import get_session_factory
 from app.db.platform_models import UsageEventRow
+
+
+def _usage_day_bucket(session: Session, column):
+    dialect = session.get_bind().dialect.name
+    if dialect == "sqlite":
+        return func.date(column)
+    return func.date_trunc("day", column)
+
+
+def _usage_day_iso(value) -> str:
+    if value is None:
+        return ""
+    if hasattr(value, "date") and callable(value.date):
+        return value.date().isoformat()
+    text = str(value)
+    return text[:10]
 
 
 class PostgresUsageStore:
@@ -91,12 +108,12 @@ class PostgresUsageStore:
     def daily_totals(self, *, days: int = 7) -> list[dict[str, Any]]:
         since = self._since(days, False)
         with self._session_factory() as session:
-            day_col = func.date_trunc("day", UsageEventRow.created_at)
+            day_col = _usage_day_bucket(session, UsageEventRow.created_at)
             stmt = select(day_col, func.sum(UsageEventRow.total_tokens)).group_by(day_col).order_by(day_col)
             if since:
                 stmt = stmt.where(UsageEventRow.created_at >= since)
             rows = session.execute(stmt).all()
-        return [{"day": r[0].date().isoformat(), "tokens": int(r[1])} for r in rows]
+        return [{"day": _usage_day_iso(r[0]), "tokens": int(r[1])} for r in rows]
 
     def by_model(self, *, days: int = 7) -> list[dict[str, Any]]:
         since = self._since(days, False)

@@ -80,6 +80,7 @@ const metric = {
   format: null,
   unit: null,
   synonyms: [],
+  allowed_dimension_keys: ['channel'],
   metadata: {},
   modified_at: '2026-10-17T00:00:00Z',
 }
@@ -134,8 +135,10 @@ vi.mock('../../../lib/api', () => ({
     previewSemanticEntityImport: vi.fn(),
     listSemanticMetrics: vi.fn(),
     bulkDeleteSemanticMetrics: vi.fn(),
+    deleteSemanticMetric: vi.fn(),
     createSemanticMetric: vi.fn(),
     patchSemanticMetric: vi.fn(),
+    patchSemanticEntity: vi.fn(),
     validateSemanticMetric: vi.fn(),
     listSemanticDimensions: vi.fn(),
     bulkDeleteSemanticDimensions: vi.fn(),
@@ -150,6 +153,7 @@ vi.mock('../../../lib/api', () => ({
     createSemanticTerm: vi.fn(),
     patchSemanticTerm: vi.fn(),
     listSemanticRecentDefinitions: vi.fn(),
+    previewSemanticEntityImport: vi.fn(),
     listConnectors: vi.fn(),
     listConnectorCatalogs: vi.fn(),
     listConnectorSchemas: vi.fn(),
@@ -164,11 +168,26 @@ function setupDefaultMocks() {
   vi.mocked(api.importSemanticEntity).mockResolvedValue({ entity, import: { dimensions_created: 0, columns_discovered: 1, warnings: [] } })
   vi.mocked(api.patchSemanticEntity).mockResolvedValue({ entity })
   vi.mocked(api.previewSemanticEntityImport).mockResolvedValue({ preview: { existing_entity: null, columns: [] } })
+  vi.mocked(api.listSemanticEntities).mockResolvedValue({ entities: [entity], total: 25, page: 1, page_size: 10 })
+  vi.mocked(api.patchSemanticEntity).mockResolvedValue({ entity })
+  vi.mocked(api.deleteSemanticMetric).mockResolvedValue({ deleted: true })
   vi.mocked(api.listSemanticMetrics).mockResolvedValue({ metrics: [metric], total: 1, page: 1, page_size: 10 })
   vi.mocked(api.bulkDeleteSemanticMetrics).mockResolvedValue({ requested: 1, deleted: [{ id: 'm1', name: 'm1' }], failed: [], deleted_count: 1, failed_count: 0 })
   vi.mocked(api.createSemanticMetric).mockResolvedValue({ metric })
   vi.mocked(api.patchSemanticMetric).mockResolvedValue({ metric })
   vi.mocked(api.validateSemanticMetric).mockResolvedValue({ valid: true, issues: [] })
+  vi.mocked(api.previewSemanticEntityImport).mockResolvedValue({
+    preview: {
+      table_type: 'TABLE',
+      columns: [
+        { name: 'amount', native_type: 'numeric', normalized_type: 'DECIMAL', nullable: false, comment: null },
+        { name: 'channel', native_type: 'varchar', normalized_type: 'STRING', nullable: true, comment: null },
+      ],
+      candidate_dimensions: [],
+      existing_entity: null,
+      primary_key: ['id'],
+    },
+  })
   vi.mocked(api.listSemanticDimensions).mockResolvedValue({
     dimensions: [
       dimension,
@@ -337,9 +356,22 @@ describe('SEM-2A matrix', () => {
     render(<MetricsTab versionId="v1" readOnly={false} entityKeys={['sales']} onChanged={() => undefined} />)
     await waitFor(() => screen.getByText('+ Add metric'))
     fireEvent.click(screen.getByText('+ Add metric'))
-    fireEvent.change(screen.getByPlaceholderText('Column'), { target: { value: 'nonexistent_column' } })
+    fireEvent.change(screen.getByPlaceholderText('Metric name'), { target: { value: 'Bad Metric' } })
+    fireEvent.change(screen.getByPlaceholderText('Business definition'), { target: { value: 'Test' } })
+    const columnInput = await waitFor(() => {
+      const manual = screen.queryByPlaceholderText('Source column')
+      if (manual) return manual
+      const columnSelect = Array.from(document.querySelectorAll('select')).find(sel =>
+        Array.from(sel.options).some(o => o.textContent?.includes('Select column')),
+      )
+      if (columnSelect) {
+        fireEvent.change(columnSelect, { target: { value: '__manual__' } })
+      }
+      return screen.getByPlaceholderText('Source column')
+    })
+    fireEvent.change(columnInput, { target: { value: 'nonexistent_column' } })
     fireEvent.click(screen.getByText('Save'))
-    await waitFor(() => expect(screen.getByText(/nonexistent_column/)).toBeTruthy())
+    await waitFor(() => expect(screen.getAllByText(/nonexistent_column/).length).toBeGreaterThan(0))
     expect(api.createSemanticMetric).not.toHaveBeenCalled()
   })
 
@@ -400,11 +432,22 @@ describe('SEM-2A matrix', () => {
   })
 
   it('SEM-2A-023 Relationship validation', async () => {
-    render(<RelationshipsTab versionId="v1" readOnly={false} entityKeys={['sales']} onChanged={() => undefined} />)
+    render(
+      <RelationshipsTab versionId="v1" readOnly={false} entityKeys={['customers', 'transactions']} onChanged={() => undefined} />,
+    )
     await waitFor(() => screen.getByText('+ Add relationship'))
     fireEvent.click(screen.getByText('+ Add relationship'))
     fireEvent.click(screen.getByText('Save'))
     await waitFor(() => expect(api.createSemanticRelationship).toHaveBeenCalled())
+
+    vi.mocked(api.createSemanticRelationship).mockClear()
+    cleanup()
+    render(<RelationshipsTab versionId="v1" readOnly={false} entityKeys={['sales']} onChanged={() => undefined} />)
+    await waitFor(() => screen.getByText('+ Add relationship'))
+    fireEvent.click(screen.getByText('+ Add relationship'))
+    fireEvent.click(screen.getByText('Save'))
+    await waitFor(() => expect(screen.getByText(/different data models/)).toBeTruthy())
+    expect(api.createSemanticRelationship).not.toHaveBeenCalled()
   })
 
   it('SEM-2A-024 relationship sort/pagination/search', async () => {
@@ -466,7 +509,7 @@ describe('SEM-2A matrix', () => {
     await waitFor(() => screen.getByText('Net Sales'))
     fireEvent.click(screen.getByRole('button', { name: 'Select rows' }))
     const table = screen.getByTestId('semantic-metrics-table')
-    const headerCb = within(table).getByRole('checkbox', { name: 'Select all rows on this page' })
+    const headerCb = within(table).getByRole('checkbox', { name: 'Select all rows' })
     fireEvent.click(headerCb)
     const rowCb = within(table).getByLabelText('Select Net Sales') as HTMLInputElement
     expect(rowCb.checked).toBe(true)

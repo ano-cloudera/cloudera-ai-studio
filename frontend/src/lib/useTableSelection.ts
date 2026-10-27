@@ -48,6 +48,26 @@ export function useTableSelection() {
     })
   }, [])
 
+  /** Header checkbox when selection spans paginated data (not just the current page). */
+  const datasetCheckboxState = useCallback(
+    (totalCount: number): PageCheckboxState => {
+      if (totalCount <= 0) return 'unchecked'
+      if (selectedCount === 0) return 'unchecked'
+      if (selectedCount >= totalCount) return 'checked'
+      return 'indeterminate'
+    },
+    [selectedCount],
+  )
+
+  const toggleDatasetSelection = useCallback((allIds: string[], totalCount: number) => {
+    setSelectedIds(prev => {
+      if (totalCount > 0 && prev.size >= totalCount) {
+        return new Set()
+      }
+      return new Set(allIds)
+    })
+  }, [])
+
   const selectedList = useMemo(() => [...selectedIds], [selectedIds])
 
   return {
@@ -60,5 +80,7 @@ export function useTableSelection() {
     setSelection,
     pageCheckboxState,
     togglePage,
+    datasetCheckboxState,
+    toggleDatasetSelection,
   }
 }

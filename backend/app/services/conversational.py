@@ -327,6 +327,13 @@ async def understand_turn(
                 rationale=raw.rationale or "mode_clarify",
             )
         elif mode == UnderstandingMode.FOLLOW_UP:
+            if _is_capability_meta_question(q):
+                return TurnUnderstanding(
+                    is_conversational=True,
+                    attach_domain_catalog=True,
+                    pipeline_question=q,
+                    rationale="capability_follow_up",
+                )
             raw = await _call_structured(
                 provider,
                 prompt_file="turn_understanding_followup.md",

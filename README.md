@@ -23,10 +23,17 @@ Combined stack: `./scripts/dev-stack.sh` (backend in background, frontend in for
 
 ## Database
 
-When `STATE_STORE=postgres` and `DATABASE_URL` is set:
+| Use | Configuration |
+|-----|----------------|
+| **Development** | Root `.env`: `STATE_STORE=postgres` and `DATABASE_URL` to your local Postgres (e.g. Docker on `127.0.0.1:55432`), or `STATE_STORE=sqlite` for limited local mode |
+| **Pytest (default)** | Forced in `backend/tests/conftest.py`: `STATE_STORE=sqlite`, empty `DATABASE_URL` — no Docker required |
+| **Migration proof** | Optional one-time fresh DB on smoke Postgres — not required for normal dev |
+
+When using Postgres:
 
 ```bash
 ./scripts/migration/upgrade-db.sh
+set -a && source deployment/profiles/runtime-closure.env && source .env && set +a
 cd backend && ../.venv/bin/alembic current && ../.venv/bin/alembic heads
 ```
 

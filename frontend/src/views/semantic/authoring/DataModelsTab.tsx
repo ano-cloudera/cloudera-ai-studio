@@ -26,11 +26,12 @@ type Props = {
   readOnly: boolean
   connectors: ConnectorRecord[]
   onChanged: () => void
+  onEntityImported?: (ctx: { connectionId: string; qualified: string }) => void
 }
 
 type DrawerMode = 'create' | 'edit' | null
 
-export function DataModelsTab({ versionId, readOnly, connectors, onChanged }: Props) {
+export function DataModelsTab({ versionId, readOnly, connectors, onChanged, onEntityImported }: Props) {
   const router = useRouter()
   const fetchPage = useCallback(async (vid: string, params: Parameters<typeof api.listSemanticEntities>[1]) => {
     const r = await api.listSemanticEntities(vid, params)
@@ -131,6 +132,8 @@ export function DataModelsTab({ versionId, readOnly, connectors, onChanged }: Pr
           key,
           description: form.description,
         })
+        const qualified = [form.catalog, form.schema, form.table_name].filter(Boolean).join('.')
+        onEntityImported?.({ connectionId: form.connection_id!, qualified })
       } else {
         await api.patchSemanticEntity(versionId, form.id, {
           name: form.name,
@@ -254,10 +257,10 @@ export function DataModelsTab({ versionId, readOnly, connectors, onChanged }: Pr
               <SemanticAuthoringSelectCell active={selectionMode.active} id={entity.id} label={entity.name} selection={selection} />
               <td className="truncate px-3 py-2 font-medium text-cloudera-navy">{entity.name}</td>
               <td className="truncate px-3 py-2 text-slate-600">{entity.description ?? '—'}</td>
-              <td className="truncate px-3 py-2 font-mono text-xs text-slate-600">{physicalSource(entity)}</td>
+              <td className="truncate font-mono text-slate-600">{physicalSource(entity)}</td>
               <td className="truncate px-3 py-2 text-slate-600">{entityConnectorLabel(entity, connectors)}</td>
               <td className="px-3 py-2 text-slate-600">{entityFieldCount(entity)}</td>
-              <td className="px-3 py-2 text-xs font-semibold text-emerald-800">Ready</td>
+              <td className="font-semibold text-emerald-800">Ready</td>
               <td className="px-3 py-2 text-slate-600">{formatSemanticModified(entity.modified_at)}</td>
               <td className="px-3 py-2">
                 <RowActionsMenu

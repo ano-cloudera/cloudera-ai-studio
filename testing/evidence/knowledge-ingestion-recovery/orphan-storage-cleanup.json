@@ -1,0 +1,8 @@
+{
+  "orphan_path": "backend/backend/runtime/document_storage",
+  "action": "removed_after_repair",
+  "repair_evidence": "testing/evidence/knowledge-ingestion-recovery/orphan-storage-repair.json",
+  "repaired_blob_count": 13,
+  "golden_banking_library_blobs_in_canonical_store": true,
+  "orphan_only_keys_after_repair": 0
+}

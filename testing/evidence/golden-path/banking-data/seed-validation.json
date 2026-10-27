@@ -1,0 +1,36 @@
+{
+  "customers": 250,
+  "transactions": 1000,
+  "orphan_transactions": 0,
+  "transaction_date_min": "2026-01-01",
+  "transaction_date_max": "2026-09-30",
+  "distributions": {
+    "status": {
+      "Pending": 43,
+      "Failed": 69,
+      "Success": 888
+    },
+    "channel": {
+      "Internet Banking": 201,
+      "Branch": 224,
+      "ATM": 191,
+      "EDC": 213,
+      "Mobile Banking": 171
+    },
+    "segment": {
+      "Priority": 84,
+      "SME": 83,
+      "Retail": 83
+    },
+    "risk_tier": {
+      "Medium": 72,
+      "High": 87,
+      "Low": 91
+    }
+  },
+  "insert": {
+    "skipped": false,
+    "customers": 250,
+    "transactions": 1000
+  }
+}

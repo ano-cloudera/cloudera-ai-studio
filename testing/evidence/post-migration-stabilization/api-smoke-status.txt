@@ -1,0 +1,9 @@
+200 /health
+200 /health/ready
+200 /api/v1/libraries
+200 /api/v1/connectors
+200 /api/v1/prompts
+200 /api/v1/skills
+200 /api/v1/semantic/models
+404 /api/v1/sessions
+404 /api/v1/usage/summary

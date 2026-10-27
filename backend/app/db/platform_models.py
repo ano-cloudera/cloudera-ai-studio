@@ -1,4 +1,4 @@
-"""SQLAlchemy models for M1 metadata (PostgreSQL)."""
+"""SQLAlchemy models for platform metadata (PostgreSQL + SQLite)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from app.db.types import PlatformJSON, PlatformUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -21,10 +21,10 @@ class Base(DeclarativeBase):
 class WorkspaceRow(Base):
     __tablename__ = "workspaces"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     slug: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
-    settings_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    settings_json: Mapped[dict | None] = mapped_column(PlatformJSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
@@ -35,13 +35,13 @@ class ProjectRow(Base):
     __tablename__ = "projects"
     __table_args__ = (UniqueConstraint("workspace_id", "slug", name="uq_projects_workspace_slug"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     slug: Mapped[str] = mapped_column(String(128), nullable=False)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     ossie_root_path: Mapped[str] = mapped_column(String(512), nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="active", nullable=False)
-    default_connector_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    default_connector_id: Mapped[uuid.UUID | None] = mapped_column(PlatformUUID, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
@@ -57,7 +57,7 @@ class LibraryRow(Base):
         Index("ix_libraries_workspace_project", "workspace_id", "project_id"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -77,7 +77,7 @@ class DocumentChunkRow(Base):
         Index("ix_document_chunks_library", "library_id"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     library_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("libraries.id"), nullable=False)
@@ -88,7 +88,7 @@ class DocumentChunkRow(Base):
     text: Mapped[str] = mapped_column(Text, nullable=False)
     token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     vector_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    metadata_json: Mapped[dict | None] = mapped_column(PlatformJSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
@@ -104,7 +104,7 @@ class DocumentRow(Base):
         Index("ix_documents_status", "status"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     library_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("libraries.id"), nullable=False)
@@ -115,7 +115,7 @@ class DocumentRow(Base):
     storage_path: Mapped[str] = mapped_column(String(1024), nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="UPLOADED", nullable=False)
     checksum: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    metadata_json: Mapped[dict | None] = mapped_column(PlatformJSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
@@ -127,7 +127,7 @@ class ChatAttachmentRow(Base):
     __tablename__ = "chat_attachments"
     __table_args__ = (Index("ix_chat_attachments_project_session", "project_id", "session_id"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     session_id: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -141,7 +141,7 @@ class ChatAttachmentRow(Base):
     processing_type: Mapped[str] = mapped_column(String(32), default="unstructured", nullable=False)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    metadata_json: Mapped[dict | None] = mapped_column(PlatformJSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -154,7 +154,7 @@ class ConversationRow(Base):
         Index("ix_conversations_last_message", "last_message_at"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     external_session_id: Mapped[str] = mapped_column(String(128), nullable=False)
     title: Mapped[str | None] = mapped_column(String(512), nullable=True)
@@ -170,15 +170,15 @@ class MessageRow(Base):
     __tablename__ = "messages"
     __table_args__ = (Index("ix_messages_conversation_created", "conversation_id", "created_at"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     conversation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("conversations.id"), nullable=False)
     role: Mapped[str] = mapped_column(String(32), default="assistant", nullable=False)
     content_text: Mapped[str] = mapped_column(Text, nullable=False)
-    response_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    response_json: Mapped[dict | None] = mapped_column(PlatformJSON, nullable=True)
     route: Mapped[str | None] = mapped_column(String(32), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="", nullable=False)
     strategy: Mapped[str] = mapped_column(String(64), default="", nullable=False)
-    request_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    request_id: Mapped[uuid.UUID | None] = mapped_column(PlatformUUID, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
     conversation: Mapped[ConversationRow] = relationship(back_populates="messages")
@@ -193,7 +193,7 @@ class PromptRow(Base):
         Index("ix_prompts_project", "project_id"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("workspaces.id"), nullable=True)
     project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -222,7 +222,7 @@ class PromptVersionRow(Base):
         Index("ix_prompt_versions_status", "status"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     prompt_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("prompts.id", ondelete="CASCADE"), nullable=False)
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
@@ -245,7 +245,7 @@ class SkillRow(Base):
         Index("ix_skills_project", "project_id"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -275,15 +275,15 @@ class SkillVersionRow(Base):
         Index("ix_skill_versions_status", "status"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     skill_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("skills.id", ondelete="CASCADE"), nullable=False)
     version_number: Mapped[int] = mapped_column(Integer, nullable=False)
     instructions: Mapped[str] = mapped_column(Text, nullable=False, default="")
     prompt_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    input_schema: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    output_schema: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
-    allowed_tools: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    input_schema: Mapped[dict | None] = mapped_column(PlatformJSON, nullable=True)
+    output_schema: Mapped[dict | None] = mapped_column(PlatformJSON, nullable=True)
+    allowed_tools: Mapped[list] = mapped_column(PlatformJSON, nullable=False, default=list)
+    config: Mapped[dict] = mapped_column(PlatformJSON, nullable=False, default=dict)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
@@ -301,7 +301,7 @@ class SemanticModelRow(Base):
         Index("ix_semantic_models_project", "project_id"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -334,7 +334,7 @@ class SemanticVersionRow(Base):
         Index("ix_semantic_versions_status", "status"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     semantic_model_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("semantic_models.id", ondelete="CASCADE"),
         nullable=False,
@@ -369,7 +369,7 @@ class SemanticEntityRow(Base):
         Index("ix_semantic_entities_version", "semantic_version_id"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     semantic_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("semantic_versions.id", ondelete="CASCADE"),
         nullable=False,
@@ -387,7 +387,7 @@ class SemanticEntityRow(Base):
         ForeignKey("connectors.id", ondelete="RESTRICT"),
         nullable=True,
     )
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    metadata_: Mapped[dict] = mapped_column("metadata", PlatformJSON, nullable=False, default=dict)
 
 
 class SemanticMetricRow(Base):
@@ -397,7 +397,7 @@ class SemanticMetricRow(Base):
         Index("ix_semantic_metrics_version", "semantic_version_id"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     semantic_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("semantic_versions.id", ondelete="CASCADE"),
         nullable=False,
@@ -411,8 +411,8 @@ class SemanticMetricRow(Base):
     source_entity_key: Mapped[str] = mapped_column(String(128), nullable=False)
     format: Mapped[str | None] = mapped_column(String(64), nullable=True)
     unit: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    synonyms: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    synonyms: Mapped[list] = mapped_column(PlatformJSON, nullable=False, default=list)
+    metadata_: Mapped[dict] = mapped_column("metadata", PlatformJSON, nullable=False, default=dict)
 
 
 class SemanticDimensionRow(Base):
@@ -422,7 +422,7 @@ class SemanticDimensionRow(Base):
         Index("ix_semantic_dimensions_version", "semantic_version_id"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     semantic_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("semantic_versions.id", ondelete="CASCADE"),
         nullable=False,
@@ -433,8 +433,8 @@ class SemanticDimensionRow(Base):
     source_entity_key: Mapped[str] = mapped_column(String(128), nullable=False)
     source_column: Mapped[str] = mapped_column(String(256), nullable=False)
     data_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    synonyms: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    synonyms: Mapped[list] = mapped_column(PlatformJSON, nullable=False, default=list)
+    metadata_: Mapped[dict] = mapped_column("metadata", PlatformJSON, nullable=False, default=dict)
 
 
 class SemanticRelationshipRow(Base):
@@ -444,7 +444,7 @@ class SemanticRelationshipRow(Base):
         Index("ix_semantic_relationships_version", "semantic_version_id"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     semantic_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("semantic_versions.id", ondelete="CASCADE"),
         nullable=False,
@@ -457,7 +457,7 @@ class SemanticRelationshipRow(Base):
     join_type: Mapped[str] = mapped_column(String(32), nullable=False)
     join_expression: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    metadata_: Mapped[dict] = mapped_column("metadata", PlatformJSON, nullable=False, default=dict)
 
 
 class SemanticTermRow(Base):
@@ -467,7 +467,7 @@ class SemanticTermRow(Base):
         Index("ix_semantic_terms_version", "semantic_version_id"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     semantic_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("semantic_versions.id", ondelete="CASCADE"),
         nullable=False,
@@ -475,18 +475,18 @@ class SemanticTermRow(Base):
     key: Mapped[str] = mapped_column(String(128), nullable=False)
     term: Mapped[str] = mapped_column(String(256), nullable=False)
     definition: Mapped[str | None] = mapped_column(Text, nullable=True)
-    synonyms: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    related_metric_keys: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    related_dimension_keys: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    related_entity_keys: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    synonyms: Mapped[list] = mapped_column(PlatformJSON, nullable=False, default=list)
+    related_metric_keys: Mapped[list] = mapped_column(PlatformJSON, nullable=False, default=list)
+    related_dimension_keys: Mapped[list] = mapped_column(PlatformJSON, nullable=False, default=list)
+    related_entity_keys: Mapped[list] = mapped_column(PlatformJSON, nullable=False, default=list)
+    metadata_: Mapped[dict] = mapped_column("metadata", PlatformJSON, nullable=False, default=dict)
 
 
 class SemanticValidationRunRow(Base):
     __tablename__ = "semantic_validation_runs"
     __table_args__ = (Index("ix_semantic_validation_runs_version", "semantic_version_id"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     semantic_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("semantic_versions.id", ondelete="CASCADE"),
         nullable=False,
@@ -495,7 +495,7 @@ class SemanticValidationRunRow(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     mode: Mapped[str] = mapped_column(String(32), nullable=False, default="full")
-    summary: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    summary: Mapped[dict] = mapped_column(PlatformJSON, nullable=False, default=dict)
     validator_version: Mapped[str] = mapped_column(String(32), nullable=False)
     created_by: Mapped[str | None] = mapped_column(String(256), nullable=True)
 
@@ -504,7 +504,7 @@ class SemanticValidationIssueRow(Base):
     __tablename__ = "semantic_validation_issues"
     __table_args__ = (Index("ix_semantic_validation_issues_run", "validation_run_id"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     validation_run_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("semantic_validation_runs.id", ondelete="CASCADE"),
         nullable=False,
@@ -516,7 +516,7 @@ class SemanticValidationIssueRow(Base):
     code: Mapped[str] = mapped_column(String(64), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
     remediation: Mapped[str | None] = mapped_column(Text, nullable=True)
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    metadata_: Mapped[dict] = mapped_column("metadata", PlatformJSON, nullable=False, default=dict)
 
 
 class SemanticRuntimeDeploymentRow(Base):
@@ -526,7 +526,7 @@ class SemanticRuntimeDeploymentRow(Base):
         Index("ix_semantic_runtime_deployments_status", "status"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     semantic_model_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("semantic_models.id", ondelete="CASCADE"), nullable=False)
@@ -539,7 +539,7 @@ class SemanticRuntimeDeploymentRow(Base):
         ForeignKey("semantic_runtime_deployments.id"),
         nullable=True,
     )
-    source_validation_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    source_validation_run_id: Mapped[uuid.UUID | None] = mapped_column(PlatformUUID, nullable=True)
     registry_version_number: Mapped[int] = mapped_column(Integer, nullable=False)
     generator_version: Mapped[str] = mapped_column(String(32), nullable=False)
     created_by: Mapped[str | None] = mapped_column(String(256), nullable=True)
@@ -548,7 +548,7 @@ class SemanticRuntimeDeploymentRow(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     health_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     error_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
-    manifest: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    manifest: Mapped[dict] = mapped_column(PlatformJSON, nullable=False, default=dict)
 
 
 class SemanticRuntimeStateRow(Base):
@@ -573,13 +573,13 @@ class SemanticRuntimeEventRow(Base):
     __tablename__ = "semantic_runtime_events"
     __table_args__ = (Index("ix_semantic_runtime_events_deployment", "deployment_id"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     deployment_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("semantic_runtime_deployments.id", ondelete="CASCADE"),
         nullable=False,
     )
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    detail: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    detail: Mapped[dict] = mapped_column(PlatformJSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 
@@ -587,18 +587,18 @@ class SemanticTestCaseRow(Base):
     __tablename__ = "semantic_test_cases"
     __table_args__ = (Index("ix_semantic_test_cases_version", "semantic_version_id"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     semantic_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("semantic_versions.id", ondelete="CASCADE"),
         nullable=False,
     )
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     question: Mapped[str] = mapped_column(Text, nullable=False)
-    expected_metric_keys: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    expected_dimension_keys: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    expected_entity_keys: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    expected_metric_keys: Mapped[list] = mapped_column(PlatformJSON, nullable=False, default=list)
+    expected_dimension_keys: Mapped[list] = mapped_column(PlatformJSON, nullable=False, default=list)
+    expected_entity_keys: Mapped[list] = mapped_column(PlatformJSON, nullable=False, default=list)
     enabled: Mapped[bool] = mapped_column(default=True)
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    metadata_: Mapped[dict] = mapped_column("metadata", PlatformJSON, nullable=False, default=dict)
 
 
 class ConnectorRow(Base):
@@ -611,7 +611,7 @@ class ConnectorRow(Base):
         Index("ix_connectors_enabled", "enabled"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -620,7 +620,7 @@ class ConnectorRow(Base):
     connector_type: Mapped[str] = mapped_column(String(32), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="ACTIVE")
     enabled: Mapped[bool] = mapped_column(default=True)
-    config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    config: Mapped[dict] = mapped_column(PlatformJSON, nullable=False, default=dict)
     secret_ref: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_by: Mapped[str | None] = mapped_column(String(256), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
@@ -628,7 +628,7 @@ class ConnectorRow(Base):
     last_tested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_test_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     last_test_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+    metadata_: Mapped[dict] = mapped_column("metadata", PlatformJSON, nullable=False, default=dict)
 
 
 class AiProviderRow(Base):
@@ -639,7 +639,7 @@ class AiProviderRow(Base):
         Index("ix_ai_providers_type", "provider_type"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
@@ -648,7 +648,7 @@ class AiProviderRow(Base):
     base_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     secret_ref: Mapped[str | None] = mapped_column(String(512), nullable=True)
     enabled: Mapped[bool] = mapped_column(default=True)
-    config_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    config_json: Mapped[dict | None] = mapped_column(PlatformJSON, nullable=True)
     last_test_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     last_test_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
@@ -665,7 +665,7 @@ class AiModelRow(Base):
         Index("ix_ai_models_type", "model_type"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     provider_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ai_providers.id", ondelete="RESTRICT"), nullable=False)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
@@ -680,7 +680,7 @@ class AiModelRow(Base):
     supports_tools: Mapped[bool | None] = mapped_column(nullable=True)
     supports_json_mode: Mapped[bool | None] = mapped_column(nullable=True)
     supports_vision: Mapped[bool | None] = mapped_column(nullable=True)
-    config_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    config_json: Mapped[dict | None] = mapped_column(PlatformJSON, nullable=True)
     last_test_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
     last_test_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
@@ -696,7 +696,7 @@ class ModelAssignmentRow(Base):
         Index("ix_model_assignments_model", "model_id"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
     capability: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -710,7 +710,7 @@ class ModelTestRunRow(Base):
     __tablename__ = "model_test_runs"
     __table_args__ = (Index("ix_model_test_runs_created", "created_at"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
     project_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
     provider_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ai_providers.id", ondelete="SET NULL"), nullable=True)
@@ -720,7 +720,7 @@ class ModelTestRunRow(Base):
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     safe_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    metadata_json: Mapped[dict | None] = mapped_column(PlatformJSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 
@@ -728,9 +728,9 @@ class UsageEventRow(Base):
     __tablename__ = "usage_events"
     __table_args__ = (Index("ix_usage_events_created", "created_at"),)
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    workspace_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("workspaces.id"), nullable=True)
-    project_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=True)
+    id: Mapped[uuid.UUID] = mapped_column(PlatformUUID, primary_key=True, default=uuid.uuid4)
+    workspace_id: Mapped[uuid.UUID | None] = mapped_column(PlatformUUID, ForeignKey("workspaces.id"), nullable=True)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(PlatformUUID, ForeignKey("projects.id"), nullable=True)
     request_id: Mapped[str] = mapped_column(String(64), nullable=False)
     session_id: Mapped[str] = mapped_column(String(128), nullable=False)
     provider: Mapped[str] = mapped_column(String(32), nullable=False)

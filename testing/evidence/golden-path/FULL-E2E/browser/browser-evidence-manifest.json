@@ -1,0 +1,23 @@
+{
+  "shots": [
+    "01-data-sources.png",
+    "02-raw-single-table.png",
+    "03-raw-aggregation.png",
+    "04-raw-multi-table.png",
+    "05-knowledge-library.png",
+    "06-knowledge-rag-citation.png",
+    "07-knowledge-sources.png",
+    "08-semantic-model.png",
+    "09-governed-metric.png",
+    "10-governed-dimension.png",
+    "11-governed-join.png",
+    "12-raw-vs-governed.png",
+    "13-knowledge-vs-semantic.png",
+    "14-prompts.png",
+    "15-skills.png",
+    "16-ai-models.png",
+    "17-usage.png",
+    "18-chat-history-after-restart.png"
+  ],
+  "ok": true
+}

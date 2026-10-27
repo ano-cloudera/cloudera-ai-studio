@@ -84,17 +84,20 @@ def test_qwen_requires_a_credential_by_default() -> None:
 
 
 def test_readiness_endpoint_is_safe_and_component_aware() -> None:
-    settings = isolated_settings(impala_host="", impala_user="")
+    settings = isolated_settings(
+        impala_host="",
+        impala_user="",
+        data_backend="impala",
+        feature_profile="FULL_ACCELERATOR",
+    )
     response = TestClient(create_app(settings)).get("/health/ready")
 
-    assert response.status_code == 503
+    assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "not_ready"
+    assert body["core_ready"] is True
     assert body["components"]["llm"] == "ready"
-    assert body["components"]["impala"] == "not_configured"
-    assert body["components"]["semantic"] == "ready"
-    assert "gemini_model" in body["components"]
-    assert "ask_data_routing" in body["components"]
+    assert body["components"]["legacy_datasource"] == "not_configured"
+    assert body["components"]["data_backend"] == "impala"
 
 
 def test_readiness_accepts_gssapi_identity_from_kerberos_ticket() -> None:
@@ -107,4 +110,4 @@ def test_readiness_accepts_gssapi_identity_from_kerberos_ticket() -> None:
     response = TestClient(create_app(settings)).get("/health/ready")
 
     assert response.status_code == 200
-    assert response.json()["components"]["impala"] == "ready"
+    assert response.json()["components"]["legacy_datasource"] == "ready"

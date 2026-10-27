@@ -10,6 +10,10 @@ describe('dataProvenance', () => {
     })
   })
 
+  it('ignores internal clarification references', () => {
+    expect(parseDataProvenance('clarification_required')).toBeNull()
+  })
+
   it('ignores sql suffix and keeps prose as note', () => {
     const parsed = parseDataProvenance(
       'Material-level only. Query: SELECT * FROM gold.rpt_sap_sales_office_material_month_semantic',

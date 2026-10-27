@@ -56,26 +56,47 @@ def write_deployment_artifact(
     ossie_dir = dest_root / "ossie"
     ossie_dir.mkdir(parents=True, exist_ok=True)
 
+    from app.db.platform_models import SemanticModelRow, SemanticVersionRow
+    from app.semantic_runtime.publish_governance import build_publish_governance
+
     artifact = OssieRuntimeAdapter().generate_artifact(session, version_id, write_file=False)
     core_path = ossie_dir / "tempo_core.ossie.yaml"
     core_path.write_text(artifact.content, encoding="utf-8")
     checksum = hashlib.sha256(core_path.read_bytes()).hexdigest()
 
-    # Registry-staged OSSIE artifacts must not inherit TEMPO Impala governance
-    # (Sell-In/Sell-Out ambiguities, golden questions, etc.) from the legacy project.
+    version_row = session.get(SemanticVersionRow, version_id)
+    model_row = (
+        session.get(SemanticModelRow, version_row.semantic_model_id) if version_row else None
+    )
+    parsed_core = yaml.safe_load(artifact.content) or {}
+    datasets = {d["name"]: d for d in (parsed_core.get("datasets") or []) if isinstance(d, dict) and d.get("name")}
+    governance_doc = (
+        build_publish_governance(
+            session,
+            version_id=version_id,
+            model=model_row,
+            datasets=datasets,
+        )
+        if model_row
+        else {
+            "ambiguities": [],
+            "unknown_metric_question": "Which metric would you like to report on?",
+            "scope": {},
+        }
+    )
     (ossie_dir / "tempo_governance.yaml").write_text(
-        yaml.safe_dump(
-            {
-                "ambiguities": [],
-                "unknown_metric_question": "Which metric would you like to report on?",
-                "scope": {},
-            },
-            sort_keys=False,
-        ),
+        yaml.safe_dump(governance_doc, sort_keys=False, allow_unicode=True),
         encoding="utf-8",
     )
+    from app.semantic_runtime.certified_questions import build_certified_golden_questions
+
+    golden = build_certified_golden_questions(
+        session,
+        workspace_id=workspace_id,
+        model=model_row,
+    )
     (ossie_dir / "golden_questions.yaml").write_text(
-        yaml.safe_dump({"questions": []}, sort_keys=False),
+        yaml.safe_dump({"questions": golden}, sort_keys=False, allow_unicode=True),
         encoding="utf-8",
     )
 

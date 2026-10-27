@@ -1,0 +1,189 @@
+# Example runtime profile for auto-imported banking_demo OSSIE models.
+# Attach via tempo_governance.yaml: runtime_extensions: { profile: banking_demo }
+# Or inline the same keys under runtime_extensions in governance.
+match:
+  source_substrings:
+    - banking_demo.
+
+breakdown:
+  cues:
+    - channel
+    - saluran
+    - kanal
+    - break down
+    - breakdown
+  phrase_map:
+    - phrases: [tipe akun, jenis akun, account type, tipe nasabah, jenis nasabah]
+      dimension: customers_segment
+    - phrases: [segment, segmen, customer segment]
+      dimension: customers_segment
+    - phrases: [status nasabah, customer status, status customer, status pelanggan]
+      dimension: customers_customer_status
+    - phrases: [channel, saluran, kanal]
+      dimension: transactions_channel
+    - phrases: [kota, city, wilayah kota]
+      dimension: customers_city
+    - phrases: [risk tier, tier risiko, risiko]
+      dimension: customers_risk_tier
+    - phrases: [merchant, kategori merchant, merchant category]
+      dimension: transactions_merchant_category
+    - phrases: [tipe transaksi, transaction type, jenis transaksi]
+      dimension: transactions_transaction_type
+
+field_enrichment:
+  time_dimensions:
+    - { dataset: transactions, field: transactions_transaction_date }
+    - { dataset: customers, field: customers_join_date }
+  column_expressions:
+    customers_segment: segment
+    customers_city: city
+    customers_customer_status: customer_status
+    customers_risk_tier: risk_tier
+    customers_join_date: join_date
+    transactions_channel: channel
+    transactions_merchant_category: merchant_category
+    transactions_transaction_type: transaction_type
+    transactions_status: status
+    transactions_transaction_date: transaction_date
+
+metric_enrichment:
+  customers_customer_id_total:
+    display_name: Total Customers
+    description: Distinct customers in the customers table.
+    expression: COUNT(DISTINCT customer_id)
+    synonyms:
+      - total customer
+      - total customers
+      - jumlah customer
+      - jumlah nasabah
+      - berapa customer
+      - total nasabah
+  transactions_transaction_id_total:
+    display_name: Transaction Count
+    description: Number of transaction attempts.
+    expression: COUNT(transaction_id)
+    synonyms:
+      - transaction count
+      - jumlah transaksi
+      - banyak transaksi
+      - trend transaksi
+      - jumlah transaksi per bulan
+  transactions_amount_total:
+    display_name: Total Transaction Amount
+    description: Sum of transaction amounts.
+    expression: SUM(amount)
+    synonyms:
+      - total transaction amount
+      - nominal transaksi
+      - total amount
+      - nilai transaksi
+  transactions_customer_id_total:
+    display_name: Distinct Customers (Transactions)
+    description: Distinct customer_id values appearing on transaction rows.
+    expression: COUNT(DISTINCT customer_id)
+    synonyms: [unique customers on transactions]
+  transactions_failed_transaction_rate:
+    display_name: Failed Transaction Rate
+    description: Share of transaction attempts with Failed status.
+    expression: AVG(CASE WHEN status = 'Failed' THEN 1.0 ELSE 0.0 END)
+    synonyms:
+      - failed transaction rate
+      - failure rate
+      - transaction failure rate
+      - rate transaksi gagal
+      - transaksi gagal
+      - persentase gagal
+
+synthetic_metrics:
+  transactions_failed_transaction_rate:
+    description: Share of transaction attempts with Failed status.
+    base_dataset: transactions
+    metric_id: failed_transaction_rate
+    allowed_dimensions:
+      - transactions_transaction_date
+      - transactions_channel
+      - transactions_status
+      - transactions_merchant_category
+      - transactions_transaction_type
+
+metric_resolver_rules:
+  - when_any: [channel, saluran, kanal]
+    when_any: [highest, largest, top, terbesar, tertinggi, paling]
+    prefer_metric_contains: amount
+    score_bonus: 300
+  - when_all: [total, transaction, amount]
+    prefer_metric_contains: amount
+    score_bonus: 320
+  - when_all: [total, amount]
+    when_any: [transaction, transaksi, nominal]
+    prefer_metric_contains: amount
+    score_bonus: 280
+  - when_any: [failed, failure, gagal]
+    when_all: [rate, persentase, ratio, proporsi]
+    prefer_metric_contains: failed_transaction_rate
+    score_bonus: 220
+  - when_any: [top, ranking, terbesar, tertinggi, urutkan]
+    when_all: [nominal, transaksi, amount, nilai]
+    prefer_metric_contains: transactions_amount_total
+    score_bonus: 180
+  - when_any: [top, ranking, terbesar, tertinggi, urutkan]
+    when_all: [jumlah transaksi, banyak transaksi, transaction count]
+    prefer_metric_contains: transactions_transaction_id_total
+    score_bonus: 160
+
+governed_joins:
+  - id: transactions_by_customer_segment
+    when:
+      metric_base_dataset: transactions
+      dimension_terms: [segment, segmen]
+      context_terms: [transaksi, transaction, top, berdasarkan, ranking, jumlah, fokus]
+    left: { dataset: transactions, alias: d }
+    right: { dataset: customers, alias: c, join_type: inner }
+    join_keys: { left_key: customer_id, right_key: customer_id }
+    breakdown:
+      select_expression: c.segment
+      group_by_expression: c.segment
+      result_alias: customers_segment
+    dimension_filter:
+      column: c.segment
+      token_values:
+        priority: Priority
+        retail: Retail
+        sme: SME
+    validation_tables:
+      transactions:
+        - amount
+        - customer_id
+        - status
+        - channel
+        - transaction_id
+        - transaction_date
+        - merchant_category
+        - transaction_type
+      customers:
+        - customer_id
+        - segment
+        - customer_status
+        - city
+        - join_date
+        - risk_tier
+  - id: transactions_amount_by_customer
+    when:
+      metric_base_dataset: transactions
+      dimension_terms: [customer, nasabah, pelanggan]
+      exclude_dimension_terms: [segment, segmen]
+      context_terms: [top, nominal, transaksi, amount, nilai, berdasarkan, ranking, terbesar, tertinggi, urutkan]
+    left: { dataset: transactions, alias: d }
+    right: { dataset: customers, alias: c, join_type: inner }
+    join_keys: { left_key: customer_id, right_key: customer_id }
+    breakdown:
+      select_expression: d.customer_id
+      group_by_expression: d.customer_id
+      result_alias: customer_id
+    validation_tables:
+      transactions:
+        - amount
+        - customer_id
+        - transaction_id
+      customers:
+        - customer_id

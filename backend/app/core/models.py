@@ -40,6 +40,7 @@ ChatMode = Literal["ask_data", "rag"]
 GroundingLevel = Literal["SUPPORTED", "PARTIALLY_SUPPORTED", "INSUFFICIENT_EVIDENCE"]
 ResponseRoute = Literal["ask_data", "rag"]
 ChartType = Literal["bar", "line", "area", "scatter", "pie", "table", "kpi"]
+PresentationTier = Literal[1, 2, 3]
 
 
 class ChartSpec(StrictModel):
@@ -112,6 +113,7 @@ ChatContextSourceType = Literal[
     "semantic_model",
     "semantic_entity",
     "semantic_metric",
+    "semantic_term",
 ]
 
 
@@ -142,6 +144,9 @@ class QueryData(StrictModel):
     row_count: int = 0
     execution_ms: float = 0
     governed_metric: str | None = None
+    governed_metric_display_name: str | None = None
+    governed_metric_expression: str | None = None
+    governed_base_dataset: str | None = None
     unit_format: str | None = None
     connector_type: str | None = None
     connector_name: str | None = None
@@ -217,3 +222,4 @@ class AskDataResponse(StrictModel):
     model_resolution: ModelResolutionMeta | None = None
     context_mode: ContextMode | None = None
     clarification: AskDataClarification | None = None
+    presentation_tier: PresentationTier | None = None

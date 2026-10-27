@@ -22,8 +22,9 @@ from app.api.v1 import chat_attachments as v1_chat_attachments
 from app.api.v1 import chat_context as v1_chat_context
 from app.api.v1 import tools as v1_tools
 from app.api.v1 import projects as v1_projects
+from app.api.v1 import ask_data as v1_ask_data
 from app.api.v1 import workspaces as v1_workspaces
-from app.stores.factory import build_conversation_store, build_usage_store, init_postgres_platform, log_active_stores
+from app.stores.factory import build_conversation_store, build_usage_store, init_platform_metadata, log_active_stores
 from app.core.config import Settings, get_settings
 from app.platform.config_validation import validate_startup_config
 from app.platform.readiness import build_readiness_report
@@ -53,7 +54,7 @@ def _semantic_runtime_health(settings: Settings) -> dict:
 async def _lifespan(application: FastAPI):
     settings: Settings = application.state.settings
     try:
-        init_postgres_platform(settings)
+        init_platform_metadata(settings)
     except Exception:
         logger.exception("platform bootstrap failed")
     chat_service: ChatService = application.state.chat_service
@@ -71,6 +72,12 @@ async def _lifespan(application: FastAPI):
             vector_store.ensure_collection(dimension=embed.dimension)
     except Exception:
         logger.exception("qdrant collection ensure failed — RAG may be unavailable")
+    try:
+        from app.services.knowledge_ingestion_recovery import scan_and_enqueue_startup_recovery
+
+        scan_and_enqueue_startup_recovery(settings)
+    except Exception:
+        logger.exception("knowledge ingestion startup recovery failed")
     yield
 
 
@@ -132,6 +139,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(chat.router)
     application.include_router(usage.router)
     application.include_router(v1_workspaces.router, prefix="/api/v1")
+    application.include_router(v1_ask_data.router, prefix="/api/v1")
     application.include_router(v1_projects.router, prefix="/api/v1")
     application.include_router(v1_libraries.router, prefix="/api/v1")
     application.include_router(v1_documents.router, prefix="/api/v1")

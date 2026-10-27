@@ -1,0 +1,9 @@
+{
+  "results": {
+    "ask_data_opens_panel": "FAIL",
+    "source_drawer": "FAIL",
+    "rag_no_analysis_panel": "PASS",
+    "knowledge_bulk_ui": "FAIL"
+  },
+  "overall": "FAIL"
+}

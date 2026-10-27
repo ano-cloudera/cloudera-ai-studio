@@ -18,7 +18,13 @@ Extracted from `enterprise-ai-poc` → `cloudera-ai-studio` (copy-only; source r
 | `litellm/`, `model-serving/`, `neo4j-cai/` | Optional infra | OPTIONAL | No | — | Env-driven; not runtime dependency |
 | `datasets/`, `reference/`, `runtime/`, `projects/` | Demo/tempo data | LEGACY/OPTIONAL | No | — | DuckDB/Impala optional via env |
 | `skills/` (root) | Unrelated to app skills API | LEGACY | No | — | App skills live in backend |
+| `backend/projects/tempo_scan_impala/` | OSSIE reference + tests | REQUIRED | Yes | `backend/projects/tempo_scan_impala/` | Bundled with backend copy |
+| `projects/` (repo root) | Example YAML only | OPTIONAL | No | — | Platform uses `backend/projects/*` |
+| `scripts/run-dev-stack.sh`, `backend-dev.sh` | Old monorepo lifecycle | LEGACY | No | — | Replaced by `dev-*.sh` |
+| `testing/` | Live gate evidence output | OPTIONAL | Yes | `testing/` | Writable; not sourced at runtime |
 | `.venv`, `node_modules`, `.next`, `.tmp` | Generated | GENERATED | No | — | Recreate locally |
 | `.env` | Secrets | SECRET/LOCAL | No | — | Use `.env.example` |
 
 Runtime code resolves `BACKEND_ROOT` / `REPO_ROOT` via pathlib (`backend/app/core/config.py`); no hard dependency on old repo name when layout is `backend/` at repo root.
+
+Transitive references audited: Python `Path` under `backend/`, subprocess lifecycle scripts, Alembic, semantic runtime storage (env `SEMANTIC_RUNTIME_STORAGE_ROOT`), document storage, frontend proxy (`NEXT_PUBLIC_BACKEND_URL`). No runtime imports from parent monorepo paths after normalization.

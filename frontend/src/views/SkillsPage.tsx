@@ -8,7 +8,11 @@ import {
   PROMPT_SKILL_PAGE_SIZE_OPTIONS,
 } from '../components/promptSkills/listTableConstants'
 import { TablePagination } from '../components/knowledge/TablePagination'
+import { TableHeaderCheckbox, TableRowCheckbox } from '../components/table/TableSelectionCheckbox'
+import { TableSelectionActionBar } from '../components/table/TableSelectionActionBar'
 import { PageCenter } from '../components/PageCenter'
+import { useTableSelection } from '../lib/useTableSelection'
+import { useTableSelectionMode } from '../lib/useTableSelectionMode'
 import { ServiceErrorState } from '../components/ServiceErrorState'
 import { api } from '../lib/api'
 import { safeErrorMessage, toAppApiError, type AppApiError } from '../lib/apiError'
@@ -122,6 +126,8 @@ export function SkillsPage() {
   const [testRunning, setTestRunning] = useState(false)
 
   const editorSkill = useMemo(() => (editorId ? skills.find(s => s.id === editorId) ?? null : null), [editorId, skills])
+  const listSelection = useTableSelection()
+  const listSelectionMode = useTableSelectionMode(listSelection.clear)
 
   const refreshList = useCallback(async () => {
     const response = await api.listSkills({ search: search.trim() || undefined, scope: scopeFilter || undefined })
@@ -422,40 +428,58 @@ export function SkillsPage() {
           <Search className="h-4 w-4 text-slate-400" />
           <input className="w-full border-0 bg-transparent text-sm outline-none" placeholder="Search skills…" value={search} onChange={e => setSearch(e.target.value)} aria-label="Search skills" />
         </div>
-        <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={scopeFilter} onChange={e => setScopeFilter(e.target.value)}>
+        <select className="app-select-filter" value={scopeFilter} onChange={e => setScopeFilter(e.target.value)}>
           <option value="">All scopes</option>
           <option value="workspace">Workspace</option>
           <option value="project">Project</option>
         </select>
+        <TableSelectionActionBar
+          entityLabel="skills"
+          mode={listSelectionMode}
+          selectedCount={listSelection.selectedCount}
+        />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="overflow-x-auto">
-          <table className="min-w-[960px] w-full text-left text-sm">
+      <div className="app-table-surface">
+        <div className="app-table-surface-scroll">
+          <table className="app-data-table min-w-[960px]">
             <thead className="app-table-head">
               <tr>
-                <th className="px-4 py-3">
+                {listSelectionMode.active ? (
+                  <th className="w-11">
+                    <TableHeaderCheckbox
+                      state={listSelection.datasetCheckboxState(filteredSorted.length)}
+                      onToggle={() =>
+                        listSelection.toggleDatasetSelection(
+                          filteredSorted.map(s => s.id),
+                          filteredSorted.length,
+                        )
+                      }
+                    />
+                  </th>
+                ) : null}
+                <th>
                   <button type="button" onClick={() => toggleSort('name')}>
                     Name {sortKey === 'name' ? (sortDesc ? '↓' : '↑') : ''}
                   </button>
                 </th>
-                <th className="px-4 py-3">Handler</th>
-                <th className="px-4 py-3">Scope</th>
-                <th className="px-4 py-3">Prompt</th>
-                <th className="px-4 py-3">Tools</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">
+                <th>Handler</th>
+                <th>Scope</th>
+                <th>Prompt</th>
+                <th>Tools</th>
+                <th>Status</th>
+                <th>
                   <button type="button" onClick={() => toggleSort('modified')}>
                     Modified {sortKey === 'modified' ? (sortDesc ? '↓' : '↑') : ''}
                   </button>
                 </th>
-                <th className="px-4 py-3">Actions</th>
+                <th className="w-24">Actions</th>
               </tr>
             </thead>
             <tbody>
               {!paged.length ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-slate-500">
+                  <td colSpan={listSelectionMode.active ? 9 : 8} className="py-10 text-center text-slate-500">
                     No skills yet. Create one to get started.
                   </td>
                 </tr>
@@ -464,18 +488,27 @@ export function SkillsPage() {
                   const meta = versionMeta[s.id]
                   return (
                     <tr key={s.id} className="border-t border-slate-100">
-                      <td className="px-4 py-3">
+                      {listSelectionMode.active ? (
+                        <td className="w-11">
+                          <TableRowCheckbox
+                            checked={listSelection.isSelected(s.id)}
+                            label={`Select skill ${s.name}`}
+                            onToggle={() => listSelection.toggle(s.id)}
+                          />
+                        </td>
+                      ) : null}
+                      <td>
                         <button type="button" className="font-medium text-cloudera-navy hover:text-cloudera-violet" onClick={() => void openEditDrawer(s)}>
                           {s.name}
                         </button>
                       </td>
-                      <td className="px-4 py-3">{meta ? formatHandlerType(meta.handler) : '…'}</td>
-                      <td className="px-4 py-3">{formatScope(s.scope)}</td>
-                      <td className="px-4 py-3 text-slate-600">{meta ? formatPromptKey(meta.promptKey) : '…'}</td>
-                      <td className="px-4 py-3">{meta ? `${meta.toolCount} tool${meta.toolCount === 1 ? '' : 's'}` : '…'}</td>
-                      <td className="px-4 py-3">{formatSkillListStatus(s.status)}</td>
-                      <td className="px-4 py-3 text-slate-600">{formatModified(s.updated_at)}</td>
-                      <td className="px-4 py-3">
+                      <td>{meta ? formatHandlerType(meta.handler) : '…'}</td>
+                      <td>{formatScope(s.scope)}</td>
+                      <td className="text-slate-600">{meta ? formatPromptKey(meta.promptKey) : '…'}</td>
+                      <td>{meta ? `${meta.toolCount} tool${meta.toolCount === 1 ? '' : 's'}` : '…'}</td>
+                      <td>{formatSkillListStatus(s.status)}</td>
+                      <td className="text-slate-600">{formatModified(s.updated_at)}</td>
+                      <td>
                         <RowMenu
                           onEdit={() => void openEditDrawer(s)}
                           onTest={() => void openEditDrawer(s, 'test')}
@@ -653,7 +686,7 @@ export function SkillsPage() {
 
         {drawerTab === 'versions' ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="app-data-table w-full">
               <thead className="app-table-head">
                 <tr>
                   <th className="px-3 py-2">Version</th>
@@ -668,8 +701,8 @@ export function SkillsPage() {
                   <tr key={v.id} className="border-b border-slate-50">
                     <td className="px-3 py-2">v{v.version_number}</td>
                     <td className="px-3 py-2">{v.status === 'ACTIVE' ? 'Published' : v.status === 'DRAFT' ? 'Draft' : v.status}</td>
-                    <td className="px-3 py-2 text-xs">{v.status === 'ACTIVE' ? 'Yes' : '—'}</td>
-                    <td className="px-3 py-2 text-xs text-slate-500">{formatModified(v.created_at)}</td>
+                    <td>{v.status === 'ACTIVE' ? 'Yes' : '—'}</td>
+                    <td className="text-slate-500">{formatModified(v.created_at)}</td>
                     <td className="px-3 py-2">
                       {v.status === 'DRAFT' ? (
                         <button type="button" className="text-xs font-semibold text-emerald-700" onClick={() => void publishVersion(v.id)}>

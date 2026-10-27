@@ -1,0 +1,61 @@
+{
+  "version_1": {
+    "version_number": 1,
+    "version_id": "470df886-830e-45b0-9ca0-77cc342b58b4",
+    "deployment_id": "d4e15f94-1ef9-4742-85a3-329782022d3f"
+  },
+  "version_2": {
+    "version_id": "58ea811c-7ab3-4c22-8092-632813cff9e0",
+    "version_number": 30,
+    "deployment_id": "3566f62c-80e1-42c2-8807-a4c9576bf096"
+  },
+  "runtime_baseline_v1": {
+    "semantic_model_key": "retail_banking_analytics",
+    "registry_active_version": 28,
+    "runtime_active_version": 1,
+    "runtime_status": "healthy",
+    "deployment": {
+      "deployment_id": "d4e15f94-1ef9-4742-85a3-329782022d3f",
+      "artifact_checksum": "e4f422148f5099b09441d68bb50e91a6b58cc0ca3e208e11d098924402725f13",
+      "activated_at": "2026-10-19T10:56:06.805707",
+      "adapter": "ossie",
+      "health": "healthy"
+    },
+    "loader_mode": "runtime"
+  },
+  "runtime_after_v2": {
+    "semantic_model_key": "retail_banking_analytics",
+    "registry_active_version": 30,
+    "runtime_active_version": 30,
+    "runtime_status": "healthy",
+    "deployment": {
+      "deployment_id": "3566f62c-80e1-42c2-8807-a4c9576bf096",
+      "artifact_checksum": "f5557c25ed5695cf82643786653d2eecde3fbe32439d271cf8f9b2a14b1c0113",
+      "activated_at": "2026-10-19T10:56:09.970590",
+      "adapter": "ossie",
+      "health": "healthy"
+    },
+    "loader_mode": "runtime"
+  },
+  "runtime_after_rollback": {
+    "semantic_model_key": "retail_banking_analytics",
+    "registry_active_version": 30,
+    "runtime_active_version": 1,
+    "runtime_status": "healthy",
+    "deployment": {
+      "deployment_id": "d4e15f94-1ef9-4742-85a3-329782022d3f",
+      "artifact_checksum": "e4f422148f5099b09441d68bb50e91a6b58cc0ca3e208e11d098924402725f13",
+      "activated_at": "2026-10-19T10:56:12.586782",
+      "adapter": "ossie",
+      "health": "healthy"
+    },
+    "loader_mode": "runtime"
+  },
+  "chat_v2_ok": true,
+  "chat_post_rollback_ok": true,
+  "rollback_result": {
+    "result": "ROLLED_BACK",
+    "deployment_id": "d4e15f94-1ef9-4742-85a3-329782022d3f"
+  },
+  "final_intended_active": "runtime_deployment_v1"
+}

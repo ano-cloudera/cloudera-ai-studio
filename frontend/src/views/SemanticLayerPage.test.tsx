@@ -1,5 +1,5 @@
 import React from 'react'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { SemanticLayerPage } from './SemanticLayerPage'
@@ -113,7 +113,8 @@ describe('SemanticLayerPage', () => {
     render(<SemanticLayerPage />)
     await waitFor(() => expect(screen.getByText('Semantic Layer')).toBeTruthy())
     await waitFor(() => expect(screen.getAllByText('Configure trusted business definitions for Ask Data.').length).toBeGreaterThan(0))
-    expect(screen.getAllByText('Publish to Ask Data').length).toBe(1)
-    expect(screen.getAllByTestId('semantic-advanced-trigger').length).toBe(1)
+    await waitFor(() => expect(screen.getByTestId('semantic-tab-publish-config')).toBeTruthy())
+    fireEvent.click(screen.getByTestId('semantic-tab-publish-config'))
+    expect(screen.getByTestId('semantic-save-publish')).toBeTruthy()
   })
 })

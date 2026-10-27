@@ -10,7 +10,7 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
+from ddl_types import JSON, UUID, create_foreign_key, drop_foreign_key, json_array_default, json_object_default
 
 revision: str = "s1_semantic_001"
 down_revision: Union[str, Sequence[str], None] = "m3b_skills_001"
@@ -21,13 +21,13 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         "semantic_models",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("workspace_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("workspaces.id"), nullable=False),
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), nullable=False),
+        sa.Column("id", UUID, primary_key=True),
+        sa.Column("workspace_id", UUID, sa.ForeignKey("workspaces.id"), nullable=False),
+        sa.Column("project_id", UUID, sa.ForeignKey("projects.id"), nullable=False),
         sa.Column("name", sa.String(256), nullable=False),
         sa.Column("key", sa.String(128), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("active_version_id", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("active_version_id", UUID, nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.UniqueConstraint("project_id", "key", name="uq_semantic_models_project_key"),
@@ -37,10 +37,10 @@ def upgrade() -> None:
 
     op.create_table(
         "semantic_versions",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column("id", UUID, primary_key=True),
         sa.Column(
             "semantic_model_id",
-            postgresql.UUID(as_uuid=True),
+            UUID,
             sa.ForeignKey("semantic_models.id", ondelete="CASCADE"),
             nullable=False,
         ),
@@ -59,24 +59,23 @@ def upgrade() -> None:
     op.create_index("ix_semantic_versions_model", "semantic_versions", ["semantic_model_id"])
     op.create_index("ix_semantic_versions_status", "semantic_versions", ["status"])
 
-    op.create_foreign_key(
+    create_foreign_key(
         "fk_semantic_models_active_version",
         "semantic_models",
         "semantic_versions",
         ["active_version_id"],
         ["id"],
         ondelete="SET NULL",
-        use_alter=True,
     )
 
     for table, cols in (
         (
             "semantic_entities",
             [
-                sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+                sa.Column("id", UUID, primary_key=True),
                 sa.Column(
                     "semantic_version_id",
-                    postgresql.UUID(as_uuid=True),
+                    UUID,
                     sa.ForeignKey("semantic_versions.id", ondelete="CASCADE"),
                     nullable=False,
                 ),
@@ -89,16 +88,16 @@ def upgrade() -> None:
                 sa.Column("table_name", sa.String(256), nullable=True),
                 sa.Column("view_name", sa.String(256), nullable=True),
                 sa.Column("primary_key", sa.String(256), nullable=True),
-                sa.Column("metadata", postgresql.JSONB(), nullable=False, server_default="{}"),
+                sa.Column("metadata", JSON, nullable=False, server_default=json_object_default()),
             ],
         ),
         (
             "semantic_metrics",
             [
-                sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+                sa.Column("id", UUID, primary_key=True),
                 sa.Column(
                     "semantic_version_id",
-                    postgresql.UUID(as_uuid=True),
+                    UUID,
                     sa.ForeignKey("semantic_versions.id", ondelete="CASCADE"),
                     nullable=False,
                 ),
@@ -111,17 +110,17 @@ def upgrade() -> None:
                 sa.Column("source_entity_key", sa.String(128), nullable=False),
                 sa.Column("format", sa.String(64), nullable=True),
                 sa.Column("unit", sa.String(64), nullable=True),
-                sa.Column("synonyms", postgresql.JSONB(), nullable=False, server_default="[]"),
-                sa.Column("metadata", postgresql.JSONB(), nullable=False, server_default="{}"),
+                sa.Column("synonyms", JSON, nullable=False, server_default=json_array_default()),
+                sa.Column("metadata", JSON, nullable=False, server_default=json_object_default()),
             ],
         ),
         (
             "semantic_dimensions",
             [
-                sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+                sa.Column("id", UUID, primary_key=True),
                 sa.Column(
                     "semantic_version_id",
-                    postgresql.UUID(as_uuid=True),
+                    UUID,
                     sa.ForeignKey("semantic_versions.id", ondelete="CASCADE"),
                     nullable=False,
                 ),
@@ -131,17 +130,17 @@ def upgrade() -> None:
                 sa.Column("source_entity_key", sa.String(128), nullable=False),
                 sa.Column("source_column", sa.String(256), nullable=False),
                 sa.Column("data_type", sa.String(64), nullable=True),
-                sa.Column("synonyms", postgresql.JSONB(), nullable=False, server_default="[]"),
-                sa.Column("metadata", postgresql.JSONB(), nullable=False, server_default="{}"),
+                sa.Column("synonyms", JSON, nullable=False, server_default=json_array_default()),
+                sa.Column("metadata", JSON, nullable=False, server_default=json_object_default()),
             ],
         ),
         (
             "semantic_relationships",
             [
-                sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+                sa.Column("id", UUID, primary_key=True),
                 sa.Column(
                     "semantic_version_id",
-                    postgresql.UUID(as_uuid=True),
+                    UUID,
                     sa.ForeignKey("semantic_versions.id", ondelete="CASCADE"),
                     nullable=False,
                 ),
@@ -153,33 +152,36 @@ def upgrade() -> None:
                 sa.Column("join_type", sa.String(32), nullable=False),
                 sa.Column("join_expression", sa.Text(), nullable=False),
                 sa.Column("description", sa.Text(), nullable=True),
-                sa.Column("metadata", postgresql.JSONB(), nullable=False, server_default="{}"),
+                sa.Column("metadata", JSON, nullable=False, server_default=json_object_default()),
             ],
         ),
         (
             "semantic_terms",
             [
-                sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+                sa.Column("id", UUID, primary_key=True),
                 sa.Column(
                     "semantic_version_id",
-                    postgresql.UUID(as_uuid=True),
+                    UUID,
                     sa.ForeignKey("semantic_versions.id", ondelete="CASCADE"),
                     nullable=False,
                 ),
                 sa.Column("key", sa.String(128), nullable=False),
                 sa.Column("term", sa.String(256), nullable=False),
                 sa.Column("definition", sa.Text(), nullable=True),
-                sa.Column("synonyms", postgresql.JSONB(), nullable=False, server_default="[]"),
-                sa.Column("related_metric_keys", postgresql.JSONB(), nullable=False, server_default="[]"),
-                sa.Column("related_dimension_keys", postgresql.JSONB(), nullable=False, server_default="[]"),
-                sa.Column("related_entity_keys", postgresql.JSONB(), nullable=False, server_default="[]"),
-                sa.Column("metadata", postgresql.JSONB(), nullable=False, server_default="{}"),
+                sa.Column("synonyms", JSON, nullable=False, server_default=json_array_default()),
+                sa.Column("related_metric_keys", JSON, nullable=False, server_default=json_array_default()),
+                sa.Column("related_dimension_keys", JSON, nullable=False, server_default=json_array_default()),
+                sa.Column("related_entity_keys", JSON, nullable=False, server_default=json_array_default()),
+                sa.Column("metadata", JSON, nullable=False, server_default=json_object_default()),
             ],
         ),
     ):
-        op.create_table(table, *cols)
+        op.create_table(
+            table,
+            *cols,
+            sa.UniqueConstraint("semantic_version_id", "key", name=f"uq_{table}_version_key"),
+        )
         op.create_index(f"ix_{table}_version", table, ["semantic_version_id"])
-        op.create_unique_constraint(f"uq_{table}_version_key", table, ["semantic_version_id", "key"])
 
 
 def downgrade() -> None:
@@ -191,6 +193,6 @@ def downgrade() -> None:
         "semantic_entities",
     ):
         op.drop_table(table)
-    op.drop_constraint("fk_semantic_models_active_version", "semantic_models", type_="foreignkey")
+    drop_foreign_key("fk_semantic_models_active_version", "semantic_models")
     op.drop_table("semantic_versions")
     op.drop_table("semantic_models")

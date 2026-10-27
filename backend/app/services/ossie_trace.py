@@ -27,13 +27,32 @@ def trace_detail(node: str, state: dict[str, Any]) -> str | None:
         metrics = plan.get("metrics") or []
         resolution = state.get("semantic_resolution") or {}
         alias = resolution.get("matched_alias")
+        governed_metric = resolution.get("metric")
         if metrics:
             detail = f"Metric: {', '.join(str(m) for m in metrics[:2])}"
+            if governed_metric and str(governed_metric) not in detail:
+                detail = f"{detail} · governed: {governed_metric}"
+            if alias == "follow_up_context":
+                detail = f"Follow-up · {detail}"
+            return detail
+        if governed_metric:
+            detail = f"Governed metric: {governed_metric}"
             if alias == "follow_up_context":
                 detail = f"Follow-up · {detail}"
             return detail
         if state.get("strategy") == "clarification":
             return "Needs metric clarification"
+    if node == "validate_query":
+        sql = (state.get("governed_sql") or "").strip()
+        if sql:
+            preview = " ".join(sql.split())
+            if len(preview) > 100:
+                preview = preview[:97] + "..."
+            return preview
+    if node == "analyze_result":
+        resolution = state.get("semantic_resolution") or {}
+        if resolution.get("status") == "resolved" and resolution.get("metric"):
+            return f"Narrative from query result · {resolution['metric']}"
     if node == "execute_query":
         result = state.get("query_result") or {}
         count = result.get("row_count")

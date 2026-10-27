@@ -66,24 +66,20 @@ vi.mock('../../lib/api', () => ({
 describe('Phase 2A UX polish', () => {
   afterEach(cleanup)
 
-  it('renders only one Advanced trigger in the nav row', async () => {
+  it('renders Preview, Version history, and Publish tabs', async () => {
     render(<SemanticLayerPage />)
-    await waitFor(() => expect(screen.getByTestId('semantic-advanced-trigger')).toBeTruthy())
-    expect(screen.queryByRole('button', { name: 'Advanced', exact: true })).toBeNull()
-    expect(screen.getAllByTestId('semantic-advanced-trigger')).toHaveLength(1)
+    await waitFor(() => expect(screen.getByTestId('semantic-tab-preview')).toBeTruthy())
+    expect(screen.getByTestId('semantic-tab-version-history')).toBeTruthy()
+    expect(screen.getByTestId('semantic-tab-publish-config')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Advanced ▾' })).toBeNull()
   })
 
-  it('Advanced menu lists admin items without duplicate Publish/Validate', async () => {
+  it('Publish tab shows publish actions only', async () => {
     render(<SemanticLayerPage />)
-    await waitFor(() => screen.getByTestId('semantic-advanced-trigger'))
-    fireEvent.click(screen.getByTestId('semantic-advanced-trigger'))
-    expect(screen.getByRole('menuitem', { name: 'Model health' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Version history' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Deployment details' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Preview semantic artifact' })).toBeTruthy()
-    expect(screen.getByRole('menuitem', { name: 'Import OSSIE' })).toBeTruthy()
-    expect(screen.queryByRole('menuitem', { name: 'Publish version' })).toBeNull()
-    expect(screen.queryByRole('menuitem', { name: 'Validate' })).toBeNull()
+    await waitFor(() => screen.getByTestId('semantic-tab-publish-config'))
+    fireEvent.click(screen.getByTestId('semantic-tab-publish-config'))
+    expect(screen.getByTestId('semantic-publish-tab-panel')).toBeTruthy()
+    expect(screen.getByTestId('semantic-save-publish')).toBeTruthy()
   })
 
   it('Overview summary renders five cards in one group', () => {
@@ -106,8 +102,9 @@ describe('Phase 2A UX polish', () => {
     expect(screen.queryByRole('button', { name: 'Model health' })).toBeNull()
   })
 
-  it('Recent Definitions table shell uses auto layout test id', async () => {
+  it('Overview shows setup checklist instead of recent definitions table', async () => {
     render(<SemanticLayerPage />)
-    await waitFor(() => expect(screen.getByTestId('semantic-recent-definitions')).toBeTruthy())
+    await waitFor(() => expect(screen.getByTestId('semantic-overview-checklist')).toBeTruthy())
+    expect(screen.queryByTestId('semantic-recent-definitions')).toBeNull()
   })
 })

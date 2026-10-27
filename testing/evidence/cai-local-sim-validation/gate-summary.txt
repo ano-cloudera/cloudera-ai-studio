@@ -1,0 +1,10 @@
+phase1_gate=0 GOLDEN_PATH_BANKING_DEMO_PHASE1_PASS
+phase2_gate=0 GOLDEN_PATH_BANKING_DEMO_PHASE2_KNOWLEDGE_PASS
+knowledge_recovery_tests=0 (6 passed)
+backend_pytest=0 (433 passed)
+frontend_vitest=0 (225 passed)
+frontend_build=0 PASS
+browser_smoke=0 STANDALONE_BROWSER_SMOKE_PASS
+sqlite_restart_persistence=PASS (counts unchanged before/after)
+fresh_install_disposable=PASS (alembic upgrade head)
+persistence_before_after=see persistence-before-restart.json / persistence-after-restart.json

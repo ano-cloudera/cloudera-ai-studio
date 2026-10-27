@@ -8,7 +8,11 @@ import {
   PROMPT_SKILL_PAGE_SIZE_OPTIONS,
 } from '../components/promptSkills/listTableConstants'
 import { TablePagination } from '../components/knowledge/TablePagination'
+import { TableHeaderCheckbox, TableRowCheckbox } from '../components/table/TableSelectionCheckbox'
+import { TableSelectionActionBar } from '../components/table/TableSelectionActionBar'
 import { PageCenter } from '../components/PageCenter'
+import { useTableSelection } from '../lib/useTableSelection'
+import { useTableSelectionMode } from '../lib/useTableSelectionMode'
 import { ServiceErrorState } from '../components/ServiceErrorState'
 import { api } from '../lib/api'
 import { safeErrorMessage, toAppApiError, type AppApiError } from '../lib/apiError'
@@ -108,6 +112,9 @@ export function PromptsPage() {
   const [dirty, setDirty] = useState(false)
   const [preview, setPreview] = useState<PromptResolveResult | null>(null)
   const [saving, setSaving] = useState(false)
+
+  const listSelection = useTableSelection()
+  const listSelectionMode = useTableSelectionMode(listSelection.clear)
 
   const editorPrompt = useMemo(
     () => (editorId ? prompts.find(p => p.id === editorId) ?? null : null),
@@ -374,45 +381,63 @@ export function PromptsPage() {
             aria-label="Search prompts"
           />
         </div>
-        <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={scopeFilter} onChange={e => setScopeFilter(e.target.value)}>
+        <select className="app-select-filter" value={scopeFilter} onChange={e => setScopeFilter(e.target.value)}>
           <option value="">All scopes</option>
           <option value="global">Global</option>
           <option value="workspace">Workspace</option>
           <option value="project">Project</option>
         </select>
-        <select className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value as StatusFilter)}>
+        <select className="app-select-filter" value={statusFilter} onChange={e => setStatusFilter(e.target.value as StatusFilter)}>
           <option value="">All statuses</option>
           <option value="published">Published</option>
           <option value="draft">Draft</option>
         </select>
+        <TableSelectionActionBar
+          entityLabel="prompts"
+          mode={listSelectionMode}
+          selectedCount={listSelection.selectedCount}
+        />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="overflow-x-auto">
-          <table className="min-w-[880px] w-full text-left text-sm">
+      <div className="app-table-surface">
+        <div className="app-table-surface-scroll">
+          <table className="app-data-table min-w-[880px]">
             <thead className="app-table-head">
               <tr>
-                <th className="px-4 py-3">
+                {listSelectionMode.active ? (
+                  <th className="w-11">
+                    <TableHeaderCheckbox
+                      state={listSelection.datasetCheckboxState(filteredSorted.length)}
+                      onToggle={() =>
+                        listSelection.toggleDatasetSelection(
+                          filteredSorted.map(p => p.id),
+                          filteredSorted.length,
+                        )
+                      }
+                    />
+                  </th>
+                ) : null}
+                <th>
                   <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort('name')}>
                     Name {sortKey === 'name' ? (sortDesc ? '↓' : '↑') : ''}
                   </button>
                 </th>
-                <th className="px-4 py-3">Scope</th>
-                <th className="px-4 py-3">Key</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Version</th>
-                <th className="px-4 py-3">
+                <th>Scope</th>
+                <th>Key</th>
+                <th>Status</th>
+                <th>Version</th>
+                <th>
                   <button type="button" className="inline-flex items-center gap-1" onClick={() => toggleSort('modified')}>
                     Modified {sortKey === 'modified' ? (sortDesc ? '↓' : '↑') : ''}
                   </button>
                 </th>
-                <th className="px-4 py-3">Actions</th>
+                <th className="w-24">Actions</th>
               </tr>
             </thead>
             <tbody>
               {!paged.length ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
+                  <td colSpan={listSelectionMode.active ? 8 : 7} className="py-10 text-center text-slate-500">
                     No prompts yet. Create one to get started.
                   </td>
                 </tr>
@@ -421,17 +446,26 @@ export function PromptsPage() {
                   const meta = versionMeta[p.id]
                   return (
                     <tr key={p.id} className="border-t border-slate-100">
-                      <td className="px-4 py-3">
+                      {listSelectionMode.active ? (
+                        <td className="w-11">
+                          <TableRowCheckbox
+                            checked={listSelection.isSelected(p.id)}
+                            label={`Select prompt ${p.name}`}
+                            onToggle={() => listSelection.toggle(p.id)}
+                          />
+                        </td>
+                      ) : null}
+                      <td>
                         <button type="button" className="font-medium text-cloudera-navy hover:text-cloudera-violet" onClick={() => void openEditDrawer(p)}>
                           {p.name}
                         </button>
                       </td>
-                      <td className="px-4 py-3 text-slate-600">{formatScope(p.scope)}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-slate-500">{p.key}</td>
-                      <td className="px-4 py-3">{meta?.label ?? '…'}</td>
-                      <td className="px-4 py-3">{meta?.version != null ? `v${meta.version}` : '—'}</td>
-                      <td className="px-4 py-3 text-slate-600">{formatModified(p.updated_at)}</td>
-                      <td className="px-4 py-3">
+                      <td className="text-slate-600">{formatScope(p.scope)}</td>
+                      <td className="font-mono text-slate-500">{p.key}</td>
+                      <td>{meta?.label ?? '…'}</td>
+                      <td>{meta?.version != null ? `v${meta.version}` : '—'}</td>
+                      <td className="text-slate-600">{formatModified(p.updated_at)}</td>
+                      <td>
                         <RowMenu
                           onEdit={() => void openEditDrawer(p)}
                           onPreview={() => void openEditDrawer(p, 'preview')}
@@ -551,7 +585,7 @@ export function PromptsPage() {
 
         {drawerTab === 'versions' ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="app-data-table w-full">
               <thead className="app-table-head">
                 <tr>
                   <th className="px-3 py-2">Version</th>
@@ -565,7 +599,7 @@ export function PromptsPage() {
                   <tr key={v.id} className="border-b border-slate-50">
                     <td className="px-3 py-2">v{v.version_number}</td>
                     <td className="px-3 py-2">{v.status === 'ACTIVE' ? 'Published' : v.status === 'DRAFT' ? 'Draft' : v.status}</td>
-                    <td className="px-3 py-2 text-xs text-slate-500">{formatModified(v.created_at)}</td>
+                    <td className="text-slate-500">{formatModified(v.created_at)}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-2">
                         <button

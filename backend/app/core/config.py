@@ -128,12 +128,17 @@ class Settings(BaseSettings):
     state_store: str = Field(
         default="sqlite",
         validation_alias="STATE_STORE",
-        description="Persistence backend for conversation + usage metadata (sqlite|postgres)",
+        description="Legacy label; when DATABASE_URL is set, conversation/usage use platform DB",
+    )
+    cai_data_dir: Path | None = Field(
+        default=None,
+        validation_alias="CAI_DATA_DIR",
+        description="Optional local persistence root (derives paths when sub-keys are relative)",
     )
     database_url: str = Field(
         default="",
         validation_alias=AliasChoices("DATABASE_URL", "POSTGRES_URL"),
-        description="PostgreSQL URL when STATE_STORE=postgres",
+        description="Platform metadata database URL (PostgreSQL or SQLite)",
     )
     default_project_slug: str = Field(
         default="",
@@ -182,6 +187,11 @@ class Settings(BaseSettings):
     qdrant_collection: str = Field(default="accelerator_chunks", validation_alias="QDRANT_COLLECTION")
     qdrant_timeout_seconds: int = Field(default=30, ge=1, le=120, validation_alias="QDRANT_TIMEOUT_SECONDS")
     document_auto_process: bool = Field(default=True, validation_alias="DOCUMENT_AUTO_PROCESS")
+    document_pdf_use_pypdf: bool = Field(
+        default=False,
+        validation_alias="DOCUMENT_PDF_USE_PYPDF",
+        description="Use pypdf text extraction for PDFs instead of Docling (faster for text-native demo PDFs).",
+    )
     knowledge_max_documents_per_library: int = Field(
         default=100,
         ge=1,
@@ -241,6 +251,58 @@ class Settings(BaseSettings):
     local_agent_primary: bool = False
     # auto | ossie | v3 — see app/services/ask_data_routing.py
     ask_data_routing: str = "auto"
+
+    # Ask Data presentation tier (AMP / deployment tuning)
+    ask_data_presentation_tier_enabled: bool = Field(
+        default=True,
+        validation_alias="ASK_DATA_PRESENTATION_TIER_ENABLED",
+    )
+    ask_data_panel_auto_open: str = Field(
+        default="heuristic",
+        validation_alias="ASK_DATA_PANEL_AUTO_OPEN",
+        description="heuristic | always | never",
+    )
+    ask_data_tier3_min_rows: int = Field(default=13, ge=1, le=10_000, validation_alias="ASK_DATA_TIER3_MIN_ROWS")
+    ask_data_tier3_min_insights: int = Field(
+        default=3, ge=0, le=50, validation_alias="ASK_DATA_TIER3_MIN_INSIGHTS"
+    )
+    ask_data_tier3_min_implications: int = Field(
+        default=2, ge=0, le=50, validation_alias="ASK_DATA_TIER3_MIN_IMPLICATIONS"
+    )
+    ask_data_rank_tier3_above_n: int = Field(
+        default=5, ge=0, le=500, validation_alias="ASK_DATA_RANK_TIER3_ABOVE_N"
+    )
+    ask_data_rank_min_tier: int = Field(default=2, ge=1, le=3, validation_alias="ASK_DATA_RANK_MIN_TIER")
+    ask_data_tier1_max_rows: int = Field(default=1, ge=0, le=100, validation_alias="ASK_DATA_TIER1_MAX_ROWS")
+    ask_data_tier1_max_columns: int = Field(
+        default=2, ge=1, le=50, validation_alias="ASK_DATA_TIER1_MAX_COLUMNS"
+    )
+    ask_data_force_tier3_pareto: bool = Field(default=True, validation_alias="ASK_DATA_FORCE_TIER3_PARETO")
+    ask_data_force_tier3_operational: bool = Field(
+        default=True, validation_alias="ASK_DATA_FORCE_TIER3_OPERATIONAL"
+    )
+    ask_data_force_tier3_chart: bool = Field(default=True, validation_alias="ASK_DATA_FORCE_TIER3_CHART")
+    ask_data_chat_expand_tier1: bool = Field(default=True, validation_alias="ASK_DATA_CHAT_EXPAND_TIER1")
+    ask_data_chat_expand_tier2: bool = Field(default=True, validation_alias="ASK_DATA_CHAT_EXPAND_TIER2")
+    ask_data_chat_details_default_open: bool = Field(
+        default=False,
+        validation_alias="ASK_DATA_CHAT_DETAILS_DEFAULT_OPEN",
+    )
+    ask_data_audience_mode: str = Field(
+        default="executive",
+        validation_alias="ASK_DATA_AUDIENCE_MODE",
+        description="executive | analyst",
+    )
+    ask_data_tier1_show_narrative: bool = Field(
+        default=False,
+        validation_alias="ASK_DATA_TIER1_SHOW_NARRATIVE",
+        description="When true, tier-1 KPI chat shows executive summary and insights (not only the headline).",
+    )
+    ask_data_legacy_tempo_capability_catalog: bool = Field(
+        default=False,
+        validation_alias="ASK_DATA_LEGACY_TEMPO_CAPABILITY_CATALOG",
+        description="When true, legacy TEMPO Scan 9-domain capability menu is used for local Tempo OSSIE deployments.",
+    )
     local_agent_timeout_seconds: float = Field(default=180, gt=0, le=600)
     local_agent_engine: str = "langgraph"
     local_agent_max_attempts: int = Field(default=2, ge=1, le=5)
@@ -262,16 +324,51 @@ class Settings(BaseSettings):
         return [value.strip() for value in self.cors_origins.split(",") if value.strip()]
 
 
+def _resolve_backend_relative(path: Path) -> Path:
+    """Resolve paths relative to BACKEND_ROOT (standalone repo layout).
+
+    Env templates copied from the monorepo often prefix ``backend/`` even though
+    BACKEND_ROOT already points at ``…/cloudera-ai-studio/backend``. Strip that
+    duplicate segment so storage does not land in ``backend/backend/…``.
+    """
+    if path.is_absolute():
+        return path.resolve()
+    parts = path.parts
+    if parts and parts[0] == "backend":
+        path = Path(*parts[1:]) if len(parts) > 1 else Path(".")
+    return (BACKEND_ROOT / path).resolve()
+
+
+def _resolve_cai_data_dir(path: Path) -> Path:
+    if path.is_absolute():
+        return path.resolve()
+    return (REPO_ROOT / path).resolve()
+
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     settings = Settings()
     updates: dict = {}
+    cai_root: Path | None = None
+    if settings.cai_data_dir is not None:
+        cai_root = _resolve_cai_data_dir(Path(settings.cai_data_dir))
+        updates["cai_data_dir"] = cai_root
+        if not (settings.database_url or "").strip():
+            db_file = (cai_root / "metadata" / "studio.db").resolve()
+            updates["database_url"] = f"sqlite+pysqlite:///{db_file}"
     duck_path = Path(settings.duckdb_path)
     if not duck_path.is_absolute():
-        updates["duckdb_path"] = (BACKEND_ROOT / duck_path).resolve()
+        updates["duckdb_path"] = _resolve_backend_relative(duck_path)
     doc_root = Path(settings.document_storage_root)
-    if not doc_root.is_absolute():
-        updates["document_storage_root"] = (BACKEND_ROOT / doc_root).resolve()
+    if cai_root is not None and not doc_root.is_absolute():
+        updates["document_storage_root"] = (cai_root / doc_root).resolve()
+    elif not doc_root.is_absolute():
+        updates["document_storage_root"] = _resolve_backend_relative(doc_root)
+    sem_root = Path(settings.semantic_runtime_storage_root)
+    if cai_root is not None and not sem_root.is_absolute():
+        updates["semantic_runtime_storage_root"] = (cai_root / sem_root).resolve()
+    elif not sem_root.is_absolute():
+        updates["semantic_runtime_storage_root"] = _resolve_backend_relative(sem_root)
     profile = settings.impala_credential_profile.strip().lower()
     if profile:
         updates.update(load_impala_profile(REPO_ROOT / ".env", profile) or {})

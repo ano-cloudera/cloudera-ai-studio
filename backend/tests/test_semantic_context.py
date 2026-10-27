@@ -227,26 +227,34 @@ def test_what_else_uses_session_last_metric_when_no_selain_phrase() -> None:
     assert guidance["excluded_focus"] == "stock_sat"
     assert guidance["session_capability_hint"]["last_question"].startswith("Top 10")
     lines = guidance["domain_capability_lines"]
+    assert lines
     assert not any(line.startswith("Stock SAT") for line in lines)
-    assert any(line.startswith("Sales / Sell-In") for line in lines)
 
 
-def test_domain_capability_insight_lines_lists_all_governed_domains() -> None:
+def test_domain_capability_insight_lines_lists_published_metrics_by_default() -> None:
     ctx = SemanticContextService()
     lines = ctx.domain_capability_insight_lines()
-    assert len(lines) == 9
-    assert any(line.startswith("Sales / Sell-In") for line in lines)
+    assert lines
     assert all("Contoh:" in line for line in lines)
+    assert not any("TEMPO selama Q4" in line for line in lines)
 
 
-def test_domain_capability_insight_lines_respects_excluded_focus() -> None:
+def test_domain_capability_insight_lines_respects_excluded_focus(monkeypatch) -> None:
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("ASK_DATA_LEGACY_TEMPO_CAPABILITY_CATALOG", "true")
+    get_settings.cache_clear()
     ctx = SemanticContextService()
     lines = ctx.domain_capability_insight_lines(exclude_focus="sales")
     assert len(lines) == 8
     assert not any(line.startswith("Sales / Sell-In") for line in lines)
 
 
-def test_broad_guidance_offers_cross_domain_governed_examples() -> None:
+def test_broad_guidance_offers_cross_domain_governed_examples(monkeypatch) -> None:
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("ASK_DATA_LEGACY_TEMPO_CAPABILITY_CATALOG", "true")
+    get_settings.cache_clear()
     guidance = SemanticContextService().guidance_context("Halo, bisa bantu apa?")
 
     options = {option["name"]: option for option in guidance["domain_options"]}
@@ -744,6 +752,7 @@ def test_promo_uplift_honours_explicit_top_five() -> None:
     assert "LIMIT 5" in sql
 
 
+@pytest.mark.tempo_domain
 def test_promo_roi_proxy_clarification_answer_in_prose_resolves_revenue_uplift() -> None:
     answer = (
         "oke sekali lagi coba keluarkan penjualan General Trade (bukan Alfamart langsung) "
@@ -755,6 +764,7 @@ def test_promo_roi_proxy_clarification_answer_in_prose_resolves_revenue_uplift()
     assert resolution["metric"] == "promo_material_revenue_uplift"
 
 
+@pytest.mark.tempo_domain
 @pytest.mark.parametrize("choice", ["Revenue Uplift", "revenue uplift"])
 def test_promo_roi_proxy_short_label_still_resolves(choice: str) -> None:
     resolution = SemanticContextService().resolve(choice)

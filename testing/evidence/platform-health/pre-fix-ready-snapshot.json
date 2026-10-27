@@ -1,0 +1,18 @@
+{
+  "note": "Captured before platform readiness aggregation fix (post CONTROLLED_DEMO_ENVIRONMENT_CLEANUP)",
+  "endpoint": "http://127.0.0.1:8001/health/ready",
+  "core_ready": true,
+  "status": "not_ready",
+  "feature_gaps": ["ask_data_needs_llm_or_datasource"],
+  "contributing_fields": {
+    "components.llm": "not_configured",
+    "components.legacy_datasource": "not_configured",
+    "components.postgres": {"status": "ready"},
+    "components.qdrant": {"status": "ready"},
+    "components.embeddings": {"status": "ready", "provider": "mock"}
+  },
+  "frontend_interpretation": "usePlatformReadiness treated any non-empty feature_gaps as Platform Degraded",
+  "classification": {
+    "ask_data_needs_llm_or_datasource": "D — stale/incorrect health logic (not_configured treated as gap)"
+  }
+}

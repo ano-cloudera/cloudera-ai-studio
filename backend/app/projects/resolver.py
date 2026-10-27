@@ -23,7 +23,9 @@ def _resolve_ossie_path(settings: Settings, relative_or_absolute: str) -> Path:
 def resolve_ossie_project_dir(settings: Settings) -> Path:
     """Active OSSIE project directory for semantic layer."""
     legacy = (settings.project_root / settings.ossie_project_id).resolve()
-    if settings.state_store.strip().lower() != "postgres" or not (settings.database_url or "").strip():
+    from app.db.metadata_db import platform_metadata_configured
+
+    if not platform_metadata_configured(settings):
         return legacy
     try:
         project = load_default_project(settings)

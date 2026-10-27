@@ -47,7 +47,7 @@ class FakeChatService:
 
 
 def client() -> TestClient:
-    app = create_app(Settings(_env_file=None, qwen_base_url="https://qwen", qwen_api_key="token", qwen_model="qwen-model"))
+    app = create_app(isolated_settings())
     app.state.chat_service = FakeChatService()
     return TestClient(app)
 
@@ -59,7 +59,10 @@ def test_chat_rejects_model_not_exposed_by_backend() -> None:
 
 
 def test_chat_stream_emits_progress_and_terminal_response() -> None:
-    response = client().post("/chat/stream", json={"session_id": "s", "question": "q", "provider": "qwen", "model": "qwen-model"})
+    response = client().post(
+        "/chat/stream",
+        json={"session_id": "s", "question": "q", "provider": "qwen", "model": "/models/Qwen3.8-27B-AWQ"},
+    )
     assert response.status_code == 200
     frames = [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith("data: ")]
     assert [frame["stage"] for frame in frames if frame["type"] == "progress"] == [
@@ -80,7 +83,10 @@ def test_chat_stream_heartbeat_does_not_cancel_slow_terminal_response(monkeypatc
     test_client.app.state.chat_service = SlowChatService()
     monkeypatch.setattr(chat_api, "HEARTBEAT_SECONDS", 0.005)
 
-    response = test_client.post("/chat/stream", json={"session_id": "s", "question": "q", "provider": "qwen", "model": "qwen-model"})
+    response = test_client.post(
+        "/chat/stream",
+        json={"session_id": "s", "question": "q", "provider": "qwen", "model": "/models/Qwen3.8-27B-AWQ"},
+    )
 
     assert ": keep-alive" in response.text
     frames = [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith("data: ")]

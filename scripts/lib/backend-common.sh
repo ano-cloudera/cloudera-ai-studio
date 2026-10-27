@@ -22,6 +22,11 @@ backend_load_env() {
   backend_init_paths
   cd "$BACKEND_ROOT"
 
+  if [[ "${CAI_DEPLOYMENT_PRESERVE_ENV:-}" == "1" ]]; then
+    export PYTHONPATH="${BACKEND_ROOT}/backend${PYTHONPATH:+:${PYTHONPATH}}"
+    return 0
+  fi
+
   if [[ ! -x "$BACKEND_ROOT/.venv/bin/python" ]]; then
     echo "ERROR: missing $BACKEND_ROOT/.venv/bin/python — run scripts/bootstrap/bootstrap-local.sh" >&2
     return 1
@@ -43,6 +48,15 @@ backend_load_env() {
 
   export PYTHONPATH="${BACKEND_ROOT}/backend${PYTHONPATH:+:${PYTHONPATH}}"
   export CORS_ORIGINS="${CORS_ORIGINS:-http://127.0.0.1:3001,http://localhost:3001}"
+
+  # Local CAI simulation: keep SQLite metadata paths after .env (Postgres dev defaults).
+  if [[ "${CAI_SIM_METADATA:-}" == "1" ]]; then
+    [[ -n "${CAI_SIM_DATABASE_URL:-}" ]] && export DATABASE_URL="$CAI_SIM_DATABASE_URL"
+    [[ -n "${CAI_SIM_DOCUMENT_STORAGE_ROOT:-}" ]] && export DOCUMENT_STORAGE_ROOT="$CAI_SIM_DOCUMENT_STORAGE_ROOT"
+    [[ -n "${CAI_SIM_SEMANTIC_RUNTIME_STORAGE_ROOT:-}" ]] && export SEMANTIC_RUNTIME_STORAGE_ROOT="$CAI_SIM_SEMANTIC_RUNTIME_STORAGE_ROOT"
+    export STATE_STORE=sqlite
+    export UVICORN_WORKERS="${UVICORN_WORKERS:-1}"
+  fi
 }
 
 backend_port_listener_pids() {
@@ -115,10 +129,12 @@ backend_start_process() {
   backend_load_env
   backend_log_startup_header
 
+  local workers="${UVICORN_WORKERS:-1}"
   nohup "$BACKEND_ROOT/.venv/bin/python" -m uvicorn app.main:app \
     --app-dir backend \
     --host "$BACKEND_HOST" \
     --port "$BACKEND_PORT" \
+    --workers "$workers" \
     >>"$BACKEND_LOG_FILE" 2>&1 </dev/null &
   local pid=$!
   echo "$pid" >"$BACKEND_PID_FILE"

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SemanticLayerPage } from '../SemanticLayerPage'
 import { CreateSemanticModelWizard } from './CreateSemanticModelWizard'
@@ -31,7 +31,9 @@ const api = vi.hoisted(() => ({
   acceptSemanticSuggestions: vi.fn(),
   semanticSuggestions: vi.fn(),
   listConnectorTables: vi.fn(),
+  listConnectorSchemas: vi.fn(),
   rollbackSemanticVersion: vi.fn(),
+  discardSemanticDraftVersion: vi.fn(),
   getOssieImportSource: vi.fn(),
   importOssieSemantics: vi.fn(),
 }))
@@ -52,6 +54,7 @@ function basePageMocks() {
   api.listSemanticVersions.mockResolvedValue({
     versions: [
       { id: 'v-draft', semantic_model_id: 'm1', version_number: 2, status: 'DRAFT' },
+      { id: 'v-draft-3', semantic_model_id: 'm1', version_number: 3, status: 'DRAFT', published_at: null },
       { id: 'v-active', semantic_model_id: 'm1', version_number: 1, status: 'ACTIVE', published_at: '2026-01-01' },
       { id: 'v-arch', semantic_model_id: 'm1', version_number: 0, status: 'ARCHIVED', published_at: '2025-01-01' },
     ],
@@ -88,7 +91,7 @@ function basePageMocks() {
   api.getSemanticValidatorHealth.mockResolvedValue({ impala: { status: 'ok', label: 'Impala' } })
   api.getSemanticRuntimeStatus.mockResolvedValue({
     loader_mode: 'runtime',
-    runtime_active_version: 1,
+    runtime_active_version: null,
     registry_active_version: 1,
     runtime_status: 'ok',
   })
@@ -97,6 +100,8 @@ function basePageMocks() {
   api.listSemanticRecentDefinitions.mockResolvedValue({ definitions: [], total: 0, page: 1, page_size: 10 })
   api.publishSemanticToAskData.mockResolvedValue({ status: 'published', version_number: 2 })
   api.rollbackSemanticVersion.mockResolvedValue({ ok: true })
+  api.discardSemanticDraftVersion.mockResolvedValue({ discarded: true, semantic_model_id: 'm1', version_number: 2 })
+  api.listConnectorSchemas.mockResolvedValue({ schemas: [{ name: 'public' }] })
   api.listConnectorTables.mockResolvedValue({
     tables: [
       { schema: 'public', name: 'sales' },
@@ -115,7 +120,7 @@ function basePageMocks() {
 async function advanceWizardToReview(name = 'Wizard Model') {
   fireEvent.change(screen.getByPlaceholderText('Commercial Sales'), { target: { value: name } })
   fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-  fireEvent.click(await screen.findByText('PostgreSQL'))
+  await waitFor(() => expect(api.listConnectorSchemas).toHaveBeenCalled())
   await waitFor(() => expect(api.listConnectorTables).toHaveBeenCalled())
   fireEvent.click((await screen.findAllByRole('checkbox'))[0])
   fireEvent.click(screen.getByRole('button', { name: 'Review suggestions' }))
@@ -124,7 +129,7 @@ async function advanceWizardToReview(name = 'Wizard Model') {
 
 async function renderPageReady(extra?: React.ReactNode) {
   renderPage(extra)
-  await waitFor(() => expect(screen.getByTestId('semantic-publish-ask-data')).toBeTruthy())
+  await waitFor(() => expect(screen.getByTestId('semantic-model-toolbar')).toBeTruthy())
 }
 
 function DirtyRegistrar(props: { dirty?: boolean; save?: () => Promise<void> }) {
@@ -149,10 +154,9 @@ function renderPage(extra?: React.ReactNode) {
   )
 }
 
-async function openAdvancedTab(label: string) {
-  fireEvent.click(screen.getByTestId('semantic-advanced-trigger'))
-  const item = await screen.findByRole('menuitem', { name: label })
-  fireEvent.click(item)
+async function openVersionHistoryTab() {
+  fireEvent.click(screen.getByTestId('semantic-tab-version-history'))
+  await screen.findByTestId('semantic-version-history-tab-panel')
 }
 
 function clickTab(name: string) {
@@ -162,10 +166,19 @@ function clickTab(name: string) {
 }
 
 async function clickPublish() {
+  fireEvent.click(screen.getByTestId('semantic-tab-publish-config'))
+  await waitFor(() => expect(screen.getByTestId('semantic-save-publish')).toBeTruthy())
   await act(async () => {
-    fireEvent.click(screen.getByTestId('semantic-publish-ask-data'))
+    fireEvent.click(screen.getByTestId('semantic-save-publish'))
     await new Promise(r => setTimeout(r, 50))
   })
+  const dialog = screen.queryByRole('dialog')
+  if (dialog?.textContent?.includes('Publish?')) {
+    await act(async () => {
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Publish' }))
+      await new Promise(r => setTimeout(r, 50))
+    })
+  }
 }
 
 describe('SEM-2B matrix', () => {
@@ -209,7 +222,6 @@ describe('SEM-2B matrix', () => {
     render(<CreateSemanticModelWizard open connectors={[...connectors]} onClose={() => undefined} onCreated={() => undefined} />)
     fireEvent.change(screen.getByPlaceholderText('Commercial Sales'), { target: { value: 'M' } })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    fireEvent.click(screen.getByText('PostgreSQL'))
     await waitFor(() => expect(screen.getByText('public.sales')).toBeTruthy())
     expect(screen.getByText('public.products')).toBeTruthy()
   })
@@ -224,7 +236,6 @@ describe('SEM-2B matrix', () => {
     render(<CreateSemanticModelWizard open connectors={[...connectors]} onClose={() => undefined} onCreated={() => undefined} />)
     fireEvent.change(screen.getByPlaceholderText('Commercial Sales'), { target: { value: 'M' } })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    fireEvent.click(screen.getByText('PostgreSQL'))
     await waitFor(() => expect(screen.getByText('public.sales')).toBeTruthy())
     fireEvent.change(screen.getByPlaceholderText('Search tables…'), { target: { value: 'inventory' } })
     expect(screen.queryByText('public.sales')).toBeNull()
@@ -241,7 +252,6 @@ describe('SEM-2B matrix', () => {
     render(<CreateSemanticModelWizard open connectors={[...connectors]} onClose={() => undefined} onCreated={() => undefined} />)
     fireEvent.change(screen.getByPlaceholderText('Commercial Sales'), { target: { value: 'M' } })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    fireEvent.click(screen.getByText('PostgreSQL'))
     const boxes = await screen.findAllByRole('checkbox')
     fireEvent.click(boxes[0])
     fireEvent.click(boxes[1])
@@ -254,7 +264,6 @@ describe('SEM-2B matrix', () => {
     render(<CreateSemanticModelWizard open connectors={[...connectors]} onClose={() => undefined} onCreated={() => undefined} />)
     fireEvent.change(screen.getByPlaceholderText('Commercial Sales'), { target: { value: 'M' } })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    fireEvent.click(screen.getByText('PostgreSQL'))
     fireEvent.click(await screen.findByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: 'Review suggestions' }))
     await waitFor(() => expect(api.semanticSuggestions).toHaveBeenCalled())
@@ -272,7 +281,6 @@ describe('SEM-2B matrix', () => {
     render(<CreateSemanticModelWizard open connectors={[...connectors]} onClose={() => undefined} onCreated={() => undefined} />)
     fireEvent.change(screen.getByPlaceholderText('Commercial Sales'), { target: { value: 'M' } })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    fireEvent.click(screen.getByText('PostgreSQL'))
     fireEvent.click(await screen.findByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: 'Review suggestions' }))
     await waitFor(() => expect(screen.getByText('Data Models')).toBeTruthy())
@@ -287,7 +295,6 @@ describe('SEM-2B matrix', () => {
     render(<CreateSemanticModelWizard open connectors={[...connectors]} onClose={() => undefined} onCreated={() => undefined} />)
     fireEvent.change(screen.getByPlaceholderText('Commercial Sales'), { target: { value: 'M' } })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    fireEvent.click(screen.getByText('PostgreSQL'))
     fireEvent.click(await screen.findByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: 'Review suggestions' }))
     await waitFor(() => screen.getAllByText('Accept')[0])
@@ -303,7 +310,6 @@ describe('SEM-2B matrix', () => {
     render(<CreateSemanticModelWizard open connectors={[...connectors]} onClose={() => undefined} onCreated={() => undefined} />)
     fireEvent.change(screen.getByPlaceholderText('Commercial Sales'), { target: { value: 'M' } })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    fireEvent.click(screen.getByText('PostgreSQL'))
     fireEvent.click(await screen.findByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: 'Review suggestions' }))
     await waitFor(() => screen.getAllByText('Reject')[0])
@@ -319,7 +325,6 @@ describe('SEM-2B matrix', () => {
     render(<CreateSemanticModelWizard open connectors={[...connectors]} onClose={() => undefined} onCreated={() => undefined} />)
     fireEvent.change(screen.getByPlaceholderText('Commercial Sales'), { target: { value: 'M' } })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    fireEvent.click(screen.getByText('PostgreSQL'))
     fireEvent.click(await screen.findByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: 'Review suggestions' }))
     await waitFor(() => screen.getAllByText('Edit')[0])
@@ -342,7 +347,6 @@ describe('SEM-2B matrix', () => {
     render(<CreateSemanticModelWizard open connectors={[...connectors]} onClose={() => undefined} onCreated={() => undefined} />)
     fireEvent.change(screen.getByPlaceholderText('Commercial Sales'), { target: { value: 'M' } })
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
-    fireEvent.click(screen.getByText('PostgreSQL'))
     fireEvent.click(await screen.findByRole('checkbox'))
     fireEvent.click(screen.getByRole('button', { name: 'Review suggestions' }))
     await waitFor(() => screen.getAllByText('Reject').length >= 2)
@@ -452,10 +456,9 @@ describe('SEM-2B matrix', () => {
     await waitFor(() => expect(screen.getByTestId('unsaved-changes-modal')).toBeTruthy())
   })
 
-  it('SEM-2B-022 open Advanced while dirty', async () => {
+  it('SEM-2B-022 open Publish & config while dirty', async () => {
     await renderPageReady(<DirtyRegistrar />)
-    fireEvent.click(screen.getByTestId('semantic-advanced-trigger'))
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Model health' }))
+    fireEvent.click(screen.getByTestId('semantic-tab-publish-config'))
     await waitFor(() => expect(screen.getByTestId('unsaved-changes-modal')).toBeTruthy())
   })
 
@@ -487,14 +490,13 @@ describe('SEM-2B matrix', () => {
 
   it('SEM-2B-026 Publish CTA visible', async () => {
     await renderPageReady()
-    expect(screen.getByTestId('semantic-publish-ask-data')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('semantic-tab-publish-config'))
+    await waitFor(() => expect(screen.getByTestId('semantic-save-publish')).toBeTruthy())
   })
 
   it('SEM-2B-027 publish calls orchestration endpoint', async () => {
     await renderPageReady()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('semantic-publish-ask-data'))
-    })
+    await clickPublish()
     await waitFor(() => expect(api.publishSemanticToAskData).toHaveBeenCalled())
     expect(api.publishSemanticToAskData.mock.calls[0][0]).toBe('m1')
   })
@@ -504,16 +506,13 @@ describe('SEM-2B matrix', () => {
       () => new Promise(resolve => setTimeout(() => resolve({ status: 'published', version_number: 2 }), 200)),
     )
     await renderPageReady()
-    fireEvent.click(screen.getByTestId('semantic-publish-ask-data'))
+    await clickPublish()
     expect(await screen.findByText(/Preparing semantic model/)).toBeTruthy()
   })
 
   it('SEM-2B-029 publish success', async () => {
     await renderPageReady()
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('semantic-publish-ask-data'))
-      await new Promise(r => setTimeout(r, 50))
-    })
+    await clickPublish()
     await waitFor(() => expect(screen.getByTestId('semantic-publish-success')).toBeTruthy())
   })
 
@@ -527,7 +526,7 @@ describe('SEM-2B matrix', () => {
       counts: { entities: 1, metrics: 1, dimensions: 0, relationships: 0, terms: 0 },
     })
     await renderPageReady()
-    fireEvent.click(screen.getByTestId('semantic-publish-ask-data'))
+    await clickPublish()
     await waitFor(() => expect(api.getSemanticModelOverview).toHaveBeenCalled())
   })
 
@@ -582,10 +581,10 @@ describe('SEM-2B matrix', () => {
     api.publishSemanticToAskData.mockRejectedValueOnce(appErr(502, { status: 'activation_failed' }))
     await renderPageReady()
     await clickPublish()
-    await waitFor(() => screen.getByText('Retry activation'))
+    await waitFor(() => screen.getByText('Retry publish'))
     api.publishSemanticToAskData.mockResolvedValue({ status: 'published', version_number: 2 })
     await act(async () => {
-      fireEvent.click(screen.getByText('Retry activation'))
+      fireEvent.click(screen.getByText('Retry publish'))
       await new Promise(r => setTimeout(r, 50))
     })
     await waitFor(() => expect(api.publishSemanticToAskData).toHaveBeenCalledTimes(2))
@@ -593,18 +592,31 @@ describe('SEM-2B matrix', () => {
 
   it('SEM-2B-037 version history consistency', async () => {
     await renderPageReady()
-    await openAdvancedTab('Version history')
+    await openVersionHistoryTab()
     await waitFor(() => expect(screen.getByText('v1')).toBeTruthy())
-    expect(screen.getByText('ACTIVE REGISTRY')).toBeTruthy()
+    expect(screen.getByTestId('semantic-version-registry-published')).toBeTruthy()
   })
 
-  it('SEM-2B-038 deployment details consistency', async () => {
+  it('SEM-2B-038 runtime status loaded for version history', async () => {
+    api.getSemanticRuntimeStatus.mockResolvedValue({
+      loader_mode: 'runtime',
+      runtime_active_version: 1,
+      registry_active_version: 1,
+      runtime_status: 'ok',
+    })
     await renderPageReady()
-    await openAdvancedTab('Deployment details')
+    await openVersionHistoryTab()
     await waitFor(() => expect(api.getSemanticRuntimeStatus).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByTestId('semantic-version-ask-data-active')).toBeTruthy())
   })
 
   it('SEM-2B-039 new edit after publish becomes draft', async () => {
+    api.listSemanticVersions.mockResolvedValue({
+      versions: [
+        { id: 'v-draft-3', semantic_model_id: 'm1', version_number: 3, status: 'DRAFT' },
+        { id: 'v-active', semantic_model_id: 'm1', version_number: 2, status: 'ACTIVE', published_at: '2026-01-01' },
+      ],
+    })
     api.getSemanticModelOverview.mockResolvedValue({
       model: { id: 'm1', name: 'Art', key: 'art', updated_at: null },
       state: 'Draft',
@@ -613,15 +625,17 @@ describe('SEM-2B matrix', () => {
       counts: { entities: 1, metrics: 1, dimensions: 0, relationships: 0, terms: 0 },
     })
     await renderPageReady()
-    await waitFor(() => expect(api.getSemanticModelOverview).toHaveBeenCalled())
+    fireEvent.click(screen.getByTestId('semantic-lifecycle-primary'))
     clickTab('Overview')
     await waitFor(() => expect(screen.getByTestId('semantic-overview-metadata')).toBeTruthy())
-    expect(screen.getByText(/Published v2/)).toBeTruthy()
+    await waitFor(() =>
+      expect(screen.getByTestId('semantic-overview-metadata').textContent).toMatch(/Editing draft v3/),
+    )
   })
 
   it('SEM-2B-040 rollback product modal', async () => {
     await renderPageReady()
-    await openAdvancedTab('Version history')
+    await openVersionHistoryTab()
     fireEvent.click(await screen.findByText('Rollback'))
     expect(screen.getByText('Rollback semantic model?')).toBeTruthy()
     expect(screen.getByText(/Ask Data will start using version/)).toBeTruthy()
@@ -629,7 +643,7 @@ describe('SEM-2B matrix', () => {
 
   it('SEM-2B-041 rollback updates active version', async () => {
     await renderPageReady()
-    await openAdvancedTab('Version history')
+    await openVersionHistoryTab()
     fireEvent.click(await screen.findByText('Rollback'))
     const confirmButtons = screen.getAllByRole('button', { name: 'Rollback' })
     fireEvent.click(confirmButtons[confirmButtons.length - 1])

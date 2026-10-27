@@ -10,14 +10,18 @@ vi.mock('../../lib/api', () => ({
       models: [{ id: 'm1', name: 'Art', key: 'art', active_version_id: 'v-active', workspace_id: 'w', project_id: 'p' }],
     }),
     listSemanticVersions: vi.fn().mockResolvedValue({
-      versions: [{ id: 'v-draft', semantic_model_id: 'm1', version_number: 2, status: 'DRAFT' }],
+      versions: [
+        { id: 'v-draft', semantic_model_id: 'm1', version_number: 2, status: 'DRAFT' },
+        { id: 'v-active', semantic_model_id: 'm1', version_number: 1, status: 'ACTIVE', published_at: '2026-01-01' },
+      ],
     }),
     getSemanticModelOverview: vi.fn().mockResolvedValue({
       model: { id: 'm1', name: 'Art', key: 'art', updated_at: null },
       state: 'Draft',
       counts: { entities: 1, metrics: 1, dimensions: 0, relationships: 0, terms: 0 },
       issue_count: 0,
-      published_version_number: null,
+      published_version_number: 1,
+      draft_version_number: 2,
     }),
     listSemanticEntities: vi.fn().mockResolvedValue({ entities: [], total: 0 }),
     listSemanticMetrics: vi.fn().mockResolvedValue({ metrics: [], total: 0 }),
@@ -43,9 +47,14 @@ describe('Semantic Advanced UX cleanup', () => {
     await waitFor(() => expect(screen.getByTestId('semantic-create-model')).toBeTruthy())
   }
 
-  it('does not show Draft badge in primary header', async () => {
+  it('shows draft saved status in context bar when edit session is off', async () => {
     await ready()
-    expect(screen.queryByTestId('semantic-header-status-badge')).toBeNull()
+    await waitFor(() => {
+      const badge = screen.getByTestId('semantic-header-status-badge')
+      expect(badge.textContent).toMatch(/Draft saved/)
+    })
+    expect(screen.getByTestId('semantic-discard-draft')).toBeTruthy()
+    expect(screen.queryByTestId('semantic-edit-discard')).toBeNull()
   })
 
   it('shows Needs attention badge when publish issues exist', async () => {
@@ -57,8 +66,8 @@ describe('Semantic Advanced UX cleanup', () => {
   it('Import OSSIE removed from primary header and available under Advanced', async () => {
     await ready()
     expect(screen.queryByTestId('semantic-import-ossie')).toBeNull()
-    fireEvent.click(screen.getByTestId('semantic-advanced-trigger'))
-    expect(screen.getByTestId('semantic-advanced-import-ossie')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('semantic-tab-publish-config'))
+    expect(screen.getByTestId('semantic-publish-tab-panel')).toBeTruthy()
   })
 
   it('artifact preview not rendered on Overview', async () => {
@@ -67,10 +76,9 @@ describe('Semantic Advanced UX cleanup', () => {
     expect(screen.queryByTestId('semantic-artifact-preview-content')).toBeNull()
   })
 
-  it('artifact preview only in Advanced preview view', async () => {
+  it('artifact preview only on Preview tab', async () => {
     await ready()
-    fireEvent.click(screen.getByTestId('semantic-advanced-trigger'))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Preview semantic artifact' }))
+    fireEvent.click(screen.getByTestId('semantic-tab-preview'))
     await waitFor(() => expect(screen.getByTestId('semantic-artifact-preview-panel')).toBeTruthy())
   })
 
@@ -93,9 +101,7 @@ describe('Semantic Advanced UX cleanup', () => {
 
   it('deployment empty state uses friendly copy', async () => {
     await ready()
-    fireEvent.click(screen.getByTestId('semantic-advanced-trigger'))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Deployment details' }))
-    await waitFor(() => expect(screen.getByText(/No active deployment yet/)).toBeTruthy())
-    expect(screen.getByText(/Publish this semantic model to make it available in Ask Data/)).toBeTruthy()
+    fireEvent.click(screen.getByTestId('semantic-tab-version-history'))
+    await waitFor(() => expect(screen.getByTestId('semantic-version-history-tab-panel')).toBeTruthy())
   })
 })

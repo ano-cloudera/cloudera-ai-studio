@@ -31,8 +31,8 @@ export function useSemanticBulkDeleteAction(
 type SelectionBarProps = {
   entityLabel: string
   selectedCount: number
-  onDelete: () => void
   onCancel: () => void
+  onDelete?: () => void
   deleteDisabled?: boolean
 }
 
@@ -42,14 +42,16 @@ export function SemanticSelectionBar({ entityLabel, selectedCount, onDelete, onC
       <span className="text-sm font-semibold text-cloudera-navy" aria-live="polite">
         {selectedCount} {entityLabel} selected
       </span>
-      <button
-        type="button"
-        className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
-        disabled={deleteDisabled ?? selectedCount <= 0}
-        onClick={onDelete}
-      >
-        Delete selected
-      </button>
+      {onDelete ? (
+        <button
+          type="button"
+          className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+          disabled={deleteDisabled ?? selectedCount <= 0}
+          onClick={onDelete}
+        >
+          Delete selected
+        </button>
+      ) : null}
       <button type="button" className="btn-secondary px-3 py-2 text-sm" onClick={onCancel}>
         Cancel
       </button>

@@ -4,7 +4,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.db.platform_models import (
@@ -14,6 +14,7 @@ from app.db.platform_models import (
     SemanticModelRow,
     SemanticRelationshipRow,
     SemanticTermRow,
+    SemanticRuntimeDeploymentRow,
     SemanticVersionRow,
 )
 from app.semantic_registry.governance_types import READINESS_NOT_READY
@@ -169,6 +170,27 @@ class SemanticRegistryService:
         self._copy_version_content(source.id, draft.id)
         self._session.refresh(draft)
         return draft
+
+    def discard_draft_version(
+        self,
+        version_id: uuid.UUID,
+        *,
+        workspace_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> dict:
+        version = self.get_version(version_id, workspace_id=workspace_id, project_id=project_id)
+        if version.status != "DRAFT":
+            raise SemanticRegistryError("invalid_state", "Only DRAFT versions can be discarded", 409)
+        version_number = version.version_number
+        model_id = version.semantic_model_id
+        version.last_validation_run_id = None
+        self._session.flush()
+        self._session.execute(
+            delete(SemanticRuntimeDeploymentRow).where(SemanticRuntimeDeploymentRow.semantic_version_id == version_id)
+        )
+        self._session.delete(version)
+        self._session.flush()
+        return {"discarded": True, "semantic_model_id": str(model_id), "version_number": version_number}
 
     def validate_version(
         self,
@@ -402,6 +424,7 @@ class SemanticRegistryService:
                 table_name=r.table_name,
                 view_name=r.view_name,
                 primary_key=r.primary_key,
+                connection_id=r.connection_id,
                 metadata_=dict(r.metadata_ or {}),
             )),
             (SemanticMetricRow, lambda r: SemanticMetricRow(

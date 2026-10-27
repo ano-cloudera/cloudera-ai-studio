@@ -14,7 +14,7 @@ export type ModelSelectionState = {
 
 const initialState: ModelSelectionState = {
   models: [],
-  selection: null,
+  selection: readSavedSelection(),
   loading: false,
   loadedOnce: false,
   error: '',
@@ -47,10 +47,18 @@ const modelSelectionSlice = createSlice({
   name: 'modelSelection',
   initialState,
   reducers: {
+    hydrateSavedSelection(state) {
+      const saved = readSavedSelection()
+      if (saved && !state.selection) {
+        state.selection = saved
+      }
+    },
     setSelection(state, action: PayloadAction<ModelSelection>) {
-      const allowed = state.models.some(
-        model => model.available && model.provider === action.payload.provider && model.id === action.payload.model,
-      )
+      const allowed =
+        state.models.length === 0
+        || state.models.some(
+          model => model.available && model.provider === action.payload.provider && model.id === action.payload.model,
+        )
       if (!allowed) return
       state.selection = action.payload
       try {
@@ -83,5 +91,5 @@ const modelSelectionSlice = createSlice({
   },
 })
 
-export const { setSelection } = modelSelectionSlice.actions
+export const { hydrateSavedSelection, setSelection } = modelSelectionSlice.actions
 export default modelSelectionSlice.reducer

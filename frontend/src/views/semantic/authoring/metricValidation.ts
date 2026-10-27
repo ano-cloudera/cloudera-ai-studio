@@ -1,4 +1,10 @@
-import type { SemanticDimensionRecord, SemanticMetricRecord } from '../../../types/api'
+import type {
+  SemanticDimensionRecord,
+  SemanticEntityRecord,
+  SemanticMetricRecord,
+  SemanticRelationshipRecord,
+} from '../../../types/api'
+import { dimensionsForMetric, physicalColumnsFromEntity } from './metricAuthoring'
 
 export type MetricFieldIssue = { field: string; message: string }
 
@@ -19,13 +25,18 @@ function columnsForEntity(entityKey: string, dimensions: SemanticDimensionRecord
 }
 
 export function validateMetricDraftLocal(
-  form: Pick<SemanticMetricRecord, 'name' | 'business_definition' | 'expression' | 'aggregation' | 'source_entity_key'> & {
+  form: Pick<
+    SemanticMetricRecord,
+    'name' | 'business_definition' | 'expression' | 'aggregation' | 'source_entity_key' | 'allowed_dimension_keys'
+  > & {
     id?: string
     calcType?: string
   },
   entityKeys: string[],
   dimensions: SemanticDimensionRecord[],
+  relationships: SemanticRelationshipRecord[],
   existingMetrics: SemanticMetricRecord[],
+  entitiesByKey: Record<string, SemanticEntityRecord> = {},
 ): MetricFieldIssue[] {
   const issues: MetricFieldIssue[] = []
   if (!form.name.trim()) issues.push({ field: 'name', message: 'Metric name is required.' })
@@ -45,6 +56,11 @@ export function validateMetricDraftLocal(
   }
 
   const cols = columnsForEntity(form.source_entity_key, dimensions)
+  for (const col of physicalColumnsFromEntity(entitiesByKey[form.source_entity_key])) {
+    if (!cols.has(col.name)) {
+      cols.set(col.name, col.normalized_type ?? 'string')
+    }
+  }
   const cd = expr.match(COUNT_DISTINCT_RE)
   if (cd) {
     const col = cd[1]
@@ -61,6 +77,21 @@ export function validateMetricDraftLocal(
     }
   } else if (/\b(DROP|DELETE|INSERT|UPDATE|ALTER|TRUNCATE)\b/i.test(expr)) {
     issues.push({ field: 'expression', message: 'Formula contains disallowed SQL statements.' })
+  }
+
+  const allowed = form.allowed_dimension_keys ?? []
+  if (allowed.length && form.source_entity_key) {
+    const avail = new Set(
+      dimensionsForMetric(form.source_entity_key, dimensions, relationships).map(d => d.key),
+    )
+    for (const key of allowed) {
+      if (!avail.has(key)) {
+        issues.push({
+          field: 'allowed_dimension_keys',
+          message: `Dimension \`${key}\` is not available for this metric's data model.`,
+        })
+      }
+    }
   }
   return issues
 }

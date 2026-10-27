@@ -100,10 +100,9 @@ class PromptResolver:
         )
 
     def _uses_postgres(self) -> bool:
-        return (
-            self._settings.state_store.strip().lower() == "postgres"
-            and bool((self._settings.database_url or "").strip())
-        )
+        from app.db.metadata_db import platform_metadata_configured
+
+        return platform_metadata_configured(self._settings)
 
 
 def resolve_prompt_text(

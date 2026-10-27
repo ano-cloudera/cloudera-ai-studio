@@ -72,19 +72,41 @@ frontend_dev_stop() {
   return 1
 }
 
-frontend_dev_wait_http() {
-  local url="${1:-http://127.0.0.1:$FRONTEND_DEV_PORT/}"
-  local attempts="${2:-60}"
+frontend_dev_wait_port() {
+  local attempts="${1:-80}"
   local i=0
   while [[ $i -lt attempts ]]; do
-    if curl -sf -o /dev/null "$url"; then
+    if [[ -n "$(frontend_dev_listeners)" ]]; then
+      return 0
+    fi
+    sleep 0.25
+    i=$((i + 1))
+  done
+  return 1
+}
+
+frontend_dev_wait_http() {
+  local url="${1:-http://127.0.0.1:$FRONTEND_DEV_PORT/}"
+  local attempts="${2:-240}"
+  local i=0 code
+  while [[ $i -lt attempts ]]; do
+    # max-time: Next can accept TCP while compiling and hang the response without it.
+    code="$(
+      curl -s -o /dev/null -w '%{http_code}' --connect-timeout 2 --max-time 5 "$url" 2>/dev/null || true
+    )"
+    if [[ -n "$code" && "$code" != "000" ]]; then
       return 0
     fi
     sleep 0.5
     i=$((i + 1))
   done
-  echo "ERROR: Timeout waiting for $url" >&2
   return 1
+}
+
+frontend_dev_wait_ready() {
+  local url="${1:-http://127.0.0.1:$FRONTEND_DEV_PORT/}"
+  frontend_dev_wait_port 80 || return 1
+  frontend_dev_wait_http "$url" 240
 }
 
 frontend_dev_route_sweep() {

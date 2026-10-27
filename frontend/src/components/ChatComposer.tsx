@@ -53,6 +53,9 @@ export function ChatComposer({
     }
   }
 
+  const textareaDisabled = Boolean(disabled && !loading)
+  const submitDisabled = Boolean(disabled || !value.trim() || submitDisabledReason)
+
   return (
     <form
       onSubmit={(event: FormEvent) => {
@@ -68,7 +71,7 @@ export function ChatComposer({
           data-testid="chat-input"
           rows={1}
           value={value}
-          disabled={disabled && !loading}
+          {...(textareaDisabled ? { disabled: true } : {})}
           onChange={event => onChange(event.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={appConfig.chatPlaceholder}
@@ -89,7 +92,7 @@ export function ChatComposer({
             data-testid="chat-send-button"
             aria-label="Send question"
             title={submitDisabledReason ?? undefined}
-            disabled={disabled || !value.trim() || Boolean(submitDisabledReason)}
+            {...(submitDisabled ? { disabled: true } : {})}
             className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cloudera-orange text-white disabled:opacity-40"
           >
             <ArrowUp size={16} />

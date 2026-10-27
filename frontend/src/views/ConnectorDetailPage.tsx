@@ -61,7 +61,9 @@ function breadcrumbPath(
 function TestResultPanel({ result }: { result: ConnectorTestResult }) {
   const ok = result.status === 'SUCCESS'
   return (
-    <div className={`rounded-lg border px-4 py-3 text-sm ${ok ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+    <div
+      className={`text-sm ${ok ? 'rounded-lg border border-emerald-200/90 bg-emerald-50/90 px-4 py-3' : 'rounded-lg border border-red-200/90 bg-red-50/90 px-4 py-3'}`}
+    >
       <div className="font-semibold text-slate-900">{ok ? 'Connected' : 'Connection failed'}</div>
       {result.phases ? (
         <ul className="mt-2 space-y-1 text-xs text-slate-600">
@@ -102,7 +104,7 @@ function PreviewTable({ preview }: { preview: SamplePreview }) {
         Preview limited to {preview.row_count} row{preview.row_count === 1 ? '' : 's'}.
       </p>
       <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="min-w-full text-left text-xs">
+        <table className="app-data-table min-w-full">
           <thead className="app-table-head sticky top-0">
             <tr>
               {preview.columns.map(col => (
@@ -706,7 +708,7 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
                         </button>
                       </div>
                       {detailTab === 'columns' ? (
-                        <table className="mt-4 min-w-full text-left text-sm">
+                        <table className="app-data-table mt-4 min-w-full">
                           <thead className="app-table-head">
                             <tr>
                               <th className="py-2">Column</th>

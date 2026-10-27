@@ -40,7 +40,8 @@ describe('AiModelsSettingsPanel', () => {
     })
     renderWithProviders(<AiModelsSettingsPanel />)
     expect(await screen.findByText(/Register your first AI provider/i)).toBeTruthy()
-    expect(screen.getByText(/legacy environment configuration/i)).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Runtime assignments' })).toBeTruthy()
+    expect(screen.getByText('Default Chat')).toBeTruthy()
   })
 
   it('lists providers and filters assignment models', async () => {

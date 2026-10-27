@@ -1,0 +1,28 @@
+{
+  "description": "Workspace Ask Data preset for Cloudera AMP / Golden Banking demo (ontology-style UX).",
+  "starter_questions_caption": "Try a governed banking question",
+  "starter_source": "configured",
+  "auto_attach_semantic_model": true,
+  "default_semantic_model_id": null,
+  "instruction_prompt_key": "golden_banking_executive_summary",
+  "starter_questions": [
+    "What is the total transaction amount?",
+    "Show total transaction amount by channel.",
+    "Berapa total customer kita saat ini?",
+    "Top 5 customer segment berdasarkan jumlah transaksi.",
+    "Berapa failed transaction rate?",
+    "Kamu bisa bantu apa aja?"
+  ],
+  "presentation": {
+    "audience_mode": "executive",
+    "tier1_show_narrative": true,
+    "panel_auto_open": "heuristic",
+    "chat_details_default_open": false,
+    "chat_expand_tier1": true,
+    "chat_expand_tier2": true,
+    "force_tier3_on_visual_chart": true,
+    "tier3_min_rows": 13,
+    "rank_tier3_above_n": 5,
+    "rank_min_tier": 2
+  }
+}

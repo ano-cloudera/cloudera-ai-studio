@@ -1,0 +1,17 @@
+{
+  "relationships": [
+    {
+      "id": "d9a096c4-aaf3-4550-8bcb-798d77895f8d",
+      "key": "transactions_to_customers",
+      "name": "Transactions to Customers",
+      "from_entity_key": "transactions",
+      "to_entity_key": "customers",
+      "relationship_type": "many_to_one",
+      "join_type": "inner",
+      "join_expression": "a.customer_id = b.customer_id",
+      "description": "Many transactions belong to one customer.",
+      "metadata": {},
+      "modified_at": "2026-10-19T11:00:09.730882"
+    }
+  ]
+}

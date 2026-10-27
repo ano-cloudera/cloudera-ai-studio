@@ -1,0 +1,24 @@
+{
+  "fresh_root": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim-golden-fresh-e2e",
+  "database_url": "sqlite+pysqlite:////Users/triano/Documents/Works/cloudera/cloudera-ai-studio/runtime/cai-sim-golden-fresh-e2e/metadata/studio.db",
+  "backend_port": 8002,
+  "steps": [
+    {
+      "script": "register_banking_connector.py",
+      "code": 0,
+      "tail": "ror_code': None, 'phases': {'network': 'PASS', 'authentication': 'PASS', 'session': 'PASS', 'metadata': 'PASS'}, 'capabilities': {'sql': True, 'metadata': True, 'catalogs': False, 'schemas': True, 'tables': True, 'views': True, 'read_only_query': True, 'sample_preview': True, 'transactions': False, 'kerberos': False}}\nschemas 200 ['banking_demo', 'public']\ntables 200 ['customers', 'transactions']\n"
+    },
+    {
+      "script": "register_banking_knowledge.py",
+      "code": 0,
+      "tail": "created library d4670a1a-c672-4ddb-a9a0-c800eea1f170\nbatch accepted ['Retail Banking Transaction Policy.pdf', 'Customer Segment and Risk Guide.pdf']\nwrote /Users/triano/Documents/Works/cloudera/cloudera-ai-studio/testing/evidence/golden-path/PHASE2-KNOWLEDGE/library-registration.json\n"
+    },
+    {
+      "script": "register_banking_semantic.py",
+      "code": 0,
+      "tail": "sion\": 1,\n    \"runtime_active_version\": 1,\n    \"runtime_status\": \"healthy\",\n    \"deployment\": {\n      \"deployment_id\": \"9fe94075-15e7-4af9-b766-0f24e51572ba\",\n      \"artifact_checksum\": \"238b366e72a6cb862aee640cae5a65eb2e3eb80a62414e595c090c10c34788be\",\n      \"activated_at\": \"2026-10-19T10:51:52.228395\",\n      \"adapter\": \"ossie\",\n      \"health\": \"healthy\"\n    },\n    \"loader_mode\": \"runtime\"\n  }\n}\n"
+    }
+  ],
+  "ready_after_register": true,
+  "ok": true
+}

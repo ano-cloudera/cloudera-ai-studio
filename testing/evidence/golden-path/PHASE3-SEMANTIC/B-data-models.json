@@ -1,0 +1,44 @@
+{
+  "entities": [
+    {
+      "id": "15fb5049-6b0a-4dfc-9ebe-3923fe79abca",
+      "key": "customers",
+      "name": "Customers",
+      "description": null,
+      "source_type": "postgres",
+      "catalog": null,
+      "schema": "banking_demo",
+      "table_name": "customers",
+      "view_name": null,
+      "primary_key": "customer_id",
+      "connection_id": "ddc7efd5-0f40-4ba2-823f-1303fdf7e535",
+      "metadata": {
+        "last_discovered_at": "2026-10-19T04:17:15.002124+00:00",
+        "column_count": 7,
+        "source_fingerprint": "25e01db840ed7d7e",
+        "connector_name": "Banking PostgreSQL"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    },
+    {
+      "id": "98f7aa44-befe-4b37-936f-fd2a59044c94",
+      "key": "transactions",
+      "name": "Transactions",
+      "description": null,
+      "source_type": "postgres",
+      "catalog": null,
+      "schema": "banking_demo",
+      "table_name": "transactions",
+      "view_name": null,
+      "primary_key": "transaction_id",
+      "connection_id": "ddc7efd5-0f40-4ba2-823f-1303fdf7e535",
+      "metadata": {
+        "last_discovered_at": "2026-10-19T04:17:25.692978+00:00",
+        "column_count": 8,
+        "source_fingerprint": "abef798b1f936a13",
+        "connector_name": "Banking PostgreSQL"
+      },
+      "modified_at": "2026-10-19T11:00:09.730882"
+    }
+  ]
+}

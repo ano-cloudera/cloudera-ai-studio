@@ -80,6 +80,22 @@ describe('SEM-2A authoring core', () => {
     await waitFor(() => expect(screen.getByText('Total Sales')).toBeTruthy())
   })
 
+  it('SEM-2A-028c Recent definitions Select mode', async () => {
+    render(<RecentDefinitionsPanel versionId="v1" />)
+    await waitFor(() => expect(screen.getByText('Total Sales')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Select rows' }))
+    expect(screen.getByLabelText('Select Total Sales')).toBeTruthy()
+  })
+
+  it('SEM-2A-028b View in tab invokes callback', async () => {
+    const onViewInTab = vi.fn()
+    render(<RecentDefinitionsPanel versionId="v1" onViewInTab={onViewInTab} />)
+    await waitFor(() => expect(screen.getByText('Total Sales')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: /Actions for Total Sales/i }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'View in tab' }))
+    expect(onViewInTab).toHaveBeenCalledWith(expect.objectContaining({ name: 'Total Sales', object_kind: 'metric' }))
+  })
+
   it('SEM-2A-030 selection mode hidden by default', async () => {
     render(<DataModelsTab versionId="v1" readOnly={false} connectors={[]} onChanged={() => undefined} />)
     await waitFor(() => expect(screen.getByText('Sales')).toBeTruthy())

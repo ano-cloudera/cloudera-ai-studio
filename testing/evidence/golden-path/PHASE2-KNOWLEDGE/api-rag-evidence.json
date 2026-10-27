@@ -1,0 +1,68 @@
+{
+  "library_id": "b29c13c5-5a82-4f03-8b71-736af5d3037f",
+  "retrieval": [
+    {
+      "scenario": "failed_transaction_rate",
+      "query": "How is Failed Transaction Rate defined?",
+      "hit_count": 4,
+      "needles_found": {
+        "attempt": true,
+        "failed": true
+      },
+      "filenames": [
+        "Customer Segment and Risk Guide.pdf",
+        "Retail Banking Transaction Policy.pdf"
+      ]
+    },
+    {
+      "scenario": "priority_customer",
+      "query": "What is a Priority Customer?",
+      "hit_count": 4,
+      "needles_found": {
+        "priority": true
+      },
+      "filenames": [
+        "Customer Segment and Risk Guide.pdf",
+        "Retail Banking Transaction Policy.pdf"
+      ]
+    },
+    {
+      "scenario": "risk_tiers",
+      "query": "What are the three customer risk tiers?",
+      "hit_count": 4,
+      "needles_found": {
+        "low": true,
+        "medium": true,
+        "high": true
+      },
+      "filenames": [
+        "Customer Segment and Risk Guide.pdf",
+        "Retail Banking Transaction Policy.pdf"
+      ]
+    },
+    {
+      "scenario": "cross_doc_interpretation",
+      "query": "How should a high-risk Priority customer with failed transactions be interpreted?",
+      "hit_count": 4,
+      "needles_found": {
+        "priority": true,
+        "high": true,
+        "failed": true
+      },
+      "filenames": [
+        "Customer Segment and Risk Guide.pdf",
+        "Retail Banking Transaction Policy.pdf"
+      ]
+    }
+  ],
+  "routing": {
+    "knowledge_mode": "rag",
+    "knowledge_library_ids": [
+      "b29c13c5-5a82-4f03-8b71-736af5d3037f"
+    ],
+    "raw_context_mode": "RAW_TABLE",
+    "raw_strategy": "sql_fallback"
+  },
+  "retrieval_ok": true,
+  "contrast_ok": true
+}

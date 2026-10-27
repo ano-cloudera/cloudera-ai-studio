@@ -48,6 +48,27 @@ describe('AnswerChart', () => {
     expect(screen.getByTestId('bar').getAttribute('data-max-size')).toBe('54')
   })
 
+  it('uses readable month ticks for line charts on date dimensions', () => {
+    const { container } = render(
+      <AnswerChart
+        chart={{
+          type: 'line',
+          title: 'Tren Jumlah Transaksi per Bulan',
+          x: 'transactions_transaction_date',
+          y: 'metric_value',
+        }}
+        rows={[
+          { transactions_transaction_date: '2026-06-01T00:00:00.000Z', metric_value: 95 },
+          { transactions_transaction_date: '2026-08-01T00:00:00.000Z', metric_value: 118 },
+        ]}
+      />,
+    )
+
+    expect(screen.getByTestId('x-axis').getAttribute('data-key')).toBe('__time_tick')
+    const chartRoot = container.querySelector('[data-chart]')
+    expect(chartRoot?.getAttribute('data-chart')).toMatch(/Agu|Jun|2026/i)
+  })
+
   it('allows automatic tick skipping for long rankings', () => {
     render(<AnswerChart chart={{ type: 'bar', title: 'Product ranking', x: 'material', y: 'metric_value' }} rows={
       Array.from({ length: 50 }, (_, index) => ({ material: `very-long-material-label-${index}`, metric_value: 50 - index }))

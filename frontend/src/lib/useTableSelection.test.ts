@@ -16,4 +16,14 @@ describe('useTableSelection', () => {
     expect(result.current.isSelected('a')).toBe(false)
     expect(result.current.isSelected('c')).toBe(true)
   })
+
+  it('selects and clears an entire dataset from the header', () => {
+    const { result } = renderHook(() => useTableSelection())
+    expect(result.current.datasetCheckboxState(3)).toBe('unchecked')
+    act(() => result.current.toggleDatasetSelection(['a', 'b', 'c'], 3))
+    expect(result.current.selectedCount).toBe(3)
+    expect(result.current.datasetCheckboxState(3)).toBe('checked')
+    act(() => result.current.toggleDatasetSelection(['a', 'b', 'c'], 3))
+    expect(result.current.selectedCount).toBe(0)
+  })
 })

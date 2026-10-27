@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import type { ChatResponse } from '../types/api'
 import { answerPresentation, displayStatus } from './governedEvidence'
+
+vi.mock('./audienceMode', () => ({
+  isExecutiveAudience: () => false,
+}))
 
 function baseResponse(overrides: Partial<ChatResponse>): ChatResponse {
   return {

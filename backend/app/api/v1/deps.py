@@ -6,23 +6,27 @@ from fastapi import HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.db.metadata_db import platform_metadata_configured
 from app.db.platform_engine import get_session_factory
 from app.projects.resolver import load_default_project
 
 
-def require_postgres_settings(request: Request) -> Settings:
+def require_platform_settings(request: Request) -> Settings:
     settings: Settings = request.app.state.settings
-    url = (settings.database_url or "").strip()
-    if settings.state_store.strip().lower() != "postgres" or not url:
+    if not platform_metadata_configured(settings):
         raise HTTPException(
             status_code=503,
-            detail="Document intelligence requires STATE_STORE=postgres and DATABASE_URL",
+            detail="Platform metadata requires DATABASE_URL (PostgreSQL or SQLite)",
         )
     return settings
 
 
-def postgres_session(request: Request) -> Generator[Session, None, None]:
-    settings = require_postgres_settings(request)
+# Backward-compatible aliases (METADATA-001).
+require_postgres_settings = require_platform_settings
+
+
+def platform_session(request: Request) -> Generator[Session, None, None]:
+    settings = require_platform_settings(request)
     factory = get_session_factory(settings.database_url)
     session = factory()
     try:
@@ -35,8 +39,11 @@ def postgres_session(request: Request) -> Generator[Session, None, None]:
         session.close()
 
 
+postgres_session = platform_session
+
+
 def default_project_context(request: Request) -> tuple:
-    settings = require_postgres_settings(request)
+    settings = require_platform_settings(request)
     project = load_default_project(settings)
     if not project:
         raise HTTPException(status_code=404, detail="Default project not seeded")

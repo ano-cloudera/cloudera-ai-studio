@@ -1,4 +1,5 @@
 import type { ChatResponse } from '../types/api'
+import { isExecutiveAudience } from './audienceMode'
 
 const NO_GOVERNED = /no governed query result attached/i
 const GOVERNED_QUERY = /governed queries:/i
@@ -35,19 +36,22 @@ export function answerPresentation(response: ChatResponse): {
 } {
   const uiStatus = displayStatus(response)
   const conversational = response.strategy === 'conversational'
+  const rag = response.strategy === 'rag' || response.route === 'rag'
 
   if (uiStatus === 'SUCCESS') {
+    const governedPlain =
+      !conversational && !rag && isExecutiveAudience()
     return {
-      title: conversational ? 'Welcome' : 'Direct answer',
+      title: conversational ? 'Welcome' : rag ? '' : governedPlain ? '' : 'Direct answer',
       showStatusChip: false,
       statusChip: null,
     }
   }
-  if (uiStatus === 'CLARIFICATION') {
+  if (uiStatus === 'CLARIFICATION' || uiStatus === 'clarification_required') {
     return {
-      title: 'A quick clarification',
-      showStatusChip: true,
-      statusChip: 'CLARIFICATION',
+      title: isExecutiveAudience() ? '' : 'A quick clarification',
+      showStatusChip: !isExecutiveAudience(),
+      statusChip: isExecutiveAudience() ? null : 'CLARIFICATION',
     }
   }
   if (uiStatus === 'NO_DATA') {

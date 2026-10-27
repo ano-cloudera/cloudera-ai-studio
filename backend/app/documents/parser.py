@@ -33,13 +33,16 @@ class TxtDocumentParser:
 class DoclingDocumentParser:
     """Docling-backed parser with safe fallbacks for dev/test."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, pdf_use_pypdf: bool = False) -> None:
         self._txt = TxtDocumentParser()
+        self._pdf_use_pypdf = pdf_use_pypdf
 
     def parse(self, *, path: Path, mime_type: str, document_id: uuid.UUID, title: str) -> ParsedDocument:
         suffix = path.suffix.lower()
         if mime_type in {"text/plain", "text/markdown"} or suffix in {".txt", ".md", ".markdown"}:
             return self._txt.parse(path=path, mime_type=mime_type, document_id=document_id, title=title)
+        if self._pdf_use_pypdf and (suffix == ".pdf" or mime_type == "application/pdf"):
+            return self._fallback(path=path, mime_type=mime_type, document_id=document_id, title=title)
         try:
             from docling.document_converter import DocumentConverter
 
@@ -134,5 +137,4 @@ def materialize_bytes_for_parse(data: bytes, suffix: str) -> Path:
 
 
 def build_document_parser(settings) -> DocumentParser:
-    _ = settings
-    return DoclingDocumentParser()
+    return DoclingDocumentParser(pdf_use_pypdf=bool(getattr(settings, "document_pdf_use_pypdf", False)))

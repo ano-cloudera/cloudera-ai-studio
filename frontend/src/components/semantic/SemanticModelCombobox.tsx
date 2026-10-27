@@ -91,7 +91,7 @@ export function SemanticModelCombobox({ models, value, onChange, disabled, 'aria
         aria-label={ariaLabel ?? 'Search semantic models'}
         disabled={disabled}
         data-testid="semantic-model-combobox-trigger"
-        className="mt-0.5 flex h-[52px] w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-200"
+        className="mt-0.5 flex h-10 w-full items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-cloudera-orange/25"
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={e => {
           if (e.key === 'ArrowDown' || e.key === 'Enter') {
@@ -100,15 +100,8 @@ export function SemanticModelCombobox({ models, value, onChange, disabled, 'aria
           }
         }}
       >
-        <span className="min-w-0 flex-1 leading-tight">
-          {selected ? (
-            <>
-              <span className="block truncate text-sm font-semibold text-cloudera-navy">{selected.name}</span>
-              <span className="block truncate text-[11px] text-slate-500">{selected.key}</span>
-            </>
-          ) : (
-            <span className="text-sm text-slate-500">Select semantic model</span>
-          )}
+        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-cloudera-navy">
+          {selected ? selected.name : <span className="font-normal text-slate-500">Select semantic model</span>}
         </span>
         <Search className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
         <span aria-hidden className="text-xs text-slate-400">

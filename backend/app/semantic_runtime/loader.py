@@ -47,6 +47,8 @@ class SemanticRuntimeLoader:
         with cls._lock:
             if cls._instance is None:
                 cls._instance = SemanticRuntimeLoader(settings)
+            elif settings is not None:
+                cls._instance.settings = settings
             return cls._instance
 
     def _legacy_bundle(self) -> RuntimeContextBundle:
@@ -136,6 +138,31 @@ class SemanticRuntimeLoader:
             return self._legacy_bundle()
 
         return self._legacy_bundle()
+
+    def load_first_active_runtime(
+        self,
+        session: Session,
+        *,
+        workspace_id: uuid.UUID,
+        project_id: uuid.UUID,
+    ) -> RuntimeContextBundle | None:
+        """Prefer any published semantic runtime in the project over legacy Tempo OSSIE."""
+        models = session.execute(
+            select(SemanticModelRow).where(
+                SemanticModelRow.workspace_id == workspace_id,
+                SemanticModelRow.project_id == project_id,
+            )
+        ).scalars()
+        for model in models:
+            bundle = self._bundle_for_model(
+                session,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                model=model,
+            )
+            if bundle is not None:
+                return bundle
+        return None
 
     def refresh(self, session: Session, *, workspace_id: uuid.UUID, project_id: uuid.UUID, model_key: str | None = None) -> RuntimeContextBundle:
         with self._lock:

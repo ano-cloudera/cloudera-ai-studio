@@ -17,6 +17,7 @@ import { TableHeaderCheckbox, TableRowCheckbox } from '../components/table/Table
 import { TableSelectionModeButton } from '../components/table/TableSelectionModeButton'
 import { bulkDeleteFailureDetails, bulkDeleteSummary } from '../lib/bulkDeleteFeedback'
 import { nextSortState } from '../lib/tableSort'
+import { fetchAllPaginatedItemIds } from '../lib/fetchAllPaginatedItemIds'
 import { useTableSelection } from '../lib/useTableSelection'
 import { useTableSelectionMode } from '../lib/useTableSelectionMode'
 
@@ -46,7 +47,7 @@ function StatusPill({ status }: { status: DocumentStatus | string }) {
           ? 'bg-amber-50 text-amber-900 border-amber-200'
           : 'bg-slate-50 text-slate-700 border-slate-200'
   return (
-    <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold ${tone}`}>
+    <span className={`inline-flex rounded-full border px-2 py-0.5 text-sm font-semibold ${tone}`}>
       {documentStatusLabel(status as DocumentStatus)}
     </span>
   )
@@ -231,6 +232,50 @@ export function KnowledgePage() {
   function flashSuccess(message: string) {
     setSuccessMessage(message)
     window.setTimeout(() => setSuccessMessage(''), 3500)
+  }
+
+  async function toggleLibrarySelectAll() {
+    if (libTotal > 0 && librarySelection.selectedCount >= libTotal) {
+      librarySelection.clear()
+      return
+    }
+    try {
+      const ids = await fetchAllPaginatedItemIds((page, pageSize) =>
+        api.listLibrariesPaginated({
+          page,
+          page_size: pageSize,
+          search: libSearchDebounced || undefined,
+          sort: libSort,
+          order: libOrder,
+        }),
+      )
+      librarySelection.setSelection(ids)
+    } catch (err) {
+      setActionError(safeErrorMessage(err, 'Unable to select all libraries'))
+    }
+  }
+
+  async function toggleDocumentSelectAll() {
+    if (!selectedLibraryId) return
+    if (docTotal > 0 && documentSelection.selectedCount >= docTotal) {
+      documentSelection.clear()
+      return
+    }
+    try {
+      const ids = await fetchAllPaginatedItemIds((page, pageSize) =>
+        api.listLibraryDocumentsPaginated(selectedLibraryId, {
+          page,
+          page_size: pageSize,
+          search: docSearchDebounced || undefined,
+          status: docStatus,
+          sort: docSort,
+          order: docOrder,
+        }),
+      )
+      documentSelection.setSelection(ids)
+    } catch (err) {
+      setActionError(safeErrorMessage(err, 'Unable to select all documents'))
+    }
   }
 
   function askThisLibrary(library: LibraryRecord) {
@@ -560,7 +605,7 @@ export function KnowledgePage() {
         ) : (
           <section
             data-testid="library-document-table-panel"
-            className={`flex ${LIBRARY_DOCUMENT_TABLE_MIN_HEIGHT_CLASS} flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm`}
+            className={`app-table-surface ${LIBRARY_DOCUMENT_TABLE_MIN_HEIGHT_CLASS}`}
           >
             <div className="space-y-2 border-b border-slate-100 px-3 py-3">
               <div className="flex flex-wrap items-center gap-2">
@@ -571,7 +616,7 @@ export function KnowledgePage() {
                   onChange={e => { setDocSearch(e.target.value); setDocPage(1) }}
                   className="min-w-[200px] flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 />
-                <select className="rounded-lg border border-slate-200 px-2 py-2 text-sm" value={docStatus} onChange={e => { setDocStatus(e.target.value); setDocPage(1) }}>
+                <select className="app-select-filter" value={docStatus} onChange={e => { setDocStatus(e.target.value); setDocPage(1) }}>
                   <option value="all">All status</option>
                   <option value="READY">Ready</option>
                   <option value="PROCESSING">Processing</option>
@@ -606,14 +651,14 @@ export function KnowledgePage() {
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
-              <table className="min-w-full w-full table-fixed text-left text-sm">
+              <table className="app-data-table min-w-full table-fixed">
                 <thead className="app-table-head">
                   <tr>
                     {documentSelectionMode.active ? (
                       <th className="w-11 px-2 py-2">
                         <TableHeaderCheckbox
-                          state={documentSelection.pageCheckboxState(documents.map(doc => doc.id))}
-                          onToggle={() => documentSelection.togglePage(documents.map(doc => doc.id))}
+                          state={documentSelection.datasetCheckboxState(docTotal)}
+                          onToggle={() => void toggleDocumentSelectAll()}
                         />
                       </th>
                     ) : null}
@@ -838,23 +883,32 @@ export function KnowledgePage() {
           />
         )
       ) : (
-        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full w-full table-fixed text-left text-sm">
+        <section className="app-table-surface">
+          <div className="app-table-surface-scroll">
+            <table className="app-data-table min-w-full table-fixed">
+              <colgroup>
+                {librarySelectionMode.active ? <col className="w-11" /> : null}
+                <col />
+                <col className="w-28" />
+                <col className="w-28" />
+                <col className="w-32" />
+                <col className="w-32" />
+                <col className="w-24" />
+              </colgroup>
               <thead className="app-table-head">
                 <tr>
                   {librarySelectionMode.active ? (
                     <th className="w-11 px-2 py-2">
                       <TableHeaderCheckbox
-                        state={librarySelection.pageCheckboxState(libraries.map(lib => lib.id))}
-                        onToggle={() => librarySelection.togglePage(libraries.map(lib => lib.id))}
+                        state={librarySelection.datasetCheckboxState(libTotal)}
+                        onToggle={() => void toggleLibrarySelectAll()}
                       />
                     </th>
                   ) : null}
-                  <th className="px-3 py-2">
+                  <th className="min-w-0 px-3 py-2">
                     <SortableColumnHeader label="Library name" field="name" activeField={libSort} order={libOrder} onSort={applyLibSort} />
                   </th>
-                  <th className="w-24 px-3 py-2">
+                  <th className="w-28 px-3 py-2 text-right">
                     <SortableColumnHeader label="Documents" field="document_count" activeField={libSort} order={libOrder} onSort={applyLibSort} />
                   </th>
                   <th className="px-3 py-2 font-semibold">Status</th>
@@ -885,16 +939,17 @@ export function KnowledgePage() {
                           />
                         </td>
                       ) : null}
-                      <td className="px-3 py-2">
+                      <td className="max-w-0 px-3 py-2">
                         <button
                           type="button"
-                          className="truncate font-semibold text-cloudera-navy hover:underline"
+                          title={lib.name}
+                          className="block w-full truncate text-left font-semibold text-cloudera-navy hover:underline"
                           onClick={() => openLibraryDetail(lib)}
                         >
                           {lib.name}
                         </button>
                       </td>
-                      <td className="px-3 py-2 text-slate-600">{lib.document_count ?? 0}</td>
+                      <td className="w-28 px-3 py-2 text-right tabular-nums text-slate-600">{lib.document_count ?? 0}</td>
                       <td className="px-3 py-2">
                         <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-800">
                           {libraryStatusLabel(lib.library_status)}

@@ -1,0 +1,41 @@
+{
+  "workspace_slug": "default",
+  "preset": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/config/examples/accelerator-demo-presentation.json",
+  "settings": {
+    "starter_questions_caption": "Try a governed banking question",
+    "starter_questions": [
+      "What is the total transaction amount?",
+      "Show total transaction amount by channel.",
+      "Berapa total customer kita saat ini?",
+      "Top 5 customer segment berdasarkan jumlah transaksi.",
+      "Berapa failed transaction rate?",
+      "Kamu bisa bantu apa aja?"
+    ],
+    "starter_source": "configured",
+    "question_bank_limit": 3,
+    "question_bank_domain": null,
+    "question_bank_difficulty": null,
+    "presentation": {
+      "enabled": null,
+      "panel_auto_open": "heuristic",
+      "tier3_min_rows": 13,
+      "tier3_min_insights": null,
+      "tier3_min_implications": null,
+      "rank_tier3_above_n": 5,
+      "rank_min_tier": 2,
+      "tier1_max_rows": null,
+      "tier1_max_columns": null,
+      "force_tier3_on_pareto": null,
+      "force_tier3_on_operational_analysis": null,
+      "force_tier3_on_visual_chart": true,
+      "chat_expand_tier1": true,
+      "chat_expand_tier2": true,
+      "chat_details_default_open": false,
+      "audience_mode": "executive",
+      "tier1_show_narrative": true
+    },
+    "default_semantic_model_id": null,
+    "auto_attach_semantic_model": true,
+    "instruction_prompt_key": "golden_banking_executive_summary"
+  }
+}

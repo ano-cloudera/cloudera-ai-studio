@@ -1,0 +1,69 @@
+{
+  "model_id": "99c7a9f3-6e47-403c-b3d6-988a11ff070a",
+  "model_key": "retail_banking_analytics",
+  "draft_version_id": "c47b103d-7838-4db9-89c5-d9f77de1bc44",
+  "connector_id": "ddc7efd5-0f40-4ba2-823f-1303fdf7e535",
+  "validation": {
+    "valid": true,
+    "errors": [],
+    "warnings": [],
+    "info": [],
+    "issues_by_category": {},
+    "connection_status": {
+      "impala": "connected",
+      "trino": "not_configured"
+    },
+    "run_id": "cad9358a-92cf-4ab8-a452-5a916960d1dc",
+    "summary": {
+      "valid": true,
+      "activation_ready": true,
+      "readiness": "READY",
+      "readiness_score": 100,
+      "error_count": 0,
+      "warning_count": 0,
+      "info_count": 0,
+      "checks_run": 110,
+      "checks_skipped": 0,
+      "duration_ms": 274,
+      "stages": [
+        "structural",
+        "source",
+        "semantic",
+        "artifact",
+        "test_cases"
+      ]
+    },
+    "readiness": "READY",
+    "activation_ready": true,
+    "readiness_score": 100
+  },
+  "publish": {
+    "status": "published",
+    "model_id": "99c7a9f3-6e47-403c-b3d6-988a11ff070a",
+    "model_key": "retail_banking_analytics",
+    "version_id": "c47b103d-7838-4db9-89c5-d9f77de1bc44",
+    "version_number": 29,
+    "runtime_deployment_id": "9c3ca700-483f-4b7b-8121-94ef505ac0b0",
+    "activation": {
+      "result": "ACTIVATED",
+      "deployment_id": "9c3ca700-483f-4b7b-8121-94ef505ac0b0",
+      "registry_version": 29,
+      "runtime_active_version": 29
+    },
+    "checks": []
+  },
+  "runtime_status": {
+    "semantic_model_key": "retail_banking_analytics",
+    "registry_active_version": 29,
+    "runtime_active_version": 29,
+    "runtime_status": "healthy",
+    "deployment": {
+      "deployment_id": "9c3ca700-483f-4b7b-8121-94ef505ac0b0",
+      "artifact_checksum": "798e4473e50bbdc5e6245ba56a4435904db84a4686ba7c9812662f4819ea8614",
+      "activated_at": "2026-10-19T11:00:09.791415",
+      "adapter": "ossie",
+      "health": "healthy"
+    },
+    "loader_mode": "runtime"
+  }
+}

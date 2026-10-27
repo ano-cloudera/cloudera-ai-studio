@@ -29,10 +29,49 @@ button { cursor: pointer; }
   .input { @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-cloudera-ink outline-none transition placeholder:text-slate-400 focus:border-cloudera-violet focus:ring-4 focus:ring-cloudera-violet/10; }
 
   .app-table-head {
-    @apply border-b border-violet-100 bg-violet-50 text-left text-xs uppercase tracking-wide text-cloudera-violet;
+    @apply border-b border-violet-100 bg-violet-50 text-left text-xs font-semibold uppercase tracking-wide text-cloudera-violet;
   }
   .app-table-head th {
-    @apply font-semibold;
+    @apply px-3 py-2 text-xs font-semibold;
+  }
+  .app-table-head th button {
+    @apply inline-flex items-center gap-0.5 text-xs font-semibold uppercase tracking-wide text-cloudera-violet hover:text-cloudera-navy;
+  }
+
+  /* Unified data tables (Knowledge, Semantic, Settings, Connectors, …) */
+  .app-data-table {
+    @apply w-full text-left text-sm text-slate-700;
+  }
+  .app-data-table tbody td {
+    @apply px-3 py-2 text-sm align-middle;
+  }
+
+  .app-select {
+    @apply appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-9 text-sm text-slate-800 outline-none transition focus:border-cloudera-violet focus:ring-4 focus:ring-cloudera-violet/10;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2352566b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.625rem center;
+    background-size: 1rem;
+  }
+
+  .app-select-filter {
+    @apply app-select min-w-[9.5rem];
+  }
+
+  .app-select-compact {
+    @apply appearance-none rounded border border-slate-200 bg-white py-0.5 pl-2 pr-7 text-sm text-slate-800 outline-none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2352566b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.375rem center;
+    background-size: 0.875rem;
+  }
+
+  .app-table-surface {
+    @apply mt-2 flex min-h-[420px] flex-col rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .app-table-surface-scroll {
+    @apply min-h-0 flex-1 overflow-x-auto;
   }
 
   .type-app-title { @apply text-lg font-semibold tracking-tight text-cloudera-navy; }

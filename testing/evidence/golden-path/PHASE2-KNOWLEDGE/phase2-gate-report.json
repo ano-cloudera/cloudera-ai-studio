@@ -1,0 +1,32 @@
+{
+  "gates": {
+    "PDF 1 generated": "PASS",
+    "PDF 2 generated": "PASS",
+    "Generation reproducible": "PASS",
+    "PDFs text-readable": "PASS",
+    "Automated tests": "PASS",
+    "Two PDFs uploaded": "PASS",
+    "Batch upload UX": "PASS",
+    "Both documents indexed": "PASS",
+    "Document count = 2": "PASS",
+    "PDF 1 RAG question": "PASS",
+    "PDF 2 RAG question": "PASS",
+    "Cross-document RAG": "PASS",
+    "Citations": "PASS",
+    "Explicit @Knowledge routing": "PASS",
+    "No Raw/Semantic misrouting": "PASS",
+    "Raw vs Knowledge contrast": "PASS",
+    "No silent hybrid expansion": "PASS",
+    "Raw @transactions regression": "PASS",
+    "Phase 1 remains frozen/PASS": "PASS",
+    "Temporary attachment regression": "PASS",
+    "Regression": "PASS",
+    "Retail Banking Knowledge created": "PASS",
+    "Sources drawer": "PASS",
+    "Browser evidence": "PASS",
+    "Source monorepo untouched": "PASS"
+  },
+  "blockers": [],
+  "backend_up": true,
+  "api_rag_evidence": true
+}

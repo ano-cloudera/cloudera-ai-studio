@@ -109,5 +109,4 @@ class RoutedQueryExecutor:
     def _load_project(self) -> ProjectRow | None:
         from app.projects.resolver import load_default_project
 
-        with self._session_factory() as session:
-            return load_default_project(self._settings, session=session)
+        return load_default_project(self._settings)

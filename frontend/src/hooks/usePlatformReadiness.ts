@@ -15,13 +15,17 @@ export function usePlatformReadiness(pollMs = 60_000): { status: PlatformStatus;
           setStatus('unavailable')
           return
         }
-        const body = (await res.json()) as { core_ready?: boolean; feature_gaps?: string[] }
+        const body = (await res.json()) as {
+          core_ready?: boolean
+          status?: string
+          feature_gaps?: string[]
+        }
         if (body.core_ready === false) {
           setStatus('unavailable')
-        } else if (body.feature_gaps?.length) {
-          setStatus('degraded')
-        } else {
+        } else if (body.status === 'ready' || !body.feature_gaps?.length) {
           setStatus('ready')
+        } else {
+          setStatus('degraded')
         }
       })
       .catch(() => setStatus('unavailable'))

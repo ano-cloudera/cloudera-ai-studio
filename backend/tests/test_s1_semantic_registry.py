@@ -77,6 +77,12 @@ def test_semantic_model_version_publish_rollback(s1_client):
     )
     client.post(f"/api/v1/semantic/versions/{v2}/publish")
     client.post(f"/api/v1/semantic/versions/{v1}/rollback")
+    draft = client.post(f"/api/v1/semantic/versions/{v1}/clone").json()["version"]["id"]
+    discard = client.post(f"/api/v1/semantic/versions/{draft}/discard")
+    assert discard.status_code == 200, discard.text
+    assert discard.json()["discarded"] is True
+    listed = client.get(f"/api/v1/semantic/models/{model_id}/versions").json()["versions"]
+    assert all(v["id"] != draft for v in listed)
     resolved = client.get(f"/api/v1/semantic/resolve?semantic_model_key={key}")
     assert resolved.status_code == 200
     assert resolved.json()["version"]["id"] == v1

@@ -79,6 +79,7 @@ class MetricCreateRequest(StrictModel):
     format: str | None = None
     unit: str | None = None
     synonyms: list[str] = Field(default_factory=list)
+    allowed_dimension_keys: list[str] = Field(default_factory=list)
     metadata: dict | None = None
 
 
@@ -139,6 +140,7 @@ class MetricUpdateRequest(StrictModel):
     format: str | None = None
     unit: str | None = None
     synonyms: list[str] | None = None
+    allowed_dimension_keys: list[str] | None = None
     metadata: dict | None = None
 
 
@@ -184,6 +186,7 @@ class MetricValidateRequest(StrictModel):
     expression: str
     aggregation: str | None = None
     source_entity_key: str
+    allowed_dimension_keys: list[str] = Field(default_factory=list)
 
 
 class OssieImportRequest(StrictModel):
@@ -249,6 +252,10 @@ def _entity_dict(r) -> dict:
 
 
 def _metric_dict(r) -> dict:
+    from app.semantic_registry.metric_metadata import allowed_dimension_keys_from_metadata
+
+    meta = dict(r.metadata_ or {})
+    stored = allowed_dimension_keys_from_metadata(meta)
     return {
         "id": str(r.id),
         "key": r.key,
@@ -261,7 +268,8 @@ def _metric_dict(r) -> dict:
         "format": r.format,
         "unit": r.unit,
         "synonyms": list(r.synonyms or []),
-        "metadata": r.metadata_ or {},
+        "allowed_dimension_keys": list(stored) if stored is not None else [],
+        "metadata": meta,
     }
 
 
@@ -525,6 +533,20 @@ def clone_version(version_id: uuid.UUID, session: Session = Depends(postgres_ses
     except SemanticRegistryError as exc:
         raise _err(exc) from exc
     return {"version": _version_dict(version)}
+
+
+@router.post("/versions/{version_id}/discard")
+def discard_draft_version(
+    version_id: uuid.UUID,
+    session: Session = Depends(postgres_session),
+    ctx=Depends(default_project_context),
+):
+    ws, proj = _ctx_ids(ctx)
+    svc = SemanticRegistryService(session)
+    try:
+        return svc.discard_draft_version(version_id, workspace_id=ws, project_id=proj)
+    except SemanticRegistryError as exc:
+        raise _err(exc) from exc
 
 
 @router.post("/versions/{version_id}/validate")
@@ -913,7 +935,14 @@ def create_metric(
     ws, proj = _ctx_ids(ctx)
     svc = SemanticRegistryService(session)
     try:
-        row = svc.create_metric(version_id, workspace_id=ws, project_id=proj, data=body.model_dump())
+        from app.semantic_registry.metric_metadata import merge_metric_metadata
+
+        row = svc.create_metric(
+            version_id,
+            workspace_id=ws,
+            project_id=proj,
+            data=merge_metric_metadata(body.model_dump()),
+        )
     except SemanticRegistryError as exc:
         raise _err(exc) from exc
     return {"metric": _metric_dict(row)}
@@ -930,12 +959,14 @@ def patch_metric(
     ws, proj = _ctx_ids(ctx)
     svc = SemanticRegistryService(session)
     try:
+        from app.semantic_registry.metric_metadata import merge_metric_metadata
+
         row = svc.update_metric(
             version_id,
             metric_id,
             workspace_id=ws,
             project_id=proj,
-            data=body.model_dump(exclude_unset=True),
+            data=merge_metric_metadata(body.model_dump(exclude_unset=True)),
         )
     except SemanticRegistryError as exc:
         raise _err(exc) from exc
@@ -987,10 +1018,23 @@ def validate_metric(
         svc.get_version(version_id, workspace_id=ws, project_id=proj)
         entities = svc.list_entities(version_id, workspace_id=ws, project_id=proj)
         dimensions = svc.list_dimensions(version_id, workspace_id=ws, project_id=proj)
+        relationships = svc.list_relationships(version_id, workspace_id=ws, project_id=proj)
         metrics = svc.list_metrics(version_id, workspace_id=ws, project_id=proj)
     except SemanticRegistryError as exc:
         raise _err(exc) from exc
     entity_keys = {e.key for e in entities}
+    from app.semantic_registry.entity_physical_columns import metadata_with_physical_columns
+
+    entity_meta_by_key = {
+        e.key: metadata_with_physical_columns(
+            e,
+            session=session,
+            version_id=version_id,
+            workspace_id=ws,
+            project_id=proj,
+        )
+        for e in entities
+    }
     existing_names = {
         m.name.strip().casefold()
         for m in metrics
@@ -1006,6 +1050,9 @@ def validate_metric(
         dimensions=dimensions,
         existing_metric_names=existing_names,
         metric_id=body.metric_id,
+        allowed_dimension_keys=body.allowed_dimension_keys,
+        relationships=relationships,
+        source_entity_metadata=entity_meta_by_key.get(body.source_entity_key),
     )
     return {
         "valid": result.valid,

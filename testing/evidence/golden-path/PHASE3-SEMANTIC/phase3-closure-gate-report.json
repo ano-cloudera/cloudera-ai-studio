@@ -1,0 +1,24 @@
+{
+  "gates": {
+    "Real /chat governed semantic route": "PASS",
+    "Governed total amount": "PASS",
+    "Governed by channel": "PASS",
+    "Governed customer segment join": "PASS",
+    "Failed Transaction Rate": "PASS",
+    "Active Customers": "PASS",
+    "Correct Banking PostgreSQL binding": "PASS",
+    "No Impala/legacy fallback": "PASS",
+    "Version 2 created/published": "PASS",
+    "Real rollback to Version 1": "PASS",
+    "Post-rollback governed Ask": "PASS",
+    "Runtime/deployment follows rollback": "PASS",
+    "Final intended version explicit": "PASS",
+    "Browser A\u2013M evidence": "PASS",
+    "Semantic automated tests": "PASS",
+    "Golden Phase 1": "PASS",
+    "Golden Phase 2": "PASS",
+    "Golden Phase 3": "PASS",
+    "enterprise-ai-poc untouched": "PASS"
+  },
+  "blockers": []
+}

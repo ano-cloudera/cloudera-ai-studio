@@ -1,0 +1,2 @@
+ISOLATION_AUDIT_PASS_NON_DESTRUCTIVE
+NOTE: Full unavailable-path proof is disabled; see docs/migration/SOURCE_EXTRACTION_POLICY.md

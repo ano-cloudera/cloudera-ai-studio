@@ -5,9 +5,17 @@ type DataNoteProps = {
   sources: string[]
   /** When true, use compact typography scoped under `.chat-response-typography`. */
   inChatResponse?: boolean
+  noteLabel?: string
+  hideSourceChips?: boolean
 }
 
-export function DataNote({ note, sources, inChatResponse = false }: DataNoteProps) {
+export function DataNote({
+  note,
+  sources,
+  inChatResponse = false,
+  noteLabel = 'Data note.',
+  hideSourceChips = false,
+}: DataNoteProps) {
   const noteTextClass = inChatResponse ? 'answer-data-note-text' : 'type-chat-meta leading-relaxed text-slate-500'
   const noteLabelClass = inChatResponse ? 'answer-data-note-label' : 'font-semibold text-slate-500'
   const sourceLabelClass = inChatResponse ? 'answer-data-note-text text-slate-400' : 'type-chat-meta text-slate-400'
@@ -19,12 +27,12 @@ export function DataNote({ note, sources, inChatResponse = false }: DataNoteProp
         <p className={`flex gap-2 ${noteTextClass}`}>
           <Info size={13} className="mt-0.5 shrink-0 text-slate-400" aria-hidden />
           <span className="min-w-0">
-            <span className={noteLabelClass}>Data note. </span>
+            <span className={noteLabelClass}>{noteLabel} </span>
             {note}
           </span>
         </p>
       )}
-      {sources.length > 0 && (
+      {sources.length > 0 && !hideSourceChips && (
         <div className={note ? 'pl-5' : ''}>
           <div className={`mb-1 ${sourceLabelClass}`}>{sources.length > 1 ? 'Sources' : 'Source'}</div>
           <ul className="flex flex-wrap gap-1.5">

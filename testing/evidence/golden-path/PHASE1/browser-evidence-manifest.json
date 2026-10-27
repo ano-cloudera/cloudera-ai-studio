@@ -1,0 +1,22 @@
+{
+  "phase": "GOLDEN_PATH_BANKING_DEMO_PHASE1",
+  "captured_at": "2026-10-18",
+  "artifacts": {
+    "seed_validation": "testing/evidence/golden-path/banking-data/seed-validation.json",
+    "connector_registration": "testing/evidence/golden-path/PHASE1/connector-registration.json",
+    "api_ask_responses": "testing/evidence/golden-path/PHASE1/api-ask-responses.json",
+    "documentation": "docs/demo/GOLDEN_BANKING_DATASET.md"
+  },
+  "ui_checks": [
+    {
+      "area": "Data Sources",
+      "route": "/connectors",
+      "expected": "Banking PostgreSQL listed with Connected status; banking_demo.customers and banking_demo.transactions discoverable"
+    },
+    {
+      "area": "Ask Data",
+      "expected": "@customers / @transactions raw queries; Raw data badge; no Governed Semantic before semantic layer"
+    }
+  ],
+  "notes": "Connector registration and connection test captured via scripts/demo/register_banking_connector.py against live API. Raw Ask scenarios captured via scripts/demo/phase1_api_ask_evidence.py (real PostgreSQL + mocked planner LLM)."
+}

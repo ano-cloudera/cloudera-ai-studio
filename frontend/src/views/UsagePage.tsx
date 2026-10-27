@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { TablePagination } from '../components/knowledge/TablePagination'
+import { TableHeaderCheckbox, TableRowCheckbox } from '../components/table/TableSelectionCheckbox'
+import { TableSelectionActionBar } from '../components/table/TableSelectionActionBar'
 import { PageCenter } from '../components/PageCenter'
+import { useTableSelection } from '../lib/useTableSelection'
+import { useTableSelectionMode } from '../lib/useTableSelectionMode'
 import { ServiceErrorState } from '../components/ServiceErrorState'
 import { appConfig } from '../config/appConfig'
 import { api } from '../lib/api'
@@ -33,6 +37,8 @@ export function UsagePage() {
   const [eventsPageSize, setEventsPageSize] = useState(10)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<AppApiError | null>(null)
+  const eventsSelection = useTableSelection()
+  const eventsSelectionMode = useTableSelectionMode(eventsSelection.clear)
 
   const periodConfig = PERIODS.find(p => p.key === period) ?? PERIODS[0]
 
@@ -205,40 +211,67 @@ export function UsagePage() {
           )}
 
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
               <h2 className="text-sm font-semibold text-cloudera-navy">Recent turns</h2>
+              <TableSelectionActionBar
+                entityLabel="events"
+                mode={eventsSelectionMode}
+                selectedCount={eventsSelection.selectedCount}
+              />
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
+              <table className="app-data-table w-full min-w-[640px]">
                 <thead className="app-table-head">
                   <tr>
-                    <th className="px-4 py-2 font-medium">Date (UTC+7)</th>
-                    <th className="px-4 py-2 font-medium">Model</th>
-                    <th className="px-4 py-2 font-medium">Strategy</th>
-                    <th className="px-4 py-2 font-medium text-right">Tokens</th>
-                    <th className="px-4 py-2 font-medium text-right">Calls</th>
+                    {eventsSelectionMode.active ? (
+                      <th className="w-11">
+                        <TableHeaderCheckbox
+                          state={eventsSelection.datasetCheckboxState(events.length)}
+                          onToggle={() =>
+                            eventsSelection.toggleDatasetSelection(
+                              events.map(ev => ev.request_id),
+                              events.length,
+                            )
+                          }
+                        />
+                      </th>
+                    ) : null}
+                    <th>Date (UTC+7)</th>
+                    <th>Model</th>
+                    <th>Strategy</th>
+                    <th className="text-right">Tokens</th>
+                    <th className="text-right">Calls</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {events.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-6 text-slate-500">
+                      <td colSpan={eventsSelectionMode.active ? 6 : 5} className="py-6 text-slate-500">
                         No events in this period.
                       </td>
                     </tr>
                   ) : (
                     pagedEvents.map(ev => (
                       <tr key={ev.request_id} className="text-slate-700">
-                        <td className="whitespace-nowrap px-4 py-2.5 text-xs text-slate-500">
+                        {eventsSelectionMode.active ? (
+                          <td className="w-11">
+                            <TableRowCheckbox
+                              checked={eventsSelection.isSelected(ev.request_id)}
+                              label={`Select usage event ${ev.request_id}`}
+                              onToggle={() => eventsSelection.toggle(ev.request_id)}
+                            />
+                          </td>
+                        ) : null}
+                        <td className="whitespace-nowrap text-slate-500">
                           {formatUsageTimestampWib(ev.created_at)}
                         </td>
-                        <td className="px-4 py-2.5">
+                        <td>
                           <span className="capitalize">{ev.provider}</span>
-                          <span className="block text-xs text-slate-500">{ev.model}</span>
+                          <span className="block text-sm text-slate-500">{ev.model}</span>
                         </td>
-                        <td className="px-4 py-2.5 text-xs">{ev.strategy || '—'}</td>
-                        <td className="px-4 py-2.5 text-right font-medium">{formatCompactTokens(ev.total_tokens)}</td>
-                        <td className="px-4 py-2.5 text-right text-slate-500">{ev.llm_calls}</td>
+                        <td>{ev.strategy || '—'}</td>
+                        <td className="text-right font-medium">{formatCompactTokens(ev.total_tokens)}</td>
+                        <td className="text-right text-slate-500">{ev.llm_calls}</td>
                       </tr>
                     ))
                   )}

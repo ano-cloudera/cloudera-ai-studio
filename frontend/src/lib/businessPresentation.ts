@@ -13,6 +13,54 @@ export function isCalmonthField(field: string): boolean {
   return CALMONTH_FIELDS.has(field.trim().toLowerCase())
 }
 
+const TIME_AXIS_FIELD = /date|month|time|period|timestamp|bulan|tanggal|_dt$|_at$/i
+
+/** Governed banking / registry columns such as transactions_transaction_date. */
+export function isTimeAxisField(field: string): boolean {
+  const name = field.trim()
+  if (!name) return false
+  if (isCalmonthField(name)) return true
+  return TIME_AXIS_FIELD.test(name)
+}
+
+export function parseTimeAxisMs(value: unknown): number | null {
+  const cal = parseCalmonth(value)
+  if (cal !== null) {
+    const year = Math.floor(cal / 100)
+    const month = cal % 100
+    return Date.UTC(year, month - 1, 1)
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.getTime()
+  const raw = String(value ?? '').trim()
+  if (!raw) return null
+  const iso = raw.slice(0, 10)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+    const ms = Date.parse(`${iso}T00:00:00Z`)
+    return Number.isNaN(ms) ? null : ms
+  }
+  const ms = Date.parse(raw)
+  return Number.isNaN(ms) ? null : ms
+}
+
+export function formatTimeAxisLabel(value: unknown): string | null {
+  const cal = formatCalmonthDisplay(value)
+  if (cal) return cal
+  const ms = parseTimeAxisMs(value)
+  if (ms === null) return null
+  return new Date(ms).toLocaleDateString('id-ID', {
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
+export function compareTimeAxisValues(a: unknown, b: unknown): number {
+  const ma = parseTimeAxisMs(a)
+  const mb = parseTimeAxisMs(b)
+  if (ma !== null && mb !== null) return ma - mb
+  return compareCalmonthValues(a, b) || String(a).localeCompare(String(b))
+}
+
 /** Parse OSSIE calmonth integers (YYYYMM), including locale-formatted numbers like 202,411. */
 export function parseCalmonth(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null

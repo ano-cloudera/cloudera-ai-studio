@@ -12,7 +12,7 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
+from ddl_types import JSON, UUID, json_object_default
 
 revision: str = "m2a_documents_001"
 down_revision: Union[str, Sequence[str], None] = "m1_platform_001"
@@ -23,9 +23,9 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.create_table(
         "libraries",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("workspace_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("workspaces.id"), nullable=False),
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), nullable=False),
+        sa.Column("id", UUID, primary_key=True),
+        sa.Column("workspace_id", UUID, sa.ForeignKey("workspaces.id"), nullable=False),
+        sa.Column("project_id", UUID, sa.ForeignKey("projects.id"), nullable=False),
         sa.Column("name", sa.String(256), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("status", sa.String(32), nullable=False, server_default="active"),
@@ -37,10 +37,10 @@ def upgrade() -> None:
 
     op.create_table(
         "documents",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("workspace_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("workspaces.id"), nullable=False),
-        sa.Column("project_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("projects.id"), nullable=False),
-        sa.Column("library_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("libraries.id"), nullable=False),
+        sa.Column("id", UUID, primary_key=True),
+        sa.Column("workspace_id", UUID, sa.ForeignKey("workspaces.id"), nullable=False),
+        sa.Column("project_id", UUID, sa.ForeignKey("projects.id"), nullable=False),
+        sa.Column("library_id", UUID, sa.ForeignKey("libraries.id"), nullable=False),
         sa.Column("filename", sa.String(512), nullable=False),
         sa.Column("original_filename", sa.String(512), nullable=False),
         sa.Column("mime_type", sa.String(128), nullable=False),
@@ -48,7 +48,7 @@ def upgrade() -> None:
         sa.Column("storage_path", sa.String(1024), nullable=False),
         sa.Column("status", sa.String(32), nullable=False, server_default="UPLOADED"),
         sa.Column("checksum", sa.String(128), nullable=True),
-        sa.Column("metadata_json", postgresql.JSONB(), nullable=True),
+        sa.Column("metadata_json", JSON, nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
     )

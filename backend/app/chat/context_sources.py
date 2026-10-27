@@ -33,7 +33,7 @@ def uploaded_file_sources(sources: list[ChatContextSource] | None) -> list[ChatC
 def structured_data_sources(sources: list[ChatContextSource] | None) -> list[ChatContextSource]:
     if not sources:
         return []
-    structured = {"table", "semantic_model", "semantic_entity", "semantic_metric"}
+    structured = {"table", "semantic_model", "semantic_entity", "semantic_metric", "semantic_term"}
     return [item for item in sources if item.type in structured]
 
 

@@ -1,0 +1,7 @@
+{
+  "screenshots": {
+    "A_semantic_overview": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/testing/evidence/golden-path/PHASE3-SEMANTIC/A-semantic-overview.json",
+    "B_data_models": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/testing/evidence/golden-path/PHASE3-SEMANTIC/B-data-models.json"
+  },
+  "note": "Run phase3_semantic_browser_evidence.py for PNG captures when UI is up."
+}

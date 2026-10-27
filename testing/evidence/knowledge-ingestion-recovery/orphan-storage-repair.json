@@ -1,0 +1,71 @@
+{
+  "repaired": 13,
+  "items": [
+    {
+      "document_id": "6cd38349-8b40-4799-82a7-03cebf8e9854",
+      "storage_path": "c104ae6b-14be-4a86-a4f2-f774048c0ee6/02fa32f4-da2b-414e-b711-36367b732a92/8f04e082-e4b9-4766-8548-461b07b2a7c2/6cd38349-8b40-4799-82a7-03cebf8e9854/original/Customer_Segment_and_Risk_Guide.pdf",
+      "status": "READY"
+    },
+    {
+      "document_id": "b427d6d7-84ee-4781-b0a7-d7117bc3cf7b",
+      "storage_path": "c104ae6b-14be-4a86-a4f2-f774048c0ee6/02fa32f4-da2b-414e-b711-36367b732a92/8f04e082-e4b9-4766-8548-461b07b2a7c2/b427d6d7-84ee-4781-b0a7-d7117bc3cf7b/original/Retail_Banking_Transaction_Policy.pdf",
+      "status": "READY"
+    },
+    {
+      "document_id": "bfa0ab0d-5b55-4f21-a989-fccca721d038",
+      "storage_path": "c104ae6b-14be-4a86-a4f2-f774048c0ee6/02fa32f4-da2b-414e-b711-36367b732a92/ef8e22f9-0a32-455d-bc41-8d92992dec4c/bfa0ab0d-5b55-4f21-a989-fccca721d038/original/sample.txt",
+      "status": "READY"
+    },
+    {
+      "document_id": "e5430cc1-c804-470e-9414-2d42576f7f0a",
+      "storage_path": "c104ae6b-14be-4a86-a4f2-f774048c0ee6/02fa32f4-da2b-414e-b711-36367b732a92/4dcf7dc1-9d86-4072-ad3e-50dfe3c1bd7b/e5430cc1-c804-470e-9414-2d42576f7f0a/original/Retail_Banking_Transaction_Policy.pdf",
+      "status": "READY"
+    },
+    {
+      "document_id": "238836bd-15c1-446b-a996-9082ea694773",
+      "storage_path": "c104ae6b-14be-4a86-a4f2-f774048c0ee6/02fa32f4-da2b-414e-b711-36367b732a92/a800e1de-1734-4c0f-9d71-f89232f0d7b8/238836bd-15c1-446b-a996-9082ea694773/original/Customer_Segment_and_Risk_Guide.pdf",
+      "status": "READY"
+    },
+    {
+      "document_id": "75463fda-9cd7-46e0-9693-dfa2cc4832c4",
+      "storage_path": "c104ae6b-14be-4a86-a4f2-f774048c0ee6/02fa32f4-da2b-414e-b711-36367b732a92/650c7ef7-97a7-4d87-b83c-a6a087fde28f/75463fda-9cd7-46e0-9693-dfa2cc4832c4/original/Retail_Banking_Transaction_Policy.pdf",
+      "status": "READY"
+    },
+    {
+      "document_id": "f82653b2-891f-4749-bced-cdf962f1ae0a",
+      "storage_path": "c104ae6b-14be-4a86-a4f2-f774048c0ee6/02fa32f4-da2b-414e-b711-36367b732a92/650c7ef7-97a7-4d87-b83c-a6a087fde28f/f82653b2-891f-4749-bced-cdf962f1ae0a/original/Customer_Segment_and_Risk_Guide.pdf",
+      "status": "READY"
+    },
+    {
+      "document_id": "0792c5b1-e7f7-4ce6-984e-1f59bc25ddc5",
+      "storage_path": "c104ae6b-14be-4a86-a4f2-f774048c0ee6/02fa32f4-da2b-414e-b711-36367b732a92/73cd5d56-9a45-4a47-b92f-1a934e9743a6/0792c5b1-e7f7-4ce6-984e-1f59bc25ddc5/original/Customer_Segment_and_Risk_Guide.pdf",
+      "status": "READY"
+    },
+    {
+      "document_id": "540e69f0-acd9-4f12-aa3b-8ffc0f60652d",
+      "storage_path": "c104ae6b-14be-4a86-a4f2-f774048c0ee6/02fa32f4-da2b-414e-b711-36367b732a92/4dcf7dc1-9d86-4072-ad3e-50dfe3c1bd7b/540e69f0-acd9-4f12-aa3b-8ffc0f60652d/original/Customer_Segment_and_Risk_Guide.pdf",
+      "status": "READY"
+    },
+    {
+      "document_id": "f7a9f7ba-ce92-4eb3-8044-49c8aaccf42f",
+      "storage_path": "c104ae6b-14be-4a86-a4f2-f774048c0ee6/02fa32f4-da2b-414e-b711-36367b732a92/73cd5d56-9a45-4a47-b92f-1a934e9743a6/f7a9f7ba-ce92-4eb3-8044-49c8aaccf42f/original/Retail_Banking_Transaction_Policy.pdf",
+      "status": "READY"
+    },
+    {
+      "document_id": "1502209e-ab61-4b71-a80d-ff3bcb950cae",
+      "storage_path": "c104ae6b-14be-4a86-a4f2-f774048c0ee6/02fa32f4-da2b-414e-b711-36367b732a92/a800e1de-1734-4c0f-9d71-f89232f0d7b8/1502209e-ab61-4b71-a80d-ff3bcb950cae/original/Retail_Banking_Transaction_Policy.pdf",
+      "status": "READY"
+    },
+    {
+      "document_id": "43888c31-733b-4683-8aa2-c66ca9afb1a2",
+      "storage_path": "c104ae6b-14be-4a86-a4f2-f774048c0ee6/02fa32f4-da2b-414e-b711-36367b732a92/45e70e0f-1069-454d-af1b-3608f96c2139/43888c31-733b-4683-8aa2-c66ca9afb1a2/original/Retail_Banking_Transaction_Policy.pdf",
+      "status": "READY"
+    },
+    {
+      "document_id": "02405829-15d8-452a-80b9-3fc636ecda17",
+      "storage_path": "c104ae6b-14be-4a86-a4f2-f774048c0ee6/02fa32f4-da2b-414e-b711-36367b732a92/45e70e0f-1069-454d-af1b-3608f96c2139/02405829-15d8-452a-80b9-3fc636ecda17/original/Customer_Segment_and_Risk_Guide.pdf",
+      "status": "READY"
+    }
+  ],
+  "orphan_root": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/backend/backend/runtime/document_storage"
+}

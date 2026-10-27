@@ -7,8 +7,8 @@ import { SemanticOverviewPanel } from './SemanticOverviewPanel'
 
 const { mockModels } = vi.hoisted(() => ({
   mockModels: [
-    { id: '1', name: 'Art', key: 'art.0224cb' },
-    { id: '2', name: 'Retail', key: 'retail.analytics' },
+    { id: '1', name: 'Art', key: 'art.0224cb', active_version_id: 'v-active' },
+    { id: '2', name: 'Retail', key: 'retail.analytics', active_version_id: null },
   ],
 }))
 
@@ -16,7 +16,10 @@ vi.mock('../../lib/api', () => ({
   api: {
     listSemanticModels: vi.fn().mockResolvedValue({ models: mockModels }),
     listSemanticVersions: vi.fn().mockResolvedValue({
-      versions: [{ id: 'v1', semantic_model_id: '1', version_number: 1, status: 'DRAFT' }],
+      versions: [
+        { id: 'v1', semantic_model_id: '1', version_number: 1, status: 'DRAFT' },
+        { id: 'v-active', semantic_model_id: '1', version_number: 1, status: 'ACTIVE', published_at: '' },
+      ],
     }),
     getSemanticModelOverview: vi.fn().mockResolvedValue({
       model: { id: '1', name: 'Art', key: 'art.0224cb', updated_at: '2026-10-15T12:00:00Z' },
@@ -33,7 +36,13 @@ vi.mock('../../lib/api', () => ({
     listSemanticRecentDefinitions: vi.fn().mockResolvedValue({ definitions: [], total: 0, page: 1, page_size: 5 }),
     listConnectors: vi.fn().mockResolvedValue({ connectors: [] }),
     getSemanticValidatorHealth: vi.fn().mockResolvedValue({ status: 'ok' }),
-    getSemanticRuntimeStatus: vi.fn().mockResolvedValue({ registry_active_version: null }),
+    getSemanticRuntimeStatus: vi.fn().mockResolvedValue({
+      registry_active_version: 1,
+      runtime_active_version: null,
+      runtime_status: 'legacy_fallback',
+      loader_mode: 'legacy',
+      deployment: null,
+    }),
     listSemanticRuntimeDeployments: vi.fn().mockResolvedValue({ deployments: [] }),
     listSemanticValidationRuns: vi.fn().mockResolvedValue({ runs: [] }),
     previewSemanticArtifact: vi.fn().mockResolvedValue({ content_preview: '' }),
@@ -44,12 +53,12 @@ vi.mock('../../lib/api', () => ({
 describe('Semantic Overview UX refinement', () => {
   afterEach(cleanup)
 
-  it('combobox shows compact primary and secondary lines', () => {
+  it('combobox trigger shows model name only at toolbar height', () => {
     render(<SemanticModelCombobox models={mockModels} value="1" onChange={() => undefined} />)
     const trigger = screen.getByTestId('semantic-model-combobox-trigger')
     expect(trigger.textContent).toContain('Art')
-    expect(trigger.textContent).toContain('art.0224cb')
-    expect(trigger.className).toMatch(/h-\[52px\]/)
+    expect(trigger.textContent).not.toContain('art.0224cb')
+    expect(trigger.className).toMatch(/h-10/)
   })
 
   it('combobox filters and bounds result list', () => {
@@ -77,16 +86,16 @@ describe('Semantic Overview UX refinement', () => {
   it('toolbar aligns publish with combobox trigger height', async () => {
     render(<SemanticLayerPage />)
     await waitFor(() => screen.getByTestId('semantic-model-toolbar'))
-    const publish = screen.getByTestId('semantic-publish-ask-data')
+    fireEvent.click(screen.getByTestId('semantic-tab-publish-config'))
+    const publish = screen.getByTestId('semantic-save-publish')
     const trigger = screen.getByTestId('semantic-model-combobox-trigger')
-    expect(publish.className).toMatch(/h-\[52px\]/)
-    expect(trigger.className).toMatch(/h-\[52px\]/)
+    expect(publish.className).toMatch(/h-9/)
+    expect(trigger.className).toMatch(/h-10/)
   })
 
   it('overview omits duplicate model title and uses compact readiness', () => {
     render(
       <SemanticOverviewPanel
-        versionId="v1"
         overview={{
           model: { id: '1', name: 'Art', key: 'art.0224cb', updated_at: '2026-10-15T12:00:00Z' },
           state: 'Ready',
@@ -100,12 +109,22 @@ describe('Semantic Overview UX refinement', () => {
     expect(screen.getByTestId('semantic-overview-readiness').textContent).toMatch(/Ready to publish/)
     expect(screen.getByText(/Last modified/)).toBeTruthy()
     expect(screen.getByTestId('semantic-overview-summary').children.length).toBe(5)
-    expect(screen.getByTestId('semantic-recent-definitions-section')).toBeTruthy()
+    expect(screen.queryByTestId('semantic-recent-definitions-section')).toBeNull()
   })
 
-  it('Recent Definitions pagination is rendered in overview layout', async () => {
-    render(<SemanticLayerPage />)
-    await waitFor(() => screen.getByTestId('semantic-recent-definitions-pagination'))
-    expect(screen.getByText(/Showing/)).toBeTruthy()
+  it('overview checklist renders when navigation is wired', () => {
+    render(
+      <SemanticOverviewPanel
+        overview={{
+          model: { id: '1', name: 'Art', key: 'art', updated_at: null },
+          state: 'Ready',
+          counts: { entities: 1, metrics: 2, dimensions: 3, relationships: 0, terms: 0 },
+          issue_count: 0,
+          published_version_number: null,
+        }}
+        onNavigateTab={() => undefined}
+      />,
+    )
+    expect(screen.getByTestId('semantic-overview-checklist')).toBeTruthy()
   })
 })

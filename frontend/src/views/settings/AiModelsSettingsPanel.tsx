@@ -3,24 +3,33 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ProviderTypeIcon } from '../../components/ai/ProviderTypeIcon'
 import { TablePagination } from '../../components/knowledge/TablePagination'
-import { Bot, Plus, Sparkles } from 'lucide-react'
+import { RowActionsMenu } from '../../components/table/RowActionsMenu'
+import { TableHeaderCheckbox, TableRowCheckbox } from '../../components/table/TableSelectionCheckbox'
+import { TableSelectionModeButton } from '../../components/table/TableSelectionModeButton'
+import { Bot, Eye, EyeOff, Plus, Sparkles } from 'lucide-react'
 import { EmptyState } from '../../components/EmptyState'
 import { ServiceErrorState } from '../../components/ServiceErrorState'
 import { api } from '../../lib/api'
 import { toAppApiError, type AppApiError } from '../../lib/apiError'
+import { statusBannerClassName, type StatusBannerTone } from '../../lib/statusBanner'
 import {
   AI_REGISTRY_TABLE_PAGE_SIZES,
   aiRegistryErrorMessage,
-  assignmentHealthMessage,
-  assignmentSourceLabel,
-  CAPABILITY_ROWS,
+  defaultSecretRefForProvider,
+  isValidProviderKey,
   isValidSecretRef,
+  normalizeProviderKey,
+  modelStatusClass,
+  modelStatusLabel,
+  modelTypeLabel,
   providerStatusClass,
   providerStatusLabel,
   PROVIDER_TYPE_OPTIONS,
   providerTypeLabel,
   slugModelKey,
 } from '../../lib/aiRegistryUi'
+import { useTableSelection } from '../../lib/useTableSelection'
+import { useTableSelectionMode } from '../../lib/useTableSelectionMode'
 import type {
   AiModelRecord,
   AiModelType,
@@ -30,6 +39,7 @@ import type {
   AssignmentCapability,
   ModelAssignmentRecord,
 } from '../../types/api'
+import { RuntimeAssignmentsSection } from './RuntimeAssignmentsSection'
 
 type ProviderDraft = {
   name: string
@@ -46,7 +56,7 @@ const emptyProviderDraft = (type: AiProviderType): ProviderDraft => ({
   key: '',
   provider_type: type,
   base_url: '',
-  secret_ref: '',
+  secret_ref: defaultSecretRefForProvider(type),
   enabled: true,
   test_strategy: 'AUTO',
 })
@@ -57,7 +67,11 @@ export function AiModelsSettingsPanel() {
   const [assignments, setAssignments] = useState<ModelAssignmentRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<AppApiError | null>(null)
-  const [banner, setBanner] = useState('')
+  const [banner, setBannerState] = useState<{ message: string; tone: StatusBannerTone } | null>(null)
+  const setBanner = useCallback((message: string, tone: StatusBannerTone = 'neutral') => {
+    const trimmed = message.trim()
+    setBannerState(trimmed ? { message: trimmed, tone } : null)
+  }, [])
   const [testingProviderId, setTestingProviderId] = useState<string | null>(null)
   const [testingModelId, setTestingModelId] = useState<string | null>(null)
 
@@ -65,6 +79,9 @@ export function AiModelsSettingsPanel() {
   const [providerDraft, setProviderDraft] = useState<ProviderDraft>(emptyProviderDraft('GEMINI'))
   const [editingProviderId, setEditingProviderId] = useState<string | null>(null)
   const [savingProvider, setSavingProvider] = useState(false)
+  const [providerModalError, setProviderModalError] = useState('')
+  const [showProviderKey, setShowProviderKey] = useState(false)
+  const [showSecretRef, setShowSecretRef] = useState(false)
 
   const [modelModalOpen, setModelModalOpen] = useState(false)
   const [modelDraft, setModelDraft] = useState({
@@ -80,8 +97,10 @@ export function AiModelsSettingsPanel() {
   const [providersPageSize, setProvidersPageSize] = useState(5)
   const [modelsPage, setModelsPage] = useState(1)
   const [modelsPageSize, setModelsPageSize] = useState(5)
-  const [selectedProviderIds, setSelectedProviderIds] = useState<Set<string>>(() => new Set())
-  const [selectedModelIds, setSelectedModelIds] = useState<Set<string>>(() => new Set())
+  const providerSelection = useTableSelection()
+  const modelSelection = useTableSelection()
+  const providerSelectionMode = useTableSelectionMode(providerSelection.clear)
+  const modelSelectionMode = useTableSelectionMode(modelSelection.clear)
   const [batchDeletingProviders, setBatchDeletingProviders] = useState(false)
   const [batchDeletingModels, setBatchDeletingModels] = useState(false)
 
@@ -157,13 +176,13 @@ export function AiModelsSettingsPanel() {
     try {
       const result = await api.testAiProvider(id)
       if (result.status === 'READY') {
-        setBanner(`Connection successful (${Math.round(result.latency_ms)} ms).`)
+        setBanner(`Connection successful (${Math.round(result.latency_ms)} ms).`, 'success')
       } else {
-        setBanner(result.message || 'Provider test failed.')
+        setBanner(result.message || 'Provider test failed.', 'error')
       }
       await refresh()
     } catch (err) {
-      setBanner(aiRegistryErrorMessage(toAppApiError(err)))
+      setBanner(aiRegistryErrorMessage(toAppApiError(err)), 'error')
     } finally {
       setTestingProviderId(null)
     }
@@ -174,10 +193,13 @@ export function AiModelsSettingsPanel() {
     setTestingModelId(id)
     try {
       const result = await api.testAiModel(id)
-      setBanner(result.status === 'READY' ? `Model test passed (${Math.round(result.latency_ms)} ms).` : result.message || 'Model test failed.')
+      setBanner(
+        result.status === 'READY' ? `Model test passed (${Math.round(result.latency_ms)} ms).` : result.message || 'Model test failed.',
+        result.status === 'READY' ? 'success' : 'error',
+      )
       await refresh()
     } catch (err) {
-      setBanner(aiRegistryErrorMessage(toAppApiError(err)))
+      setBanner(aiRegistryErrorMessage(toAppApiError(err)), 'error')
     } finally {
       setTestingModelId(null)
     }
@@ -185,27 +207,35 @@ export function AiModelsSettingsPanel() {
 
   async function saveProvider() {
     setBanner('')
+    setProviderModalError('')
     if (!providerDraft.name.trim() || !providerDraft.key.trim()) {
-      setBanner('Provider name and key are required.')
+      setProviderModalError('Provider name and key are required.')
+      return
+    }
+    const normalizedKey = normalizeProviderKey(providerDraft.key)
+    if (!isValidProviderKey(normalizedKey)) {
+      setProviderModalError(
+        'Key must be a lowercase id (e.g. gemini or google_gemini). It is not your API key — do not use XXXX or uppercase.',
+      )
       return
     }
     if (providerDraft.provider_type === 'OPENAI_COMPATIBLE' && !providerDraft.base_url.trim()) {
-      setBanner('Base URL is required for OpenAI-compatible providers.')
+      setProviderModalError('Base URL is required for OpenAI-compatible providers.')
       return
     }
     if (providerDraft.provider_type !== 'OPENAI_COMPATIBLE' && !providerDraft.secret_ref.trim()) {
-      setBanner('Secret reference is required.')
+      setProviderModalError('Secret reference is required.')
       return
     }
     if (providerDraft.secret_ref.trim() && !isValidSecretRef(providerDraft.secret_ref)) {
-      setBanner('Use a secret reference such as env://GEMINI_API_KEY. Plaintext API keys are not stored.')
+      setProviderModalError('Use env://GEMINI_API_KEY (environment variable name). Never paste a raw API key here.')
       return
     }
     setSavingProvider(true)
     try {
       const body = {
         name: providerDraft.name.trim(),
-        key: providerDraft.key.trim(),
+        key: normalizedKey,
         provider_type: providerDraft.provider_type,
         base_url: providerDraft.base_url.trim() || null,
         secret_ref: providerDraft.secret_ref.trim() || null,
@@ -222,10 +252,11 @@ export function AiModelsSettingsPanel() {
       }
       setProviderModal('closed')
       setEditingProviderId(null)
+      setProviderModalError('')
       await refresh()
       setBanner('Provider saved.')
     } catch (err) {
-      setBanner(aiRegistryErrorMessage(toAppApiError(err)))
+      setProviderModalError(aiRegistryErrorMessage(toAppApiError(err)))
     } finally {
       setSavingProvider(false)
     }
@@ -257,6 +288,23 @@ export function AiModelsSettingsPanel() {
     }
   }
 
+  function openEditProvider(provider: AiProviderRecord) {
+    setEditingProviderId(provider.id)
+    setProviderDraft({
+      name: provider.name,
+      key: provider.key,
+      provider_type: provider.provider_type,
+      base_url: provider.base_url || '',
+      secret_ref: provider.secret_ref || '',
+      enabled: provider.enabled,
+      test_strategy: String(provider.config_json?.test_strategy || 'AUTO'),
+    })
+    setProviderModalError('')
+    setShowProviderKey(false)
+    setShowSecretRef(false)
+    setProviderModal('form')
+  }
+
   async function toggleProvider(provider: AiProviderRecord) {
     setBanner('')
     try {
@@ -268,18 +316,20 @@ export function AiModelsSettingsPanel() {
   }
 
   async function deleteProvider(provider: AiProviderRecord) {
-    if (!window.confirm(`Delete provider "${provider.name}"?`)) return
+    const modelCount = modelsByProvider.get(provider.id) ?? 0
+    const extra =
+      modelCount > 0
+        ? ` This will also remove ${modelCount} registered model(s) and clear runtime assignments that use them.`
+        : ''
+    if (!window.confirm(`Delete provider "${provider.name}"?${extra}`)) return
     setBanner('')
     try {
       await api.deleteAiProvider(provider.id)
-      setSelectedProviderIds(prev => {
-        const next = new Set(prev)
-        next.delete(provider.id)
-        return next
-      })
+      if (providerSelection.isSelected(provider.id)) providerSelection.toggle(provider.id)
       await refresh()
+      setBanner(`Provider "${provider.name}" deleted.`, 'success')
     } catch (err) {
-      setBanner(aiRegistryErrorMessage(toAppApiError(err)))
+      setBanner(aiRegistryErrorMessage(toAppApiError(err)), 'error')
     }
   }
 
@@ -288,76 +338,42 @@ export function AiModelsSettingsPanel() {
     setBanner('')
     try {
       await api.deleteAiModel(model.id)
-      setSelectedModelIds(prev => {
-        const next = new Set(prev)
-        next.delete(model.id)
-        return next
-      })
+      if (modelSelection.isSelected(model.id)) modelSelection.toggle(model.id)
       await refresh()
     } catch (err) {
       setBanner(aiRegistryErrorMessage(toAppApiError(err)))
     }
   }
 
-  function toggleProviderRow(id: string) {
-    setSelectedProviderIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  function toggleModelRow(id: string) {
-    setSelectedModelIds(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  function toggleAllProvidersOnPage(checked: boolean) {
-    setSelectedProviderIds(prev => {
-      const next = new Set(prev)
-      for (const row of pagedProviders) {
-        if (checked) next.add(row.id)
-        else next.delete(row.id)
-      }
-      return next
-    })
-  }
-
-  function toggleAllModelsOnPage(checked: boolean) {
-    setSelectedModelIds(prev => {
-      const next = new Set(prev)
-      for (const row of pagedModels) {
-        if (checked) next.add(row.id)
-        else next.delete(row.id)
-      }
-      return next
-    })
-  }
-
   async function deleteSelectedProviders() {
-    const ids = [...selectedProviderIds]
+    const ids = providerSelection.selectedList
     if (!ids.length) return
-    if (!window.confirm(`Delete ${ids.length} selected provider(s)? Models under them may block deletion.`)) return
+    if (
+      !window.confirm(
+        `Delete ${ids.length} selected provider(s)? Registered models and project assignments under them will also be removed.`,
+      )
+    )
+      return
     setBanner('')
     setBatchDeletingProviders(true)
     try {
       const results = await Promise.allSettled(ids.map(id => api.deleteAiProvider(id)))
       const failed = results.filter(r => r.status === 'rejected').length
-      setSelectedProviderIds(new Set())
+      providerSelectionMode.exit()
       await refresh()
-      setBanner(failed ? `Deleted ${ids.length - failed} provider(s). ${failed} could not be deleted (in use or blocked).` : `Deleted ${ids.length} provider(s).`)
+      setBanner(
+        failed
+          ? `Deleted ${ids.length - failed} provider(s). ${failed} could not be deleted.`
+          : `Deleted ${ids.length} provider(s).`,
+        failed ? 'error' : 'success',
+      )
     } finally {
       setBatchDeletingProviders(false)
     }
   }
 
   async function deleteSelectedModels() {
-    const ids = [...selectedModelIds]
+    const ids = modelSelection.selectedList
     if (!ids.length) return
     if (!window.confirm(`Delete ${ids.length} selected model(s)?`)) return
     setBanner('')
@@ -365,7 +381,7 @@ export function AiModelsSettingsPanel() {
     try {
       const results = await Promise.allSettled(ids.map(id => api.deleteAiModel(id)))
       const failed = results.filter(r => r.status === 'rejected').length
-      setSelectedModelIds(new Set())
+      modelSelectionMode.exit()
       await refresh()
       setBanner(failed ? `Deleted ${ids.length - failed} model(s). ${failed} could not be deleted (assigned or in use).` : `Deleted ${ids.length} model(s).`)
     } finally {
@@ -500,8 +516,8 @@ export function AiModelsSettingsPanel() {
       </div>
 
       {banner ? (
-        <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700" role="status">
-          {banner}
+        <p className={statusBannerClassName(banner.tone)} role="status">
+          {banner.message}
         </p>
       ) : null}
 
@@ -509,28 +525,44 @@ export function AiModelsSettingsPanel() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-cloudera-navy">Providers</h3>
           <div className="flex flex-wrap items-center gap-2">
-            {selectedProviderIds.size > 0 ? (
-              <button
-                type="button"
-                className="rounded-lg border border-rose-200 px-3 py-2 text-sm text-rose-700"
-                disabled={batchDeletingProviders}
-                onClick={() => void deleteSelectedProviders()}
-              >
-                {batchDeletingProviders ? 'Deleting…' : `Delete selected (${selectedProviderIds.size})`}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="btn-primary inline-flex items-center gap-1 px-3 py-2 text-sm"
-              onClick={() => {
-                setEditingProviderId(null)
-                setProviderDraft(emptyProviderDraft('GEMINI'))
-                setProviderModal('pick')
-              }}
-            >
-              <Plus className="h-4 w-4" aria-hidden />
-              Register provider
-            </button>
+            {providerSelectionMode.active ? (
+              <>
+                <span className="text-sm font-semibold text-cloudera-navy" aria-live="polite">
+                  {providerSelection.selectedCount} selected
+                </span>
+                <button
+                  type="button"
+                  className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                  disabled={providerSelection.selectedCount <= 0 || batchDeletingProviders}
+                  onClick={() => void deleteSelectedProviders()}
+                >
+                  {batchDeletingProviders ? 'Deleting…' : 'Delete selected'}
+                </button>
+                <button type="button" className="btn-secondary px-3 py-2 text-sm" onClick={() => providerSelectionMode.exit()}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <TableSelectionModeButton
+                  entityLabel="providers"
+                  active={providerSelectionMode.active}
+                  onClick={() => providerSelectionMode.enter()}
+                />
+                <button
+                  type="button"
+                  className="btn-primary inline-flex items-center gap-1 px-3 py-2 text-sm"
+                  onClick={() => {
+                    setEditingProviderId(null)
+                    setProviderDraft(emptyProviderDraft('GEMINI'))
+                    setProviderModal('pick')
+                  }}
+                >
+                  <Plus className="h-4 w-4" aria-hidden />
+                  Register provider
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -547,81 +579,75 @@ export function AiModelsSettingsPanel() {
           />
         ) : (
           <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="min-w-full text-sm">
+            <table className="app-data-table min-w-full">
               <thead className="app-table-head">
                 <tr>
-                  <th className="w-10 px-3 py-2">
-                    <input
-                      type="checkbox"
-                      aria-label="Select all providers on this page"
-                      checked={pagedProviders.length > 0 && pagedProviders.every(p => selectedProviderIds.has(p.id))}
-                      onChange={e => toggleAllProvidersOnPage(e.target.checked)}
-                    />
-                  </th>
+                  {providerSelectionMode.active ? (
+                    <th className="w-11 px-2 py-2">
+                      <TableHeaderCheckbox
+                        state={providerSelection.datasetCheckboxState(providers.length)}
+                        onToggle={() =>
+                          providerSelection.toggleDatasetSelection(
+                            providers.map(p => p.id),
+                            providers.length,
+                          )
+                        }
+                      />
+                    </th>
+                  ) : null}
                   <th className="px-3 py-2">Name</th>
                   <th className="px-3 py-2">Type</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Credentials</th>
                   <th className="px-3 py-2">Models</th>
-                  <th className="px-3 py-2">Actions</th>
+                  <th className="w-24 px-3 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {pagedProviders.map(provider => (
-                  <tr key={provider.id}>
-                    <td className="px-3 py-2">
-                      <input
-                        type="checkbox"
-                        aria-label={`Select provider ${provider.name}`}
-                        checked={selectedProviderIds.has(provider.id)}
-                        onChange={() => toggleProviderRow(provider.id)}
-                      />
-                    </td>
+                  <tr
+                    key={provider.id}
+                    className={providerSelection.isSelected(provider.id) ? 'bg-cloudera-violet/5' : undefined}
+                  >
+                    {providerSelectionMode.active ? (
+                      <td className="w-11 px-2 py-2">
+                        <TableRowCheckbox
+                          checked={providerSelection.isSelected(provider.id)}
+                          label={`Select provider ${provider.name}`}
+                          onToggle={() => providerSelection.toggle(provider.id)}
+                        />
+                      </td>
+                    ) : null}
                     <td className="px-3 py-2 font-medium text-cloudera-navy">{provider.name}</td>
                     <td className="px-3 py-2">{providerTypeLabel(provider.provider_type)}</td>
                     <td className="px-3 py-2">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${providerStatusClass(provider)}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-sm font-semibold ${providerStatusClass(provider)}`}>
                         {providerStatusLabel(provider)}
                       </span>
                     </td>
                     <td className="px-3 py-2">{provider.secret_configured ? 'Configured' : 'Not configured'}</td>
                     <td className="px-3 py-2">{modelsByProvider.get(provider.id) ?? 0}</td>
                     <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                          disabled={testingProviderId === provider.id}
-                          onClick={() => handleTestProvider(provider.id)}
-                        >
-                          {testingProviderId === provider.id ? 'Testing…' : 'Test'}
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                          onClick={() => {
-                            setEditingProviderId(provider.id)
-                            setProviderDraft({
-                              name: provider.name,
-                              key: provider.key,
-                              provider_type: provider.provider_type,
-                              base_url: provider.base_url || '',
-                              secret_ref: provider.secret_ref || '',
-                              enabled: provider.enabled,
-                              test_strategy: String(provider.config_json?.test_strategy || 'AUTO'),
-                            })
-                            setProviderModal('form')
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button type="button" className="rounded-lg border border-slate-200 px-2 py-1 text-xs" onClick={() => toggleProvider(provider)}>
-                          {provider.enabled ? 'Disable' : 'Enable'}
-                        </button>
-                        <button type="button" className="rounded-lg border border-rose-200 px-2 py-1 text-xs text-rose-700" onClick={() => deleteProvider(provider)}>
-                          Delete
-                        </button>
-                      </div>
+                      <RowActionsMenu
+                        label={`Actions for ${provider.name}`}
+                        items={[
+                          {
+                            key: 'test',
+                            label: testingProviderId === provider.id ? 'Testing…' : 'Test connection',
+                            onClick: () => {
+                              if (testingProviderId !== provider.id) void handleTestProvider(provider.id)
+                            },
+                          },
+                          { key: 'edit', label: 'Edit', onClick: () => openEditProvider(provider) },
+                          {
+                            key: 'toggle',
+                            label: provider.enabled ? 'Disable' : 'Enable',
+                            onClick: () => void toggleProvider(provider),
+                          },
+                          { key: 'sep', separator: true },
+                          { key: 'delete', label: 'Delete', danger: true, onClick: () => void deleteProvider(provider) },
+                        ]}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -646,19 +672,33 @@ export function AiModelsSettingsPanel() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold text-cloudera-navy">Registered models</h3>
           <div className="flex flex-wrap items-center gap-2">
-            {selectedModelIds.size > 0 ? (
-              <button
-                type="button"
-                className="rounded-lg border border-rose-200 px-3 py-2 text-sm text-rose-700"
-                disabled={batchDeletingModels}
-                onClick={() => void deleteSelectedModels()}
-              >
-                {batchDeletingModels ? 'Deleting…' : `Delete selected (${selectedModelIds.size})`}
-              </button>
-            ) : null}
+            {modelSelectionMode.active ? (
+              <>
+                <span className="text-sm font-semibold text-cloudera-navy" aria-live="polite">
+                  {modelSelection.selectedCount} selected
+                </span>
+                <button
+                  type="button"
+                  className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                  disabled={modelSelection.selectedCount <= 0 || batchDeletingModels}
+                  onClick={() => void deleteSelectedModels()}
+                >
+                  {batchDeletingModels ? 'Deleting…' : 'Delete selected'}
+                </button>
+                <button type="button" className="btn-secondary px-3 py-2 text-sm" onClick={() => modelSelectionMode.exit()}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <TableSelectionModeButton
+                  entityLabel="models"
+                  active={modelSelectionMode.active}
+                  onClick={() => modelSelectionMode.enter()}
+                />
             <button
               type="button"
-              className="btn-secondary inline-flex items-center gap-1 px-3 py-2 text-sm"
+              className="btn-primary inline-flex items-center gap-1 px-3 py-2 text-sm"
               disabled={!providers.length}
               onClick={() => {
                 const providerId = providers[0]?.id || ''
@@ -680,58 +720,76 @@ export function AiModelsSettingsPanel() {
               <Plus className="h-4 w-4" aria-hidden />
               Register model
             </button>
+              </>
+            )}
           </div>
         </div>
         {models.length === 0 ? (
           <p className="text-sm text-slate-600">No models registered yet.</p>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-slate-200">
-            <table className="min-w-full text-sm">
+            <table className="app-data-table min-w-full">
               <thead className="app-table-head">
                 <tr>
-                  <th className="w-10 px-3 py-2">
-                    <input
-                      type="checkbox"
-                      aria-label="Select all models on this page"
-                      checked={pagedModels.length > 0 && pagedModels.every(m => selectedModelIds.has(m.id))}
-                      onChange={e => toggleAllModelsOnPage(e.target.checked)}
-                    />
-                  </th>
+                  {modelSelectionMode.active ? (
+                    <th className="w-11 px-2 py-2">
+                      <TableHeaderCheckbox
+                        state={modelSelection.datasetCheckboxState(models.length)}
+                        onToggle={() =>
+                          modelSelection.toggleDatasetSelection(
+                            models.map(m => m.id),
+                            models.length,
+                          )
+                        }
+                      />
+                    </th>
+                  ) : null}
                   <th className="px-3 py-2">Name</th>
                   <th className="px-3 py-2">Model ID</th>
                   <th className="px-3 py-2">Type</th>
                   <th className="px-3 py-2">Provider</th>
                   <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Actions</th>
+                  <th className="w-24 px-3 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {pagedModels.map(model => {
                   const provider = providers.find(p => p.id === model.provider_id)
                   return (
-                    <tr key={model.id}>
-                      <td className="px-3 py-2">
-                        <input
-                          type="checkbox"
-                          aria-label={`Select model ${model.name}`}
-                          checked={selectedModelIds.has(model.id)}
-                          onChange={() => toggleModelRow(model.id)}
-                        />
-                      </td>
-                      <td className="px-3 py-2 font-medium">{model.name}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{model.model_id}</td>
-                      <td className="px-3 py-2">{model.model_type}</td>
+                    <tr key={model.id} className={modelSelection.isSelected(model.id) ? 'bg-cloudera-violet/5' : undefined}>
+                      {modelSelectionMode.active ? (
+                        <td className="w-11 px-2 py-2">
+                          <TableRowCheckbox
+                            checked={modelSelection.isSelected(model.id)}
+                            label={`Select model ${model.name}`}
+                            onToggle={() => modelSelection.toggle(model.id)}
+                          />
+                        </td>
+                      ) : null}
+                      <td className="px-3 py-2 font-medium text-cloudera-navy">{model.name}</td>
+                      <td className="font-mono text-slate-700">{model.model_id}</td>
+                      <td className="px-3 py-2">{modelTypeLabel(model.model_type)}</td>
                       <td className="px-3 py-2">{provider?.name ?? '—'}</td>
-                      <td className="px-3 py-2">{model.enabled ? model.status || 'Not tested' : 'Disabled'}</td>
                       <td className="px-3 py-2">
-                        <div className="flex flex-wrap gap-2">
-                          <button type="button" className="rounded-lg border px-2 py-1 text-xs" disabled={testingModelId === model.id} onClick={() => handleTestModel(model.id)}>
-                            {testingModelId === model.id ? 'Testing…' : 'Test'}
-                          </button>
-                          <button type="button" className="rounded-lg border px-2 py-1 text-xs text-rose-700" onClick={() => deleteModel(model)}>
-                            Delete
-                          </button>
-                        </div>
+                        <span className={`rounded-full px-2 py-0.5 text-sm font-semibold ${modelStatusClass(model)}`}>
+                          {modelStatusLabel(model)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <RowActionsMenu
+                          label={`Actions for ${model.name}`}
+                          items={[
+                            {
+                              key: 'test',
+                              label: testingModelId === model.id ? 'Testing…' : 'Test model',
+                              onClick: () => {
+                                if (testingModelId !== model.id) void handleTestModel(model.id)
+                              },
+                            },
+                            { key: 'sep', separator: true },
+                            { key: 'delete', label: 'Delete', danger: true, onClick: () => void deleteModel(model) },
+                          ]}
+                        />
                       </td>
                     </tr>
                   )
@@ -753,68 +811,12 @@ export function AiModelsSettingsPanel() {
         )}
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold text-cloudera-navy">Runtime assignments</h3>
-          <p className="type-chat-meta mt-1 text-slate-500">
-            Primary way to choose which registered model powers chat, RAG, skills, embeddings, and reranking.
-          </p>
-        </div>
-        <div className="space-y-2">
-          {CAPABILITY_ROWS.map(row => {
-            const effective = assignmentByCap.get(row.capability)
-            const compatible = models.filter(m => m.model_type === row.modelType && m.enabled)
-            const healthMsg = effective ? assignmentHealthMessage(effective) : null
-            return (
-              <div key={row.capability} className="rounded-xl border border-slate-200 p-3">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-cloudera-navy">{row.label}</p>
-                    <p className="type-chat-meta text-slate-500">{effective?.model_name || 'No registry model'}</p>
-                    {effective ? (
-                      <p className="type-chat-meta mt-1 text-slate-500">{assignmentSourceLabel(effective.source)}</p>
-                    ) : null}
-                    {effective?.source === 'LEGACY_FALLBACK' ? (
-                      <p className="mt-2 rounded-lg bg-slate-50 px-2 py-1 text-xs text-slate-600">
-                        This capability currently uses legacy environment configuration.
-                      </p>
-                    ) : null}
-                    {healthMsg ? (
-                      <p className="mt-2 text-xs font-semibold text-rose-700" role="alert">
-                        Configuration error: {healthMsg}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      aria-label={`Assign model for ${row.label}`}
-                      className="input max-w-[14rem] py-1.5 text-sm"
-                      value=""
-                      onChange={e => {
-                        const id = e.target.value
-                        if (id) void assignCapability(row.capability, id)
-                        e.target.value = ''
-                      }}
-                    >
-                      <option value="">Change assignment…</option>
-                      {compatible.map(m => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
-                        </option>
-                      ))}
-                    </select>
-                    {effective?.source === 'PROJECT' ? (
-                      <button type="button" className="text-xs text-slate-600 underline" onClick={() => clearAssignment(row.capability)}>
-                        Remove project assignment
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </section>
+      <RuntimeAssignmentsSection
+        models={models}
+        assignmentByCap={assignmentByCap}
+        onAssign={assignCapability}
+        onClear={clearAssignment}
+      />
 
       {providerModal !== 'closed' ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" role="dialog" aria-modal="true">
@@ -831,6 +833,9 @@ export function AiModelsSettingsPanel() {
                       className="flex items-start gap-3 rounded-xl border border-slate-200 px-3 py-3 text-left hover:border-cloudera-violet"
                       onClick={() => {
                         setProviderDraft(emptyProviderDraft(opt.type))
+                        setProviderModalError('')
+                        setShowProviderKey(false)
+                        setShowSecretRef(false)
                         setProviderModal('form')
                       }}
                     >
@@ -849,14 +854,52 @@ export function AiModelsSettingsPanel() {
             ) : (
               <>
                 <h3 className="text-lg font-semibold">{editingProviderId ? 'Edit provider' : 'Register provider'}</h3>
+                {providerModalError ? (
+                  <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800" role="alert">
+                    {providerModalError}
+                  </p>
+                ) : null}
                 <div className="mt-4 space-y-3 text-sm">
                   <label className="block">
                     <span className="text-slate-600">Provider name</span>
-                    <input className="input mt-1 w-full" value={providerDraft.name} onChange={e => setProviderDraft(d => ({ ...d, name: e.target.value }))} />
+                    <input
+                      className="input mt-1 w-full"
+                      placeholder="Google Gemini (local)"
+                      value={providerDraft.name}
+                      onChange={e => setProviderDraft(d => ({ ...d, name: e.target.value }))}
+                    />
+                    <span className="type-chat-meta mt-1 block text-slate-500">Display name in the registry.</span>
                   </label>
                   <label className="block">
                     <span className="text-slate-600">Key</span>
-                    <input className="input mt-1 w-full font-mono text-xs" value={providerDraft.key} onChange={e => setProviderDraft(d => ({ ...d, key: e.target.value }))} disabled={Boolean(editingProviderId)} />
+                    <div className="relative mt-1">
+                      <input
+                        className="input w-full pr-10 font-mono text-xs"
+                        type={showProviderKey ? 'text' : 'password'}
+                        autoComplete="off"
+                        placeholder="gemini"
+                        value={providerDraft.key}
+                        onChange={e => setProviderDraft(d => ({ ...d, key: e.target.value }))}
+                        onBlur={() => {
+                          if (editingProviderId) return
+                          const next = normalizeProviderKey(providerDraft.key)
+                          if (next) setProviderDraft(d => ({ ...d, key: next }))
+                        }}
+                        disabled={Boolean(editingProviderId)}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-cloudera-navy disabled:opacity-40"
+                        aria-label={showProviderKey ? 'Hide key' : 'Show key'}
+                        disabled={Boolean(editingProviderId)}
+                        onClick={() => setShowProviderKey(v => !v)}
+                      >
+                        {showProviderKey ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
+                      </button>
+                    </div>
+                    <span className="type-chat-meta mt-1 block text-slate-500">
+                      Lowercase id (a–z, 0–9, underscore). Not your API key.
+                    </span>
                   </label>
                   {providerDraft.provider_type === 'OPENAI_COMPATIBLE' ? (
                     <label className="block">
@@ -871,8 +914,28 @@ export function AiModelsSettingsPanel() {
                   ) : null}
                   <label className="block">
                     <span className="text-slate-600">Secret reference</span>
-                    <input className="input mt-1 w-full font-mono text-xs" placeholder="env://GEMINI_API_KEY" value={providerDraft.secret_ref} onChange={e => setProviderDraft(d => ({ ...d, secret_ref: e.target.value }))} />
-                    <span className="type-chat-meta mt-1 block text-slate-500">Example: env://GEMINI_API_KEY — never paste raw API keys.</span>
+                    <div className="relative mt-1">
+                      <input
+                        className="input w-full pr-10 font-mono text-xs"
+                        type={showSecretRef ? 'text' : 'password'}
+                        autoComplete="off"
+                        placeholder="env://GEMINI_API_KEY"
+                        value={providerDraft.secret_ref}
+                        onChange={e => setProviderDraft(d => ({ ...d, secret_ref: e.target.value }))}
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-cloudera-navy"
+                        aria-label={showSecretRef ? 'Hide secret reference' : 'Show secret reference'}
+                        onClick={() => setShowSecretRef(v => !v)}
+                      >
+                        {showSecretRef ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
+                      </button>
+                    </div>
+                    <span className="type-chat-meta mt-1 block text-slate-500">
+                      Pointer to an environment variable on the backend (e.g. env://GEMINI_API_KEY). Set the real key in .env,
+                      not here.
+                    </span>
                   </label>
                   {providerDraft.provider_type === 'OPENAI_COMPATIBLE' ? (
                     <label className="block">

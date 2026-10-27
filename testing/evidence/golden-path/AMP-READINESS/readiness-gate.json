@@ -1,0 +1,21 @@
+{
+  "ok": false,
+  "gates": {
+    "backend_health": "PASS",
+    "platform_ready": "PASS",
+    "qdrant_reachable": "PASS",
+    "pytest_banking_catalog": "PASS",
+    "pytest_registry_resolver": "PASS",
+    "bootstrap_validate": "FAIL",
+    "demo_profile_tier1_narrative": "FAIL"
+  },
+  "blockers": [
+    "bootstrap_validate",
+    "demo_profile_tier1_narrative: enable with --apply-profile"
+  ],
+  "next": [
+    "docs/deployment/AMP_ACCELERATOR_PLAYBOOK.md",
+    "docs/deployment/CAI_REAL_DEPLOYMENT_CHECKLIST.md",
+    "deployment/amp/README.md"
+  ]
+}

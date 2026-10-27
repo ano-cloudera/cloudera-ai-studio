@@ -6,9 +6,11 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.ask_data.datasource_router import AskDataDatasourceRouter
+from app.ask_data.raw_table_companion import expand_raw_table_context
 from app.ask_data.table_context_id import RawTableRef, decode_raw_table_id, encode_raw_table_id
 from app.ask_data.types import DatasourceExecutionContext, DatasourceRoutingError
 from app.connectors.discovery import MetadataDiscoveryService
@@ -19,8 +21,11 @@ from app.db.platform_models import (
     SemanticEntityRow,
     SemanticMetricRow,
     SemanticModelRow,
+    SemanticTermRow,
     SemanticVersionRow,
+    WorkspaceRow,
 )
+from app.workspace.ask_data_settings import read_ask_data_settings
 from app.semantic.context import SemanticContextService
 from app.semantic_runtime.loader import RuntimeContextBundle, SemanticRuntimeLoader
 
@@ -30,6 +35,162 @@ class ClarificationPayload:
     reason: str
     message: str
     options: list[dict[str, str]]
+
+
+def _normalize_metric_token(raw: str) -> str:
+    token = str(raw or "").strip()
+    if token.casefold().startswith("suggested metric "):
+        token = token[17:].strip()
+    return token
+
+
+def _metric_display_name(metric: SemanticMetricRow) -> str:
+    from app.ask_data.metric_labels import humanize_metric_label
+
+    return humanize_metric_label(
+        name=metric.key or metric.name,
+        definition={
+            "display_name": metric.name,
+            "description": metric.business_definition or metric.description,
+        },
+    )
+
+
+def _rank_metrics_for_question(metrics: list[SemanticMetricRow], question: str) -> list[SemanticMetricRow]:
+    q = question.casefold()
+    scored: list[tuple[int, SemanticMetricRow]] = []
+    for metric in metrics:
+        score = 0
+        blob = " ".join(
+            filter(None, [metric.name, metric.key, getattr(metric, "business_definition", None)])
+        ).casefold()
+        if "customer" in q or "nasabah" in q:
+            if "customer" in blob:
+                score += 80
+        if "transaksi" in q or "transaction" in q:
+            if "transaction" in blob:
+                score += 80
+        if any(t in q for t in ("trend", "pertumbuhan", "per bulan", "bulanan", "12 bulan")):
+            if "transaction" in blob:
+                score += 60
+            if "transaction_id" in blob:
+                score += 50
+        if any(t in q for t in ("jumlah", "banyak", "count")) and ("transaksi" in q or "transaction" in q):
+            if "transaction_id" in blob:
+                score += 100
+            if "amount" in blob:
+                score -= 30
+        if score <= 0:
+            score = 1
+        scored.append((score, metric))
+    scored.sort(key=lambda item: (-item[0], (item[1].name or "").casefold()))
+    return [row for _, row in scored]
+
+
+def _model_metric_clarification(
+    session: Session,
+    model: SemanticModelRow,
+    ctx: SemanticContextService,
+    question: str,
+) -> ClarificationPayload | None:
+    if model.active_version_id:
+        rows = list(
+            session.execute(
+                select(SemanticMetricRow).where(SemanticMetricRow.semantic_version_id == model.active_version_id)
+            ).scalars()
+        )
+        ranked = _rank_metrics_for_question(rows, question)[:4]
+        options = [
+            {"type": "semantic_metric", "id": str(metric.id), "name": _metric_display_name(metric)}
+            for metric in ranked
+        ]
+        if options:
+            return ClarificationPayload(
+                reason="metric_ambiguous",
+                message="Metrik mana yang ingin Anda lihat? Pilih salah satu metric yang dipublish di semantic model ini.",
+                options=options,
+            )
+    raw = ctx.registry._metric_picker_clarification(question)
+    return _clarification_from_resolution(_map_picker_options_to_db_metrics(session, model, raw))
+
+
+def _map_picker_options_to_db_metrics(
+    session: Session,
+    model: SemanticModelRow,
+    resolution: dict[str, Any],
+) -> dict[str, Any]:
+    if not model.active_version_id or resolution.get("status") != "needs_clarification":
+        return resolution
+    rows = list(
+        session.execute(
+            select(SemanticMetricRow).where(SemanticMetricRow.semantic_version_id == model.active_version_id)
+        ).scalars()
+    )
+    by_key = {str(m.key or "").strip(): m for m in rows if m.key}
+    by_name = {str(m.name or "").strip(): m for m in rows if m.name}
+    options = resolution.get("options")
+    if not isinstance(options, list):
+        return resolution
+    mapped: list[dict[str, str]] = []
+    for item in options:
+        if not isinstance(item, dict):
+            continue
+        raw_id = _normalize_metric_token(str(item.get("id") or ""))
+        raw_name = _normalize_metric_token(str(item.get("name") or ""))
+        row = (
+            by_key.get(raw_id)
+            or by_name.get(raw_id)
+            or by_key.get(raw_name)
+            or by_name.get(raw_name)
+            or by_name.get(str(item.get("name") or "").strip())
+        )
+        if row is None:
+            continue
+        mapped.append(
+            {
+                "type": "semantic_metric",
+                "id": str(row.id),
+                "name": _metric_display_name(row),
+            }
+        )
+    if not mapped:
+        return resolution
+    out = dict(resolution)
+    out["options"] = mapped
+    out["question"] = "Metrik mana yang ingin Anda lihat? Pilih salah satu metric yang dipublish di semantic model ini."
+    return out
+
+
+def _clarification_from_resolution(resolution: dict[str, Any]) -> ClarificationPayload | None:
+    if resolution.get("status") != "needs_clarification":
+        return None
+    raw_options = resolution.get("options")
+    if not isinstance(raw_options, list) or not raw_options:
+        return None
+    options: list[dict[str, str]] = []
+    for item in raw_options:
+        if not isinstance(item, dict):
+            continue
+        opt_id = str(item.get("id") or "").strip()
+        if not opt_id:
+            continue
+        options.append(
+            {
+                "type": str(item.get("type") or "semantic_metric"),
+                "id": opt_id,
+                "name": str(item.get("name") or opt_id),
+            }
+        )
+    if not options:
+        return None
+    return ClarificationPayload(
+        reason=str(resolution.get("reason") or "metric_ambiguous"),
+        message=str(
+            resolution.get("question")
+            or "Which metric would you like to report on?"
+        ),
+        options=options,
+    )
 
 
 @dataclass
@@ -52,6 +213,7 @@ def resolve_structured_ask(
     request: AskDataRequest,
     semantic_context: SemanticContextService,
     question: str,
+    session_analysis_context: dict[str, Any] | None = None,
 ) -> StructuredAskPrecedence:
     from app.chat.context_sources import structured_data_sources
 
@@ -76,6 +238,16 @@ def resolve_structured_ask(
             semantic_context=semantic_context,
             question=question,
         )
+    auto_semantic = _resolve_automatic_semantic_model(
+        session,
+        settings=settings,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        question=question,
+        session_analysis_context=session_analysis_context,
+    )
+    if auto_semantic.clarification or auto_semantic.resolution or auto_semantic.explicit_error:
+        return auto_semantic
     auto = _resolve_automatic_table(session, settings=settings, workspace_id=workspace_id, project_id=project_id, question=question)
     if auto.clarification or auto.resolution or auto.explicit_error:
         return auto
@@ -131,6 +303,16 @@ def _resolve_explicit(
         )
     if source.type == "semantic_entity":
         return _resolve_explicit_entity(
+            session,
+            settings=settings,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            source=source,
+            semantic_context=semantic_context,
+            question=question,
+        )
+    if source.type == "semantic_term":
+        return _resolve_explicit_term(
             session,
             settings=settings,
             workspace_id=workspace_id,
@@ -279,6 +461,19 @@ def _raw_table_resolution(
     except Exception:
         columns = []
     qualified = next(iter(routing.qualified_sources.values()), ref.table)
+    allowed_keys, raw_policy = expand_raw_table_context(
+        session,
+        settings=settings,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        ref=ref,
+        question=question,
+        primary_qualified=qualified,
+        primary_columns=columns,
+    )
+    routing_dict = routing.to_dict()
+    if len(allowed_keys) > 1:
+        routing_dict["allowed_physical_tables"] = sorted(allowed_keys)
     return {
         "status": "raw_table",
         "context_mode": "RAW_TABLE",
@@ -299,11 +494,8 @@ def _raw_table_resolution(
                 table=ref.table,
             ),
         },
-        "datasource_context": routing.to_dict(),
-        "raw_table_policy": {
-            "qualified_name": qualified,
-            "columns": [c.casefold() for c in columns],
-        },
+        "datasource_context": routing_dict,
+        "raw_table_policy": raw_policy,
     }
 
 
@@ -317,19 +509,30 @@ def _resolve_explicit_metric(
     semantic_context: SemanticContextService,
     question: str,
 ) -> StructuredAskPrecedence:
+    metric: SemanticMetricRow | None = None
+    lookup = _normalize_metric_token(source.id)
     try:
         metric_id = uuid.UUID(source.id)
+        metric = session.get(SemanticMetricRow, metric_id)
     except ValueError:
-        return StructuredAskPrecedence(
-            force_ossie=True,
-            skip_auto_semantic_when_explicit=True,
-            resolution=None,
-            clarification=None,
-            explicit_error="Metric context id is not valid.",
-            runtime_bundle=None,
-            context_mode=None,
-        )
-    metric = session.get(SemanticMetricRow, metric_id)
+        metric = session.execute(
+            select(SemanticMetricRow).where(
+                (SemanticMetricRow.key == lookup)
+                | (SemanticMetricRow.name == lookup)
+                | (SemanticMetricRow.key == source.id)
+                | (SemanticMetricRow.name == source.id)
+            )
+        ).scalar_one_or_none()
+        if metric is None:
+            return StructuredAskPrecedence(
+                force_ossie=True,
+                skip_auto_semantic_when_explicit=True,
+                resolution=None,
+                clarification=None,
+                explicit_error="Metric context id is not valid.",
+                runtime_bundle=None,
+                context_mode=None,
+            )
     if metric is None:
         return StructuredAskPrecedence(
             force_ossie=True,
@@ -442,6 +645,8 @@ def _resolve_explicit_model(
     source: ChatContextSource,
     semantic_context: SemanticContextService,
     question: str,
+    session_analysis_context: dict[str, Any] | None = None,
+    auto_attached: bool = False,
 ) -> StructuredAskPrecedence:
     try:
         model_id = uuid.UUID(source.id)
@@ -472,24 +677,45 @@ def _resolve_explicit_model(
         project_id=project_id,
         model_key=model.key,
     )
-    if bundle.mode != "runtime" and not model.active_version_id:
+    if bundle.mode != "runtime":
+        message = (
+            "Selected semantic model is not active on Ask Data. "
+            "Use Publish to Ask Data in Semantic Layer, confirm Deployment details shows ACTIVE, "
+            "then restart the backend."
+        )
+        if not model.active_version_id:
+            message = "Selected semantic model is not published to Ask Data."
         return StructuredAskPrecedence(
             force_ossie=True,
             skip_auto_semantic_when_explicit=True,
             resolution=None,
             clarification=None,
-            explicit_error="Selected semantic model is not published to Ask Data.",
+            explicit_error=message,
             runtime_bundle=None,
             context_mode=None,
         )
+    from app.services.conversational import _is_capability_meta_question
+
+    if _is_capability_meta_question(question):
+        return StructuredAskPrecedence(
+            force_ossie=True,
+            skip_auto_semantic_when_explicit=True,
+            resolution=None,
+            clarification=None,
+            explicit_error=None,
+            runtime_bundle=bundle,
+            context_mode="GOVERNED_SEMANTIC",
+        )
     ctx = bundle.context
-    resolution = ctx.resolve(question)
+    resolution = ctx.resolve(question, session_analysis_context=session_analysis_context)
     resolution = {
         **resolution,
-        "explicit_structured": True,
+        "explicit_structured": not auto_attached,
         "context_mode": "GOVERNED_SEMANTIC",
         "semantic_model_id": str(model.id),
     }
+    if auto_attached:
+        resolution["matched_alias"] = resolution.get("matched_alias") or "auto_semantic_model"
     if resolution.get("status") == "resolved":
         metric = str(resolution.get("metric") or "")
         if metric:
@@ -505,6 +731,37 @@ def _resolve_explicit_model(
                     runtime_bundle=None,
                     context_mode=None,
                 )
+    elif resolution.get("status") == "unsupported":
+        metric_clarification = _model_metric_clarification(session, model, ctx, question)
+        if metric_clarification:
+            return StructuredAskPrecedence(
+                force_ossie=True,
+                skip_auto_semantic_when_explicit=True,
+                resolution=None,
+                clarification=metric_clarification,
+                explicit_error=None,
+                runtime_bundle=bundle,
+                context_mode="GOVERNED_SEMANTIC",
+            )
+        if _is_capability_meta_question(question):
+            return StructuredAskPrecedence(
+                force_ossie=True,
+                skip_auto_semantic_when_explicit=True,
+                resolution=None,
+                clarification=None,
+                explicit_error=None,
+                runtime_bundle=bundle,
+                context_mode="GOVERNED_SEMANTIC",
+            )
+        return StructuredAskPrecedence(
+            force_ossie=True,
+            skip_auto_semantic_when_explicit=True,
+            resolution=None,
+            clarification=None,
+            explicit_error=str(resolution.get("question") or "Question could not be resolved against the selected semantic model."),
+            runtime_bundle=None,
+            context_mode=None,
+        )
     elif resolution.get("status") not in {"needs_clarification", "fallback"}:
         return StructuredAskPrecedence(
             force_ossie=True,
@@ -515,6 +772,21 @@ def _resolve_explicit_model(
             runtime_bundle=None,
             context_mode=None,
         )
+    if resolution.get("status") == "needs_clarification":
+        resolution = _map_picker_options_to_db_metrics(session, model, resolution)
+        metric_clarification = _clarification_from_resolution(resolution) or _model_metric_clarification(
+            session, model, ctx, question
+        )
+        if metric_clarification:
+            return StructuredAskPrecedence(
+                force_ossie=True,
+                skip_auto_semantic_when_explicit=True,
+                resolution=None,
+                clarification=metric_clarification,
+                explicit_error=None,
+                runtime_bundle=bundle,
+                context_mode="GOVERNED_SEMANTIC",
+            )
     return StructuredAskPrecedence(
         force_ossie=True,
         skip_auto_semantic_when_explicit=True,
@@ -524,6 +796,140 @@ def _resolve_explicit_model(
         runtime_bundle=bundle,
         context_mode="GOVERNED_SEMANTIC",
     )
+
+
+def _resolve_explicit_term(
+    session: Session,
+    *,
+    settings: Settings,
+    workspace_id: uuid.UUID,
+    project_id: uuid.UUID,
+    source: ChatContextSource,
+    semantic_context: SemanticContextService,
+    question: str,
+) -> StructuredAskPrecedence:
+    try:
+        term_id = uuid.UUID(source.id)
+    except ValueError:
+        return StructuredAskPrecedence(
+            force_ossie=True,
+            skip_auto_semantic_when_explicit=True,
+            resolution=None,
+            clarification=None,
+            explicit_error="Glossary term context id is not valid.",
+            runtime_bundle=None,
+            context_mode=None,
+        )
+    term = session.get(SemanticTermRow, term_id)
+    if not term:
+        return StructuredAskPrecedence(
+            force_ossie=True,
+            skip_auto_semantic_when_explicit=True,
+            resolution=None,
+            clarification=None,
+            explicit_error="Selected glossary term was not found.",
+            runtime_bundle=None,
+            context_mode=None,
+        )
+    version = session.get(SemanticVersionRow, term.semantic_version_id)
+    model = session.get(SemanticModelRow, version.semantic_model_id) if version else None
+    if not model or model.workspace_id != workspace_id or model.project_id != project_id:
+        return StructuredAskPrecedence(
+            force_ossie=True,
+            skip_auto_semantic_when_explicit=True,
+            resolution=None,
+            clarification=None,
+            explicit_error="Selected glossary term is not accessible in this project.",
+            runtime_bundle=None,
+            context_mode=None,
+        )
+    bundle = SemanticRuntimeLoader.get(settings).load_from_session(
+        session,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        model_key=model.key,
+    )
+    if bundle.mode != "runtime":
+        return StructuredAskPrecedence(
+            force_ossie=True,
+            skip_auto_semantic_when_explicit=True,
+            resolution=None,
+            clarification=None,
+            explicit_error="Semantic model for this term is not published to Ask Data.",
+            runtime_bundle=None,
+            context_mode=None,
+        )
+    ctx = bundle.context
+    metric_key: str | None = None
+    for raw in list(term.related_metric_keys or []):
+        candidate = str(raw).strip()
+        if candidate and candidate in ctx.registry.metrics:
+            metric_key = candidate
+            break
+    if metric_key is None:
+        for raw in list(term.related_metric_keys or []):
+            candidate = str(raw).strip().casefold()
+            for reg_key in ctx.registry.metrics:
+                if reg_key.casefold() == candidate:
+                    metric_key = reg_key
+                    break
+            if metric_key:
+                break
+    if metric_key:
+        try:
+            definition = ctx.metric_definition(metric_key)
+        except Exception:
+            definition = None
+        if definition:
+            resolution: dict[str, Any] = {
+                "status": "resolved",
+                "metric": metric_key,
+                "matched_alias": "explicit_glossary_term",
+                "definition": definition,
+                "dimensions": [],
+                "dimension_mismatch": [],
+                "explicit_structured": True,
+                "context_mode": "GOVERNED_SEMANTIC",
+                "semantic_model_id": str(model.id),
+                "glossary_term": {
+                    "key": term.key,
+                    "term": term.term,
+                    "definition": term.definition,
+                },
+            }
+            dims = [str(d) for d in (term.related_dimension_keys or []) if str(d).strip()]
+            allowed = set(definition.get("allowed_dimensions") or [])
+            resolution["dimensions"] = [d for d in dims if d in allowed]
+            return StructuredAskPrecedence(
+                force_ossie=True,
+                skip_auto_semantic_when_explicit=True,
+                resolution=resolution,
+                clarification=None,
+                explicit_error=None,
+                runtime_bundle=bundle,
+                context_mode="GOVERNED_SEMANTIC",
+            )
+    model_prec = _resolve_explicit_model(
+        session,
+        settings=settings,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        source=ChatContextSource(type="semantic_model", id=str(model.id), name=model.name),
+        semantic_context=semantic_context,
+        question=question,
+    )
+    glossary_meta = {"key": term.key, "term": term.term, "definition": term.definition}
+    if model_prec.resolution is not None:
+        return StructuredAskPrecedence(
+            force_ossie=model_prec.force_ossie,
+            skip_auto_semantic_when_explicit=model_prec.skip_auto_semantic_when_explicit,
+            resolution={**model_prec.resolution, "glossary_term": glossary_meta},
+            clarification=model_prec.clarification,
+            explicit_error=model_prec.explicit_error,
+            runtime_bundle=model_prec.runtime_bundle,
+            context_mode=model_prec.context_mode,
+        )
+    return model_prec
 
 
 def _resolve_explicit_entity(
@@ -616,6 +1022,98 @@ def _resolve_explicit_entity(
         source=ChatContextSource(type="semantic_model", id=str(model.id), name=model.name),
         semantic_context=semantic_context,
         question=question,
+    )
+
+
+def _published_models_for_project(
+    session: Session,
+    *,
+    workspace_id: uuid.UUID,
+    project_id: uuid.UUID,
+) -> list[SemanticModelRow]:
+    rows = list(
+        session.execute(
+            select(SemanticModelRow).where(
+                SemanticModelRow.workspace_id == workspace_id,
+                SemanticModelRow.project_id == project_id,
+                SemanticModelRow.active_version_id.isnot(None),
+            )
+        ).scalars()
+    )
+    return rows
+
+
+def _resolve_automatic_semantic_model(
+    session: Session,
+    *,
+    settings: Settings,
+    workspace_id: uuid.UUID,
+    project_id: uuid.UUID,
+    question: str,
+    session_analysis_context: dict[str, Any] | None = None,
+) -> StructuredAskPrecedence:
+    from app.services.conversational import _is_capability_meta_question
+
+    if _is_capability_meta_question(question):
+        return StructuredAskPrecedence(
+            force_ossie=False,
+            skip_auto_semantic_when_explicit=False,
+            resolution=None,
+            clarification=None,
+            explicit_error=None,
+            runtime_bundle=None,
+            context_mode=None,
+        )
+    workspace = session.get(WorkspaceRow, workspace_id)
+    ask_settings = read_ask_data_settings(workspace.settings_json if workspace else None)
+    if not ask_settings.auto_attach_semantic_model:
+        return StructuredAskPrecedence(
+            force_ossie=False,
+            skip_auto_semantic_when_explicit=False,
+            resolution=None,
+            clarification=None,
+            explicit_error=None,
+            runtime_bundle=None,
+            context_mode=None,
+        )
+    model: SemanticModelRow | None = None
+    pinned = (ask_settings.default_semantic_model_id or "").strip()
+    if pinned:
+        try:
+            candidate = session.get(SemanticModelRow, uuid.UUID(pinned))
+        except ValueError:
+            candidate = None
+        if (
+            candidate is not None
+            and candidate.workspace_id == workspace_id
+            and candidate.project_id == project_id
+            and candidate.active_version_id
+        ):
+            model = candidate
+    if model is None:
+        published = _published_models_for_project(session, workspace_id=workspace_id, project_id=project_id)
+        if len(published) == 1:
+            model = published[0]
+    if model is None:
+        return StructuredAskPrecedence(
+            force_ossie=False,
+            skip_auto_semantic_when_explicit=False,
+            resolution=None,
+            clarification=None,
+            explicit_error=None,
+            runtime_bundle=None,
+            context_mode=None,
+        )
+    return _resolve_explicit_model(
+        session,
+        settings=settings,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        source=ChatContextSource(type="semantic_model", id=str(model.id), name=model.name),
+        semantic_context=SemanticContextService(),
+        question=question,
+        session_analysis_context=session_analysis_context,
+        auto_attached=True,
     )
 
 

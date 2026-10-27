@@ -5,6 +5,8 @@ from sqlalchemy.engine import Engine
 
 
 def ensure_c1_connectors_schema(engine: Engine) -> None:
+    if engine.dialect.name == "sqlite":
+        return
     stmts = [
         """
         CREATE TABLE IF NOT EXISTS connectors (

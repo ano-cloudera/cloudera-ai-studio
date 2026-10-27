@@ -47,3 +47,5 @@ class AskDataState(TypedDict, total=False):
     project_id: str | None
     datasource_context: dict[str, Any]
     datasource_error: dict[str, Any]
+    raw_table_policy: dict[str, Any]
+    context_mode: str

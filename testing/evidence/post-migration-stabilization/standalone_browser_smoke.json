@@ -1,0 +1,38 @@
+{
+  "status": "STANDALONE_BROWSER_SMOKE_PASS",
+  "gates": {
+    "hydration_readiness": "PASS",
+    "route_ask_data": "PASS",
+    "route_knowledge": "PASS",
+    "route_semantic_layer": "PASS",
+    "route_data_sources": "PASS",
+    "route_prompts": "PASS",
+    "route_skills": "PASS",
+    "route_usage": "PASS",
+    "route_settings": "PASS",
+    "ask_composer": "PASS",
+    "knowledge_table": "PASS",
+    "semantic_overview": "PASS",
+    "connectors_table": "PASS",
+    "prompts_table": "PASS",
+    "skills_table": "PASS",
+    "console_fatal": "PASS",
+    "api_smoke": "PASS"
+  },
+  "http_gates": {
+    "be_health": 200,
+    "be_ready": 200,
+    "fe_root": 200,
+    "fe_knowledge": 200,
+    "stack_http": "PASS"
+  },
+  "console_errors": [],
+  "api_checks": {
+    "semantic_models": 200,
+    "libraries": 200,
+    "prompts": 200,
+    "skills": 200,
+    "connectors": 200
+  },
+  "evidence_dir": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/testing/evidence/standalone/BROWSER_SMOKE"
+}

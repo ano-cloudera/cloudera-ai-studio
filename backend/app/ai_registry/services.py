@@ -50,6 +50,13 @@ class _ScopeMixin:
         if row.project_id is not None and row.project_id != project_id:
             raise AiRegistryError("MODEL_NOT_FOUND", "Model not found", 404)
 
+    def _remove_assignments_for_model(self, model_id: uuid.UUID) -> None:
+        rows = list(
+            self._session.execute(select(ModelAssignmentRow).where(ModelAssignmentRow.model_id == model_id)).scalars()
+        )
+        for row in rows:
+            self._session.delete(row)
+
 
 class ProviderRegistryService(_ScopeMixin):
     def __init__(self, session: Session, secrets: SecretResolver | None = None) -> None:
@@ -164,11 +171,12 @@ class ProviderRegistryService(_ScopeMixin):
         project_id: uuid.UUID,
     ) -> None:
         row = self.get_provider(provider_id, workspace_id=workspace_id, project_id=project_id)
-        model_count = self._session.execute(
-            select(AiModelRow.id).where(AiModelRow.provider_id == provider_id).limit(1)
-        ).first()
-        if model_count:
-            raise AiRegistryError("PROVIDER_IN_USE", "Provider has registered models", 409)
+        models = list(
+            self._session.execute(select(AiModelRow).where(AiModelRow.provider_id == provider_id)).scalars().all()
+        )
+        for model in models:
+            self._remove_assignments_for_model(model.id)
+            self._session.delete(model)
         self._session.delete(row)
 
     def provider_dict(self, row: AiProviderRow) -> dict[str, Any]:
@@ -343,11 +351,7 @@ class ModelRegistryService(_ScopeMixin):
         project_id: uuid.UUID,
     ) -> None:
         row = self.get_model(model_id, workspace_id=workspace_id, project_id=project_id)
-        assigned = self._session.execute(
-            select(ModelAssignmentRow.id).where(ModelAssignmentRow.model_id == model_id).limit(1)
-        ).first()
-        if assigned:
-            raise AiRegistryError("MODEL_IN_USE", "Model is assigned to a capability", 409)
+        self._remove_assignments_for_model(model_id)
         self._session.delete(row)
 
     def model_dict(self, row: AiModelRow) -> dict[str, Any]:
