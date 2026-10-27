@@ -1,0 +1,14 @@
+[
+  {"query": "alpha-one sell-in metric", "workspace_key": "A", "project_key": "A", "library_key": "A1", "must_contain": "alpha-one"},
+  {"query": "sell-in performance alpha-one", "workspace_key": "A", "project_key": "A", "library_key": "A1", "must_contain": "alpha-one"},
+  {"query": "metric narrative chunk alpha-one", "workspace_key": "A", "project_key": "A", "library_key": "A1", "must_contain": "alpha-one"},
+  {"query": "governed sell-in alpha-one", "workspace_key": "A", "project_key": "A", "library_key": "A1", "must_contain": "alpha-one"},
+  {"query": "promo uplift alpha-two", "workspace_key": "A", "project_key": "A", "library_key": "A2", "must_contain": "alpha-two"},
+  {"query": "alpha-two narrative promo", "workspace_key": "A", "project_key": "A", "library_key": "A2", "must_contain": "alpha-two"},
+  {"query": "uplift story alpha-two chunk", "workspace_key": "A", "project_key": "A", "library_key": "A2", "must_contain": "alpha-two"},
+  {"query": "alpha-two library promo metric", "workspace_key": "A", "project_key": "A", "library_key": "A2", "must_contain": "alpha-two"},
+  {"query": "beta unrelated topic", "workspace_key": "B", "project_key": "B", "library_key": "B1", "must_contain": "beta-one"},
+  {"query": "beta-one chunk narrative", "workspace_key": "B", "project_key": "B", "library_key": "B1", "must_contain": "beta-one"},
+  {"query": "unrelated beta workspace topic", "workspace_key": "B", "project_key": "B", "library_key": "B1", "must_contain": "beta-one"},
+  {"query": "beta-one library isolation", "workspace_key": "B", "project_key": "B", "library_key": "B1", "must_contain": "beta-one"}
+]

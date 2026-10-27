@@ -1,0 +1,302 @@
+# TEMPO business context graph (metadata only — not OSSIE runtime joins).
+# Used by backend for disambiguation, inquiry brief, and cross-domain hints.
+# Numbers always come from Impala + OSSIE governed metrics / Gold journey views.
+
+version: 1
+scope: TEMPO Q4 2024 (Oct–Dec 2024)
+join_policy: No runtime SQL joins; use only published gold.corr_* journey views.
+
+domains:
+  - id: sales
+    label: Sales / Sell-In
+    entity_grains: [sales_office, material, customer]
+    flagship_metrics: [gross_billing_value, sales_office_sell_in_value, material_sell_in_value]
+  - id: b2b
+    label: B2B / Sell-Out (Alfamart)
+    business_terms: [alfamart, partner alfamart, penjualan alfamart, sell-out partner]
+    note: >
+      In this PoC, "B2B" and "Alfamart" are the same business channel: Sell-Out from Tempo
+      to the Alfamart partner network (DC / e-store). There is no separate non-Alfamart B2B slice
+      in governed Q4 data — saying "penjualan Alfamart" or "B2B" refers to the same datasets.
+    entity_grains: [branch, material, customer, e_store]
+    flagship_metrics: [b2b_branch_sell_out_value, material_sell_out_value]
+  - id: stock_tempo
+    label: Stock Tempo
+    entity_grains: [material, plant]
+    flagship_metrics: [stock_tempo_total_qty, warehouse_stock_quantity]
+  - id: stock_sat
+    label: Stock SAT (Alfamart)
+    entity_grains: [dcname, division, plu]
+    flagship_metrics: [sat_dc_stock_quantity, sat_store_stock_quantity]
+  - id: sat_oos
+    label: SAT OOS
+    entity_grains: [material_code, plu, cust_id]
+    flagship_metrics: [sat_oos_rate]
+  - id: service_level
+    label: Service Level
+    entity_grains: [sales_off, material, fill_rate_band]
+    flagship_metrics: [service_fill_rate, sales_office_service_fill_rate, company_fill_rate]
+  - id: picking
+    label: Picking
+    entity_grains: [sales_off]
+    flagship_metrics: [average_picking_minutes]
+  - id: unloading
+    label: Unloading
+    entity_grains: [sales_off]
+    flagship_metrics: [average_unloading_minutes]
+  - id: promo
+    label: SAT Promo
+    entity_grains: [material, mekanisme, program_status]
+    flagship_metrics: [promo_observation_count, sat_promo_material_uplift_proxy]
+
+entities:
+  - id: sales_office
+    label: Sales office Tempo (Sell-In cabang)
+    code_hint: Four-digit office code (e.g. 0201)
+    domain_ids: [sales, service_level, picking, unloading]
+  - id: sales_off
+    label: Sales office (service-level grain)
+    domain_ids: [service_level]
+  - id: branch
+    label: B2B partner branch (Alfamart DC naming)
+    domain_ids: [b2b, stock_sat]
+  - id: dcname
+    label: SAT DC partner name (joins to B2B branch after normalization)
+    domain_ids: [stock_sat, b2b]
+  - id: material
+    label: Material / SKU (SAP)
+    domain_ids: [sales, b2b, stock_tempo, service_level, promo]
+  - id: plu
+    label: PLU (retail shelf identifier)
+    domain_ids: [stock_sat, sat_oos, b2b]
+
+# Q4 PoC partner scope (Tempo confirmation, Oct 2026 — see OSSIE sat_dc_month / b2b_branch_estore instructions).
+partner_scope:
+  alfamart:
+    meaning: >
+      Alfamart is business terminology for the partner Sell-Out channel — not a column value.
+      Users may say "Alfamart", "B2B", or "partner"; governed B2B metrics already imply Alfamart.
+    b2b: All governed B2B Sell-Out rows (b2b_branch_estore, b2b_material_plu, …) are Alfamart partner sales.
+    stock_sat: Stock SAT uses part_flag=SAT only; 36 DC names align 1:1 with B2B branch after DC-prefix normalization.
+    not_a_branch_filter: Phrases like "cabang di Alfamart" or "penjualan Alfamart" mean rank/filter by branch/DC within B2B — never WHERE branch='Alfamart'.
+    idm_excluded: SAT-IDM / IDM sheet is a different partner network; do not mix with Alfamart B2B/SAT metrics.
+
+disambiguation:
+  cabang:
+    default_grain: sales_office
+    prefer_sales_office:
+      terms: [sell-in, sell in, sales office, kantor penjualan, tempo ke customer, general trade, fill rate, service level, picking, unloading]
+    prefer_branch:
+      terms: [sell-out, sell out, b2b, partner, alfamart, dc alfamart, penjualan partner, outlet partner]
+    clarify_when:
+      - User says cabang/branch without sell-in vs sell-out and no prior session metric hint.
+
+journeys:
+  - id: A
+    label: Stock Tempo → Sell-In
+    dataset: stock_tempo_sales_material_month
+    source_view: gold.corr_stock_tempo_sales_material_month
+    from_domain: stock_tempo
+    to_domain: sales
+    grain: calmonth+material
+  - id: B
+    label: Sell-In → B2B Sell-Out
+    dataset: sales_b2b_material_month
+    source_view: gold.corr_sales_b2b_material_month
+    from_domain: sales
+    to_domain: b2b
+    grain: calmonth+material
+  - id: C
+    label: B2B Sell-Out → SAT DC/Store stock
+    dataset: b2b_sat_branch_month
+    source_view: gold.corr_b2b_sat_branch_month
+    from_domain: b2b
+    to_domain: stock_sat
+    grain: calmonth+branch
+    join_note: branch (B2B) = dcname (SAT); SAT partition only (part_flag=SAT).
+  - id: D
+    label: SAT stock → SAT OOS
+    dataset: sat_dc_oos_material_month
+    source_view: gold.corr_satidm_oos_material_month
+    from_domain: stock_sat
+    to_domain: sat_oos
+    grain: calmonth+plu
+
+intent_routes:
+  - match_terms: [penumpukan, stok dc, stok gudang tempo]
+    primary_domain: stock_sat
+    metric_hint: sat_dc_stock_value
+    dimension_hint: dcname
+  - match_terms: [fill rate, service level, fillrate]
+    primary_domain: service_level
+    metric_hint: sales_office_service_fill_rate
+    dimension_hint: sales_off
+  - match_terms: [pareto, kontribusi penjualan]
+    primary_domain: sales
+    metric_hint: material_sell_in_value
+    dimension_hint: material
+
+# Deterministic OSSIE resolutions before generic sales_stage / stock_scope ambiguity.
+governed_intents:
+  - id: bill_to_po_material_fill_rate
+    any_terms: [bill-to-po, bill to po]
+    unless_terms: [do terhadap billing, do to bill, kualitas data, data quality, do amount terhadap billing]
+    metric: material_fill_rate
+    dimensions: [material]
+    resolved_by: domain_graph_bill_to_po_fill_rate
+  - id: dc_stock_penumpukan_rank
+    any_terms: [penumpukan, penumpukkan]
+    all_terms: [dc]
+    unless_terms: [penjualan, sell-out, sell out]
+    metric: sat_dc_stock_quantity
+    dimensions: [dcname]
+    resolved_by: domain_graph_dc_stock_rank
+  - id: top_products_sell_in_tempo
+    all_terms: [produk, top]
+    any_terms: [penjualan, sales, terbesar, tertinggi, terbanyak]
+    unless_terms: [sell-out, sell out, b2b, alfamart, partner ke konsumen, di b2b, bandingkan, vs, compare, perbandingan, stok, stock, penumpukan, penumpukkan, persediaan, dc stock, stok dc]
+    metric: material_sell_in_value
+    dimensions: [material]
+    resolved_by: domain_graph_top_products_sell_in
+  - id: top_dc_alfamart_sell_out
+    all_terms: [dc, top]
+    any_terms: [alfamart, penjualan, penjualn, tertinggi, terbesar, terbanyak]
+    unless_terms: [stok, stock, bandingkan, vs, persediaan]
+    metric: b2b_branch_sell_out_value
+    dimensions: [branch]
+    resolved_by: domain_graph_top_dc_sell_out
+  - id: top_cabang_alfamart_sell_out
+    all_terms: [top, alfamart]
+    any_terms: [cabang, branch, dc, penjualan, penjualn, total, berdasarkan, tertinggi, terbesar]
+    unless_terms: [stok, stock, sell-in, sell in, bandingkan, vs, persediaan]
+    metric: b2b_branch_sell_out_value
+    dimensions: [branch]
+    resolved_by: domain_graph_top_cabang_alfamart_sell_out
+  - id: pareto_sell_in_material
+    any_terms: [pareto, kontribusi penjualan, "80/20", "80 20"]
+    unless_terms: [sell-out, sell out, b2b, bandingkan, vs, compare, perbandingan, sales office]
+    metric: material_sell_in_value
+    dimensions: [material]
+    resolved_by: domain_graph_pareto_sell_in
+  - id: chip_picking_after_dual_clarify
+    all_terms: [picking]
+    unless_terms: [unloading]
+    metric: average_picking_minutes
+    dimensions: [sales_office]
+    resolved_by: domain_graph_chip_picking
+  - id: chip_unloading_after_dual_clarify
+    all_terms: [unloading]
+    unless_terms: [picking]
+    metric: average_unloading_minutes
+    dimensions: [sales_office]
+    resolved_by: domain_graph_chip_unloading
+  - id: picking_rank_sales_office
+    all_terms: [picking]
+    unless_terms: [unloading]
+    any_terms: [terlama, tercepat, terlambat, top, rank, rata, durasi, delay, menit, minutes, office, cabang, sales]
+    metric: average_picking_minutes
+    dimensions: [sales_office]
+    resolved_by: domain_graph_picking_rank
+  - id: unloading_rank_sales_office
+    all_terms: [unloading]
+    unless_terms: [picking]
+    any_terms: [terlama, tercepat, top, rank, rata, office, cabang, sales, efisien]
+    metric: average_unloading_minutes
+    dimensions: [sales_office]
+    resolved_by: domain_graph_unloading_rank
+  - id: promo_b2b_sellout_uplift_material
+    all_terms: [promo, uplift]
+    any_terms: [sell-out, sell out, alfamart, b2b]
+    unless_terms: [general trade, sell-in, sellin]
+    metric: promo_b2b_sellout_revenue_uplift
+    dimensions: [material]
+    resolved_by: domain_graph_promo_b2b_sellout_uplift
+  - id: promo_uplift_top_material
+    all_terms: [promo]
+    any_terms: [uplift, terbaik, tertinggi, top, paling]
+    unless_terms: [rekomendasi operasional, roi terbaik dan berikan, sell-out, sell out, alfamart, b2b]
+    metric: promo_material_revenue_uplift
+    dimensions: [material]
+    resolved_by: domain_graph_promo_uplift_rank
+  - id: promo_observation_top_material
+    all_terms: [promo]
+    any_terms: [observasi, jumlah, count, material, produk, top, per]
+    metric: promo_observation_count
+    dimensions: [material_code]
+    resolved_by: domain_graph_promo_observation_rank
+
+# Follow-up drill paths (context + entity bind → grain/metric; see app/services/follow_up.py).
+drill_paths:
+  - domain: b2b
+    from_grain: branch
+    to_grain: material
+    metric: b2b_material_plu_value
+    dimensions: [material]
+  - domain: b2b
+    from_grain: branch
+    to_grain: branch
+    metric: inherit
+  - domain: sales
+    from_grain: sales_office
+    to_grain: material
+    metric: sales_office_material_sell_in_value
+    dimensions: [material, sales_office]
+  - domain: stock_sat
+    from_grain: dcname
+    to_grain: division
+    metric: sat_store_stock_quantity
+    dimensions: [division]
+  - domain: stock_sat
+    from_grain: division
+    to_grain: plu
+    metric: sat_store_stock_quantity
+    dimensions: [plu]
+  - domain: service_level
+    from_grain: sales_off
+    to_grain: material
+    metric: material_sell_in_value
+    dimensions: [material]
+
+# Clarify before planner fallback when one question names two governed metrics.
+clarification_intents:
+  - id: picking_and_unloading
+    all_terms: [picking, unloading]
+    reason: warehouse_ops_dual_metric
+    question: >
+      Picking dan Unloading adalah dua metrik operasional gudang terpisah (durasi
+      rata-rata per sales office, Q4 2024). Saya tidak bisa menggabungkannya dalam
+      satu query governed. Pilih metrik yang ingin dianalisis dulu; untuk
+      perbandingan dengan benchmark industri, jawaban akan memakai data TEMPO yang
+      tersedia plus caveat bahwa standar industri eksternal bukan sumber governed.
+    options:
+      - metric: average_picking_minutes
+        label: Durasi picking (menit, per sales office)
+      - metric: average_unloading_minutes
+        label: Durasi unloading (menit, per sales office)
+  - id: bill_to_po_and_penagihan
+    all_terms: [bill-to-po]
+    any_terms: [nilai penagihan, penagihan grosir, kontribusi penagihan, total penagihan]
+    unless_terms: [rasio bill-to-po, rasio bill to po, bill-to-po terendah, bill to po terendah, pemenuhan po]
+    reason: bill_to_po_vs_billing_dual
+    question: >
+      Pemenuhan PO (bill-to-PO / DO÷PO qty) dan nilai penagihan grosir (sell-in billing)
+      adalah dua analisis governed terpisah. Pilih yang ingin ditampilkan dulu; untuk
+      keduanya, gunakan turn kedua setelah ranking material/office dari turn pertama.
+    options:
+      - metric: material_fill_rate
+        label: Pemenuhan PO per material (DO qty ÷ PO qty, %)
+      - metric: material_sell_in_value
+        label: Nilai penagihan grosir per material (IDR)
+  - id: dc_stock_and_sell_out
+    all_terms: [stok, dc]
+    any_terms: [sell-out, sell out, penjualan]
+    unless_terms: [penumpukan, penumpukkan, bandingkan, vs, versus, compare, perbandingan, tertinggi, terbesar]
+    reason: dc_stock_vs_sell_out_dual
+    question: >
+      Stok DC partner (SAT) dan penjualan sell-out B2B adalah domain berbeda. Pilih
+      analisis utama; journey sell-out vs stok DC bisa di turn lanjutan per cabang/DC.
+    options:
+      - metric: sat_dc_stock_value
+        label: Nilai stok DC partner (penumpukan per dcname)
+      - metric: b2b_branch_sell_out_value
+        label: Sell-out B2B per cabang (branch)

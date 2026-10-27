@@ -1,0 +1,116 @@
+# 1 scenario per domain · turn 1 + follow-up turn 2 (new questions, Oct 2026 smoke).
+# Run: cd backend && PYTHONPATH=. ../.venv/bin/python scripts/run_uat_domain_5x5_followup.py --yaml=uat_domain_1x2_followup.yaml
+
+version: 1
+scope: TEMPO Q4 2024 · 1×2 turns per domain · OSSIE + follow-up (fresh prompts)
+
+scenarios:
+  - id: sales-1x2-01
+    domain: sales
+    title: Office ranking lalu drill material office #1
+    turns:
+      - question: "10 sales office Tempo dengan nilai gross sell-in terbesar Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Ranking sell-in per sales office Tempo Q4."] }
+      - question: "office peringkat pertama dari tabel tadi, top 5 material sell-in-nya"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up referential; drill material untuk office prior."] }
+
+  - id: b2b-1x2-01
+    domain: b2b
+    title: Sell-out cabang lalu produk di cabang teratas
+    turns:
+      - question: "8 cabang Alfamart dengan penjualan sell-out (value) tertinggi Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["B2B branch ranking sell-out."] }
+      - question: "cabang yang paling atas tadi, top 5 produk sell-out berdasarkan nilai"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Drill material/produk untuk cabang dari turn 1."] }
+
+  - id: stock_tempo-1x2-01
+    domain: stock_tempo
+    title: Stok per plant lalu material di plant #1
+    turns:
+      - question: "Top 10 plant gudang Tempo dengan total stok (quantity) tertinggi Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Stock tempo plant ranking Q4."] }
+      - question: "plant urutan 1 dari hasil tadi, top 5 material dengan stok terbesar di plant itu"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up plant→material; konteks plant rank 1."] }
+
+  - id: stock_sat-1x2-01
+    domain: stock_sat
+    title: Stok division lalu DC penopang division teratas
+    turns:
+      - question: "10 division dengan stok retail SAT (quantity) terbesar Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["SAT retail stock by division."] }
+      - question: "division teratas tadi, DC mana yang menopang stok terbesar?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Division→DC drill; referential follow-up."] }
+
+  - id: sat_oos-1x2-01
+    domain: sat_oos
+    title: Material OOS ranking lalu outlet terburuk
+    turns:
+      - question: "10 material code dengan jumlah kejadian OOS SAT tertinggi Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["SAT OOS material ranking."] }
+      - question: "material rank 1 tadi, outlet atau toko mana yang paling sering OOS untuk material itu?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Outlet/store drill for worst OOS material from prior table."] }
+
+  - id: service_level-1x2-01
+    domain: service_level
+    title: Office fill rate terendah lalu material unfulfilled
+    turns:
+      - question: "10 sales office dengan fill rate / service level terendah Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Service level / fill rate ranking by office."] }
+      - question: "cabang paling jelek dari ranking tadi, 5 material dengan unfulfilled quantity terbesar"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Material breakdown for worst office; follow-up coherent."] }
+
+  - id: picking-1x2-01
+    domain: picking
+    title: Picking lambat ranking lalu banding rank 1 vs 10
+    turns:
+      - question: "10 sales office dengan rata-rata waktu picking terlama Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Picking duration ranking by office."] }
+      - question: "bandingkan office urutan 1 dan urutan 10 dari daftar picking tadi, mana lebih lambat dan selisihnya"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Compare two ranks from same prior ranking context."] }
+
+  - id: unloading-1x2-01
+    domain: unloading
+    title: Unloading lambat ranking lalu slow vs fast dari list
+    turns:
+      - question: "10 sales office dengan rata-rata unloading minutes tertinggi Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Unloading duration ranking."] }
+      - question: "dari ranking unloading tadi, bandingkan yang paling lambat dengan yang paling cepat"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Compare slowest vs fastest from prior unloading list."] }
+
+  - id: promo-1x2-01
+    domain: promo
+    title: Status distribusi lalu material uplift status dominan
+    turns:
+      - question: "Distribusi jumlah observasi promo SAT per program status Q4 2024"
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge: { min_score: 6, criteria: ["Program status distribution or honest clarify."] }
+      - question: "status dominan dari jawaban tadi, top 3 material by revenue uplift proxy"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Follow-up status→promo uplift materials; not generic sell-in."] }
+
+  - id: cross_domain-1x2-01
+    domain: cross_domain
+    title: DC stok SAT lalu sell-out produk di DC itu
+    turns:
+      - question: "5 DC partner dengan stok SAT di gudang DC (quantity) tertinggi Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["SAT DC stock ranking."] }
+      - question: "DC yang muncul di jawaban tadi, top 3 produk sell-out Alfamart di DC tersebut"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Cross drill DC stock→B2B sell-out products; referential."] }

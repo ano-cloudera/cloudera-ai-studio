@@ -1,0 +1,33 @@
+{
+  "note": "Phase B3 sample live run. Restart backend after providers.py ChartSpec schema fix before re-running Q03/Q08.",
+  "config": {
+    "ASK_DATA_ROUTING": "auto",
+    "LOCAL_AGENT_PRIMARY": "0 in stack / file .env; unset stale shell export LOCAL_AGENT_PRIMARY=1"
+  },
+  "results": [
+    {
+      "qid": "Q01",
+      "route_expected": "v3",
+      "status": "SUCCESS",
+      "strategy": "governed",
+      "row_count": 10,
+      "note": "Top 10 produk via tempo_agent_v3"
+    },
+    {
+      "qid": "Q03",
+      "route_expected": "ossie",
+      "status": "ERROR",
+      "strategy": "unsupported",
+      "row_count": 0,
+      "note": "OSSIE query ran; analyze_result failed Gemini schema (chart_spec.title stripped). Fixed in providers.py — restart BE."
+    },
+    {
+      "qid": "Q08",
+      "route_expected": "ossie",
+      "status": "ERROR",
+      "strategy": "unsupported",
+      "row_count": 0,
+      "note": "Same Gemini structured-output schema issue as Q03"
+    }
+  ]
+}

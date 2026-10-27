@@ -1,0 +1,41 @@
+{
+  "name": "tempo-scan-v2-frontend-dev",
+  "private": true,
+  "version": "2.0.0",
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0",
+    "build": "next build",
+    "build:safe": "bash scripts/build-safe.sh",
+    "dev:clean": "bash scripts/frontend-clean-dev.sh --skip-build",
+    "dev:safe": "bash scripts/frontend-clean-dev.sh --skip-build",
+    "preflight": "bash ../scripts/frontend-preflight.sh",
+    "test": "vitest run",
+    "start": "next start -H 0.0.0.0 -p ${PORT:-3000}"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.8.2",
+    "highlight.js": "^11.12.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
+    "lucide-react": "^0.500.0",
+    "next": "^15.5.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-redux": "^9.2.0",
+    "recharts": "^3.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.0.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.0",
+    "jsdom": "^26.0.0",
+    "postcss": "^8.5.0",
+    "tailwindcss": "3.4.17",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  },
+  "type": "module"
+}

@@ -1,0 +1,14 @@
+.env
+deployment/profiles/runtime-closure.env
+.venv/
+node_modules/
+.next/
+.tmp/
+*.log
+__pycache__/
+.pytest_cache/
+backend/runtime/
+backend/var/
+frontend/out/
+frontend/.tsbuildinfo
+.DS_Store

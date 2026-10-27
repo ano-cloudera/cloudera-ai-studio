@@ -1,0 +1,20 @@
+# Optional: pareto then explicit top-10 (should not collapse to 1-row follow-up).
+# python scripts/run_uat_domain_5x5_followup.py http://127.0.0.1:8000 gemini --yaml=uat_demo_pareto_then_top10.yaml --skip-judge
+
+version: 1
+scope: pareto handoff
+
+scenarios:
+  - id: D0-pareto-then-top10
+    domain: sales
+    title: Pareto lalu top 10 material sell-in
+    turns:
+      - question: "Tampilkan pareto penjualan"
+        expect:
+          status: SUCCESS
+          min_rows: 2
+      - question: "Top 10 material dengan nilai sell-in tertinggi Q4 2024"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 2

@@ -1,0 +1,23 @@
+{
+  "question": "Tampilkan 10 DC dengan penumpukan stok produk yang tertinggi, lalu analisa apakah ada yang bisa kita lakukan untuk memperbaiki situasi tersebut",
+  "ran_at": "2026-10-05",
+  "routing": {
+    "ASK_DATA_ROUTING": "auto",
+    "LOCAL_AGENT_PRIMARY": false,
+    "route": "v3",
+    "ossie_resolver": "resolved",
+    "metric": "sat_dc_stock_quantity"
+  },
+  "live": {
+    "status": "SUCCESS",
+    "strategy": "governed",
+    "row_count": 1,
+    "elapsed_note": "~215s",
+    "quality_caveat": "Jawaban SUCCESS tapi hanya 1 baris agregat; narasi menyebut perlu breakdown dcname untuk Top 10 DC — tuning KPI/grain v3 atau OSSIE dimensi DC."
+  },
+  "stack": {
+    "backend": "http://127.0.0.1:8000",
+    "agent_v3": "http://127.0.0.1:9766",
+    "frontend": "http://127.0.0.1:3000"
+  }
+}

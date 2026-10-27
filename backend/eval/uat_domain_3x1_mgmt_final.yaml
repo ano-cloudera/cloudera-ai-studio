@@ -1,0 +1,344 @@
+# UAT stabilitas final · 3 pertanyaan per domain (1 turn/scenario) · bahasa Indonesia gaya manajemen.
+# Run: cd backend && PYTHONPATH=. ../.venv/bin/python scripts/run_uat_domain_5x5_followup.py --yaml=uat_domain_3x1_mgmt_final.yaml
+
+version: 1
+scope: TEMPO Q4 2024 · 3×1 turns per domain · management phrasing · OSSIE governed path
+
+scenarios:
+  # --- sales ---
+  - id: sales-mgmt-01
+    domain: sales
+    title: Big number gross billing untuk slide direksi
+    turns:
+      - question: "Buat review Q4, saya butuh angka total gross billing sell-in Tempo periode Oktober–Desember 2024 — tolong keluarkan agregatnya dulu."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Jawaban agregat sell-in/gross billing Q4 2024; tidak mengalih ke sell-out B2B."
+            - "Nada executive summary, angka atau caveat data jelas."
+
+  - id: sales-mgmt-02
+    domain: sales
+    title: Sales office yang menopang vs melempem
+    turns:
+      - question: "Dari sisi kontribusi penjualan internal Tempo, lima sales office mana yang paling besar nilai sell-in-nya di kuartal 4 tahun lalu? Urutkan yang terbesar."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Ranking sales office Tempo (bukan cabang Alfamart/DC)."
+            - "Periode Q4 2024 implisit atau eksplisit."
+
+  - id: sales-mgmt-03
+    domain: sales
+    title: Konsentrasi SKU untuk risiko portofolio
+    turns:
+      - question: "Untuk risk review: produk/material apa saja yang masuk top 10 penjualan sell-in Tempo Q4 2024? Saya mau lihat konsentrasi SKU-nya."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Ranking material by sell-in value or quantity; top ~10."
+            - "Konteks Tempo sell-in, bukan promo Alfamart saja."
+
+  # --- b2b ---
+  - id: b2b-mgmt-01
+    domain: b2b
+    title: DC partner performa sell-out
+    turns:
+      - question: "Di channel partner Alfamart, tolong ranking 10 cabang/DC dengan nilai sell-out tertinggi untuk Q4 2024 — ini untuk laporan weekly B2B."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "B2B branch/DC sell-out ranking."
+            - "Tidak salah ke sales office Tempo sell-in."
+
+  - id: b2b-mgmt-02
+    domain: b2b
+    title: Produk sell-out di lapangan
+    turns:
+      - question: "Saya perlu tahu SKU/material mana yang paling laris di sell-out B2B kuartal empat — minta top 10 berdasarkan nilai penjualan."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Material-level B2B sell-out ranking Q4."
+
+  - id: b2b-mgmt-03
+    domain: b2b
+    title: Gap sell-in vs sell-out untuk satu lensa
+    turns:
+      - question: "Bantu bandingkan secara agregat: total sell-in Tempo vs total sell-out partner Q4 2024 — selisih atau rasio yang relevan boleh, asal definisinya jelas."
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge:
+          min_score: 6
+          criteria:
+            - "Cross-domain sell-in vs sell-out comparison atau klarifikasi metrik yang jujur."
+            - "Tidak mengarang angka tanpa query."
+
+  # --- stock_tempo ---
+  - id: stock_tempo-mgmt-01
+    domain: stock_tempo
+    title: Penumpukan stok gudang Tempo per plant
+    turns:
+      - question: "Inventory committee minta: plant gudang Tempo mana yang menumpuk stok quantity-nya paling besar di Q4 2024? Top 10 saja."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Stock Tempo plant ranking by quantity."
+            - "Bukan stok SAT retail/DC partner semata."
+
+  - id: stock_tempo-mgmt-02
+    domain: stock_tempo
+    title: Cover stok terhadap penjualan
+    turns:
+      - question: "Ada concern cash tied in stock — bisa hitung indikator months of stock cover atau setara untuk level perusahaan/material Q4 2024? Kalau perlu filter material, ambil yang paling material secara nilai stok."
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge:
+          min_score: 6
+          criteria:
+            - "Stock cover / months of cover governed path atau clarify grain."
+            - "Definisi numerator/denominator dijelaskan singkat."
+
+  - id: stock_tempo-mgmt-03
+    domain: stock_tempo
+    title: Rasio stok vs sell-in
+    turns:
+      - question: "Mohon ratio stok gudang Tempo terhadap sell-in per material atau agregat yang masuk akal untuk Q4 — mau lihat apakah overstock."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge:
+          min_score: 6
+          criteria:
+            - "Stock-to-sell-in ratio atau metrik terkait journey stock_tempo→sales."
+            - "Caveat grain jika tidak bisa per material semua."
+
+  # --- stock_sat ---
+  - id: stock_sat-mgmt-01
+    domain: stock_sat
+    title: DC dengan stok SAT menumpuk
+    turns:
+      - question: "Untuk alokasi display SAT: DC partner mana yang stok quantity-nya paling tinggi di Q4 2024? Keluarkan 10 teratas."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "SAT DC stock ranking."
+            - "Bukan plant Tempo warehouse."
+
+  - id: stock_sat-mgmt-02
+    domain: stock_sat
+    title: Division retail stock
+    turns:
+      - question: "Breakdown stok retail SAT per division — division mana yang paling besar penumpukan stoknya kuartal 4?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "SAT stock by division ranking Q4."
+
+  - id: stock_sat-mgmt-03
+    domain: stock_sat
+    title: Consignment vs own di SAT
+    turns:
+      - question: "Di data stok SAT Q4, seberapa besar komponen consignment vs stok own jika bisa di-split — saya butuh gambaran exposure consignment."
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge:
+          min_score: 6
+          criteria:
+            - "Consignment vs own stock metrics jika tersedia, atau penjelasan jelas batas data."
+
+  # --- sat_oos ---
+  - id: sat_oos-mgmt-01
+    domain: sat_oos
+    title: Material dengan OOS paling parah
+    turns:
+      - question: "Dari perspektif availability di toko SAT, material/SKU mana yang rate atau frekuensi OOS-nya paling buruk Q4 2024? Top 10."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "SAT OOS material ranking or rate."
+            - "Worst-first atau highest OOS sesuai pertanyaan."
+
+  - id: sat_oos-mgmt-02
+    domain: sat_oos
+    title: DC angle OOS
+    turns:
+      - question: "Apakah ada DC tertentu yang jadi sumber masalah OOS — ranking DC dengan indikator OOS terburuk Q4?"
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge:
+          min_score: 6
+          criteria:
+            - "OOS at DC grain jika governed; else honest clarify unsupported grain."
+
+  - id: sat_oos-mgmt-03
+    domain: sat_oos
+    title: Stok toko vs kejadian OOS
+    turns:
+      - question: "Korelasi sederhana: material dengan stok toko SAT rendah sekaligus OOS tinggi — bisa tampilkan contoh top kasus Q4?"
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge:
+          min_score: 6
+          criteria:
+            - "Cross SAT stock vs OOS journey atau clarify batas join."
+
+  # --- service_level ---
+  - id: service_level-mgmt-01
+    domain: service_level
+    title: Fill rate cabang yang perlu intervention
+    turns:
+      - question: "Fulfillment review: sales office/cabang Tempo mana yang fill rate atau service level-nya paling rendah Q4 2024? Urutkan 10 terburuk."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Sales office fill rate ranking worst-first."
+            - "Bukan company average saja tanpa ranking."
+
+  - id: service_level-mgmt-02
+    domain: service_level
+    title: Gap PO vs DO
+    turns:
+      - question: "Saya mau lihat cabang dengan gap PO–DO atau unfulfilled quantity terbesar — mana yang paling sering short shipment Q4?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Unfulfilled quantity or PO-DO gap by sales office."
+
+  - id: service_level-mgmt-03
+    domain: service_level
+    title: Fill rate perusahaan benchmark
+    turns:
+      - question: "Tolong satu angka company-wide fill rate service level Tempo untuk Q4 2024 sebagai benchmark internal."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Company aggregate fill rate Q4."
+            - "Metode agregat DO/PO, bukan rata-rata row ratio."
+
+  # --- picking ---
+  - id: picking-mgmt-01
+    domain: picking
+    title: Cabang picking paling lambat
+    turns:
+      - question: "Operasional gudang: sales office mana rata-rata durasi picking-nya paling lama Q4 2024? Top 10 untuk action plan."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Average picking minutes by office ranking."
+
+  - id: picking-mgmt-02
+    domain: picking
+    title: Delay rate picking
+    turns:
+      - question: "Ada KPI delay picking — office mana delay rate-nya paling tinggi kuartal empat?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Picking delay rate by sales office."
+
+  - id: picking-mgmt-03
+    domain: picking
+    title: Workload picking vs volume
+    turns:
+      - question: "Workload picking per sales office: bandingkan beban baris picking vs volume penjualan jika metriknya ada — mau lihat efisiensi relatif Q4."
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge:
+          min_score: 6
+          criteria:
+            - "Picking workload ratio atau clarify dual metric picking vs sales."
+
+  # --- unloading ---
+  - id: unloading-mgmt-01
+    domain: unloading
+    title: Unloading terlama per cabang
+    turns:
+      - question: "Untuk SLA bongkar muat: cabang/sales office dengan rata-rata menit unloading tertinggi Q4 2024 — ranking 10."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Average unloading minutes ranking by office."
+
+  - id: unloading-mgmt-02
+    domain: unloading
+    title: Rata-rata unloading nasional
+    turns:
+      - question: "Satu angka saja — rata-rata unloading minutes company-wide Tempo Q4 untuk dipakai di deck operasional."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Company-wide average unloading minutes Q4."
+
+  - id: unloading-mgmt-03
+    domain: unloading
+    title: Volume event unloading
+    turns:
+      - question: "Berapa banyak event unloading tercatat per sales office Q4? Saya mau lihat cabang dengan aktivitas unloading terbanyak."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Unloading event count by office or ranking."
+
+  # --- promo ---
+  - id: promo-mgmt-01
+    domain: promo
+    title: Audit distribusi status program promo
+    turns:
+      - question: "Audit SAT Promo Des 2024: bagaimana distribusi observasi per program status — perlu untuk compliance slide."
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge:
+          min_score: 6
+          criteria:
+            - "Promo observation count by program status atau clarify definisi status."
+
+  - id: promo-mgmt-02
+    domain: promo
+    title: Proxy uplift GT untuk material promo
+    turns:
+      - question: "Kita tidak punya ROI murni — coba tampilkan top 5 material dengan revenue uplift proxy General Trade Nov vs Des untuk SKU promo SAT."
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge:
+          min_score: 6
+          criteria:
+            - "Promo material revenue uplift proxy dengan caveat cross-channel."
+            - "Bukan mengklaim ROI Alfamart langsung tanpa disclaimer."
+
+  - id: promo-mgmt-03
+    domain: promo
+    title: Uplift sell-out partner untuk SKU promo
+    turns:
+      - question: "Sisi partner: untuk material yang sama di program promo, berapa uplift sell-out B2B/Alfamart Nov–Des 2024? Top 5 material saja, jelaskan kalau ini proxy bukan ROI."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge:
+          min_score: 6
+          criteria:
+            - "B2B sell-out uplift proxy for promo materials."
+            - "Disclaimer proxy/not ROI."
+
+  # --- cross_domain ---
+  - id: cross_domain-mgmt-01
+    domain: cross_domain
+    title: Selisih sell-in vs sell-out agregat
+    turns:
+      - question: "Big picture lintas domain: selisih nilai sell-in Tempo vs sell-out partner Q4 2024 — metrik variance yang sudah dipublish boleh dipakai."
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge:
+          min_score: 6
+          criteria:
+            - "Cross-domain variance or ratio sell-in vs sell-out."
+
+  - id: cross_domain-mgmt-02
+    domain: cross_domain
+    title: Stok DC SAT vs sell-out cabang
+    turns:
+      - question: "Journey analysis: DC dengan stok SAT tinggi sekaligus sell-out partner lemah — ada contoh DC ranking untuk Q4?"
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge:
+          min_score: 6
+          criteria:
+            - "Journey stock_sat + b2b atau clarify join path."
+
+  - id: cross_domain-mgmt-03
+    domain: cross_domain
+    title: Konsep sell-in vs sell-out untuk direksi
+    turns:
+      - question: "Saya presentasi ke direksi — jelaskan singkat perbedaan sell-in Tempo dan sell-out Alfamart pakai contoh angka Q4 jika data mendukung."
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, conversational, clarification] }
+        judge:
+          min_score: 6
+          criteria:
+            - "Konsep sell-in vs sell-out benar; boleh conversational + angka governed jika ada."
+            - "Tidak menukar definisi channel."

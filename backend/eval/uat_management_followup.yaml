@@ -1,0 +1,95 @@
+# Management-style UAT with multi-turn follow-ups (same session_id per scenario).
+# Live: python scripts/run_uat_management_followup.py http://127.0.0.1:8000 gemini
+
+version: 1
+scope: TEMPO Q4 2024 · OSSIE governed · management phrasing
+
+scenarios:
+  - id: M1-b2b-dc-then-branch-drill
+    title: Top DC Alfamart lalu drill cabang + produk
+    turns:
+      - question: "Top 10 total penjualan berdasarkan cabang di Alfamart Q4 2024"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+        judge:
+          min_score: 7
+          criteria:
+            - Metrik B2B Sell-Out per cabang/DC partner (bukan sell-in sales office Tempo).
+            - Alfamart = channel partner; ranking per kolom branch (DC), bukan cabang bernama 'Alfamart'.
+            - Menyebut atau menampilkan ranking top 10 (atau setara) selaras dengan data.
+      - question: "breakdown based on cabang palembang, top 3 produk terbaik based on penjualan"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+        judge:
+          min_score: 7
+          criteria:
+            - Follow-up terhadap konteks B2B/Alfamart turn sebelumnya; fokus cabang Palembang.
+            - Menampilkan ~3 produk/material teratas dengan nilai penjualan selaras sample_rows.
+            - Jika grain cabang×produk tidak tersedia, caveat diungkapkan (tidak mengarang angka per-DC).
+
+  - id: M2-b2b-casual-top-cabang
+    title: Pertanyaan singkat top penjualan cabang Alfamart
+    turns:
+      - question: "top penjualan cabang Alfamart?"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+        judge:
+          criteria:
+            - Sell-Out B2B partner per DC/cabang; pertanyaan singkat tetap terjawab dengan ranking dan data.
+
+  - id: M3-sell-in-top-produk-tempo
+    title: Management sell-in top produk Tempo
+    turns:
+      - question: "Top 10 produk dengan penjualan terbesar di Tempo Q4 2024"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+        judge:
+          criteria:
+            - Sell-in Tempo per material/produk (bukan sell-out Alfamart).
+            - Top 10 produk konsisten dengan baris data; periode Q4 2024.
+
+  - id: M4-picking-unloading-clarify
+    title: Dual metric warehouse — harus clarification (bukan follow-up turn 1)
+    turns:
+      - question: "Analisa data unloading dan picking dan berikan analisa perbandingan dengan industri standard"
+        expect:
+          status: CLARIFICATION
+          strategy: clarification
+        judge:
+          criteria:
+            - Tidak mengarang angka picking/unloading atau benchmark industri.
+            - Meminta user memilih/meluruskan metrik (picking vs unloading) atau scope yang jelas.
+
+  - id: M5-sell-in-office-rank
+    title: Top sales office sell-in
+    turns:
+      - question: "Top 10 cabang sales office dengan sell-in terbesar Q4"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+        judge:
+          criteria:
+            - Sell-in Tempo per sales office (bukan DC Alfamart B2B).
+            - Ranking top office/cabang selaras data governed.
+
+  - id: M6-typo-penjualn-alfamart
+    title: Typo management question (penjualn) — tetap resolve B2B branch rank
+    turns:
+      - question: "mau tau dong top 10 total penjualn berdasarkan cabang di alfamart"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+        judge:
+          criteria:
+            - Typo 'penjualn' tetap diarahkan ke B2B branch rank Alfamart/partner.
+            - Jawaban management-friendly dengan data, bukan error/clarify salah domain.

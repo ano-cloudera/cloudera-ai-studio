@@ -1,0 +1,427 @@
+# Five management-style questions per data domain · Q4 2024 · OSSIE governed.
+# Live + Gemini judge:
+#   cd backend && PYTHONPATH=. python scripts/run_uat_domain_5x5.py http://127.0.0.1:8000 gemini
+
+version: 1
+scope: TEMPO Q4 2024 · 5 questions × domain
+
+cases:
+  # --- Sales / Sell-In (5) ---
+  - id: sales-01-gross-q4
+    domain: sales
+    question: "Berapa total gross billing / sell-in TEMPO untuk Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Agregat sell-in Tempo company-wide Q4; angka selaras row_count/data, bukan sell-out Alfamart.
+
+  - id: sales-02-top-material
+    domain: sales
+    question: "Top 10 produk dengan penjualan sell-in terbesar di Tempo Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Ranking material/SKU sell-in Tempo; minimal beberapa produk dengan nilai selaras sample_rows.
+
+  - id: sales-03-top-office
+    domain: sales
+    question: "Top 10 cabang sales office dengan sell-in terbesar Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Sales office Tempo (kode office), bukan DC partner B2B Alfamart.
+
+  - id: sales-04-office-material
+    domain: sales
+    question: "Top 5 material dengan sell-in terbesar di sales office 0201 Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Grain sales office + material sell-in; filter/konteks office 0201 masuk akal; data governed.
+
+  - id: sales-05-billing-qty
+    domain: sales
+    question: "Produk mana yang paling banyak terjual (quantity sell-in) di Tempo Q4 2024? Top 10"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Metrik quantity atau nilai sell-in per material; ranking top N konsisten data.
+
+  # --- B2B / Sell-Out Alfamart (5) ---
+  - id: b2b-01-top-dc
+    domain: b2b
+    question: "Top 10 DC Alfamart dengan penjualan sell-out tertinggi Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - B2B branch/DC partner ranking; Alfamart = channel, bukan branch='Alfamart'.
+
+  - id: b2b-02-casual-cabang
+    domain: b2b
+    question: "top penjualan cabang Alfamart?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Pertanyaan singkat tetap terjawab dengan ranking DC B2B dan data.
+
+  - id: b2b-03-top-product-sellout
+    domain: b2b
+    question: "Top 10 produk sell-out partner dengan nilai tertinggi Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Material sell-out B2B/partner, bukan sell-in Tempo ke GT.
+
+  - id: b2b-04-typo-penjualn
+    domain: b2b
+    question: "mau tau dong top 10 total penjualn berdasarkan cabang di alfamart"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Typo diabaikan; resolve ke B2B branch rank partner.
+
+  - id: b2b-05-q4-phrasing
+    domain: b2b
+    question: "Top 10 total penjualan berdasarkan cabang di Alfamart Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Q4 2024 + Alfamart cabang = ranking DC sell-out; tidak NO_DATA karena filter branch salah.
+
+  # --- Stock Tempo (5) ---
+  - id: stock-tempo-01-cover-days
+    domain: stock_tempo
+    question: "Hitung berapa hari stok material 500-21-02 di sales office 0201 bisa cover penjualan Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Stock cover / months of stock proxy; jelaskan grain material+office jika ada caveat.
+
+  - id: stock-tempo-02-warehouse-qty
+    domain: stock_tempo
+    question: "Top 10 material dengan stok gudang Tempo terbesar snapshot terakhir Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Stock Tempo warehouse/gudang, bukan stok DC Alfamart SAT.
+
+  - id: stock-tempo-03-total-stock
+    domain: stock_tempo
+    question: "Berapa total quantity stok Tempo per material untuk bulan Desember 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Stok Tempo governed; periode Q4/Des 2024 konsisten.
+
+  - id: stock-tempo-04-low-stock
+    domain: stock_tempo
+    question: "Material mana dengan stok Tempo paling rendah di Q4 2024? Top 10"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Ranking stok terendah; selaras data atau caveat grain jujur.
+
+  - id: stock-tempo-05-plant
+    domain: stock_tempo
+    question: "Tampilkan stok Tempo per plant untuk material FE001 Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+    judge:
+      min_score: 6
+      criteria:
+        - Plant/material grain stock Tempo; SUCCESS dengan data atau NO_DATA/penjelasan jelas jika material tidak ada.
+
+  # --- Stock SAT Alfamart (5) ---
+  - id: stock-sat-01-dc-pileup
+    domain: stock_sat
+    question: "Tampilkan 10 DC dengan penumpukan stok SAT tertinggi Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - SAT DC stock (part_flag SAT); ranking dcname/DC partner.
+
+  - id: stock-sat-02-store-stock
+    domain: stock_sat
+    question: "Top 10 division dengan store stock SAT terbesar Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Store stock SAT, bukan sell-in Tempo.
+
+  - id: stock-sat-03-dc-vs-store-clarify
+    domain: stock_sat
+    question: "Cek stok produk A di toko alfamart dan bandingkan dengan stok di DC"
+    expect: { status: CLARIFICATION, strategy: clarification }
+    judge:
+      criteria:
+        - Harus clarify DC stock vs store stock; tidak mengarang perbandingan tanpa data.
+
+  - id: stock-sat-04-dc-name
+    domain: stock_sat
+    question: "Berapa stok SAT di DC Palembang Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+    judge:
+      min_score: 6
+      criteria:
+        - SAT DC stock dengan filter/konteks Palembang; data atau penjelasan NO_DATA yang benar.
+
+  - id: stock-sat-05-plu-rank
+    domain: stock_sat
+    question: "PLU mana dengan stok store SAT tertinggi Q4 2024? Top 10"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Grain PLU store stock SAT; ranking selaras data.
+
+  # --- SAT OOS (5) ---
+  - id: oos-01-worst-material
+    domain: sat_oos
+    question: "Material mana dengan tingkat OOS di toko SAT tertinggi Q4 2024? Top 10"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - OOS rate SAT; ranking material/code selaras data.
+
+  - id: oos-02-company-oos
+    domain: sat_oos
+    question: "Berapa rata-rata OOS rate SAT company-wide Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Agregat OOS SAT; tidak campur sell-in.
+
+  - id: oos-03-plu-oos
+    domain: sat_oos
+    question: "Top 5 PLU dengan OOS tertinggi di jaringan SAT Q4"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - PLU/material OOS ranking governed.
+
+  - id: oos-04-worst-outlet
+    domain: sat_oos
+    question: "Toko/outlet SAT mana dengan OOS rate terburuk Q4 2024? Top 10"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+    judge:
+      min_score: 6
+      criteria:
+        - Customer/outlet grain OOS jika supported; atau caveat grain jujur.
+
+  - id: oos-05-trend-hint
+    domain: sat_oos
+    question: "Produk SAP FE001 apakah sering OOS di SAT Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+    judge:
+      min_score: 6
+      criteria:
+        - Pertanyaan spesifik material; jawaban grounded atau NO_DATA jelas.
+
+  # --- Service Level (5) ---
+  - id: sl-01-worst-offices
+    domain: service_level
+    question: "Hitung service level / fill rate di cabang Tempo dan urutkan yang terjelek Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Fill rate / service level sales office Tempo; ranking terendah selaras data.
+
+  - id: sl-02-company-fill
+    domain: service_level
+    question: "Berapa company fill rate Tempo Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Company-wide fill rate governed; angka dari query.
+
+  - id: sl-03-material-sl
+    domain: service_level
+    question: "Top 10 material dengan fill rate terendah Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Material grain service level; bukan B2B sell-out.
+
+  - id: sl-04-band-distribution
+    domain: service_level
+    question: "Distribusi material per band fill rate Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Fill rate band breakdown jika metrik mendukung.
+
+  - id: sl-05-po-do-gap
+    domain: service_level
+    question: "Berapa total selisih quantity PO vs DO yang tidak terpenuhi Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Unfulfilled/service gap quantity governed; tidak hallucinate.
+
+  # --- Picking (5) ---
+  - id: picking-01-longest
+    domain: picking
+    question: "Sales office mana dengan rata-rata durasi picking terlama Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Average picking minutes per sales office; ranking selaras data.
+
+  - id: picking-02-top10-slow
+    domain: picking
+    question: "Top 10 cabang dengan picking time paling lama Q4"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Picking operational metric; cabang = sales office Tempo.
+
+  - id: picking-03-fastest
+    domain: picking
+    question: "Cabang Tempo mana dengan picking tercepat Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Ascending rank picking duration grounded.
+
+  - id: picking-04-office-0201
+    domain: picking
+    question: "Berapa rata-rata picking minutes sales office 0201 Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Single office picking aggregate atau row filter 0201.
+
+  - id: picking-05-dual-metric-clarify
+    domain: picking
+    question: "Analisa data unloading dan picking dan berikan analisa perbandingan dengan industri standard"
+    expect: { status: CLARIFICATION, strategy: clarification }
+    judge:
+      criteria:
+        - Clarification picking vs unloading; tidak benchmark industri palsu.
+
+  # --- Unloading (5) ---
+  - id: unloading-01-longest
+    domain: unloading
+    question: "Cabang mana dengan rata-rata unloading terlama Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Average unloading minutes per sales office.
+
+  - id: unloading-02-top10
+    domain: unloading
+    question: "Top 10 sales office dengan unloading time tertinggi Q4"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Ranking unloading governed.
+
+  - id: unloading-03-shortest
+    domain: unloading
+    question: "Sales office mana unloading-nya paling efisien (tercepat) Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Unloading terendah; data grounded.
+
+  - id: unloading-04-compare-two
+    domain: unloading
+    question: "Bandingkan rata-rata unloading sales office 0201 vs 0202 Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+    judge:
+      min_score: 6
+      criteria:
+        - Compare two offices unloading; values from data or clear limitation.
+
+  - id: unloading-05-company-avg
+    domain: unloading
+    question: "Berapa rata-rata unloading minutes company-wide Tempo Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Company aggregate unloading governed.
+
+  # --- SAT Promo (5) ---
+  - id: promo-01-top-uplift
+    domain: promo
+    question: "Material mana dengan uplift promo SAT terbaik Q4 2024? Top 10"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Promo uplift proxy / observation governed; bukan ROI finance palsu.
+
+  - id: promo-02-roi-clarify
+    domain: promo
+    question: "Hitung promo dengan ROI terbaik dan berikan rekomendasi operasional"
+    expect: { status: CLARIFICATION, strategy: clarification }
+    judge:
+      criteria:
+        - ROI/rekomendasi harus clarify proxy vs true ROI; tidak mengarang ROI.
+
+  - id: promo-03-count
+    domain: promo
+    question: "Berapa jumlah observasi promo SAT Q4 2024 per material? Top 10 material"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Promo observation count ranking material.
+
+  - id: promo-04-mechanism
+    domain: promo
+    question: "Mekanisme promo SAT mana yang paling sering dipakai Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+    judge:
+      min_score: 6
+      criteria:
+        - Mekanisme grain jika ada; atau penjelasan scope PoC.
+
+  - id: promo-05-status
+    domain: promo
+    question: "Distribusi promo SAT by program status Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+    judge:
+      min_score: 6
+      criteria:
+        - Program status breakdown governed atau caveat jelas.
+
+  # --- Cross-domain / analytic (5) ---
+  - id: cross-01-pareto
+    domain: cross_domain
+    question: "Bantu jelaskan pareto penjualan sell-in Q4 2024 top produk Tempo"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+    judge:
+      criteria:
+        - Sell-in material ranking sebagai basis pareto; insights grounded.
+
+  - id: cross-02-sellin-sellout-hint
+    domain: cross_domain
+    question: "Halo, apa bedanya sell-in Tempo dan sell-out Alfamart untuk tim manajemen?"
+    expect: { status: SUCCESS, strategy: conversational, min_rows: 0 }
+    judge:
+      min_score: 7
+      criteria:
+        - Penjelasan domain/conversational benar; tidak swap definisi; boleh tanpa query rows.
+
+  - id: cross-03-journey-hint
+    domain: cross_domain
+    question: "Bagaimana hubungan stok Tempo dan sell-in material FE001 Q4?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+    judge:
+      min_score: 6
+      criteria:
+        - Journey stock→sell-in atau governed partial; tidak runtime join palsu.
+
+  - id: cross-04-b2b-sat-stock
+    domain: cross_domain
+    question: "DC Alfamart mana stok SAT-nya paling tinggi dan sell-out-nya juga tinggi Q4?"
+    expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+    judge:
+      min_score: 6
+      criteria:
+        - Multi-concept; jawaban jujur tentang batas join governed atau satu metrik dulu.
+
+  - id: cross-05-capability
+    domain: cross_domain
+    question: "Halo, data apa saja yang bisa ditanyakan untuk review manajemen Q4 di sistem ini?"
+    expect: { status: SUCCESS, strategy: conversational, min_rows: 0 }
+    judge:
+      criteria:
+        - Capability/greeting style; mention domains Q4 PoC secara akurat.

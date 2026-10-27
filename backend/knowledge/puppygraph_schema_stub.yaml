@@ -1,0 +1,46 @@
+# Phase C7 stub — PuppyGraph schema over Impala gold (not on Ask Data critical path).
+# Enable with PUPPYGRAPH_ENABLED=true and PUPPYGRAPH_BASE_URL when infra is ready.
+
+version: 0.1
+scope: TEMPO Q4 2024
+notes:
+  - Read-only traversals; entity scope feeds OSSIE IN (...) filters only.
+  - Edges must match audited Gold keys (journey views / dimension tables).
+  - No Agent Studio dependency.
+
+vertices:
+  - label: SalesOffice
+    id_property: code
+    source_table: gold.rpt_sales_office_performance_semantic
+    id_column: sales_office
+  - label: Material
+    id_property: code
+    source_table: gold.rpt_sap_material_month_semantic
+    id_column: material
+  - label: B2BBranch
+    id_property: name
+    source_table: gold.rpt_b2b_branch_estore_month_semantic
+    id_column: branch
+  - label: SatDC
+    id_property: name
+    source_table: gold.rpt_sat_dc_month_semantic
+    id_column: dcname
+
+edges:
+  - label: SELLS_IN_OFFICE
+    from: SalesOffice
+    to: Material
+    source_table: gold.rpt_sap_sales_office_material_month_semantic
+    from_key: sales_office
+    to_key: material
+  - label: BRANCH_MATCHES_DC
+    from: B2BBranch
+    to: SatDC
+    source_table: gold.corr_b2b_sat_branch_month
+    from_key: branch
+    to_key: dcname
+    join_note: Normalized branch=dcname (SAT partition only).
+
+limits:
+  max_hops: 3
+  max_vertices: 500

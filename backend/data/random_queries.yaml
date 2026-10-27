@@ -1,0 +1,32 @@
+version: 1
+questions:
+  - {id: sales-001, question: "Berapa total Gross Billing Value selama Q4 2024?", domain: sales, domains: [sales], difficulty: simple, analysis_type: metric, expected_visualization: kpi}
+  - {id: sales-002, question: "Bagaimana tren Gross Billing Value per bulan selama Q4 2024?", domain: sales, domains: [sales], difficulty: medium, analysis_type: trend, expected_visualization: line}
+  - {id: sales-003, question: "Material mana dengan nilai Sell-In terbesar pada Q4 2024?", domain: sales, domains: [sales], difficulty: medium, analysis_type: ranking, expected_visualization: bar}
+  - {id: sales-004, question: "Customer mana dengan nilai Sell-In terbesar pada Q4 2024?", domain: sales, domains: [sales], difficulty: medium, analysis_type: ranking, expected_visualization: bar}
+  - {id: sales-005, question: "Sales office mana dengan nilai Sell-In terbesar per material?", domain: sales, domains: [sales], difficulty: complex, analysis_type: breakdown, expected_visualization: table}
+  - {id: b2b-001, question: "Berapa nilai Sell-Out B2B per bulan selama Q4 2024?", domain: b2b, domains: [b2b], difficulty: simple, analysis_type: trend, expected_visualization: line}
+  - {id: b2b-002, question: "Branch mana dengan nilai Sell-Out tertinggi?", domain: b2b, domains: [b2b], difficulty: medium, analysis_type: ranking, expected_visualization: bar}
+  - {id: b2b-003, question: "E-store mana dengan quantity Sell-Out tertinggi?", domain: b2b, domains: [b2b], difficulty: medium, analysis_type: ranking, expected_visualization: bar}
+  - {id: b2b-004, question: "Material dan PLU mana dengan nilai Sell-Out terbesar?", domain: b2b, domains: [b2b], difficulty: medium, analysis_type: breakdown, expected_visualization: table}
+  - {id: b2b-005, question: "Customer mana dengan quantity Sell-Out tertinggi per branch?", domain: b2b, domains: [b2b], difficulty: complex, analysis_type: breakdown, expected_visualization: table}
+  - {id: stock-tempo-001, question: "Berapa total quantity Stock Tempo per bulan?", domain: stock_tempo, domains: [stock_tempo], difficulty: simple, analysis_type: trend, expected_visualization: line}
+  - {id: stock-tempo-002, question: "Material mana dengan Stock Tempo quantity tertinggi?", domain: stock_tempo, domains: [stock_tempo], difficulty: medium, analysis_type: ranking, expected_visualization: bar}
+  - {id: stock-tempo-003, question: "Plant mana dengan nilai Stock Tempo terbesar?", domain: stock_tempo, domains: [stock_tempo], difficulty: medium, analysis_type: ranking, expected_visualization: bar}
+  - {id: stock-tempo-004, question: "Bagaimana nilai Stock Tempo per material dan bulan?", domain: stock_tempo, domains: [stock_tempo], difficulty: medium, analysis_type: breakdown, expected_visualization: table}
+  - {id: stock-tempo-005, question: "Material mana dengan months of stock cover paling tinggi?", domain: stock_tempo, domains: [stock_tempo, sales], difficulty: complex, analysis_type: ratio, expected_visualization: bar}
+  - {id: stock-idm-001, question: "Berapa quantity DC Stock SAT-IDM per bulan?", domain: stock_sat_idm, domains: [stock_sat_idm], difficulty: simple, analysis_type: trend, expected_visualization: line}
+  - {id: stock-idm-002, question: "DC mana dengan quantity DC Stock tertinggi?", domain: stock_sat_idm, domains: [stock_sat_idm], difficulty: medium, analysis_type: ranking, expected_visualization: bar}
+  - {id: stock-idm-003, question: "PLU mana dengan nilai DC Stock terbesar?", domain: stock_sat_idm, domains: [stock_sat_idm], difficulty: medium, analysis_type: ranking, expected_visualization: bar}
+  - {id: stock-idm-004, question: "Division mana dengan quantity Store Stock tertinggi?", domain: stock_sat_idm, domains: [stock_sat_idm], difficulty: medium, analysis_type: ranking, expected_visualization: bar}
+  - {id: stock-idm-005, question: "Bandingkan DC Stock dan Store Stock sebagai metrik terpisah per DC.", domain: stock_sat_idm, domains: [stock_sat_idm], difficulty: complex, analysis_type: comparison, expected_visualization: table}
+  - {id: oos-001, question: "Berapa SAT OOS rate selama Q4 2024?", domain: sat_oos, domains: [sat_oos], difficulty: simple, analysis_type: metric, expected_visualization: kpi}
+  - {id: oos-002, question: "Bagaimana tren SAT OOS rate per bulan?", domain: sat_oos, domains: [sat_oos], difficulty: medium, analysis_type: trend, expected_visualization: line}
+  - {id: oos-003, question: "Material code mana dengan SAT OOS rate tertinggi?", domain: sat_oos, domains: [sat_oos], difficulty: medium, analysis_type: ranking, expected_visualization: bar}
+  - {id: oos-004, question: "PLU mana dengan SAT OOS rate tertinggi?", domain: sat_oos, domains: [sat_oos], difficulty: medium, analysis_type: ranking, expected_visualization: bar}
+  - {id: oos-005, question: "Customer mana dengan SAT OOS rate tertinggi per material?", domain: sat_oos, domains: [sat_oos], difficulty: complex, analysis_type: breakdown, expected_visualization: table}
+  - {id: cross-001, question: "Material mana dengan rasio Stock Tempo terhadap Sell-In tertinggi?", domain: cross_domain, domains: [stock_tempo, sales], difficulty: complex, analysis_type: cross_domain, expected_visualization: scatter}
+  - {id: cross-002, question: "Material mana dengan rasio Sell-Out terhadap Sell-In terendah?", domain: cross_domain, domains: [b2b, sales], difficulty: complex, analysis_type: cross_domain, expected_visualization: bar}
+  - {id: cross-003, question: "Branch mana dengan Sell-Out tinggi dibanding DC Stock?", domain: cross_domain, domains: [b2b, stock_sat_idm], difficulty: complex, analysis_type: cross_domain, expected_visualization: scatter}
+  - {id: cross-004, question: "PLU mana dengan Store Stock tinggi tetapi SAT OOS rate juga tinggi?", domain: cross_domain, domains: [stock_sat_idm, sat_oos], difficulty: complex, analysis_type: cross_domain, expected_visualization: scatter}
+  - {id: cross-005, question: "Customer mana dengan selisih Sell-In dan Sell-Out terbesar?", domain: cross_domain, domains: [sales, b2b], difficulty: complex, analysis_type: cross_domain, expected_visualization: bar}

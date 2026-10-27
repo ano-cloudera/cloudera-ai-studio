@@ -1,0 +1,17 @@
+.env
+.venv/
+.venv-cai/
+.venv-m1/
+runtime/document_storage/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+runtime/
+# Ephemeral UAT run artifacts (keep merged summaries + YAML matrices)
+eval/uat_*_run_*.json
+eval/uat_run_*.json
+eval/uat_judge_retry_*.log
+eval/uat_domain_5x5_followup_latest.log
+!eval/uat_domain_5x5_followup_merged_latest.json
+!eval/uat_domain_5x5_merged_latest.json
+!eval/management_live_baseline.json

@@ -1,0 +1,566 @@
+# 5 distinct sessions per domain · turn 1 + follow-up turn 2 (same session_id).
+# Run: cd backend && python scripts/run_uat_domain_5x5_followup.py http://127.0.0.1:8000 gemini
+
+version: 1
+scope: TEMPO Q4 2024 · 5×2 turns per domain · OSSIE + follow-up
+
+scenarios:
+  # --- sales (5) ---
+  - id: sales-fu-01
+    domain: sales
+    title: Gross sell-in lalu breakdown bulan
+    turns:
+      - question: "Berapa total gross billing / sell-in TEMPO untuk Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Agregat sell-in Tempo Q4; angka selaras data."] }
+      - question: "tampilkan per bulan Oktober November Desember untuk pertanyaan tadi"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Follow-up terhadap sell-in; breakdown bulan Q4 2024."] }
+
+  - id: sales-fu-02
+    domain: sales
+    title: Top material lalu drill office untuk rank 1
+    turns:
+      - question: "Top 10 produk dengan penjualan sell-in terbesar di Tempo Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Ranking material sell-in Tempo."] }
+      - question: "untuk produk rank 1 dari tabel tadi, top 5 sales office dengan sell-in produk itu"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up referential ke material teratas; grain office+material masuk akal."] }
+
+  - id: sales-fu-03
+    domain: sales
+    title: Top office lalu top produk di office #1
+    turns:
+      - question: "Top 10 cabang sales office dengan sell-in terbesar Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Sales office Tempo, bukan DC B2B."] }
+      - question: "cabang paling atas tadi, top 5 material sell-in-nya"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Drill material untuk sales office dari turn sebelumnya."] }
+
+  - id: sales-fu-04
+    domain: sales
+    title: Office 0201 material rank lalu banding office lain
+    turns:
+      - question: "Top 5 material dengan sell-in terbesar di sales office 0201 Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Filter office 0201 + material ranking."] }
+      - question: "bandingkan total sell-in office 0201 vs 0280 Q4 untuk konteks yang sama"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Perbandingan dua sales office; follow-up koheren."] }
+
+  - id: sales-fu-05
+    domain: sales
+    title: Top quantity lalu nilai rupiah produk teratas
+    turns:
+      - question: "Produk mana yang paling banyak terjual (quantity sell-in) di Tempo Q4 2024? Top 10"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Ranking quantity sell-in per material."] }
+      - question: "produk urutan pertama tadi, berapa nilai rupiah sell-in-nya?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up satu material; nilai/value selaras atau caveat jelas."] }
+
+  # --- b2b (5) ---
+  - id: b2b-fu-01
+    domain: b2b
+    title: Top DC Alfamart lalu drill Palembang produk
+    turns:
+      - question: "Top 10 DC Alfamart dengan penjualan sell-out tertinggi Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["B2B branch/DC ranking sell-out."] }
+      - question: "breakdown based on cabang palembang, top 3 produk terbaik based on penjualan"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up B2B; drill material DC Palembang."] }
+
+  - id: b2b-fu-02
+    domain: b2b
+    title: Casual top cabang lalu detail DC pertama
+    turns:
+      - question: "top penjualan cabang Alfamart?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Ranking singkat sell-out partner."] }
+      - question: "untuk cabang rank 1 dari hasil itu, sebutkan nilai sell-out dan nama DC-nya"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Referential rank 1; tidak swap sell-in."] }
+
+  - id: b2b-fu-03
+    domain: b2b
+    title: Top produk sell-out lalu cabang kontributor
+    turns:
+      - question: "Top 10 produk sell-out partner dengan nilai tertinggi Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Material sell-out B2B."] }
+      - question: "material teratas tadi, DC mana yang paling besar kontribusi sell-out-nya?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up material→branch masuk akal atau caveat grain."] }
+
+  - id: b2b-fu-04
+    domain: b2b
+    title: Typo phrasing lalu top 3 DC
+    turns:
+      - question: "mau tau dong top 10 total penjualn berdasarkan cabang di alfamart"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Typo toleransi; tetap B2B sell-out."] }
+      - question: "dari ranking itu, bandingkan DC urutan 1 dan urutan 2"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Perbandingan dua cabang dari konteks prior."] }
+
+  - id: b2b-fu-05
+    domain: b2b
+    title: Q4 phrasing lalu follow top 5 only
+    turns:
+      - question: "Total sell-out partner Alfamart Q4 2024 per cabang, urutkan terbesar"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Sell-out per branch Q4."] }
+      - question: "tampilkan hanya top 5 saja dari daftar tadi"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Follow-up limit 5; koheren dengan turn 1."] }
+
+  # --- stock_tempo (5) ---
+  - id: stock-tempo-fu-01
+    domain: stock_tempo
+    title: Cover days lalu material lowest cover
+    turns:
+      - question: "Material Tempo mana dengan stock cover days terendah Q4 2024? Top 10"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Stock Tempo cover days ranking."] }
+      - question: "material paling kritis tadi, berapa quantity stok gudang Tempo-nya?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up satu material stok Tempo."] }
+
+  - id: stock-tempo-fu-02
+    domain: stock_tempo
+    title: Warehouse qty lalu plant filter
+    turns:
+      - question: "Top 10 material dengan stok gudang Tempo tertinggi Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Warehouse stock quantity ranking."] }
+      - question: "dari top 3 material itu, tampilkan per plant bila ada di data"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Drill plant/grain atau caveat jelas."] }
+
+  - id: stock-tempo-fu-03
+    domain: stock_tempo
+    title: Total stock company lalu FE001 detail
+    turns:
+      - question: "Berapa total stok gudang Tempo company-wide Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Agregat stok Tempo."] }
+      - question: "bagaimana stok material FE001 dibanding total tadi?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up material spesifik FE001."] }
+
+  - id: stock-tempo-fu-04
+    domain: stock_tempo
+    title: Low stock list lalu sell-in link hint
+    turns:
+      - question: "Material mana yang stok gudang Tempo-nya paling rendah Q4? Top 10"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Low stock ranking Tempo."] }
+      - question: "material rank 1 yang stok rendah itu, apakah sell-in Q4-nya juga rendah?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Cross-hint stok+sell-in; jujur jika tidak bisa join."] }
+
+  - id: stock-tempo-fu-05
+    domain: stock_tempo
+    title: Plant ranking lalu satu plant materials
+    turns:
+      - question: "Plant mana dengan total stok Tempo tertinggi Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Plant grain atau caveat."] }
+      - question: "plant teratas tadi, top 5 material by stock"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Follow-up plant→material."] }
+
+  # --- stock_sat (5) ---
+  - id: stock-sat-fu-01
+    domain: stock_sat
+    title: DC pile-up lalu PLU di DC pertama
+    turns:
+      - question: "Top 10 DC dengan penumpukan stok SAT tertinggi Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["SAT DC stock ranking."] }
+      - question: "DC rank 1 tadi, top 5 PLU dengan stok retail tertinggi"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Drill PLU/division di DC prior."] }
+
+  - id: stock-sat-fu-02
+    domain: stock_sat
+    title: Store stock lalu division breakdown
+    turns:
+      - question: "Berapa stok retail SAT per division Q4 2024? Top 10 division"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Store stock by division."] }
+      - question: "division teratas, DC mana yang menopang stok terbesar?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Follow-up division→DC."] }
+
+  - id: stock-sat-fu-03
+    domain: stock_sat
+    title: Clarify DC vs store lalu pilih DC
+    turns:
+      - question: "Stok Alfamart Q4 2024 yang paling tinggi di mana?"
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge: { criteria: ["Clarify DC vs store atau jawab dengan caveat grain."] }
+      - question: "maksud saya stok di DC partner, top 10 DC"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up scope DC SAT setelah clarify."] }
+
+  - id: stock-sat-fu-04
+    domain: stock_sat
+    title: Named DC lalu compare second DC
+    turns:
+      - question: "Berapa stok SAT di DC Palembang Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["DC Palembang stock."] }
+      - question: "bandingkan dengan DC Makassar untuk periode yang sama"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Perbandingan dua DC; follow-up koheren."] }
+
+  - id: stock-sat-fu-05
+    domain: stock_sat
+    title: PLU rank lalu OOS hint same PLU
+    turns:
+      - question: "Top 10 PLU dengan stok retail SAT tertinggi Q4"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["PLU stock ranking."] }
+      - question: "PLU rank 1, apakah ada indikasi OOS di data SAT?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Link stok-OOS atau caveat domain terpisah."] }
+
+  # --- sat_oos (5) ---
+  - id: oos-fu-01
+    domain: sat_oos
+    title: Worst material lalu outlet count
+    turns:
+      - question: "Material mana dengan OOS rate SAT terburuk Q4 2024? Top 10"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["OOS rate ranking material."] }
+      - question: "material terburuk tadi, berapa outlet yang tersurvei?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up detail material OOS."] }
+
+  - id: oos-fu-02
+    domain: sat_oos
+    title: Company OOS lalu worst region hint
+    turns:
+      - question: "Berapa rata-rata OOS rate SAT company-wide Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Agregat OOS SAT."] }
+      - question: "material mana yang paling sering OOS dibanding rata-rata tadi?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up vs baseline company OOS."] }
+
+  - id: oos-fu-03
+    domain: sat_oos
+    title: PLU OOS lalu stok hint
+    turns:
+      - question: "Top 10 PLU dengan OOS tertinggi Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["PLU OOS ranking."] }
+      - question: "PLU rank 1, apakah stok retail-nya rendah di data yang sama?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["OOS vs stok cross-domain jujur."] }
+
+  - id: oos-fu-04
+    domain: sat_oos
+    title: Worst outlet lalu material di outlet
+    turns:
+      - question: "Outlet/toko mana dengan OOS rate terburuk Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Outlet grain OOS."] }
+      - question: "outlet terburuk itu, top 3 material OOS"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Drill material per outlet."] }
+
+  - id: oos-fu-05
+    domain: sat_oos
+    title: Trend hint lalu definisi OOS
+    turns:
+      - question: "Bagaimana tren OOS SAT Q4 dibanding bulan sebelumnya?"
+        expect: { status: [SUCCESS, CLARIFICATION, NO_DATA], strategy: [governed, clarification, unsupported] }
+        judge: { min_score: 6, criteria: ["Jujur jika tren di luar cakupan Q4-only."] }
+      - question: "oke, cukup tampilkan OOS rate Desember 2024 top 5 material saja"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up menyempit ke Des/Q4 material ranking."] }
+
+  # --- service_level (5) ---
+  - id: sl-fu-01
+    domain: service_level
+    title: Worst offices lalu material drill rank 1 office
+    turns:
+      - question: "Hitung service level/ fill rate di cabang tempo dan urutkan SL terjelek Q4"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Service level per sales office Tempo."] }
+      - question: "cabang paling jelek tadi, top 5 material dengan fill rate terendah"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up office→material service level."] }
+
+  - id: sl-fu-02
+    domain: service_level
+    title: Company fill lalu band distribution
+    turns:
+      - question: "Berapa fill rate / service level rata-rata company Tempo Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Agregat fill rate."] }
+      - question: "tampilkan distribusi fill rate band per sales office top 10 terendah"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Band distribution atau ranking office."] }
+
+  - id: sl-fu-03
+    domain: service_level
+    title: Material SL lalu office for material
+    turns:
+      - question: "Top 10 material dengan service level terendah Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Material-level service level."] }
+      - question: "material rank 1, sales office mana yang paling drag fill rate-nya?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Follow-up material→office."] }
+
+  - id: sl-fu-04
+    domain: service_level
+    title: Band distribution lalu worst band offices
+    turns:
+      - question: "Distribusi fill rate band service level Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Fill rate bands."] }
+      - question: "band terendah, list sales office yang dominan di band itu"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Follow-up band→office."] }
+
+  - id: sl-fu-05
+    domain: service_level
+    title: PO-DO gap lalu office 0245 drill
+    turns:
+      - question: "Sales office mana dengan gap PO vs DO terbesar Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["PO-DO gap ranking office."] }
+      - question: "office dengan gap terbesar tadi, breakdown per material top 5"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Drill material untuk office prior."] }
+
+  # --- picking (5) ---
+  - id: picking-fu-01
+    domain: picking
+    title: Longest picking lalu office 0201 detail
+    turns:
+      - question: "Sales office mana dengan rata-rata durasi picking terlama Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Average picking minutes ranking."] }
+      - question: "office terlama tadi, bandingkan dengan office tercepat dari ranking yang sama"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Perbandingan picking dari konteks ranking."] }
+
+  - id: picking-fu-02
+    domain: picking
+    title: Top10 slow lalu company avg
+    turns:
+      - question: "Top 10 sales office dengan picking time tertinggi Q4"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Picking ranking top 10."] }
+      - question: "berapa rata-rata picking company-wide untuk Q4?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Agregat picking vs konteks prior."] }
+
+  - id: picking-fu-03
+    domain: picking
+    title: Fastest lalu slowest compare
+    turns:
+      - question: "Sales office mana picking-nya paling efisien (tercepat) Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Fastest picking office."] }
+      - question: "bandingkan durasi picking office tercepat vs office 0201"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Compare specific offices picking."] }
+
+  - id: picking-fu-04
+    domain: picking
+    title: Top10 slow lalu cek office 0201
+    turns:
+      - question: "Top 10 sales office dengan rata-rata picking terlama Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Picking slow ranking."] }
+      - question: "apakah sales office 0201 ada di daftar tadi? kalau ya berapa menit rata-ratanya?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Referential ke ranking turn 1 untuk office 0201."] }
+
+  - id: picking-fu-05
+    domain: picking
+    title: Dual metric clarify lalu chip picking
+    turns:
+      - question: "Analisa data unloading dan picking dan berikan analisa perbandingan dengan industri standard"
+        expect: { status: CLARIFICATION, strategy: clarification }
+        judge: { criteria: ["Clarify picking vs unloading; no fake benchmark."] }
+      - question: "Analisa durasi picking per sales office Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["After clarify, governed picking metric."] }
+
+  # --- unloading (5) ---
+  - id: unloading-fu-01
+    domain: unloading
+    title: Longest unloading lalu compare fastest
+    turns:
+      - question: "Cabang mana dengan rata-rata unloading terlama Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Unloading ranking longest."] }
+      - question: "cabang terlama vs cabang tercepat dari daftar tadi, tampilkan angkanya"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Compare two offices unloading."] }
+
+  - id: unloading-fu-02
+    domain: unloading
+    title: Top10 unloading lalu office rank 5
+    turns:
+      - question: "Top 10 sales office dengan unloading time tertinggi Q4"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Top 10 unloading."] }
+      - question: "sales office urutan 5 dari ranking itu berapa menit rata-ratanya?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Referential rank 5 unloading."] }
+
+  - id: unloading-fu-03
+    domain: unloading
+    title: Shortest lalu company avg
+    turns:
+      - question: "Sales office mana unloading-nya paling efisien (tercepat) Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Fastest unloading."] }
+      - question: "rata-rata unloading company-wide Q4?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Company avg unloading follow-up."] }
+
+  - id: unloading-fu-04
+    domain: unloading
+    title: Compare 0201 vs 0202 lalu explain gap
+    turns:
+      - question: "Bandingkan rata-rata unloading sales office 0201 vs 0202 Q4 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Two-office unloading compare."] }
+      - question: "office mana yang lebih lambat dan selisihnya berapa menit?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up interpret compare result."] }
+
+  - id: unloading-fu-05
+    domain: unloading
+    title: Company avg lalu top 3 slowest
+    turns:
+      - question: "Berapa rata-rata unloading minutes company-wide Tempo Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Company unloading average."] }
+      - question: "tampilkan top 3 sales office di atas rata-rata tadi"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up offices above average."] }
+
+  # --- promo (5) ---
+  - id: promo-fu-01
+    domain: promo
+    title: Top uplift lalu material detail
+    turns:
+      - question: "Top 10 material dengan revenue uplift promo SAT Desember 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Promo uplift ranking material."] }
+      - question: "material rank 1 uplift tadi, jelaskan proxy Nov vs Des yang dipakai"
+        expect: { status: SUCCESS, strategy: [governed, conversational], min_rows: 0 }
+        judge: { criteria: ["Follow-up definisi proxy uplift; tidak ROI palsu."] }
+
+  - id: promo-fu-02
+    domain: promo
+    title: ROI clarify lalu pilih revenue proxy
+    turns:
+      - question: "Hitung promo dengan ROI terbaik dan berikan rekomendasi operasional"
+        expect: { status: CLARIFICATION, strategy: clarification }
+        judge: { criteria: ["ROI clarify proxy choice."] }
+      - question: "Revenue Uplift General Trade Nov vs Des untuk material promo top 10"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["After clarify, revenue uplift governed."] }
+
+  - id: promo-fu-03
+    domain: promo
+    title: Observation count lalu mechanism hint
+    turns:
+      - question: "Berapa jumlah observasi promo SAT Q4 2024 per material? Top 10 material"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Promo observation count ranking."] }
+      - question: "material dengan observasi terbanyak, apa mekanisme promo dominan di teks?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Mechanism text field; tidak mengarang."] }
+
+  - id: promo-fu-04
+    domain: promo
+    title: Mechanism rank lalu count same mekanisme
+    turns:
+      - question: "Top 10 mekanisme promo SAT (teks) dengan observasi terbanyak Des 2024"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Promo mechanism grouping."] }
+      - question: "mekanisme rank 1, berapa material unik terkait?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Follow-up mechanism detail."] }
+
+  - id: promo-fu-05
+    domain: promo
+    title: Program status lalu top material in status
+    turns:
+      - question: "Distribusi promo SAT by program status Q4 2024"
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge: { min_score: 6, criteria: ["Program status atau clarify."] }
+      - question: "status dominan tadi, top 5 material by uplift"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { min_score: 6, criteria: ["Follow-up status→material."] }
+
+  # --- cross_domain (5) ---
+  - id: cross-fu-01
+    domain: cross_domain
+    title: Pareto sell-in lalu top3 contribution
+    turns:
+      - question: "Bantu jelaskan pareto penjualan sell-in Q4 2024 top produk Tempo"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Pareto/top product sell-in governed."] }
+      - question: "tiga produk teratas tadi, berapa persen kontribusi ke total sell-in?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up kontribusi persen dari ranking prior."] }
+
+  - id: cross-fu-02
+    domain: cross_domain
+    title: Concept sell-in vs sell-out lalu analytic sell-in
+    turns:
+      - question: "Halo, apa bedanya sell-in Tempo dan sell-out Alfamart untuk tim manajemen?"
+        expect: { status: SUCCESS, strategy: conversational, min_rows: 0 }
+        judge: { criteria: ["Conversational definisi domain benar."] }
+      - question: "Berapa total sell-in Tempo Q4 2024?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Turn 2 analytic sell-in setelah konsep."] }
+
+  - id: cross-fu-03
+    domain: cross_domain
+    title: Stok vs sell-in FE001 lalu only sell-in
+    turns:
+      - question: "Bagaimana hubungan stok Tempo dan sell-in material FE001 Q4?"
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification, unsupported] }
+        judge: { min_score: 6, criteria: ["Journey cross-domain jujur atau partial."] }
+      - question: "cukup tampilkan sell-in FE001 per bulan Q4"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up narrow ke sell-in FE001."] }
+
+  - id: cross-fu-04
+    domain: cross_domain
+    title: DC stok SAT + sell-out lalu drill DC
+    turns:
+      - question: "DC Alfamart mana stok SAT-nya paling tinggi dan sell-out-nya juga tinggi Q4?"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Cross SAT stock + B2B hint."] }
+      - question: "DC yang muncul di jawaban tadi, top 3 produk sell-out-nya"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge: { criteria: ["Follow-up drill produk di DC prior."] }
+
+  - id: cross-fu-05
+    domain: cross_domain
+    title: Capability lalu ask picking
+    turns:
+      - question: "Halo, data apa saja yang bisa ditanyakan untuk review manajemen Q4 di sistem ini?"
+        expect: { status: SUCCESS, strategy: conversational, min_rows: 0 }
+        judge: { criteria: ["Capability conversational."] }
+      - question: "ok tampilkan top 5 sales office picking terlama Q4"
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge: { criteria: ["Turn 2 governed picking after capability."] }

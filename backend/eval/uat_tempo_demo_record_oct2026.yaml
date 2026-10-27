@@ -1,0 +1,394 @@
+# Tempo demo recording — Batch 1 journey, Batch 2 management, Batch 3 new (10× follow-up).
+#
+# Dry-run (resolver only):
+#   cd backend && PYTHONPATH=. python scripts/run_tempo_demo_record_uat.py
+# Live (Impala + LLM, needs BE on :8000):
+#   python scripts/run_tempo_demo_record_uat.py --live http://127.0.0.1:8000 gemini --skip-judge
+# Multi-turn only:
+#   python scripts/run_uat_domain_5x5_followup.py http://127.0.0.1:8000 gemini \
+#     --yaml=uat_tempo_demo_record_oct2026.yaml --skip-judge
+
+version: 1
+scope: Tempo evidence recording · Oct 2026 · OSSIE governed + analysis follow-ups
+
+# --- BATCH 2: single-turn management (record as separate clips or one montage) ---
+management_cases:
+  - id: B2-01
+    batch: 2
+    domain: cross
+    question: >-
+      Tampilkan top 10 pareto produk berdasarkan perbandingan nilai sell-in dan
+      sell-out
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: material_sell_in_value
+      min_rows: 2
+
+  - id: B2-02
+    batch: 2
+    domain: sales
+    question: >-
+      Tampilkan top 10 produk nilai penagihan grosir tertinggi bulan November 2024
+      lalu analisa produk penggerak utama. Tampilkan juga persentasi kontribusi
+      nilai penagihan untuk masing-masing produk terhadap total nilai penagihan
+      seluruh perusahaan beserta nilai kumulatifnya.
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: material_sell_in_value
+      min_rows: 2
+
+  - id: B2-03
+    batch: 2
+    domain: billing
+    question: >-
+      Tampilkan 10 material dengan rasio bill-to-PO terendah di Desember 2024 dan
+      analisa penyebab potensial beserta saran perbaikan proses penagihan.
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: material_fill_rate
+      min_rows: 1
+
+  - id: B2-04
+    batch: 2
+    domain: billing
+    question: >-
+      Tampilkan 10 material dengan rasio bill-to-PO terendah di Desember 2024 —
+      hanya produk dengan nilai rasio positif — dan analisa penyebab potensial
+      beserta saran perbaikan proses penagihan.
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: material_fill_rate
+      min_rows: 1
+
+  - id: B2-05
+    batch: 2
+    domain: sat
+    question: >-
+      Tampilkan 10 DC dengan penumpukan stok produk yang tertinggi, lalu analisa
+      apakah ada yang bisa kita lakukan untuk memperbaiki situasi tersebut
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: [sat_dc_stock_value, sat_dc_stock_quantity]
+      min_rows: 2
+
+  - id: B2-06
+    batch: 2
+    domain: service
+    question: >-
+      Tampilkan 10 kantor cabang dengan tingkat pemenuhan nilai terendah pada Q4
+      2024 dan jelaskan tindakan operasional apa yang bisa diambil
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: sales_office_service_fill_rate
+      min_rows: 2
+
+  - id: B2-07
+    batch: 2
+    domain: service
+    question: >-
+      Kantor penjualan mana yang paling buruk OTIF-nya? Berikan analisis dan 3
+      hipotesis perbaikan fulfillment
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: sales_office_service_fill_rate
+      min_rows: 2
+
+  - id: B2-08
+    batch: 2
+    domain: sat
+    question: >-
+      10 material dengan stok toko retail Alfamart rata-rata tertinggi Oktober
+      2024 — berikan analisa redistribusi stok toko jika diperlukan
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: sat_store_stock_quantity
+      min_rows: 2
+
+  - id: B2-09
+    batch: 2
+    domain: stock
+    question: >-
+      10 material dengan perputaran stok tertinggi Q4 2024 — jelaskan implikasi
+      untuk kebijakan replenishment
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: months_of_stock_cover
+      min_rows: 2
+
+  - id: B2-10
+    batch: 2
+    domain: stock
+    question: >-
+      Material mana dengan hari persediaan terpanjang November 2024? Berikan
+      analisis dan langkah mitigasi stok macet
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: months_of_stock_cover
+      min_rows: 1
+
+scenarios:
+  # --- BATCH 1: satu sesi rekaman end-to-end (12 turn) ---
+  - id: B1-demo-journey
+    batch: 1
+    domain: journey
+    title: Pareto → B2B → stok → service → SAT → promo (sesi rekaman utama)
+    record_note: Rekam satu session_id dari awal sampai akhir untuk bukti conversational drill-down
+    turns:
+      - question: "Tampilkan pareto penjualan"
+        expect:
+          status: SUCCESS
+          min_rows: 2
+      - question: "Kenapa material urutan 1 bisa paling tinggi dibanding yang lain?"
+        expect:
+          status: SUCCESS
+          strategy: [history_only_analysis, governed, conversational]
+          resolve_optional: true
+          min_rows: 0
+      - question: >-
+          Untuk material itu, bandingkan sell-in vs sell-out B2B Alfamart —
+          apakah selaras?
+        expect:
+          status: SUCCESS
+          min_rows: 1
+      - question: >-
+          Bandingkan total sell-in Tempo vs sell-out partner Alfamart Q4 2024
+        expect:
+          status: SUCCESS
+          min_rows: 1
+      - question: "Bandingkan stok gudang Tempo vs sell-in per material Q4 2024"
+        expect:
+          status: SUCCESS
+          min_rows: 1
+      - question: "Sales office mana dengan fill rate terendah Q4 2024? Top 10"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 2
+      - question: "Kenapa fill rate office urutan 1 bisa jelek? Berikan analisis singkat."
+        expect:
+          status: SUCCESS
+          strategy: [history_only_analysis, conversational, governed]
+          resolve_optional: true
+          min_rows: 0
+      - question: "Office urutan 1 tadi, top 5 material dengan qty unfulfilled"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          resolve_optional: true
+          min_rows: 1
+      - question: "DC Alfamart mana dengan stok SAT DC tertinggi Q4 2024? Top 10"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+      - question: "DC rank 1 tadi, top 3 produk sell-out-nya"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+      - question: "Distribusi observasi promo SAT by program status Q4 2024"
+        expect:
+          status: SUCCESS
+          min_rows: 1
+      - question: "Status dominan tadi, top 5 material by uplift promo"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+
+  # --- BATCH 3: 10 skenario baru untuk rekaman (2 turn, semua domain) ---
+  - id: B3-01-pareto-b2b-explain
+    batch: 3
+    domain: b2b
+    title: Pareto sell-out B2B → analisa rank 1
+    turns:
+      - question: "Tampilkan pareto penjualan sell-out B2B Alfamart Q4 2024"
+        expect:
+          status: SUCCESS
+          min_rows: 2
+      - question: >-
+          Kenapa cabang atau material urutan 1 di pareto tadi dominan? Jelaskan
+          dengan data dan hipotesis operasional.
+        expect:
+          status: SUCCESS
+          strategy: [history_only_analysis, conversational, governed]
+          resolve_optional: true
+          min_rows: 0
+
+  - id: B3-02-office-sellin-drill
+    batch: 3
+    domain: sales
+    title: Top office sell-in Nov → kontribusi material
+    turns:
+      - question: "Top 10 sales office dengan nilai sell-in tertinggi November 2024"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 2
+      - question: "Office urutan 1 tadi, top 5 material kontribusi sell-in-nya"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+
+  - id: B3-03-branch-sellout-vs-sellin
+    batch: 3
+    domain: cross
+    title: Top branch sell-out → selaraskan dengan sell-in Tempo
+    turns:
+      - question: "Top 10 cabang Alfamart dengan sell-out tertinggi Q4 2024"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 2
+      - question: >-
+          Untuk cabang rank 1 tadi, bandingkan total sell-out dengan sell-in
+          material yang sama di Tempo Q4 — apakah selaras?
+        expect:
+          status: SUCCESS
+          min_rows: 1
+
+  - id: B3-04-stock-ratio-replenishment
+    batch: 3
+    domain: stock
+    title: Stok gudang vs sell-in → saran replenishment
+    turns:
+      - question: >-
+          Top 10 material dengan rasio stok gudang Tempo vs sell-in tertinggi
+          Q4 2024
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 2
+      - question: >-
+          Material rank 1 tadi — apakah perlu kurangi replenishment? Berikan
+          analisis dan risiko stok macet.
+        expect:
+          status: SUCCESS
+          strategy: [history_only_analysis, conversational, governed]
+          min_rows: 0
+
+  - id: B3-05-dc-pileup-materials
+    batch: 3
+    domain: sat
+    title: Penumpukan stok DC → drill material
+    turns:
+      - question: "Top 10 DC Alfamart dengan penumpukan stok nilai tertinggi Q4 2024"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          metric: sat_dc_stock_value
+          min_rows: 2
+      - question: "DC rank 1 tadi, top 3 material penyebab penumpukan stok"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+
+  - id: B3-06-otif-hypotheses
+    batch: 3
+    domain: service
+    title: OTIF terburuk → hipotesis perbaikan
+    turns:
+      - question: >-
+          Top 10 sales office dengan OTIF atau fill rate terendah Desember 2024
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 2
+      - question: >-
+          Untuk office rank 1 tadi, berikan 3 hipotesis penyebab dan tindakan
+          operasional yang bisa diambil minggu depan.
+        expect:
+          status: SUCCESS
+          strategy: [history_only_analysis, conversational, governed]
+          resolve_optional: true
+          min_rows: 0
+
+  - id: B3-07-promo-uplink-status
+    batch: 3
+    domain: promo
+    title: Promo uplift → status program
+    turns:
+      - question: "Top 5 material dengan uplift promo tertinggi Q4 2024"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+      - question: "Distribusi observasi promo SAT by program status Q4 2024"
+        expect:
+          status: SUCCESS
+          min_rows: 1
+
+  - id: B3-08-sellin-sellout-gap-month
+    batch: 3
+    domain: journey
+    title: Gap sell-in vs sell-out per bulan → analisa
+    turns:
+      - question: >-
+          Bandingkan total sell-in Tempo vs sell-out Alfamart per bulan Q4 2024
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+      - question: >-
+          Bulan dengan gap terbesar tadi — apa penyebab potensial dan langkah
+          mitigasi?
+        expect:
+          status: SUCCESS
+          strategy: [history_only_analysis, conversational, governed]
+          resolve_optional: true
+          min_rows: 0
+
+  - id: B3-09-picking-unloading
+    batch: 3
+    domain: picking
+    title: Picking delay → banding unload
+    turns:
+      - question: "Sales office mana dengan picking delay rate tertinggi Q4 2024? Top 5"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          metric: [picking_delay_rate, average_picking_minutes]
+          min_rows: 1
+      - question: "Top 5 sales office dengan rata-rata waktu unloading terlama Q4 2024"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          metric: average_unloading_minutes
+          min_rows: 1
+      - question: >-
+          Bandingkan office rank 1 picking delay tadi vs rank 1 unloading —
+          apakah bottleneck di gudang? Berikan analisis singkat.
+        expect:
+          status: [SUCCESS, CLARIFICATION]
+          strategy: [history_only_analysis, conversational, governed, clarification]
+          resolve_optional: true
+          min_rows: 0
+
+  - id: B3-10-oos-b2b-correlation
+    batch: 3
+    domain: sat_oos
+    title: OOS tinggi → korelasi sell-out
+    turns:
+      - question: "Top 10 material dengan OOS rate tertinggi Q4 2024"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 2
+      - question: >-
+          Material rank 1 tadi, bagaimana sell-out B2B Alfamart-nya di periode
+          yang sama? Apakah perlu prioritas replenishment?
+        expect:
+          status: SUCCESS
+          min_rows: 1

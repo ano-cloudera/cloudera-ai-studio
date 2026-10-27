@@ -1,0 +1,151 @@
+{
+  "base": "http://127.0.0.1:8000",
+  "passed": 14,
+  "total": 16,
+  "results": [
+    {
+      "id": "P0-greeting",
+      "pass": true,
+      "status": "SUCCESS",
+      "strategy": "conversational",
+      "rows": 0,
+      "note": "",
+      "request_id": "badb6656-a503-451c-8b7e-586460ea4a4a"
+    },
+    {
+      "id": "sales-01-total",
+      "pass": true,
+      "status": "SUCCESS",
+      "strategy": "governed",
+      "rows": 1,
+      "note": "",
+      "request_id": "f6515c5a-8f1e-4840-a4f8-c39a9344cae9"
+    },
+    {
+      "id": "sales-02-top-product",
+      "pass": true,
+      "status": "SUCCESS",
+      "strategy": "governed",
+      "rows": 10,
+      "note": "",
+      "request_id": "f3232b93-9f85-4f68-95a8-547839f32093"
+    },
+    {
+      "id": "sales-03-top-office",
+      "pass": true,
+      "status": "SUCCESS",
+      "strategy": "governed",
+      "rows": 10,
+      "note": "",
+      "request_id": "88564f46-d3e1-4cb9-b618-3f45948414c6"
+    },
+    {
+      "id": "b2b-01-top-product",
+      "pass": true,
+      "status": "SUCCESS",
+      "strategy": "governed",
+      "rows": 10,
+      "note": "",
+      "request_id": "a8d4ca65-18e7-4cd8-aaa1-ae1235d8378f"
+    },
+    {
+      "id": "b2b-02-top-dc",
+      "pass": true,
+      "status": "SUCCESS",
+      "strategy": "governed",
+      "rows": 10,
+      "note": "",
+      "request_id": "a4072aa9-bfac-4353-a5d2-80cb6c160427"
+    },
+    {
+      "id": "stock-tempo-01-cover",
+      "pass": true,
+      "status": "SUCCESS",
+      "strategy": "governed",
+      "rows": 1,
+      "note": "",
+      "request_id": "a26d9db9-fce6-456a-a16d-05f0eb4b7af7"
+    },
+    {
+      "id": "stock-sat-01-dc-rank",
+      "pass": true,
+      "status": "SUCCESS",
+      "strategy": "governed",
+      "rows": 10,
+      "note": "",
+      "request_id": "01ae319c-b065-44d0-8317-2a6b5a745bd7"
+    },
+    {
+      "id": "stock-sat-02-compare",
+      "pass": true,
+      "status": "CLARIFICATION",
+      "strategy": "clarification",
+      "rows": 0,
+      "note": "",
+      "request_id": "72b847f7-bd17-43b3-8f4e-e54b7e382777"
+    },
+    {
+      "id": "oos-01-rate",
+      "pass": true,
+      "status": "SUCCESS",
+      "strategy": "governed",
+      "rows": 10,
+      "note": "",
+      "request_id": "0bd8347f-10fb-43f8-a61a-a8df8758c367"
+    },
+    {
+      "id": "sl-01-worst-office",
+      "pass": true,
+      "status": "SUCCESS",
+      "strategy": "governed",
+      "rows": 10,
+      "note": "",
+      "request_id": "2e1b713c-926a-441f-bf6d-de26ed514040"
+    },
+    {
+      "id": "picking-01-rank",
+      "pass": false,
+      "status": "ERROR",
+      "strategy": "unsupported",
+      "rows": 0,
+      "note": "want strategy governed got unsupported",
+      "request_id": "0c4d10eb-4cf6-4116-8235-c96a9b9a981e"
+    },
+    {
+      "id": "unloading-01-rank",
+      "pass": false,
+      "status": "ERROR",
+      "strategy": "unsupported",
+      "rows": 0,
+      "note": "want strategy governed got unsupported",
+      "request_id": "056c184a-a033-4ca3-a15e-c2935e7dedc0"
+    },
+    {
+      "id": "promo-01-roi",
+      "pass": true,
+      "status": "CLARIFICATION",
+      "strategy": "clarification",
+      "rows": 0,
+      "note": "",
+      "request_id": "98e22ec1-34c9-4fa3-8bb2-86aceedcc6ea"
+    },
+    {
+      "id": "cross-01-pareto",
+      "pass": true,
+      "status": "SUCCESS",
+      "strategy": "governed",
+      "rows": 10,
+      "note": "",
+      "request_id": "c26bce34-7cba-4b24-82e9-b9470c723d5f"
+    },
+    {
+      "id": "ops-01-dual",
+      "pass": true,
+      "status": "CLARIFICATION",
+      "strategy": "clarification",
+      "rows": 0,
+      "note": "",
+      "request_id": "37ec84b1-9607-476b-836a-9de893d38f7a"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+# Rerun skenario gagal dari uat_domain_3x1_mgmt_final (Oct 2026).
+version: 1
+scope: rerun failures only
+
+scenarios:
+  - id: sales-mgmt-03
+    domain: sales
+    title: Konsentrasi SKU untuk risiko portofolio
+    turns:
+      - question: "Untuk risk review: produk/material apa saja yang masuk top 10 penjualan sell-in Tempo Q4 2024? Saya mau lihat konsentrasi SKU-nya."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Ranking material sell-in Q4; narasi atau tabel layak manajemen."
+            - "Boleh insight konsentrasi; hindari fallback analisis kosong."
+
+  - id: stock_tempo-mgmt-02
+    domain: stock_tempo
+    title: Cover stok terhadap penjualan
+    turns:
+      - question: "Ada concern cash tied in stock — bisa hitung indikator months of stock cover atau setara untuk level perusahaan/material Q4 2024? Kalau perlu filter material, ambil yang paling material secara nilai stok."
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge:
+          min_score: 6
+          criteria:
+            - "Stock cover governed atau clarify grain; baris null minim."
+
+  - id: stock_tempo-mgmt-03
+    domain: stock_tempo
+    title: Rasio stok vs sell-in
+    turns:
+      - question: "Mohon ratio stok gudang Tempo terhadap sell-in per material atau agregat yang masuk akal untuk Q4 — mau lihat apakah overstock."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 0 }
+        judge:
+          min_score: 6
+          criteria:
+            - "Stock-to-sell-in ratio journey metric; bukan klarifikasi generik."
+
+  - id: unloading-mgmt-03
+    domain: unloading
+    title: Volume event unloading
+    turns:
+      - question: "Berapa banyak event unloading tercatat per sales office Q4? Saya mau lihat cabang dengan aktivitas unloading terbanyak."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Unloading event count ranking; sebut cabang teratas."
+            - "Narasi tidak fallback kosong."
+
+  - id: cross_domain-mgmt-01
+    domain: cross_domain
+    title: Selisih sell-in vs sell-out agregat
+    turns:
+      - question: "Big picture lintas domain: selisih nilai sell-in Tempo vs sell-out partner Q4 2024 — metrik variance yang sudah dipublish boleh dipakai."
+        expect: { status: [SUCCESS, CLARIFICATION], strategy: [governed, clarification] }
+        judge:
+          min_score: 6
+          criteria:
+            - "Variance cross-domain atau klarifikasi metrik yang konstruktif."

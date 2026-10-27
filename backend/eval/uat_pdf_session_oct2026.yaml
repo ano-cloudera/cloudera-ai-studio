@@ -1,0 +1,110 @@
+# PDF export session (7 Oct 2026) — mechanical routing + live Impala checks.
+# Dry-run:  cd backend && PYTHONPATH=. python scripts/run_pdf_session_uat.py
+# Live:     python scripts/run_pdf_session_uat.py --live http://127.0.0.1:8000 gemini
+
+version: 1
+scope: PDF session 10 questions · OSSIE governed · Ingram Impala
+
+cases:
+  - id: PDF-01
+    question: >-
+      Tampilkan top 10 pareto produk berdasarkan perbandingan nilai sell-in dan
+      sell-out
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: material_sell_in_value
+      min_rows: 2
+
+  - id: PDF-02
+    question: >-
+      Tampilkan top 10 produk nilai penagihan grosir tertinggi bulan November 2024
+      lalu analisa produk penggerak utama. Tampilkan juga persentasi kontribusi
+      nilai penagihan untuk masing-masing produk terhadap total nilai penagihan
+      seluruh perusahaan beserta nilai kumulatifnya.
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: material_sell_in_value
+      min_rows: 2
+
+  - id: PDF-03
+    question: >-
+      Tampilkan 10 material dengan rasio bill-to-PO terendah di Desember 2024 dan
+      analisa penyebab potensial beserta saran perbaikan proses penagihan.
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: material_fill_rate
+      min_rows: 1
+
+  - id: PDF-04
+    question: >-
+      Tampilkan 10 material dengan rasio bill-to-PO terendah di Desember 2024 -
+      hanya tampilkan produk dengan nilai rasio positif - dan analisa penyebab
+      potensial beserta saran perbaikan proses penagihan.
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: material_fill_rate
+      min_rows: 1
+
+  - id: PDF-05
+    question: >-
+      Tampilkan 10 DC dengan penumpukan stok produk yang tertinggi, lalu analisa
+      apakah ada yang bisa kita lakukan untuk memperbaiki situasi tersebut
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: sat_dc_stock_value
+      min_rows: 2
+
+  - id: PDF-06
+    question: >-
+      Tampilkan 10 kantor cabang dengan tingkat pemenuhan nilai terendah pada Q4
+      2024 dan jelaskan tindakan operasional apa yang bisa diambil
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: sales_office_service_fill_rate
+      min_rows: 2
+
+  - id: PDF-07
+    question: >-
+      Kantor penjualan mana yang paling buruk OTIF-nya? Berikan analisis dan 3
+      hipotesis perbaikan fulfillment
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: sales_office_service_fill_rate
+      min_rows: 2
+
+  - id: PDF-08
+    question: >-
+      10 material dengan stok toko rata-rata tertinggi di Oktober 2024 — analisa
+      apakah perlu redistribusi antar DC
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: sat_store_stock_quantity
+      min_rows: 2
+
+  - id: PDF-09
+    question: >-
+      10 material dengan perputaran stok tertinggi Q4 2024 — jelaskan implikasi
+      untuk kebijakan replenishment
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: months_of_stock_cover
+      min_rows: 2
+
+  - id: PDF-10
+    question: >-
+      Material mana dengan hari persediaan terpanjang November 2024? Berikan
+      analisis dan langkah mitigasi stok macet
+    expect:
+      status: SUCCESS
+      strategy: governed
+      metric: months_of_stock_cover
+      min_rows: 1

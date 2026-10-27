@@ -1,0 +1,12 @@
+impyla==0.22.0
+pure-sasl==0.6.2
+thrift-sasl==0.4.3
+# impyla 0.22.0 declares this exact Thrift version.
+thrift==0.16.0
+# Required for GSSAPI/Kerberos auth (Private Cloud on-prem, e.g. IMID.LOCAL) -
+# puresasl.client silently ignores GSSAPI without this and falls back to a
+# transport the server rejects (TTransportException), logging only a
+# SASLWarning. Not needed for LDAP/PLAIN-only deployments (e.g. AWS), but
+# installing it there is harmless. Needs system Kerberos dev headers
+# (krb5-devel/libkrb5-dev) available at build time.
+kerberos==1.3.1

@@ -1,0 +1,764 @@
+version: 1
+scope: TEMPO Q4 2024
+description: >-
+  Candidate management questions for semantic regression. These questions are
+  technical acceptance assets, not evidence of business approval.
+
+questions:
+  - id: exec_gross_sales_q4
+    question: Berapa Gross Sales Tempo selama Q4 2024?
+    expected_status: supported
+    metric: gross_billing_value
+    dataset: monthly_executive
+    dimensions: []
+
+  - id: exec_gross_sales_month
+    question: Tampilkan Gross Sales per bulan selama Q4 2024.
+    expected_status: supported
+    metric: gross_billing_value
+    dataset: monthly_executive
+    dimensions: [calmonth]
+
+  - id: exec_billing_quantity
+    question: Bagaimana tren billing quantity selama Oktober sampai Desember?
+    expected_status: supported
+    metric: billing_quantity
+    dataset: monthly_executive
+    dimensions: [calmonth]
+
+  - id: exec_fill_rate
+    question: Berapa company Fill Rate setiap bulan?
+    expected_status: supported
+    metric: company_fill_rate
+    dataset: monthly_executive
+    dimensions: [calmonth]
+
+  - id: ambiguous_sales
+    question: Berapa total penjualan?
+    expected_status: needs_clarification
+    ambiguity: sales_stage
+
+  - id: material_top_sell_in
+    question: Material mana dengan nilai Sell-In terbesar pada Q4?
+    expected_status: supported
+    metric: material_sell_in_value
+    dataset: material_360
+    dimensions: [material]
+    required_filter: has_sell_in
+
+  - id: material_top5_produk_natural_phrasing
+    # Regression guard for a real user question that used to resolve to the
+    # company-level gross_billing_value (calmonth-only, no product
+    # breakdown) instead of this material-grain metric - see the 2026-09-28
+    # testing session notes. The phrasing is deliberately casual/natural
+    # ("jumlah sales... top 5 produk"), not the terse "Material mana dengan
+    # X terbesar" style the other entries use, since that's exactly the
+    # style gap that caused the original miss.
+    question: >-
+      Kalau kita ngomongin jumlah sales, gw mau tau dong total top 5 produk
+      apa aja yang penjualannya paling besar (Sell-In).
+    expected_status: supported
+    metric: material_sell_in_value
+    dataset: material_360
+    dimensions: [material]
+    required_filter: has_sell_in
+
+  - id: customer_top_sell_in
+    # 2026-09-28: Sales/Sell-In previously only supported calmonth/material
+    # dimensions - no customer or sales_office breakdown existed at the
+    # material grain. See gold.rpt_sap_customer_material_month_semantic.
+    question: Customer mana dengan nilai Sell-In terbesar pada Q4?
+    expected_status: supported
+    metric: customer_sell_in_value
+    dataset: customer_material_360
+    dimensions: [customer]
+
+  - id: sales_office_top_sell_in_material
+    # sales_office is a working PoC assumption here ("a branch in a given
+    # region"), not yet Tempo-confirmed - same caveat as SI-13-Q4.
+    question: Sales office mana dengan nilai Sell-In terbesar per material pada Q4?
+    expected_status: supported
+    metric: sales_office_material_sell_in_value
+    dataset: sales_office_material_360
+    dimensions: [material, sales_office]
+
+  - id: material_sell_in_month
+    question: Tampilkan nilai Sell-In material per bulan.
+    expected_status: supported
+    metric: material_sell_in_value
+    dataset: material_360
+    dimensions: [calmonth, material]
+    required_filter: has_sell_in
+
+  - id: material_stock
+    question: Material mana dengan stok gudang terbesar pada Desember?
+    expected_status: supported
+    metric: material_warehouse_stock_quantity
+    dataset: material_360
+    dimensions: [material]
+    required_filter: has_stock
+
+  - id: material_360_coverage
+    question: Berapa material yang memiliki Sales, Stock, dan Service Level lengkap?
+    expected_status: unsupported
+    reason: A governed distinct material count metric is not published in Semantic Contract v1.
+    suggested_question: Material mana yang memiliki Sales, Stock, dan Service Level lengkap?
+
+  - id: material_fill_rate
+    question: Material mana dengan Fill Rate terendah?
+    expected_status: supported
+    metric: material_fill_rate
+    dataset: material_360
+    dimensions: [material]
+    required_filter: has_service_level
+
+  - id: sales_office_service_fill_rate
+    # 2026-09-28: Service Level previously only supported calmonth/material
+    # dimensions - no sales_office breakdown existed. See
+    # gold.corr_service_sales_office_material_month.
+    question: Sales office mana dengan Fill Rate terendah?
+    expected_status: supported
+    metric: sales_office_service_fill_rate
+    dataset: service_level_sales_office
+    dimensions: [sales_off]
+
+  - id: material_sell_out_ratio
+    question: Bagaimana rasio Sell-Out terhadap Sell-In per material?
+    expected_status: supported
+    metric: material_sell_out_to_sell_in_value_ratio
+    dataset: material_360
+    dimensions: [material]
+    required_filters: [has_sell_in, has_sell_out]
+
+  - id: material_velocity_proxy
+    question: Material mana dengan Sell-In quantity per stock unit terendah?
+    expected_status: supported_with_caveat
+    metric: sell_in_quantity_per_stock_unit
+    dataset: material_360
+    dimensions: [material]
+    caveat: Proxy, not official inventory turnover.
+
+  - id: material_months_of_cover
+    # 29 Sep 2026: added after auditing a colleague's (Irvan) separate
+    # semantic model (reference/lite agent irvan/, see
+    # docs/irvan-semantic-model-audit.md) - inverse framing of the metric
+    # above, same underlying data, more intuitive for "how long will stock
+    # last" questions. Phrasing uses "berapa bulan stok cukup" verbatim -
+    # a plain "stok cukup untuk...bulan ke depan" phrasing (no explicit
+    # "berapa bulan" discriminator) fell through to the generic stock_scope
+    # ambiguity gate instead of this metric's own discriminator option;
+    # confirmed via a live CLI smoke test before finalizing this entry.
+    question: Material mana dengan berapa bulan stok cukup paling sedikit?
+    expected_status: supported_with_caveat
+    metric: months_of_stock_cover
+    dataset: material_360
+    dimensions: [material]
+    caveat: Proxy, not an official inventory-planning KPI.
+
+  - id: service_monthly_fill_rate
+    question: Bagaimana Fill Rate per bulan dan material?
+    expected_status: supported
+    metric: service_fill_rate
+    dataset: service_level_material
+    dimensions: [calmonth, material]
+
+  - id: service_low_fill
+    question: Material apa saja yang masuk kategori low fill?
+    expected_status: supported
+    metric: service_material_month_count
+    dataset: service_level_material
+    dimensions: [material, fill_rate_band]
+    filters: {fill_rate_band: [low_fill]}
+
+  - id: service_unknown_fill
+    question: Apakah ada material yang Fill Rate-nya tidak tersedia?
+    expected_status: supported
+    metric: service_material_month_count
+    dataset: service_level_material
+    dimensions: [material]
+    filters: {fill_rate_band: [unknown]}
+
+  - id: service_demand_gap
+    question: Material mana dengan gap PO dan DO terbesar?
+    expected_status: unsupported
+    reason: Unfulfilled demand quantity is not included in the 28-metric Semantic Contract v1.
+    suggested_question: Material mana dengan Fill Rate terendah?
+
+  - id: customer_reconciliation
+    question: Customer mana dengan gap Sell-In dan Sell-Out terbesar?
+    expected_status: supported_with_caveat
+    metric: sell_in_minus_sell_out_value
+    dataset: customer_reconciliation
+    dimensions: [customer]
+    caveat: Shared customers only.
+
+  - id: customer_sell_out_ratio
+    question: Bagaimana rasio Sell-Out terhadap Sell-In per customer?
+    expected_status: supported_with_caveat
+    metric: sell_out_to_sell_in_value_ratio
+    dataset: customer_reconciliation
+    dimensions: [calmonth, customer]
+    caveat: Shared customers only; not official sell-through.
+
+  - id: customer_scope
+    question: Berapa customer yang dapat direkonsiliasi?
+    expected_status: unsupported
+    reason: A governed distinct shared-customer count metric is not published in Semantic Contract v1.
+    suggested_question: Customer mana dengan gap Sell-In dan Sell-Out terbesar?
+
+  - id: office_sell_in
+    question: Sales office mana dengan nilai Sell-In Q4 tertinggi?
+    expected_status: supported
+    metric: sales_office_sell_in_value
+    dataset: sales_office_q4
+    dimensions: [sales_office]
+
+  - id: office_picking_delay
+    question: Sales office mana dengan picking delay rate tertinggi?
+    expected_status: supported_with_caveat
+    metric: picking_delay_rate
+    dataset: sales_office_q4
+    dimensions: [sales_office]
+    caveat: Q4 aggregate; only offices with Picking data.
+
+  - id: office_pick_time
+    question: Berapa rata-rata waktu picking per sales office?
+    expected_status: supported_with_caveat
+    metric: average_picking_minutes
+    dataset: sales_office_q4
+    dimensions: [sales_office]
+    caveat: Q4 aggregate.
+
+  - id: office_unload_time
+    question: Sales office mana dengan rata-rata unloading terlama?
+    expected_status: supported_with_caveat
+    metric: average_unloading_minutes
+    dataset: sales_office_q4
+    dimensions: [sales_office]
+    caveat: Only 14 offices have Unloading data.
+
+  - id: office_monthly_unsupported
+    question: Bagaimana tren picking delay per office setiap bulan?
+    expected_status: unsupported
+    reason: Sales Office semantic view is Q4 aggregate and has no monthly grain.
+    suggested_question: Sales office mana dengan picking delay rate tertinggi selama Q4?
+
+  - id: daily_sales_unsupported
+    question: Berapa Gross Sales harian pada Desember?
+    expected_status: unsupported
+    reason: Governed Sales data is monthly, not daily.
+    suggested_question: Berapa Gross Sales Desember 2024?
+
+  - id: forecast_unsupported
+    question: Berapa forecast Sales bulan Januari 2025?
+    expected_status: unsupported
+    reason: Forecast model is not governed by the real-data semantic profile.
+    suggested_question: Bagaimana tren Gross Sales Oktober sampai Desember 2024?
+
+  - id: margin_pending
+    question: Berapa gross margin resmi Tempo?
+    expected_status: unsupported
+    reason: Official gross margin formula has not been business-approved.
+    suggested_question: Berapa Gross Billing Value selama Q4?
+
+  - id: promo_attribution_unsupported
+    question: Berapa revenue yang dihasilkan oleh promo?
+    expected_status: unsupported
+    reason: Promo source is an enrollment catalog and does not attribute revenue.
+    suggested_question: Material apa saja yang tercatat dalam program promo?
+
+  - id: causal_oos_unsupported
+    question: Apakah OOS menyebabkan penjualan turun?
+    expected_status: unsupported
+    reason: Three-month observational data does not establish causality.
+    suggested_question: Tampilkan material yang memiliki konteks Sales dan OOS.
+
+  - id: outside_period
+    question: Bagaimana penjualan Januari 2025?
+    expected_status: unsupported
+    reason: Governed scope is October–December 2024.
+    suggested_question: Bagaimana tren Gross Sales selama Q4 2024?
+
+  - id: arbitrary_sql
+    question: Jalankan SQL bebas untuk mengambil semua baris Sales.
+    expected_status: blocked
+    reason: Free SQL and unbounded row access are prohibited.
+
+  # --- Catalog seed (F1): Sales domain ---
+  - id: catalog_s01_gross_q4
+    catalog_question_id: S01
+    chart_primary: KPI
+    domain_agent: sales
+    question: Berapa total gross revenue Sell-In Tempo Q4 2024 nasional?
+    expected_status: supported
+    metric: gross_billing_value
+    dataset: monthly_executive
+    dimensions: []
+
+  - id: catalog_s03_top_material
+    catalog_question_id: S03
+    chart_primary: PARETO
+    domain_agent: sales
+    question: Top 10 material by revenue Sell-In Q4 (Pareto).
+    expected_status: supported
+    metric: material_sell_in_value
+    dataset: material_360
+    dimensions: [material]
+    required_filter: has_sell_in
+
+  - id: catalog_s05_top_office
+    catalog_question_id: S05
+    chart_primary: HBAR
+    domain_agent: sales
+    question: Top 10 sales office by nilai Sell-In Q4.
+    expected_status: supported
+    metric: sales_office_sell_in_value
+    dataset: sales_office_q4
+    dimensions: [sales_office]
+
+  - id: catalog_s11_prescriptive_branch
+    catalog_question_id: S11
+    chart_primary: MULTI
+    domain_agent: sales
+    question: Revenue turun di cabang tertentu — apakah karena retur, volume, atau diskon?
+    expected_status: unsupported
+    reason: Governed grain does not decompose retur vs discount drivers per office in v1.
+    suggested_question: Sales office mana dengan nilai Sell-In Q4 tertinggi?
+
+  # --- B2B domain ---
+  - id: catalog_b06_sell_out_in_ratio
+    catalog_question_id: B06
+    chart_primary: SCATTER
+    domain_agent: b2b
+    question: Bagaimana rasio Sell-Out terhadap Sell-In per material (gap supply chain)?
+    expected_status: supported
+    metric: material_sell_out_to_sell_in_value_ratio
+    dataset: material_360
+    dimensions: [material]
+    required_filters: [has_sell_in, has_sell_out]
+
+  - id: catalog_b11_prescriptive_dc
+    catalog_question_id: B11
+    chart_primary: MULTI
+    domain_agent: b2b
+    question: Sell-out DC turun — cek OOS dan stock SAT-IDM sebelum menyalahkan sales team.
+    expected_status: unsupported
+    reason: Multi-domain SAT-IDM/OOS join is not in governed OSSIE v1.
+    suggested_question: Customer mana dengan gap Sell-In dan Sell-Out terbesar?
+
+  - id: catalog_b15_promo_des_b2b
+    catalog_question_id: B15
+    chart_primary: KPI
+    domain_agent: b2b
+    question: Siapkan analisis B2B Desember untuk join ke data promo.
+    expected_status: needs_clarification
+    ambiguity: promo_scope
+    suggested_question: Bagaimana rasio Sell-Out terhadap Sell-In per shared customer pada Desember?
+
+  # --- Stock SAT-IDM domain ---
+  - id: catalog_i03_dc_store_split
+    catalog_question_id: I03
+    chart_primary: STACK
+    domain_agent: stock_sat_idm
+    question: Per DC partner, berapa split stok DC vs stok store?
+    expected_status: unsupported
+    reason: Stock SAT-IDM is not in governed Semantic Contract v1.
+    suggested_question: Material mana dengan stok gudang terbesar pada Desember?
+
+  - id: catalog_i11_prescriptive_replenish
+    catalog_question_id: I11
+    chart_primary: MULTI
+    domain_agent: stock_sat_idm
+    question: Sell-in tinggi + dcstock tinggi + storestock rendah — push replenishment DC ke store?
+    expected_status: unsupported
+    reason: Cross-domain replenishment narrative requires SAT-IDM + B2B views not yet governed.
+    suggested_question: Bagaimana rasio Sell-Out terhadap Sell-In per material?
+
+  # --- SAT OOS domain ---
+  - id: catalog_o01_oos_rate
+    # Updated 29 Sep 2026: was marked unsupported ("OOS rate is exploratory;
+    # not a published governed metric in v1"), but sat_oos_rate (OOS-01) has
+    # been governed since the nine-domain expansion (bc517b7) - this question
+    # was never updated to match and is the only golden question exercising
+    # sat_oos_rate at all. Confirmed live via resolve_semantic_object's CLI
+    # tool: resolves to sat_oos_rate with dimension_mismatch: [].
+    catalog_question_id: O01
+    chart_primary: KPI
+    domain_agent: sat_oos
+    question: Berapa persen survey SAT OOS dengan stok akhir nol?
+    expected_status: supported
+    metric: sat_oos_rate
+    dataset: sat_oos_material_month
+    dimensions: []
+
+  - id: catalog_o11_ptt_oos
+    catalog_question_id: O11
+    chart_primary: MULTI
+    domain_agent: sat_oos
+    question: PTT sales tinggi tetapi OOS tinggi — audit replenishment?
+    expected_status: unsupported
+    reason: Causal and multi-source OOS narrative is not governed in v1.
+    suggested_question: Customer mana dengan gap Sell-In dan Sell-Out terbesar?
+
+  # --- Stock Tempo domain ---
+  - id: catalog_t02_top_stock_des
+    catalog_question_id: T02
+    chart_primary: PARETO
+    domain_agent: stock_tempo
+    question: Top material by stok gudang Tempo Desember 2024.
+    expected_status: supported
+    metric: material_warehouse_stock_quantity
+    dataset: material_360
+    dimensions: [material]
+    required_filter: has_stock
+
+  - id: catalog_t14_promo_stock_cover
+    catalog_question_id: T14
+    chart_primary: COMBO
+    domain_agent: stock_tempo
+    question: Apakah stok Tempo cukup untuk SKU promo Desember?
+    expected_status: unsupported
+    reason: Promo × stock join is exploratory only (December promo scope).
+    suggested_question: Material mana dengan stok gudang terbesar pada Desember?
+
+  # --- Service Level domain ---
+  - id: catalog_l01_fill_rate_month
+    catalog_question_id: L01
+    chart_primary: LINE
+    domain_agent: service_level
+    question: Company fill rate per bulan Q4 2024?
+    expected_status: supported
+    metric: company_fill_rate
+    dataset: monthly_executive
+    dimensions: [calmonth]
+
+  - id: catalog_l11_sl_lost_sales
+    catalog_question_id: L11
+    chart_primary: MULTI
+    domain_agent: service_level
+    question: Service level di bawah 80% — risiko lost sales?
+    expected_status: supported_with_caveat
+    metric: service_fill_rate
+    dataset: service_level_material
+    dimensions: [calmonth, material]
+    caveat: Observational; causality not established.
+
+  # --- Picking domain ---
+  - id: catalog_kq1_picking_delay
+    catalog_question_id: KQ1
+    chart_primary: HBAR
+    domain_agent: picking
+    question: Sales office mana dengan picking delay rate tertinggi Q4?
+    expected_status: supported_with_caveat
+    metric: picking_delay_rate
+    dataset: sales_office_q4
+    dimensions: [sales_office]
+    caveat: Q4 aggregate; offices with picking data only.
+
+  - id: catalog_kq8_pick_rows_ratio
+    catalog_question_id: KQ8
+    chart_primary: SCATTER
+    domain_agent: picking
+    question: Picking rows per sales line per office — overload?
+    expected_status: supported_with_caveat
+    metric: picking_rows_per_sales_line
+    dataset: sales_office_q4
+    dimensions: [sales_office]
+    caveat: Workload proxy, not official productivity KPI.
+
+  - id: catalog_k15_pick_sl_risk
+    catalog_question_id: K15
+    chart_primary: MULTI
+    domain_agent: picking
+    question: Picking delay tinggi dan service level rendah — risiko customer experience?
+    expected_status: unsupported
+    reason: Picking Q4 aggregate cannot join monthly service level at governed grain.
+    suggested_question: Sales office mana dengan picking delay rate tertinggi selama Q4?
+
+  # --- Unloading domain ---
+  - id: catalog_uq1_slowest_unload
+    catalog_question_id: UQ1
+    chart_primary: HBAR
+    domain_agent: unloading
+    question: Cabang mana dengan rata-rata unloading terlama Q4?
+    expected_status: supported_with_caveat
+    metric: average_unloading_minutes
+    dataset: sales_office_q4
+    dimensions: [sales_office]
+    caveat: Only offices with unloading data.
+
+  - id: catalog_uq10_prescriptive_sla
+    catalog_question_id: UQ10
+    chart_primary: MULTI
+    domain_agent: unloading
+    question: Rekomendasi SLA bongkar menit per 1000 qty berdasarkan cabang terbaik?
+    expected_status: unsupported
+    reason: Prescriptive SLA benchmark is not a governed metric.
+    suggested_question: Sales office mana dengan rata-rata unloading terlama?
+
+  # --- Promo domain ---
+  - id: catalog_p01_promo_mekanisme
+    catalog_question_id: P01
+    chart_primary: BAR
+    domain_agent: data_promo
+    question: Jumlah observasi promo per mekanisme Desember 2024?
+    expected_status: supported_with_caveat
+    metric: promo_observation_count
+    dataset: sat_promo_material_december
+    dimensions: [mekanisme]
+    caveat: December 2024 field-audit observations only; mechanism labels are raw source text.
+
+  - id: catalog_p02_promo_program_status
+    catalog_question_id: P02
+    chart_primary: DONUT
+    domain_agent: data_promo
+    question: Bagaimana distribusi kode program status Y/X/T?
+    expected_status: supported_with_caveat
+    metric: promo_observation_count
+    dataset: sat_promo_material_december
+    dimensions: [program_status]
+    caveat: Y, X, and T are raw source codes whose business meanings are pending TEMPO confirmation.
+
+  - id: catalog_p03_promo_material_ranking
+    catalog_question_id: P03
+    chart_primary: PARETO
+    domain_agent: data_promo
+    question: Material mana paling sering muncul dalam observasi promo?
+    expected_status: supported_with_caveat
+    metric: promo_observation_count
+    dataset: sat_promo_material_december
+    dimensions: [material_code]
+    caveat: Ranking is based on field-audit observation rows, not revenue, redemption, or effectiveness.
+
+  - id: promo_material_count_december
+    chart_primary: KPI
+    domain_agent: data_promo
+    question: Berapa jumlah material SKU yang tercakup SAT Promo Desember 2024?
+    expected_status: supported_with_caveat
+    metric: promo_material_count
+    dataset: sat_promo_material_december
+    dimensions: [reporting_month]
+    caveat: Distinct material coverage from December 2024 field-audit observations only.
+
+  - id: catalog_pq1_promo_vs_no_promo_sales
+    catalog_question_id: PQ1
+    chart_primary: BAR
+    domain_agent: data_promo
+    question: Sell-In Des — material dengan observasi promo vs tanpa promo, bandingkan revenue.
+    expected_status: unsupported
+    reason: Promo-attributed revenue split requires exploratory December join, not governed v1.
+    suggested_question: Berapa Gross Sales Desember 2024?
+
+  - id: catalog_p15_promo_budget
+    catalog_question_id: P15
+    chart_primary: TABLE
+    domain_agent: data_promo
+    question: Budget promo Rp1 miliar — promo mana paling efektif?
+    expected_status: unsupported
+    reason: Promo cost and ROI are not in source data.
+    suggested_question: Material apa saja yang tercatat dalam program promo?
+
+  # --- Additional governed coverage ---
+  - id: catalog_s02_revenue_month
+    catalog_question_id: S02
+    chart_primary: LINE
+    domain_agent: sales
+    question: Tampilkan revenue Sell-In per bulan Oktober sampai Desember 2024.
+    expected_status: supported
+    metric: gross_billing_value
+    dataset: monthly_executive
+    dimensions: [calmonth]
+
+  - id: catalog_l03_worst_material_fill
+    catalog_question_id: L03
+    chart_primary: HBAR
+    domain_agent: service_level
+    question: Material dengan fill rate terendah Q4?
+    expected_status: supported
+    metric: material_fill_rate
+    dataset: material_360
+    dimensions: [material]
+    required_filter: has_service_level
+
+  - id: catalog_b02_branch_sell_out
+    catalog_question_id: B02
+    chart_primary: HBAR
+    domain_agent: b2b
+    question: Top branch by sell-out value Q4?
+    expected_status: supported
+    metric: b2b_branch_sell_out_value
+    dataset: b2b_branch_estore
+    dimensions: [branch]
+
+  - id: b2b_customer_top_sell_out
+    # 2026-09-28: B2B previously had no customer dimension in its gold
+    # layer, despite silver.b2b_oct_dec_2024 carrying customer alongside
+    # sales_off/branch/e_store on every row. See
+    # gold.corr_b2b_customer_branch_estore_month.
+    question: Customer mana dengan nilai B2B Sell-Out terbesar pada Q4?
+    expected_status: supported
+    metric: b2b_customer_sell_out_value
+    dataset: b2b_customer_branch_estore
+    dimensions: [customer]
+
+  - id: b2b_customer_material_top_sell_out
+    question: Customer mana dengan nilai B2B Sell-Out terbesar per material pada Q4?
+    expected_status: supported
+    metric: b2b_customer_material_plu_value
+    dataset: b2b_customer_material_plu
+    dimensions: [material, customer]
+
+  - id: catalog_exec_do_ratio
+    catalog_question_id: S14
+    chart_primary: SCATTER
+    domain_agent: sales
+    question: Billing quantity naik tetapi gross billing flat — per bulan?
+    expected_status: supported_with_caveat
+    metric: do_amount_to_billing_value_ratio
+    dataset: monthly_executive
+    dimensions: [calmonth]
+    caveat: Company monthly proxy, not price decomposition.
+
+  - id: catalog_stock_velocity
+    catalog_question_id: T07
+    chart_primary: SCATTER
+    domain_agent: stock_tempo
+    question: Material dengan stok tinggi vs sell-in rendah?
+    expected_status: supported_with_caveat
+    metric: sell_in_quantity_per_stock_unit
+    dataset: material_360
+    dimensions: [material]
+    caveat: Proxy velocity, not official turnover.
+
+  - id: catalog_shared_customer_sell_in
+    catalog_question_id: B04
+    chart_primary: HBAR
+    domain_agent: b2b
+    question: Total Sell-In pada shared customers Q4?
+    expected_status: supported_with_caveat
+    metric: shared_customer_sell_in_value
+    dataset: customer_reconciliation
+    dimensions: [customer]
+    caveat: Shared customers only.
+
+  - id: catalog_service_po_do
+    catalog_question_id: L05
+    chart_primary: COMBO
+    domain_agent: service_level
+    question: Total PO quantity vs DO quantity per bulan?
+    expected_status: supported
+    metric: service_po_quantity
+    dataset: service_level_material
+    dimensions: [calmonth]
+
+  - id: catalog_office_pick_time_kq2
+    catalog_question_id: KQ2
+    chart_primary: HBAR
+    domain_agent: picking
+    question: Rata-rata waktu picking per sales office Q4?
+    expected_status: supported_with_caveat
+    metric: average_picking_minutes
+    dataset: sales_office_q4
+    dimensions: [sales_office]
+
+  # --- Showcase expansion confirmed 28 Sep 2026 ---
+  - id: showcase_sales_material_bill_qty
+    catalog_question_id: S16
+    chart_primary: HBAR
+    domain_agent: sales
+    question: Material mana dengan total BILL_QTY tertinggi selama Q4 2024?
+    expected_status: supported
+    metric: material_sell_in_quantity
+    dataset: material_360
+    dimensions: [material]
+
+  - id: showcase_sales_material_do_amount
+    catalog_question_id: S19
+    chart_primary: HBAR
+    domain_agent: sales
+    question: Material mana dengan total DO amount tertinggi selama Q4 2024?
+    expected_status: supported
+    metric: material_delivery_order_amount
+    dataset: material_360
+    dimensions: [material]
+
+  - id: showcase_b2b_branch_quantity
+    catalog_question_id: B16
+    chart_primary: HBAR
+    domain_agent: b2b
+    question: Branch B2B mana dengan bill quantity tertinggi?
+    expected_status: supported
+    metric: b2b_branch_sell_out_quantity
+    dataset: b2b_branch_estore
+    dimensions: [branch]
+
+  - id: showcase_b2b_sales_office_quantity
+    catalog_question_id: B17
+    chart_primary: HBAR
+    domain_agent: b2b
+    question: Sales office Tempo mana dengan BILL_QTY B2B tertinggi?
+    expected_status: supported
+    metric: b2b_branch_sell_out_quantity
+    dataset: b2b_branch_estore
+    dimensions: [sales_off]
+
+  - id: showcase_sat_idm_dc_value
+    catalog_question_id: I08
+    chart_primary: HBAR
+    domain_agent: stock_sat_idm
+    question: Berapa nilai stok DC Alfamart (SAT) per DC selama Q4 2024?
+    expected_status: supported
+    metric: sat_dc_stock_value
+    dataset: sat_dc_month
+    dimensions: [dcname]
+
+  - id: showcase_sat_idm_store_value
+    catalog_question_id: I08
+    chart_primary: HBAR
+    domain_agent: stock_sat_idm
+    question: Berapa nilai stok store Alfamart (SAT) per DC selama Q4 2024?
+    expected_status: supported
+    metric: sat_store_stock_value
+    dataset: sat_dc_month
+    dimensions: [dcname]
+
+  - id: sat_idm_total_pipeline_is_prohibited
+    catalog_question_id: I01
+    chart_primary: MULTI
+    domain_agent: stock_sat_idm
+    question: Berapa total pipeline stok DC dan store SAT-IDM selama Q4 2024?
+    expected_status: needs_clarification
+    ambiguity: sat_idm_stock_level_aggregation
+    reason: >-
+      DC Stock dan Store Stock adalah posisi stok pada level analisis berbeda;
+      tampilkan berdampingan sebagai metrik terpisah dan jangan dijumlahkan.
+
+  - id: showcase_service_unfulfilled
+    catalog_question_id: L05
+    chart_primary: HBAR
+    domain_agent: service_level
+    question: Material mana dengan unfulfilled quantity terbesar?
+    expected_status: supported
+    metric: service_unfulfilled_quantity
+    dataset: service_level_material
+    dimensions: [material]
+
+  - id: showcase_picking_workload
+    catalog_question_id: K03
+    chart_primary: HBAR
+    domain_agent: picking
+    question: Sales office mana dengan picking workload tertinggi?
+    expected_status: supported
+    metric: picking_workload_rows
+    dataset: sales_office_q4
+    dimensions: [sales_office]
+
+  - id: showcase_unloading_events
+    catalog_question_id: U02
+    chart_primary: HBAR
+    domain_agent: unloading
+    question: Sales office mana dengan unloading events terbanyak?
+    expected_status: supported
+    metric: unloading_event_count
+    dataset: sales_office_q4
+    dimensions: [sales_office]

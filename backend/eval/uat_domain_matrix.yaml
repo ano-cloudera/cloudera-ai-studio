@@ -1,0 +1,89 @@
+# Backend UAT matrix — OSSIE-only, Q4 2024 scope.
+# Live: bash scripts/run-uat-backend.sh
+
+version: 1
+cases:
+  - id: P0-health
+    domain: infra
+    question: null
+    expect: { kind: skip_live }
+
+  - id: P0-greeting
+    domain: conversational
+    question: "Halo, kamu bisa bantu analisa apa saja untuk manajemen Tempo Q4?"
+    expect: { kind: conversational_only, status: SUCCESS, strategy: conversational }
+
+  - id: sales-01-total
+    domain: sales
+    question: "Berapa total gross sales / sell-in TEMPO Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, metric_hint: gross_billing }
+
+  - id: sales-02-top-product
+    domain: sales
+    question: "Top 10 produk dengan penjualan terbesar di Tempo"
+    expect: { status: SUCCESS, strategy: governed, metric: material_sell_in_value }
+
+  - id: sales-03-top-office
+    domain: sales
+    question: "Top 10 cabang / sales office dengan sell-in terbesar Q4 2024"
+    expect: { status: SUCCESS, strategy: governed, metric: sales_office_sell_in_value }
+
+  - id: b2b-01-top-product
+    domain: b2b
+    question: "Top 10 produk di B2B dengan penjualan sell-out tertinggi Q4"
+    expect: { status: SUCCESS, strategy: governed, metric: material_sell_out_value }
+
+  - id: b2b-02-top-dc
+    domain: b2b
+    question: "Top 10 DC Alfamart dengan penjualan tertinggi"
+    expect: { status: SUCCESS, strategy: governed, metric: b2b_branch_sell_out_value }
+
+  - id: stock-tempo-01-cover
+    domain: stock_tempo
+    question: "sekarang bisa bantu tampilkan gak produk/ material 500-21-02 di cabang 0201 dan hitung bisa meng-cover penjualan berapa hari dari stok tersebut"
+    expect: { status: SUCCESS, strategy: governed, metric: months_of_stock_cover }
+
+  - id: stock-sat-01-dc-rank
+    domain: stock_sat
+    question: "Tampilkan 10 DC dengan penumpukan stok produk yang tertinggi"
+    expect: { status: SUCCESS, strategy: governed, metric: sat_dc_stock_quantity }
+
+  - id: stock-sat-02-compare
+    domain: stock_sat
+    question: "Cek stok produk A di toko alfamart dan bandingkan dengan stok di DC"
+    expect: { status: CLARIFICATION, strategy: clarification }
+
+  - id: oos-01-rate
+    domain: sat_oos
+    question: "Material mana dengan tingkat OOS di toko SAT tertinggi Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, metric: sat_oos_rate }
+
+  - id: sl-01-worst-office
+    domain: service_level
+    question: "Hitung service level/ fill rate di cabang tempo dan urutkan SL terjelek"
+    expect: { status: SUCCESS, strategy: governed, metric: sales_office_service_fill_rate }
+
+  - id: picking-01-rank
+    domain: picking
+    question: "Sales office mana dengan rata-rata durasi picking terlama Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, metric: average_picking_minutes }
+
+  - id: unloading-01-rank
+    domain: unloading
+    question: "Cabang mana dengan rata-rata unloading terlama Q4 2024?"
+    expect: { status: SUCCESS, strategy: governed, metric: average_unloading_minutes }
+
+  - id: promo-01-roi
+    domain: promo
+    question: "Hitung promo dengan ROI terbaik dan berikan rekomendasi/ saran"
+    expect: { status: CLARIFICATION, strategy: clarification }
+
+  - id: cross-01-pareto
+    domain: cross_domain
+    question: "Bantu jelaskan pareto penjualan sell-in Q4"
+    expect: { status: SUCCESS, strategy: governed, metric: material_sell_in_value }
+
+  - id: ops-01-dual
+    domain: picking
+    question: "Analisa data unloading dan picking dan berikan analisa perbandingan dengan industri standard"
+    expect: { status: CLARIFICATION, strategy: clarification, reason: warehouse_ops_dual_metric }

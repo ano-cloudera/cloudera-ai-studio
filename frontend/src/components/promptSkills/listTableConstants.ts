@@ -1,0 +1,2 @@
+export const PROMPT_SKILL_PAGE_SIZE_OPTIONS = [5, 10, 20] as const
+export const PROMPT_SKILL_DEFAULT_PAGE_SIZE = 10

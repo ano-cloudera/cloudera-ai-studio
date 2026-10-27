@@ -1,0 +1,26 @@
+version: 1
+scope: rerun stock_tempo-mgmt-02 + unloading-mgmt-03
+
+scenarios:
+  - id: stock_tempo-mgmt-02
+    domain: stock_tempo
+    title: Cover stok terhadap penjualan
+    turns:
+      - question: "Ada concern cash tied in stock — bisa hitung indikator months of stock cover atau setara untuk level perusahaan/material Q4 2024? Kalau perlu filter material, ambil yang paling material secara nilai stok."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          min_score: 7
+          criteria:
+            - "Stock cover per material dengan nilai stok terbesar; baris NULL minim."
+            - "Layak untuk demo manajemen."
+
+  - id: unloading-mgmt-03
+    domain: unloading
+    title: Volume event unloading
+    turns:
+      - question: "Berapa banyak event unloading tercatat per sales office Q4? Saya mau lihat cabang dengan aktivitas unloading terbanyak."
+        expect: { status: SUCCESS, strategy: governed, min_rows: 1 }
+        judge:
+          criteria:
+            - "Sebut cabang #1 aktivitas unloading; definisi event count jelas."
+            - "Tanpa pesan error model analisis ke user."

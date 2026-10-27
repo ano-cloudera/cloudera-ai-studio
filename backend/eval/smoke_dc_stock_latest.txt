@@ -1,0 +1,26 @@
+=== Dry-run routing ===
+ASK_DATA_ROUTING=auto  local_agent_primary=False
+LOCAL_AGENT_BASE_URL=http://127.0.0.1:9766
+
+ID   Route  Resolver               Metric                       Question
+------------------------------------------------------------------------------------------------------------------------
+SMOKE v3     resolved               sat_dc_stock_quantity        Tampilkan 10 DC dengan penumpukan stok produk...
+
+=== Live /chat (timeout 360s) ===
+ASK_DATA_ROUTING=auto  local_agent_primary=False
+LOCAL_AGENT_BASE_URL=http://127.0.0.1:9766
+
+ID   Route  Resolver               Metric                       Question
+------------------------------------------------------------------------------------------------------------------------
+SMOKE v3     resolved               sat_dc_stock_quantity        Tampilkan 10 DC dengan penumpukan stok produk...
+
+--- Live results ---
+[
+  {
+    "qid": "SMOKE",
+    "status": "SUCCESS",
+    "strategy": "governed",
+    "row_count": 1,
+    "summary": "Permintaan untuk menampilkan 10 DC dengan penumpukan stok tertinggi membutuhkan rincian berdasarkan dimensi `dcname`. Hasil eksekusi query yang tersedia mengagregasi seluruh baris menjadi satu nilai t"
+  }
+]

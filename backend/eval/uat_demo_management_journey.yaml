@@ -1,0 +1,104 @@
+# Demo management journey — enhanced from product walkthrough (Oct 2026).
+# Live: python scripts/run_uat_domain_5x5_followup.py http://127.0.0.1:8000 gemini --yaml=uat_demo_management_journey.yaml --skip-judge
+
+version: 1
+scope: TEMPO Q4 2024 · OSSIE governed · demo script
+
+scenarios:
+  - id: D1-sellin-top-explain-b2b
+    domain: sales
+    title: Top material → explain ranking (history) → B2B journey
+    turns:
+      - question: "Top 10 material dengan nilai sell-in tertinggi Q4 2024"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 2
+      - question: "Kenapa material urutan 1 bisa paling tinggi dibanding yang lain?"
+        expect:
+          status: SUCCESS
+          strategy: history_only_analysis
+          min_rows: 2
+      - question: "Untuk material itu, bandingkan sell-in vs sell-out B2B Alfamart — apakah selaras?"
+        expect:
+          status: SUCCESS
+          min_rows: 1
+      - question: "Kalau ratio-nya jelek, material apa di top 10 yang sell-out B2B-nya paling rendah?"
+        expect:
+          status: SUCCESS
+          min_rows: 1
+
+  - id: D2-big-picture-sellin-sellout
+    domain: journey
+    title: Big picture sell-in vs Alfamart sell-out
+    turns:
+      - question: "Big picture Q4 2024: bandingkan total sell-in Tempo vs sell-out partner Alfamart"
+        expect:
+          status: SUCCESS
+          min_rows: 1
+
+  - id: D3-stock-tempo-vs-sellin
+    domain: stock
+    title: Stok gudang Tempo vs sell-in per material
+    turns:
+      - question: "Bandingkan stok gudang Tempo vs sell-in per material Q4 2024"
+        expect:
+          status: SUCCESS
+          min_rows: 1
+
+  - id: D4-service-fill-unfulfilled
+    domain: service
+    title: Fill rate terendah → unfulfilled materials
+    turns:
+      - question: "Sales office mana dengan fill rate terendah Q4 2024? Top 10"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 2
+      - question: "Office urutan 1 tadi, top 5 material dengan qty unfulfilled"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+
+  - id: D5-office-sellin-compare
+    domain: sales
+    title: Compare two sales offices sell-in
+    turns:
+      - question: "Top 10 cabang sales office dengan sell-in terbesar Q4 2024"
+        expect:
+          status: SUCCESS
+          min_rows: 2
+      - question: "Office 0201 vs 0280, bandingkan total sell-in Q4"
+        expect:
+          status: SUCCESS
+          min_rows: 1
+
+  - id: D6-sat-dc-sellout-drill
+    domain: sat
+    title: SAT DC stock → sell-out drill
+    turns:
+      - question: "DC Alfamart mana dengan stok SAT DC tertinggi Q4? Top 10"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+      - question: "DC rank 1 tadi, top 3 produk sell-out-nya"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1
+
+  - id: D7-promo-status-material
+    domain: promo
+    title: Promo distribution → material uplift
+    turns:
+      - question: "Distribusi observasi promo SAT by program status Q4 2024"
+        expect:
+          status: SUCCESS
+          min_rows: 1
+      - question: "Status dominan tadi, top 5 material by uplift promo"
+        expect:
+          status: SUCCESS
+          strategy: governed
+          min_rows: 1

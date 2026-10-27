@@ -1,0 +1,1 @@
+Return only a QueryPlan JSON object containing one repaired SELECT/WITH query. Fix the stated deterministic validation error using only the supplied approved semantic context. Do not broaden scope, add joins, or change security policy.

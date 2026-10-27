@@ -1,0 +1,317 @@
+version: 1
+description: Output column names for OSSIE/Impala gold views (local DuckDB tables).
+views:
+  gold.corr_b2b_branch_estore_month:
+    columns:
+    - calmonth
+    - sales_off
+    - branch
+    - e_store
+    - b2b_bill_qty
+    - b2b_bill_val
+    - row_count
+    ossie_source: gold.corr_b2b_branch_estore_month
+    from_ddl: true
+  gold.corr_b2b_branch_material_month:
+    columns:
+    - calmonth
+    - branch
+    - material
+    - b2b_bill_qty
+    - b2b_bill_val
+    - row_count
+    ossie_source: gold.corr_b2b_branch_material_month
+    from_ddl: true
+  gold.corr_b2b_customer_branch_estore_month:
+    columns:
+    - calmonth
+    - customer
+    - sales_off
+    - branch
+    - e_store
+    - b2b_bill_qty
+    - b2b_bill_val
+    - row_count
+    ossie_source: gold.corr_b2b_customer_branch_estore_month
+    from_ddl: true
+  gold.corr_b2b_customer_material_plu_month:
+    columns:
+    - calmonth
+    - customer
+    - material
+    - kode_plu
+    - ka_group
+    - b2b_bill_qty
+    - b2b_bill_val
+    - row_count
+    ossie_source: gold.corr_b2b_customer_material_plu_month
+    from_ddl: true
+  gold.corr_b2b_material_plu:
+    columns:
+    - calmonth
+    - material
+    - kode_plu
+    - ka_group
+    - b2b_bill_qty
+    - b2b_bill_val
+    - row_count
+    ossie_source: gold.corr_b2b_material_plu
+    from_ddl: true
+  gold.corr_b2b_sat_branch_month:
+    columns:
+    - calmonth
+    - branch
+    - branch_sell_out_value
+    - bln
+    - dc_stock_qty
+    - dc_stock_val
+    - store_stock_qty
+    - store_stock_val
+    ossie_source: gold.corr_b2b_satidm_branch_month
+    from_ddl: true
+  gold.corr_sales_b2b_material_month:
+    columns:
+    - calmonth
+    - material
+    - sell_in_bill_val
+    - material_sell_out_value
+    - sell_out_to_sell_in_ratio
+    ossie_source: gold.corr_sales_b2b_material_month
+    from_ddl: true
+  gold.corr_sat_dc_oos_material_month:
+    columns:
+    - calmonth
+    - plu
+    - dcname
+    - store_stock_qty
+    - oos_rate_pct
+    - survey_count
+    ossie_source: gold.corr_satidm_oos_material_month
+    from_ddl: true
+  gold.corr_service_sales_office_cust_group_material_month:
+    columns:
+    - calmonth
+    - material
+    - sales_off
+    - cust_grp3
+    - service_do_qty
+    - service_po_qty
+    - service_fill_rate
+    - row_count
+    ossie_source: gold.corr_service_sales_office_cust_group_material_month
+    from_ddl: true
+  gold.corr_service_sales_office_material_month:
+    columns:
+    - calmonth
+    - material
+    - sales_off
+    - service_do_qty
+    - service_po_qty
+    - service_fill_rate
+    - row_count
+    ossie_source: gold.corr_service_sales_office_material_month
+    from_ddl: true
+  gold.corr_stock_tempo_month_seta:
+    columns:
+    - calmonth
+    - material
+    - plant
+    - total_stock_qty
+    - stock_value
+    - consignment_stock_qty
+    - row_count
+    ossie_source: gold.corr_stock_tempo_month_seta
+    from_ddl: true
+  gold.corr_stock_tempo_sales_material_month:
+    columns:
+    - calmonth
+    - material
+    - total_stock_qty
+    - stock_value
+    - sell_in_bill_val
+    - sell_in_bill_qty
+    - stock_to_sell_in_ratio
+    ossie_source: gold.corr_stock_tempo_sales_material_month
+    from_ddl: true
+  gold.rpt_sales_office_performance_semantic:
+    columns:
+    - reporting_period
+    - period_start_calmonth
+    - period_end_calmonth
+    - reporting_grain
+    - sales_office
+    - sell_in_bill_val
+    - sales_billing_lines
+    - picking_delay_rate
+    - average_picking_minutes
+    - picking_rows
+    - average_unloading_minutes
+    - unloading_rows
+    - has_sell_in
+    - has_picking
+    - has_unloading
+    - picking_rows_per_sales_line
+    ossie_source: gold.rpt_sales_office_performance_semantic
+    from_ddl: true
+  gold.rpt_sap_customer_material_month_semantic:
+    columns:
+    - calmonth
+    - material
+    - customer
+    - sell_in_bill_val
+    - sell_in_bill_qty
+    ossie_source: gold.rpt_sap_customer_material_month_semantic
+    from_ddl: true
+  gold.rpt_sap_customer_reconciliation_semantic:
+    columns:
+    - calmonth
+    - customer
+    - sell_in_bill_val
+    - sell_out_bill_val
+    - sell_in_minus_sell_out_val
+    - sell_in_to_sell_out_value_ratio
+    - sell_out_to_sell_in_value_ratio
+    - absolute_variance_rate_vs_sell_out
+    - reconciliation_scope
+    - has_sell_in
+    - has_sell_out
+    ossie_source: gold.rpt_sap_customer_reconciliation_semantic
+    from_ddl: true
+  gold.rpt_sap_material_month_semantic:
+    columns:
+    - calmonth
+    - material
+    - sell_in_bill_val
+    - sell_in_bill_qty
+    - sales_do_qty
+    - sales_do_amt
+    - warehouse_stock_qty
+    - warehouse_stock_val
+    - service_do_qty
+    - service_po_qty
+    - service_fill_rate
+    - retail_plu
+    - sell_out_bill_val
+    - sell_out_bill_qty
+    - has_sell_in
+    - has_stock
+    - has_service_level
+    - has_sell_out
+    - sell_in_qty_per_stock_unit
+    - service_do_to_sell_in_bill_qty_ratio
+    - service_do_to_sales_do_qty_ratio
+    - sell_in_to_sell_out_value_ratio
+    - sell_out_to_sell_in_value_ratio
+    - sales_do_amt_to_bill_val_ratio
+    ossie_source: gold.rpt_sap_material_month_semantic
+    from_ddl: true
+  gold.rpt_sap_monthly_executive_semantic:
+    columns:
+    - calmonth
+    - sales_bill_val
+    - sales_bill_qty
+    - sales_do_qty
+    - sales_do_amt
+    - sales_materials
+    - sales_customers
+    - stock_qty
+    - stock_val
+    - stock_materials
+    - svc_do_qty
+    - svc_po_qty
+    - svc_fill_rate
+    - svc_materials
+    - b2b_bill_val
+    - b2b_bill_qty
+    - b2b_materials
+    - b2b_customers
+    - do_amt_to_bill_val_ratio
+    - stock_to_sales_bill_qty_ratio
+    ossie_source: gold.rpt_sap_monthly_executive_semantic
+    from_ddl: true
+  gold.rpt_sap_sales_office_material_month_semantic:
+    columns:
+    - calmonth
+    - material
+    - sales_office
+    - sell_in_bill_val
+    - sell_in_bill_qty
+    ossie_source: gold.rpt_sap_sales_office_material_month_semantic
+    from_ddl: true
+  gold.rpt_sat_dc_month:
+    columns:
+    - thn
+    - bln
+    - dcname
+    - plu
+    - division
+    - dc_stock_qty
+    - dc_stock_val
+    - store_stock_qty
+    - store_stock_val
+    - row_count
+    ossie_source: gold.rpt_sat_idm_dc_month
+    from_ddl: true
+  gold.rpt_sat_oos_material_month:
+    columns:
+    - calmonth_date
+    - cust_id
+    - cust_code
+    - material_code
+    - plu
+    - survey_count
+    - oos_count
+    - oos_rate_pct
+    ossie_source: gold.rpt_sat_oos_material_month
+    from_ddl: true
+  gold.rpt_sat_promo_b2b_sellout_uplift:
+    columns:
+    - material
+    - nov_bill_val
+    - dec_bill_val
+    - b2b_sellout_revenue_uplift
+    - nov_bill_qty
+    - dec_bill_qty
+    - b2b_sellout_volume_uplift
+    ossie_source: gold.rpt_sat_promo_b2b_sellout_uplift
+    from_ddl: true
+  gold.rpt_sat_promo_material_december_semantic:
+    columns:
+    - reporting_month
+    - material_code
+    - mekanisme
+    - program_status
+    - promo_observation_count
+    ossie_source: gold.rpt_sat_promo_material_december_semantic
+    from_ddl: true
+  gold.rpt_sat_promo_material_uplift:
+    columns:
+    - material
+    - nov_bill_val
+    - dec_bill_val
+    - revenue_uplift
+    - nov_bill_qty
+    - dec_bill_qty
+    - volume_uplift
+    - nov_margin_val
+    - dec_margin_val
+    - margin_uplift
+    ossie_source: gold.rpt_sat_promo_material_uplift
+    from_ddl: true
+  gold.rpt_service_level_material_month_semantic:
+    columns:
+    - calmonth
+    - material
+    - service_do_qty
+    - service_po_qty
+    - service_fill_rate
+    - fill_rate_band
+    - sell_in_bill_qty
+    - sell_in_bill_val
+    - warehouse_stock_qty
+    - has_service_level
+    - has_sell_in
+    - has_stock
+    - has_fill_rate
+    ossie_source: gold.rpt_service_level_material_month_semantic
+    from_ddl: true

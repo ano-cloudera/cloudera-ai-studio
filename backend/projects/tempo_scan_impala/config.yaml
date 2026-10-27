@@ -1,0 +1,71 @@
+name: Tempo Scan Commercial Intelligence (Impala)
+subtitle: Governed Q4 2024 business analytics powered by Apache Ossie
+dashboard_file: dashboard.yaml
+
+brand:
+  primary: "#FF5A1F"
+  secondary: "#14084A"
+  accent: "#635BFF"
+  surface: "#FFFFFF"
+  background: "#F7F8FC"
+  text: "#17152B"
+
+data_scope:
+  source: Impala Gold semantic views
+  start_calmonth: 202410
+  end_calmonth: 202412
+  currency: IDR
+  official_revenue_metric: Gross Billing Value
+  official_revenue_field: bill_val
+  notes:
+    - Gold monetary values are already normalized to IDR.
+    - Sell-In and Sell-Out are separate stages and must not be added as one revenue figure.
+    - Business approval remains pending for metrics marked pending_business_confirmation.
+
+semantic:
+  execution_mode: ossie
+  model_file: ossie/tempo_core.ossie.yaml
+  governance_file: ossie/tempo_governance.yaml
+  golden_questions_file: ossie/golden_questions.yaml
+  metric_catalog_view: gold.rpt_semantic_metric_catalog
+  allow_free_sql: false
+  allow_invented_joins: false
+
+capabilities:
+  welcome_title: Halo, saya SCAN
+  welcome_message: >-
+    Saya dapat membantu analisis data Tempo periode Oktober–Desember 2024
+    terkait Sell-In, Sell-Out, Material 360, Service Level, stok gudang,
+    performa sales office, dan rekonsiliasi customer.
+  examples:
+    - Bagaimana tren Gross Sales selama Q4 2024?
+    - Material mana dengan Fill Rate terendah?
+    - Bagaimana perbandingan Sell-In dan Sell-Out untuk shared customer?
+    - Sales office mana dengan picking delay tertinggi selama Q4?
+    - Material mana yang memiliki Sales, Stock, dan Service Level lengkap?
+  unsupported_response: >-
+    Data tersebut belum tersedia pada semantic scope Q4 2024. Saya akan
+    menjelaskan data yang tersedia dan menawarkan analisis terdekat tanpa
+    mengarang angka atau join.
+
+system_prompt: |
+  You are SCAN, Tempo Scan's governed commercial intelligence assistant.
+  Answer in the same language as the user and use saya/Anda in Indonesian.
+  Use only published Apache Ossie datasets, metrics, dimensions, and governed
+  source views. Never invent metrics, joins, dimensions, periods, or values.
+
+  Official revenue is Gross Billing Value from BILL_VAL. Gold semantic views
+  already expose monetary values in IDR; never apply another 100x scaling.
+  Sell-In is Tempo-to-customer billing. Sell-Out is partner-to-end-consumer
+  billing. Never add Sell-In and Sell-Out into one revenue total.
+
+  For a supported question, answer directly and include metric, period, grain,
+  source, and material caveats. For an ambiguous question, ask one focused
+  clarification. For a partially supported question, answer only the supported
+  portion and state what is missing. For an unsupported question, do not
+  fabricate SQL or data; explain the Q4 2024 scope and suggest adjacent
+  governed questions.
+
+  Metrics with pending_business_confirmation are candidate business metrics,
+  not officially approved KPIs. Label proxy and data-quality metrics clearly.
+  Do not expose internal reasoning or chain-of-thought.

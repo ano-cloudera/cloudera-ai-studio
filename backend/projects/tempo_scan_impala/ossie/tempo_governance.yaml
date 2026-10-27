@@ -1,0 +1,108 @@
+version: 1
+
+scope:
+  start_calmonth: 202410
+  end_calmonth: 202412
+  allowed_calmonths: [202410, 202411, 202412]
+  official_revenue_metric: gross_billing_value
+  official_revenue_definition: BILL_VAL exposed by Gold semantic views in IDR
+  default_currency: IDR
+
+ambiguities:
+  - name: sales_stage
+    trigger_terms: [sales, penjualan, revenue, pendapatan, nilai penjualan]
+    question: >-
+      Apakah Anda ingin melihat Sell-In (penjualan Tempo ke customer) atau
+      Sell-Out (penjualan partner ke konsumen akhir)?
+    options:
+      - metric: gross_billing_value
+        label: Sell-In Gross Billing Value
+        discriminators: [sell-in, sell in, sellin, tempo ke customer, gross sales, gross billing, general trade]
+      - metric: material_sell_out_value
+        label: Sell-Out Billing Value
+        discriminators: [sell-out, sell out, sellout, partner ke konsumen, retail sales, b2b]
+
+  - name: ratio_direction
+    trigger_terms: [rasio sell-in sell-out, sell-in vs sell-out, sell-out vs sell-in, rasio penjualan, perbandingan sell-out, perbandingan sell-in]
+    question: >-
+      Apakah rasio yang Anda maksud Sell-Out dibagi Sell-In atau Sell-In
+      dibagi Sell-Out?
+    options:
+      - metric: sell_out_to_sell_in_value_ratio
+        label: Sell-Out / Sell-In
+        discriminators: [sell-out terhadap sell-in, sell-out dibagi sell-in, penjualan partner terhadap penjualan tempo]
+      - metric: sell_in_to_sell_out_value_ratio
+        label: Sell-In / Sell-Out
+        discriminators: [sell-in terhadap sell-out, sell-in dibagi sell-out, penjualan tempo terhadap penjualan partner]
+
+  - name: stock_scope
+    trigger_terms: [stock, stok, inventory, persediaan]
+    question: >-
+      Apakah Anda ingin melihat stok gudang Tempo, stok DC partner, atau stok
+      store retail?
+    options:
+      - metric: material_warehouse_stock_quantity
+        label: Tempo Warehouse Stock
+        discriminators: [gudang tempo, stok gudang, stock tempo, stok tempo, stock value tempo, warehouse, dc tempo, plant]
+      - metric: months_of_stock_cover
+        label: Tempo Warehouse Stock Coverage (months of cover)
+        discriminators: [berapa bulan stok, bulan stok cukup, months of cover, stock cover, stok bertahan]
+      - metric: sat_dc_stock_value
+        label: Alfamart Partner DC Stock (IDR value)
+        discriminators: [nilai stok dc, penumpukan, penumpukkan, dcstock value, dc stock value, nilai dcstock, nilai stok dc alfamart, stok dc partner nilai]
+      - metric: sat_dc_stock_quantity
+        label: Alfamart Partner Distribution Center Stock (quantity)
+        discriminators: [stok dc partner, stok dc alfamart, dc stock, dcstock, idm stock, stock idm, distribution center stock, qty stok dc, kuantitas stok dc]
+      - metric: sat_store_stock_quantity
+        label: Alfamart Partner Retail Store Stock
+        discriminators: [stok store, stok retail, stok toko retail, stok toko alfamart, nilai stok store, store stock, storestock, nilai storestock, retail stock]
+
+unknown_metric_question: >-
+  Saya belum menemukan KPI yang sesuai pada Semantic Contract Q4 2024.
+  Mohon jelaskan domain, ukuran yang ingin dihitung, periode, dan breakdown
+  yang dibutuhkan.
+
+blocked_terms:
+  - drop
+  - truncate
+  - delete
+  - update
+  - insert
+  - alter
+  - create
+  - free sql
+  - arbitrary sql
+  - sql bebas
+  - sql apa saja
+
+policy:
+  allow_free_sql: false
+  allow_invented_joins: false
+  require_published_metric: true
+  require_published_dataset: true
+  max_rows: 200
+  default_rows: 50
+  pending_metric_behavior: answer_with_candidate_label
+  unsupported_behavior: explain_scope_and_suggest
+  raw_code_dimensions:
+    program_status:
+      dataset: sat_promo_material_december
+      observed_codes: [Y, X, T]
+      interpretation: pending_tempo_confirmation
+      allowed_behavior: report_raw_distribution_with_caveat
+      prohibited_behavior: infer_active_inactive_success_or_failure
+
+answer_contract:
+  required_evidence:
+    - metric_id
+    - business_name
+    - source_view
+    - grain
+    - period
+    - governance_status
+    - business_approval_status
+  required_caveats:
+    - include metric caveat when present
+    - identify proxy and data-quality metrics
+    - identify shared-customer-only scope
+    - identify Q4-only scope
