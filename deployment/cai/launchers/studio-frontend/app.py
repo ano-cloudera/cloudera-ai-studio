@@ -4,7 +4,11 @@ import os
 import sys
 from pathlib import Path
 
-_CAI, _REPO = Path(__file__).resolve().parents[2], Path(__file__).resolve().parents[4]
+try:
+    _REPO = Path(__file__).resolve().parents[4]
+except NameError:  # CAI runs an Application script in a kernel, where __file__ is not defined
+    _REPO = Path(os.environ.get("STUDIO_REPO_ROOT", "/home/cdsw/cloudera-ai-studio"))
+_CAI = _REPO / "deployment" / "cai"
 sys.path.insert(0, str(_CAI))
 
 from common import http_ready, resolve_cai_port, run_supervised  # noqa: E402

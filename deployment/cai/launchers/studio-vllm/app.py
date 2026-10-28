@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 from collections.abc import Mapping
 from pathlib import Path
 
-_CAI = Path(__file__).resolve().parents[2]
+try:
+    _REPO = Path(__file__).resolve().parents[4]
+except NameError:  # CAI runs an Application script in a kernel, where __file__ is not defined
+    _REPO = Path(os.environ.get("STUDIO_REPO_ROOT", "/home/cdsw/cloudera-ai-studio"))
+_CAI = _REPO / "deployment" / "cai"
 sys.path.insert(0, str(_CAI))
 
 from common import http_ready, resolve_cai_port, run_supervised  # noqa: E402
@@ -23,7 +28,24 @@ def validate_model_path(raw: str) -> Path:
     path = Path(raw.strip())
     if not path.is_dir():
         raise ValueError(f"MODEL_PATH must be an existing model directory: {path}")
+    if not (path / "config.json").is_file() and not any(path.glob("*.safetensors")):
+        raise ValueError(f"MODEL_PATH has no config.json or .safetensors files: {path}")
     return path
+
+
+def cuda_toolkit_available(env: Mapping[str, str]) -> bool:
+    """True when nvcc is on PATH, in CUDA_HOME or in /usr/local/cuda. Nothing is installed."""
+    if shutil.which("nvcc", path=env.get("PATH", os.environ.get("PATH", ""))):
+        return True
+    return any(root and (Path(root) / "bin" / "nvcc").is_file() for root in (env.get("CUDA_HOME", ""), "/usr/local/cuda"))
+
+
+def runtime_environment(env: Mapping[str, str]) -> dict[str, str]:
+    """Child env extras: no model download; FlashInfer sampler off without nvcc (explicit value wins)."""
+    extra = {"HF_HUB_OFFLINE": env.get("HF_HUB_OFFLINE", "1")}
+    if "VLLM_USE_FLASHINFER_SAMPLER" not in env and not cuda_toolkit_available(env):
+        extra["VLLM_USE_FLASHINFER_SAMPLER"] = "0"
+    return extra
 
 
 def resolve_port(env: Mapping[str, str]) -> int:
@@ -62,19 +84,38 @@ def build_command(env: Mapping[str, str]) -> list[str]:
         "--max-num-seqs",
         env.get("MAX_NUM_SEQS", profile["max_num_seqs"]),
     ]
+    if env.get("VLLM_TOOL_CALL_PARSER"):
+        command.extend(["--enable-auto-tool-choice", "--tool-call-parser", env["VLLM_TOOL_CALL_PARSER"]])
+    if env.get("VLLM_CHAT_TEMPLATE"):
+        command.extend(["--chat-template", env["VLLM_CHAT_TEMPLATE"]])
     if env.get("VLLM_API_KEY"):
         command.extend(["--api-key", env["VLLM_API_KEY"]])
     return command
+
+
+def redacted(command: list[str]) -> list[str]:
+    result, hide = [], False
+    for part in command:
+        result.append("***" if hide else part)
+        hide = part == "--api-key"
+    return result
 
 
 def main() -> int:
     env = dict(os.environ)
     command = build_command(env)
     port = resolve_port(env)
-    print("vLLM startup: " + json.dumps({"port": port}), file=sys.stderr, flush=True)
+    extra = runtime_environment(env)
+    settings = {
+        "command": redacted(command),
+        "port": port,
+        "port_source": "CDSW_APP_PORT" if env.get("CDSW_APP_PORT", "").strip() else "fallback",
+        "extra_environment": extra,
+    }
+    print("vLLM Application startup configuration: " + json.dumps(settings), file=sys.stderr, flush=True)
     return run_supervised(
         command,
-        env=env,
+        env={**env, **extra},
         readiness=lambda: http_ready(f"http://127.0.0.1:{port}/health"),
         startup_timeout=float(env.get("APP_STARTUP_TIMEOUT_MINUTES", "15")) * 60,
     )

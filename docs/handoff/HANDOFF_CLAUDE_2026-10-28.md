@@ -9,7 +9,7 @@
 ## Ringkasan (untuk Triano)
 
 - **Produk:** Cloudera AI Studio AMP — governed Ask Data, Knowledge `@`, workspace **MCP** (`@` chip), deploy target **4 CAI apps**.
-- **Branch:** `main` (local **banyak perubahan belum commit** — lihat git status).
+- **Branch:** `main` — commit **`41b321e`** (MCP + CAI layout + inflight chat + handoff); **belum push** kecuali sudah di-push manual.
 - **Stack lokal:** backend **8001**, frontend **3001**, `./scripts/dev-stack.sh`.
 - **Env:** [LOCAL_ENV_HYGIENE.md](../deployment/LOCAL_ENV_HYGIENE.md).
 - **State:** [PROJECT_STATE.md](../../PROJECT_STATE.md).

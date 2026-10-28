@@ -6,8 +6,12 @@ import threading
 from collections.abc import Mapping
 from pathlib import Path
 
-_LAUNCHER = Path(__file__).resolve().parent
-_CAI = Path(__file__).resolve().parents[2]
+try:
+    _REPO = Path(__file__).resolve().parents[4]
+except NameError:  # CAI runs an Application script in a kernel, where __file__ is not defined
+    _REPO = Path(os.environ.get("STUDIO_REPO_ROOT", "/home/cdsw/cloudera-ai-studio"))
+_CAI = _REPO / "deployment" / "cai"
+_LAUNCHER = _CAI / "launchers" / "studio-qdrant"
 sys.path.insert(0, str(_CAI))
 
 from common import http_ready, resolve_cai_port, run_supervised  # noqa: E402

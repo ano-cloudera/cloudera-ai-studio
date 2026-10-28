@@ -102,8 +102,8 @@ Source: `frontend/next.config.mjs` (`BACKEND_API_URL` || default `http://127.0.0
 ```bash
 STATE_STORE=postgres
 DATABASE_URL=postgresql+psycopg://user:pass@postgres-host:5432/accelerator
-DOCUMENT_STORAGE_ROOT=/data/cai/documents
-SEMANTIC_RUNTIME_STORAGE_ROOT=/data/cai/semantic-runtime
+DOCUMENT_STORAGE_ROOT=/home/cdsw/cai-studio-data/documents
+SEMANTIC_RUNTIME_STORAGE_ROOT=/home/cdsw/cai-studio-data/var/semantic-runtime
 QDRANT_URL=http://qdrant-service:6333
 CORS_ORIGINS=https://cai-frontend.example.com
 ```

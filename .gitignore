@@ -15,3 +15,6 @@ backend/var/
 frontend/out/
 frontend/.tsbuildinfo
 .DS_Store
+
+# Local simulation state (SQLite metadata, uploaded docs, chat history) — never deploy
+/runtime/

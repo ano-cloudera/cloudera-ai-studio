@@ -99,7 +99,7 @@ _resolve_cai_paths() {
 case "$cmd" in
   migrate)
     _resolve_cai_paths
-    CAI_DATA_DIR="${CAI_DATA_DIR:-/data/cai}" "$ROOT/scripts/cai/init-storage.sh"
+    CAI_DATA_DIR="${CAI_DATA_DIR:-/home/cdsw/cai-studio-data}" "$ROOT/scripts/cai/init-storage.sh"
     [[ -n "${DATABASE_URL:-}" ]] || { echo "DATABASE_URL required for migrate" >&2; exit 1; }
     cd "$ROOT/backend"
     DATABASE_URL="$DATABASE_URL" "$PY" -m alembic upgrade head

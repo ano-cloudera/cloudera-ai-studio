@@ -1,4 +1,4 @@
-import type { ChatResponse, ModelSelection } from '../types/api'
+import type { ChatContextSourcePayload, ChatResponse, ModelSelection } from '../types/api'
 import { api } from './api'
 import type { ProcessSnapshot, StoredMessage } from './chatSessions'
 import { saveSession, sessionTitle } from './chatSessions'
@@ -54,7 +54,7 @@ type StartArgs = {
   contextPayload:
     | { mode: 'ask_data' }
     | {
-        context_sources: Array<{ type: string; id: string; name: string }>
+        context_sources: ChatContextSourcePayload[]
       }
   onDone?: (response: ChatResponse) => void
 }
