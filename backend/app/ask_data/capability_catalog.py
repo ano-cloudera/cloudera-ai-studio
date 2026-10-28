@@ -170,6 +170,8 @@ def resolve_example_questions(
         for name in sorted(ctx.metrics):
             if exclude_focus and guidance_focus_from_metric(name) == exclude_focus:
                 continue
+            if ctx.registry.metric_configs.get(name, {}).get("governance_status") == "reference":
+                continue  # placeholder metric of the neutral reference project; never suggest it
             try:
                 definition = ctx.metric_definition(name)
             except Exception:
