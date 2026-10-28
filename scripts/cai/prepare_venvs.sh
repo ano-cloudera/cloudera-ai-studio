@@ -3,6 +3,9 @@
 # Applications start in /home/cdsw and use these venvs through PYTHON_EXECUTABLE.
 # Usage: bash scripts/cai/prepare_venvs.sh [backend|vllm|all]
 set -euo pipefail
+# CAI sets PYTHONPATH to its addon site-packages (mlflow, cloudpickle, ...); a venv does not isolate from it.
+# Unset it so pip installs everything into the venv and `pip check` only sees our packages.
+unset PYTHONPATH
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VENVS="${VENVS_DIR:-/home/cdsw/.venvs}"
 export PIP_USER=false

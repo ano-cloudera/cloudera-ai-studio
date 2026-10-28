@@ -42,7 +42,8 @@ def cuda_toolkit_available(env: Mapping[str, str]) -> bool:
 
 def runtime_environment(env: Mapping[str, str]) -> dict[str, str]:
     """Child env extras: no model download; FlashInfer sampler off without nvcc (explicit value wins)."""
-    extra = {"HF_HUB_OFFLINE": env.get("HF_HUB_OFFLINE", "1")}
+    # Empty PYTHONPATH keeps CAI addon site-packages out of the venv interpreter.
+    extra = {"HF_HUB_OFFLINE": env.get("HF_HUB_OFFLINE", "1"), "PYTHONPATH": ""}
     if "VLLM_USE_FLASHINFER_SAMPLER" not in env and not cuda_toolkit_available(env):
         extra["VLLM_USE_FLASHINFER_SAMPLER"] = "0"
     return extra
