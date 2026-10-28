@@ -38,7 +38,7 @@ type JsPdfWithAutoTable = jsPDF & { lastAutoTable?: { finalY: number } }
 export function conversationPdfFilename(title: string): string {
   const safeTitle = title.replace(/[^\w\s-]+/g, '').trim().replace(/\s+/g, '-').slice(0, 48) || 'conversation'
   const stamp = new Date().toISOString().slice(0, 10)
-  return `tempo-scan-${safeTitle}-${stamp}.pdf`
+  return `ai-studio-${safeTitle}-${stamp}.pdf`
 }
 
 export type ConversationPdfInput = {

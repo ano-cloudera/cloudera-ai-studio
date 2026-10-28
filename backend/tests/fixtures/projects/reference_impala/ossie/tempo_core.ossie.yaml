@@ -8,7 +8,6 @@ ai_context:
     joins. State Q4-only, shared-customer-only, proxy, data-quality, and pending-business-approval caveats.
   synonyms:
   - TEMPO commercial intelligence
-  - Tempo SCAN
   - Sell-In Sell-Out analytics
 datasets:
 - name: monthly_executive

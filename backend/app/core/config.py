@@ -60,7 +60,7 @@ class Settings(BaseSettings):
     llm_max_tokens: int = Field(default=1800, ge=100, le=8000)
 
     project_root: Path = BACKEND_ROOT / "projects"
-    ossie_project_id: str = "tempo_scan_impala"
+    ossie_project_id: str = "reference_impala"
     sql_max_rows: int = Field(default=200, ge=1, le=1000)
     data_backend: str = Field(default="impala", validation_alias="DATA_BACKEND")
     duckdb_path: Path = Field(
@@ -301,7 +301,7 @@ class Settings(BaseSettings):
     ask_data_legacy_tempo_capability_catalog: bool = Field(
         default=False,
         validation_alias="ASK_DATA_LEGACY_TEMPO_CAPABILITY_CATALOG",
-        description="When true, legacy TEMPO Scan 9-domain capability menu is used for local Tempo OSSIE deployments.",
+        description="When true, legacy 9-domain capability menu is used for local Tempo OSSIE deployments.",
     )
     local_agent_timeout_seconds: float = Field(default=180, gt=0, le=600)
     local_agent_engine: str = "langgraph"

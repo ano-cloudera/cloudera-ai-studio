@@ -12,7 +12,7 @@ Application metadata was reset to a Golden Demo–ready baseline: empty Knowledg
 
 | Domain | Pre | Post | Notes |
 |--------|----:|-----:|-------|
-| Projects | 109 | 1 | Kept `tempo_scan_impala` |
+| Projects | 109 | 1 | Kept `reference_impala` |
 | Knowledge libraries (total) | 235 | 1 | Hidden `__cai_chat_attachments__` only |
 | User-facing libraries (API list) | 229 | 0 | Attachment library hidden from list |
 | Semantic models | 441 | 0 | Runtime deployments cleared first |

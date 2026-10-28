@@ -1,0 +1,10 @@
+name: Reference project
+subtitle: Placeholder semantic profile (publish your own model from the UI)
+
+semantic:
+  execution_mode: ossie
+  model_file: ossie/tempo_core.ossie.yaml
+  governance_file: ossie/tempo_governance.yaml
+  golden_questions_file: ossie/golden_questions.yaml
+  allow_free_sql: false
+  allow_invented_joins: false

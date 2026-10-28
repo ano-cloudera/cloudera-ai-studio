@@ -1,0 +1,47 @@
+version: 0.2.0.dev0
+name: reference_governed
+description: Neutral placeholder semantic model. Publish your own model from the Semantic layer page; this one only lets the backend start.
+ai_context:
+  instructions: Placeholder model with no data source. Do not answer business questions from it.
+datasets:
+- name: reference_dataset
+  description: Placeholder dataset (no data source attached).
+  source: reference.reference_dataset
+  primary_key:
+  - record_id
+  fields:
+  - name: record_id
+    datatype: Integer
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: record_id
+  - name: category
+    datatype: String
+    dimension: {}
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: category
+  - name: amount
+    datatype: Decimal
+    expression:
+      dialects:
+      - dialect: ANSI_SQL
+        expression: amount
+  custom_extensions:
+  - vendor_name: TEMPO
+    data: '{"domain":"reference","grain":"record","layer":"reference"}'
+metrics:
+- name: reference_placeholder_metric
+  description: Placeholder metric; not backed by any data source.
+  datatype: Decimal
+  expression:
+    dialects:
+    - dialect: ANSI_SQL
+      expression: SUM(reference_dataset.amount)
+  ai_context:
+    instructions: Placeholder metric. Do not use for business questions.
+  custom_extensions:
+  - vendor_name: TEMPO
+    data: '{"metric_id":"REF-01","base_dataset":"reference_dataset","allowed_dimensions":["category"],"governance_status":"reference","unit_format":"number"}'

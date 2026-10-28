@@ -68,7 +68,7 @@ Session and turn persistence **must not** be hard-coded to SQLite or Postgres.
 | workspace_id | uuid FK | |
 | slug | text | unique per workspace |
 | name | text | |
-| ossie_root_path | text | e.g. `projects/tempo_scan_impala` |
+| ossie_root_path | text | e.g. `projects/reference_impala` |
 | default_connector_id | uuid FK nullable | |
 | status | enum | active, archived |
 

@@ -106,7 +106,7 @@ def test_project_isolation(c1_client):
             workspace_id=ws.id,
             slug=f"other-{uuid.uuid4().hex[:6]}",
             name="Other",
-            ossie_root_path="projects/tempo_scan_impala",
+            ossie_root_path="projects/reference_impala",
             status="active",
         )
         session.add(other)

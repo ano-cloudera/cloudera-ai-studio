@@ -7,7 +7,7 @@ from app.projects.resolver import resolve_ossie_project_dir
 
 
 def test_resolve_ossie_legacy_sqlite_mode():
-    settings = Settings(state_store="sqlite", ossie_project_id="tempo_scan_impala")
+    settings = Settings(_env_file=None, state_store="sqlite", database_url="", ossie_project_id="reference_impala")
     path = resolve_ossie_project_dir(settings)
     expected = (settings.project_root / settings.ossie_project_id).resolve()
     assert path == expected
@@ -16,9 +16,10 @@ def test_resolve_ossie_legacy_sqlite_mode():
 
 def test_resolve_ossie_postgres_without_db_falls_back():
     settings = Settings(
+        _env_file=None,
         state_store="postgres",
         database_url="",
-        ossie_project_id="tempo_scan_impala",
+        ossie_project_id="reference_impala",
     )
     path = resolve_ossie_project_dir(settings)
-    assert path == (BACKEND_ROOT / "projects" / "tempo_scan_impala").resolve()
+    assert path == (settings.project_root / "reference_impala").resolve()

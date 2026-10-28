@@ -154,7 +154,7 @@ def test_project_isolation(s1_client):
             workspace_id=ws_id,
             slug=f"sem-iso-{uuid.uuid4().hex[:8]}",
             name="Iso B",
-            ossie_root_path="projects/tempo_scan_impala",
+            ossie_root_path="projects/reference_impala",
             status="active",
         )
         session.add(project_b)
@@ -173,7 +173,7 @@ def test_project_isolation(s1_client):
 
 def test_ossie_import_and_artifact_preview(s1_client):
     client, factory = s1_client
-    project_dir = BACKEND_ROOT / "projects" / "tempo_scan_impala"
+    project_dir = BACKEND_ROOT / "projects" / "reference_impala"
     if not (project_dir / "ossie" / "tempo_core.ossie.yaml").is_file():
         pytest.skip("OSSIE fixture not present")
     with factory() as session:

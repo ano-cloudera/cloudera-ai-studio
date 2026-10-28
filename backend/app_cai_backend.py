@@ -1,4 +1,4 @@
-"""Cloudera AI Application entrypoint for TEMPO Scan Backend V2.
+"""Cloudera AI Application entrypoint for the Cloudera AI Studio Backend.
 
 This keeps the proven V1 pattern: resolve the checkout defensively, install
 dependencies into an application-local virtualenv, bind to CAI's dynamic port

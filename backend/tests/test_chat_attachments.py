@@ -274,7 +274,7 @@ def test_attachment_cross_project_access_denied(attachment_client):
             workspace_id=ws.id,
             name="M9-Other",
             slug=f"m9-other-{uuid.uuid4().hex[:6]}",
-            ossie_root_path="projects/tempo_scan_impala",
+            ossie_root_path="projects/reference_impala",
             status="active",
         )
         session.add(other)

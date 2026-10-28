@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+import os
 import re
 
 from app.core.config import get_settings
@@ -18,7 +19,7 @@ from app.semantic.questions import CURATED_CONTRACTS, QuestionBank
 
 
 ROOT = Path(__file__).resolve().parents[2]
-PROJECT_DIR = ROOT / "projects" / "tempo_scan_impala"
+PROJECT_DIR = Path(os.environ.get("OSSIE_PROJECT_DIR") or ROOT / "projects" / "reference_impala")
 
 
 @dataclass(frozen=True)
@@ -1819,7 +1820,7 @@ class SemanticContextService:
 
     def greeting_context(self) -> dict[str, Any]:
         from app.ask_data.capability_catalog import (
-            is_legacy_tempo_scan_catalog,
+            is_legacy_reference_catalog,
             legacy_tempo_capability_catalog_enabled,
             resolve_capability_insight_lines,
             resolve_example_questions,
@@ -1830,7 +1831,7 @@ class SemanticContextService:
         settings = get_settings()
         legacy_menu = (
             legacy_tempo_capability_catalog_enabled(settings)
-            and is_legacy_tempo_scan_catalog(self.metrics)
+            and is_legacy_reference_catalog(self.metrics)
             and not uses_published_metric_catalog(self)
         )
         if uses_published_metric_catalog(self) or not legacy_menu:

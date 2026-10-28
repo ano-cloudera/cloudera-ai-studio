@@ -138,17 +138,19 @@ class TempoOssieRegistry:
 
     def validate(self) -> None:
         errors: list[str] = []
-        if self.model.get("name") != "tempo_q4_governed":
-            errors.append("Unexpected Ossie model name")
+        if not self.model.get("name"):
+            errors.append("Ossie model has no name")
+        # Size floors belong to the legacy domain profile only; other models just need valid structure.
+        domain_profile = self.model.get("name") == "tempo_q4_governed"
         # Minimums, not exact counts: the original Semantic Contract v1 (5
         # datasets / 28 metrics) is the floor. The 24 Sep 2026 journey
         # expansion (Stock Tempo -> Sales -> B2B -> SAT-IDM -> OOS, see
         # TEMPO_DATAMART_PLAN.md §8.1) added 9 more datasets and 13 more
         # metrics on top of that floor - an exact-count check would reject
         # any further intentional growth of the governed model.
-        if len(self.datasets) < 5:
+        if domain_profile and len(self.datasets) < 5:
             errors.append("TEMPO Impala profile expects at least five datasets")
-        if len(self.metrics) < 28:
+        if domain_profile and len(self.metrics) < 28:
             errors.append("TEMPO Impala profile expects at least 28 metrics")
         if self.model.get("relationships"):
             errors.append("Runtime joins are disabled for Semantic Contract v1")

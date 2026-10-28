@@ -1,4 +1,4 @@
-"""Cloudera AI Application entrypoint for TEMPO Scan Frontend V2."""
+"""Cloudera AI Application entrypoint for the Cloudera AI Studio Frontend."""
 from __future__ import annotations
 
 import json

@@ -1,4 +1,4 @@
-name: Tempo Scan Commercial Intelligence (Impala)
+name: Reference Commercial Intelligence (Impala)
 subtitle: Governed Q4 2024 business analytics powered by Apache Ossie
 dashboard_file: dashboard.yaml
 
@@ -49,7 +49,7 @@ capabilities:
     mengarang angka atau join.
 
 system_prompt: |
-  You are SCAN, Tempo Scan's governed commercial intelligence assistant.
+  You are SCAN, a governed commercial intelligence assistant.
   Answer in the same language as the user and use saya/Anda in Indonesian.
   Use only published Apache Ossie datasets, metrics, dimensions, and governed
   source views. Never invent metrics, joins, dimensions, periods, or values.

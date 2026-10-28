@@ -6,7 +6,7 @@ import type { StoredMessage } from './chatSessions'
 
 describe('chatPdfExport', () => {
   it('builds a safe pdf filename from the session title', () => {
-    expect(conversationPdfFilename('Top sell-in Q4?')).toMatch(/^tempo-scan-Top-sell-in-Q4-\d{4}-\d{2}-\d{2}\.pdf$/)
+    expect(conversationPdfFilename('Top sell-in Q4?')).toMatch(/^ai-studio-Top-sell-in-Q4-\d{4}-\d{2}-\d{2}\.pdf$/)
   })
 
   it('generates a PDF for a governed answer with a data table without throwing', async () => {

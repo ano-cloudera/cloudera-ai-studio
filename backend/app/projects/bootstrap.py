@@ -14,8 +14,8 @@ from app.projects.types import ProjectRecord, WorkspaceRecord
 logger = logging.getLogger(__name__)
 
 DEFAULT_WORKSPACE_SLUG = "default"
-DEFAULT_PROJECT_SLUG = "tempo_scan_impala"
-DEFAULT_PROJECT_NAME = "Tempo Scan (reference)"
+DEFAULT_PROJECT_SLUG = "reference_impala"
+DEFAULT_PROJECT_NAME = "Reference Project"
 
 
 def ensure_platform_seed(

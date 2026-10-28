@@ -1,6 +1,6 @@
 # Cloudera AI Studio — Backend (`backend`)
 
-FastAPI + controlled LangGraph Ask Data backend for the accelerator (legacy doc title: TEMPO Scan Backend V2). V2 does not call Agent Studio. It resolves Apache Ossie metrics first, permits a controlled single-view SQL fallback, validates every query with SQLGlot, executes read-only Impala, and asks the selected provider for a grounded result analysis/chart contract.
+FastAPI + controlled LangGraph Ask Data backend for the accelerator. V2 does not call Agent Studio. It resolves Apache Ossie metrics first, permits a controlled single-view SQL fallback, validates every query with SQLGlot, executes read-only Impala, and asks the selected provider for a grounded result analysis/chart contract.
 
 ## Local run and tests
 
@@ -84,7 +84,7 @@ Matrix: `eval/uat_domain_5x5_followup.yaml`. Latest merged judge summary: `eval/
 
 Copy `.env.example` and set the selected provider plus Impala values. Model IDs are never hardcoded in the frontend. Qwen needs `QWEN_BASE_URL`, `QWEN_API_TOKEN`, and `QWEN_MODEL`; the legacy name `QWEN_API_KEY` remains an accepted alias. Gemini/OpenAI need an API key and model. Unconfigured providers remain unavailable without preventing startup. For the current Private Cloud deployment use the proven Impala GSSAPI + TLS values, query timeout, and a valid Kerberos ticket/service account. Never commit credentials.
 
-Prompts live in `prompts/` and are resolved relative to the backend package, so CAI's working directory does not affect them. The copied `projects/tempo_scan_impala/ossie` files are the deployed 20-dataset/62-metric semantic authority.
+Prompts live in `prompts/` and are resolved relative to the backend package, so CAI's working directory does not affect them. The copied `projects/reference_impala/ossie` files are the deployed 20-dataset/62-metric semantic authority.
 
 ## Cloudera AI Application
 

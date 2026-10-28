@@ -33,7 +33,7 @@ No **A** extraction regressions remained after `.venv` localization (see below).
 | Marker | Meaning |
 |--------|---------|
 | *(default)* | `-m "not tempo_domain and not integration"` in `backend/pytest.ini` |
-| `tempo_domain` | Tempo Scan OSSIE-specific semantic expectations — `make test-backend-tempo` |
+| `tempo_domain` | Reference-project OSSIE-specific semantic expectations — `make test-backend-tempo` |
 | `integration` | External DB / infra — `make test-backend-integration` |
 
 Impala/Kerberos: **not** required for the default deterministic suite. Live Impala remains env-driven at runtime, not in unit pytest defaults.
@@ -53,10 +53,10 @@ Smoke migration DB is **not** required for everyday startup when `STATE_STORE=sq
 
 | Value | Location | Classification |
 |-------|----------|----------------|
-| `tempo_scan_impala` | `backend/app/core/config.py` default slug | **Demo/reference OSSIE** bundled under `backend/projects/tempo_scan_impala/` |
-| `tempo_scan_impala` | `config/examples/accelerator.env.example` | **Example profile** — override with `example_project` for neutral PoC |
-| `tempo_scan_impala` | `tests/conftest.py` | **Test fixture** slug for deterministic OSSIE paths |
-| `tempo-scan-*.pdf` | `frontend/src/lib/chatPdfExport.ts` | **Export filename prefix** (cosmetic; not product name) |
+| `reference_impala` | `backend/app/core/config.py` default slug | **Demo/reference OSSIE** bundled under `backend/projects/reference_impala/` |
+| `reference_impala` | `config/examples/accelerator.env.example` | **Example profile** — override with `example_project` for neutral PoC |
+| `reference_impala` | `tests/conftest.py` | **Test fixture** slug for deterministic OSSIE paths |
+| `ai-studio-*.pdf` | `frontend/src/lib/chatPdfExport.ts` | **Export filename prefix** (cosmetic; not product name) |
 
 Generic UI naming uses `APP_NAME` / `NEXT_PUBLIC_APP_NAME` from env. No runtime references to `enterprise-ai-poc`, `backend-dev`, or `frontend-dev` under `backend/app`, `frontend/src`, or `scripts/lib`.
 

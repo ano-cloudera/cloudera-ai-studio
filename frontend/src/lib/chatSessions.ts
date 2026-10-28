@@ -24,7 +24,7 @@ export type ChatSession = {
   titleCustomized?: boolean
 }
 
-const STORAGE_KEY = 'tempo-scan-v2.ask-data.sessions'
+const STORAGE_KEY = 'ai-studio.ask-data.sessions'
 const MAX_SESSIONS = 20
 
 export function createSessionId(): string {

@@ -42,7 +42,7 @@
 - Global prompts with keys: `ask_data.system`, `rag.system`, `rag.insufficient_evidence`
 - Workspace skills: `ask_data_analyst`, `document_qa`
 - Hidden chat attachment library name: `__cai_chat_attachments__` (per preserved project)
-- Default project slug: `tempo_scan_impala`
+- Default project slug: `reference_impala`
 - AI Model Registry (providers, models, assignments)
 - Alembic / migration metadata
 

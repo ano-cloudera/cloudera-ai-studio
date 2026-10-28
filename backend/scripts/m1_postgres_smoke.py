@@ -78,7 +78,7 @@ def _check_seed(url: str) -> None:
         proj = session.execute(
             select(ProjectRow).where(
                 ProjectRow.workspace_id == ws.id,
-                ProjectRow.slug == "tempo_scan_impala",
+                ProjectRow.slug == "reference_impala",
             )
         ).scalar_one()
     if not proj.ossie_root_path:

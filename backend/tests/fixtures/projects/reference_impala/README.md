@@ -1,7 +1,7 @@
-# Tempo Scan Impala Semantic Profile
+# Reference Impala Semantic Profile
 
 This project is the additive, default-off real-data profile for TEMPO Q4 2024.
-It must not replace or mutate `projects/tempo_scan` until the cutover gates pass.
+It must not replace or mutate `projects/reference` until the cutover gates pass.
 
 ## Source contract
 
@@ -17,7 +17,7 @@ It must not replace or mutate `projects/tempo_scan` until the cutover gates pass
 
 ## Safety rules
 
-1. Default project remains `tempo_scan`.
+1. Default project remains `reference`.
 2. Default semantic execution remains legacy until explicitly configured.
 3. No free SQL and no runtime-invented joins.
 4. Every analytical answer must resolve to a published metric and source view.
@@ -29,7 +29,7 @@ It must not replace or mutate `projects/tempo_scan` until the cutover gates pass
 ## Planned runtime flags
 
 ```text
-PROJECT_ID=tempo_scan_impala
+PROJECT_ID=reference_impala
 DATA_BACKEND=impala
 SEMANTIC_EXECUTION_MODE=ossie
 ```

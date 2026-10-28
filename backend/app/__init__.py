@@ -1,1 +1,1 @@
-"""TEMPO Scan Commercial Intelligence V2 backend."""
+"""Cloudera AI Studio backend."""

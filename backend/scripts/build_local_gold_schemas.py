@@ -14,7 +14,7 @@ from sqlglot import exp
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = BACKEND_ROOT.parent
-OSSIE_PATH = BACKEND_ROOT / "projects" / "tempo_scan_impala" / "ossie" / "tempo_core.ossie.yaml"
+OSSIE_PATH = BACKEND_ROOT / "tests" / "fixtures" / "projects" / "reference_impala" / "ossie" / "tempo_core.ossie.yaml"
 OUT_PATH = BACKEND_ROOT / "data" / "local_gold_view_schemas.yaml"
 SQL_GLOBS = (
     REPO_ROOT / "datasets" / "audit",

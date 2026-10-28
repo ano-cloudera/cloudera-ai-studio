@@ -228,7 +228,7 @@ async def _try_local_agent_fallback(state: AskDataState, deps: WorkflowDependenc
         business_implications=[],
         caveats=[
             "Jawaban ini berasal dari sistem governed terpisah (TEMPO Local Agent), "
-            "bukan dari katalog metric utama TEMPO Scan - dapat memiliki definisi "
+            "bukan dari katalog metric utama - dapat memiliki definisi "
             "atau cakupan yang sedikit berbeda. Sifatnya eksploratif."
         ],
         data_reference=reference,

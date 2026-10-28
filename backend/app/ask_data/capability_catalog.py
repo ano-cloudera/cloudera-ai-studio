@@ -76,7 +76,7 @@ def legacy_tempo_capability_catalog_enabled(settings: Settings | None = None) ->
     return bool(getattr(settings or get_settings(), "ask_data_legacy_tempo_capability_catalog", False))
 
 
-def is_legacy_tempo_scan_catalog(metrics: dict[str, Any]) -> bool:
+def is_legacy_reference_catalog(metrics: dict[str, Any]) -> bool:
     keys = {str(k).casefold() for k in metrics}
     markers = {m.casefold() for m in _TEMPO_LEGACY_METRIC_MARKERS}
     return bool(keys & markers)
@@ -90,7 +90,7 @@ def uses_published_metric_catalog(ctx: SemanticContextService) -> bool:
         return True
     if is_banking_demo_registry(ctx.datasets):
         return True
-    if legacy_tempo_capability_catalog_enabled() and is_legacy_tempo_scan_catalog(ctx.metrics):
+    if legacy_tempo_capability_catalog_enabled() and is_legacy_reference_catalog(ctx.metrics):
         return False
     return bool(ctx.metrics)
 
@@ -182,7 +182,7 @@ def resolve_example_questions(
         if auto:
             return auto
 
-    if legacy_tempo_capability_catalog_enabled(settings) and is_legacy_tempo_scan_catalog(ctx.metrics):
+    if legacy_tempo_capability_catalog_enabled(settings) and is_legacy_reference_catalog(ctx.metrics):
         skip = _TEMPO_DOMAIN_NAMES_BY_FOCUS.get(exclude_focus or "", frozenset())
         tempo: list[str] = []
         for option in _TEMPO_LEGACY_DOMAIN_OPTIONS:
@@ -225,7 +225,7 @@ def resolve_capability_insight_lines(
 
     if (
         legacy_tempo_capability_catalog_enabled(settings)
-        and is_legacy_tempo_scan_catalog(ctx.metrics)
+        and is_legacy_reference_catalog(ctx.metrics)
         and not uses_published_metric_catalog(ctx)
     ):
         skip = _TEMPO_DOMAIN_NAMES_BY_FOCUS.get(exclude_focus or "", frozenset())

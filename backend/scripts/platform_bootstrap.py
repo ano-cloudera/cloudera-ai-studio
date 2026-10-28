@@ -15,7 +15,7 @@ def main() -> None:
         print("No DATABASE_URL — sqlite mode uses file stores only.")
         return
     factory = get_session_factory(settings.database_url)
-    slug = (settings.default_project_slug or settings.ossie_project_id or "tempo_scan_impala").strip()
+    slug = (settings.default_project_slug or settings.ossie_project_id or "reference_impala").strip()
     with factory() as session:
         ws, project = ensure_platform_seed(
             session,

@@ -1,0 +1,7 @@
+version: 1
+scope: {}
+ambiguities: []
+unknown_metric_question: No governed semantic model is published yet. Publish one from the Semantic layer page.
+blocked_terms: []
+policy: {}
+answer_contract: {}

@@ -130,7 +130,7 @@ def test_project_isolation_resolver(m3b_client):
             workspace_id=ws_id,
             slug=f"skill-iso-{uuid.uuid4().hex[:8]}",
             name="B",
-            ossie_root_path="projects/tempo_scan_impala",
+            ossie_root_path="projects/reference_impala",
             status="active",
         )
         session.add(project_b)

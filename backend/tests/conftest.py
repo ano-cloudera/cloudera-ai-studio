@@ -15,8 +15,11 @@ for _key in (
     "PROJECT_ID",
 ):
     os.environ.pop(_key, None)
-os.environ["OSSIE_PROJECT_ID"] = "tempo_scan_impala"
-os.environ["DEFAULT_PROJECT_SLUG"] = "tempo_scan_impala"
+_FIXTURE_PROJECTS = os.path.join(os.path.dirname(__file__), "fixtures", "projects")
+os.environ["PROJECT_ROOT"] = _FIXTURE_PROJECTS
+os.environ["OSSIE_PROJECT_DIR"] = os.path.join(_FIXTURE_PROJECTS, "reference_impala")
+os.environ["OSSIE_PROJECT_ID"] = "reference_impala"
+os.environ["DEFAULT_PROJECT_SLUG"] = "reference_impala"
 os.environ["STATE_STORE"] = "sqlite"
 os.environ["DATABASE_URL"] = ""
 

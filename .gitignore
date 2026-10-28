@@ -18,3 +18,7 @@ frontend/.tsbuildinfo
 
 # Local simulation state (SQLite metadata, uploaded docs, chat history) — never deploy
 /runtime/
+
+# Browser-exported conversation PDFs saved into the frontend folder
+frontend/*.pdf
+backend/backend/
