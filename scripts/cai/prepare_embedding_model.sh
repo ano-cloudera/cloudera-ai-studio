@@ -5,7 +5,7 @@ set -euo pipefail
 dest="${1:-/home/cdsw/models/bge-m3}"
 repo="${EMBEDDING_REPO:-BAAI/bge-m3}"
 mkdir -p "$dest"
-python3 - "$repo" "$dest" <<'PY'
+"${PYTHON:-/home/cdsw/.venvs/studio-backend/bin/python}" - "$repo" "$dest" <<'PY'
 import sys
 from huggingface_hub import snapshot_download
 

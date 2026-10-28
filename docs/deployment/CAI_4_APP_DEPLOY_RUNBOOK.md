@@ -20,20 +20,24 @@ Per-app env templates: [deployment/cai/env/](../../deployment/cai/env/)
 ```bash
 # Repo on CAI workspace
 cd cloudera-ai-studio
-bash scripts/bootstrap/bootstrap-local.sh   # or equivalent venv on Session
 
 # Qdrant binary (Application cannot download)
 bash scripts/cai/prepare_qdrant_binary.sh /home/cdsw/tools/qdrant/qdrant
 bash scripts/cai/prepare_qdrant_ui.sh /home/cdsw/tools/qdrant/static   # official Web UI at /dashboard
 
-# Embedding model (Application cannot download; ~2.3 GB, needs huggingface_hub in the Session venv)
+# Embedding model (Application cannot download; ~2.3 GB; uses the backend venv, so run prepare_venvs.sh backend first)
 bash scripts/cai/prepare_embedding_model.sh /home/cdsw/models/bge-m3
 
 # Persistent data root (project filesystem; shared by Session and Applications)
 mkdir -p /home/cdsw/cai-studio-data/{metadata,documents,var,qdrant/storage}
 
+# Node.js (Sessions and Applications ship without it) + one venv per Application
+bash scripts/cai/prepare_node.sh /home/cdsw/tools/node
+bash scripts/cai/prepare_venvs.sh all        # run the vllm part from a GPU Session; stop that Session afterwards
+
 # Frontend production build (optional if CAI_SKIP_FRONTEND_BUILD=0 on first start)
-cd frontend && npm ci && npm run build
+export PATH=/home/cdsw/tools/node/bin:$PATH
+cd frontend && npm ci && npm run build   # Frontend Application env: NODE_HOME=/home/cdsw/tools/node
 ```
 
 ## Deploy order

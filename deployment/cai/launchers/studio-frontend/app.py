@@ -16,6 +16,10 @@ from common import http_ready, resolve_cai_port, run_supervised  # noqa: E402
 
 def main() -> int:
     env = dict(os.environ)
+    node_home = env.get("NODE_HOME", "").strip()
+    if node_home:  # CAI runtimes ship without Node; npm's shebang needs `node` on PATH
+        env["PATH"] = f"{node_home}/bin{os.pathsep}{env.get('PATH', '')}"
+        env.setdefault("NPM_EXECUTABLE", f"{node_home}/bin/npm")
     port = resolve_cai_port(env)
     npm = env.get("NPM_EXECUTABLE", "npm")
     fe = _REPO / "frontend"
