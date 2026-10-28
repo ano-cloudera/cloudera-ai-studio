@@ -139,6 +139,21 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
   }, [])
 
   useEffect(() => {
+    // The wizard stays mounted while closed; without a reset a finished run reopens on its completion step.
+    if (open) return
+    setStep(1)
+    setName('')
+    setDescription('')
+    setTableSearch('')
+    setSelectedTables([])
+    setSuggestions(null)
+    setDecisions({})
+    setBusy(false)
+    setError('')
+    setCompletion(null)
+  }, [open])
+
+  useEffect(() => {
     if (!open || step !== 2) return
     for (const c of connectors) {
       void loadConnectorTables(c.id)
