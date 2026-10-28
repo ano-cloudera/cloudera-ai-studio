@@ -1,5 +1,7 @@
 # Backend CAI Application — deployment spec (neutral)
 
+> **Superseded for CAI Applications:** the Script field must be a Python entrypoint (`deployment/cai/launchers/studio-*/app.py`), never a `.sh` file. `scripts/cai/start-*.sh` are for local/Session use only. See [CAI_4_APP_DEPLOY_RUNBOOK.md](../../docs/deployment/CAI_4_APP_DEPLOY_RUNBOOK.md).
+
 **Application source code:** repository root [`backend/`](../../backend/) (not under `deployment/`).  
 **CAI launcher:** [`deployment/cai/launchers/studio-backend/app.py`](../cai/launchers/studio-backend/app.py).
 

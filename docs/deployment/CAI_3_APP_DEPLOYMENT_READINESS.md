@@ -1,5 +1,7 @@
 # CAI 3-App deployment readiness
 
+> **Superseded for CAI Applications:** the Script field must be a Python entrypoint (`deployment/cai/launchers/studio-*/app.py`), never a `.sh` file. `scripts/cai/start-*.sh` are for local/Session use only. See [CAI_4_APP_DEPLOY_RUNBOOK.md](./CAI_4_APP_DEPLOY_RUNBOOK.md).
+
 **Milestone:** `CAI_3_APP_DEPLOYMENT_READINESS`  
 **Status:** Local readiness only — **no CAI deploy, no AMP package** in this milestone.
 
