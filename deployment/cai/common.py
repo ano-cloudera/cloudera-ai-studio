@@ -33,9 +33,15 @@ def resolve_cai_port(env: Mapping[str, str]) -> int:
     return port
 
 
+def _decode_addr(hex_addr: str) -> str:
+    if len(hex_addr) == 8:  # IPv4, little-endian hex
+        return ".".join(str(int(hex_addr[i : i + 2], 16)) for i in (6, 4, 2, 0))
+    return "::" if set(hex_addr) == {"0"} else f"ipv6:{hex_addr}"
+
+
 def port_holders(port: int) -> list[tuple[int, str]]:
-    """(pid, command line) of other processes listening on a TCP port. Linux /proc only; empty elsewhere."""
-    inodes: set[str] = set()
+    """(pid, "<listen address> <command line>") of other processes listening on a TCP port. Linux /proc only."""
+    inodes: dict[str, str] = {}
     for table in ("/proc/net/tcp", "/proc/net/tcp6"):
         try:
             lines = Path(table).read_text().splitlines()[1:]
@@ -44,7 +50,7 @@ def port_holders(port: int) -> list[tuple[int, str]]:
         for line in lines:
             fields = line.split()
             if len(fields) > 9 and fields[3] == "0A" and int(fields[1].rsplit(":", 1)[1], 16) == port:
-                inodes.add(fields[9])
+                inodes[fields[9]] = _decode_addr(fields[1].rsplit(":", 1)[0])
     holders: list[tuple[int, str]] = []
     if not inodes:
         return holders
@@ -56,7 +62,7 @@ def port_holders(port: int) -> list[tuple[int, str]]:
                 target = os.readlink(fd)
                 if target.startswith("socket:[") and target[8:-1] in inodes:
                     cmd = (entry / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace").strip()
-                    holders.append((int(entry.name), cmd))
+                    holders.append((int(entry.name), f"[{inodes[target[8:-1]]}] {cmd}"))
                     break
         except OSError:
             continue
@@ -68,6 +74,9 @@ def ensure_port_free(port: int, stale_marker: str, wait_seconds: float = 10.0) -
     import sys
 
     holders = port_holders(port)
+    if holders:
+        ports = {k: v for k, v in os.environ.items() if k.startswith("CDSW_") and "PORT" in k}
+        print(f"CAI port variables: {ports}", file=sys.stderr, flush=True)
     for pid, cmd in holders:
         print(f"port {port} is held by pid {pid}: {cmd[:200]}", file=sys.stderr, flush=True)
         if stale_marker and stale_marker in cmd:
@@ -81,7 +90,10 @@ def ensure_port_free(port: int, stale_marker: str, wait_seconds: float = 10.0) -
         time.sleep(0.5)
     remaining = port_holders(port)
     if remaining:
-        raise RuntimeError(f"port {port} is still in use by {remaining}; stop that process or restart the Application")
+        raise RuntimeError(
+            f"port {port} is still in use by {remaining}. If CDSW_APP_PORT (or PORT) is set in the Application "
+            "environment, remove it: CAI assigns the Application port itself."
+        )
 
 
 def build_child_env(env: Mapping[str, str]) -> dict[str, str]:
