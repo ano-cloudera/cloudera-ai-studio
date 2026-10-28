@@ -32,8 +32,10 @@ def main() -> int:
         "HOST": "127.0.0.1",
         "BACKEND_API_URL": env.get("BACKEND_API_URL", ""),
     }
+    # Call Next directly: `npm run start` hardcodes -H 0.0.0.0, which collides with CAI's pod-IP listener on the
+    # Application port. CAI expects Applications on loopback.
     return run_supervised(
-        [npm, "run", "start"],
+        [str(fe / "node_modules" / ".bin" / "next"), "start", "-H", "127.0.0.1", "-p", str(port)],
         env=child,
         cwd=fe,
         readiness=lambda: http_ready(f"http://127.0.0.1:{port}/"),

@@ -44,7 +44,7 @@ cd frontend && npm ci && npm run build   # Frontend Application env: NODE_HOME=/
 
 1. **Qdrant** — set `QDRANT_BINARY`, `QDRANT_STORAGE_PATH`, `QDRANT_STATIC_DIR`; open `<qdrant-app-url>/dashboard` to confirm UI.
 2. **vLLM** — set `MODEL_PATH`, GPU runtime; note public/internal URL.
-3. **Backend** — NFS `CAI_DATA_DIR`, `QDRANT_URL`, `CORS_ORIGINS`, LLM (`OPENAI_API_BASE` → vLLM or Gemini secret).
+3. **Backend** — NFS `CAI_DATA_DIR`, `QDRANT_URL`, `CORS_ORIGINS`, and only the LLM *key* env var(s). Provider, model and capability assignment are chosen in the UI (Settings → AI Models); the Backend starts `core_ready` without any LLM configured.
 4. **Frontend** — `BACKEND_API_URL` (internal), `NEXT_PUBLIC_BACKEND_URL` (browser).
 
 ## Storage notes
