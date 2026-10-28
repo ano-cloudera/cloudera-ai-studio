@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, RefreshCw } from 'lucide-react'
 import { ConnectorTypeIcon } from '../components/connectors/ConnectorTypeIcon'
 import { PageCenter } from '../components/PageCenter'
@@ -158,6 +158,8 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
   const [catalogs, setCatalogs] = useState<string[]>([])
   const [schemas, setSchemas] = useState<string[]>([])
   const [tables, setTables] = useState<TableInfo[]>([])
+  const tablesLengthRef = useRef(0)
+  const schemaRequestRef = useRef(0)
   const [tableTotal, setTableTotal] = useState(0)
   const [selectedCatalog, setSelectedCatalog] = useState<string | null>(null)
   const [selectedSchema, setSelectedSchema] = useState<string | null>(null)
@@ -216,8 +218,8 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
         const res = await api.listConnectorCatalogs(connectorId, refresh)
         const names = res.catalogs.map(c => c.name)
         setCatalogs(names)
-        if (supportsCatalogs && names.length && !selectedCatalog) {
-          setSelectedCatalog(names[0])
+        if (supportsCatalogs && names.length) {
+          setSelectedCatalog(prev => prev ?? names[0])
         }
       } catch (err) {
         setBrowseError(err instanceof Error ? err.message : 'Failed to load catalogs')
@@ -225,12 +227,13 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
         setMetaLoading(false)
       }
     },
-    [connector, connectorId, selectedCatalog, supportsCatalogs],
+    [connector, connectorId, supportsCatalogs],
   )
 
   const refreshSchemas = useCallback(
     async (refresh = false) => {
       if (!connector || !connector.enabled) return
+      const requestId = ++schemaRequestRef.current
       setMetaLoading(true)
       setBrowseError('')
       try {
@@ -239,10 +242,11 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
           limit: 500,
           refresh,
         })
+        if (requestId !== schemaRequestRef.current) return // a newer catalog selection superseded this response
         const names = res.schemas.map(s => s.name)
         setSchemas(names)
-        if (names.length && !selectedSchema) {
-          setSelectedSchema(names[0])
+        if (names.length) {
+          setSelectedSchema(prev => prev ?? names[0])
         }
       } catch (err) {
         setBrowseError(err instanceof Error ? err.message : 'Failed to load schemas')
@@ -250,7 +254,7 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
         setMetaLoading(false)
       }
     },
-    [connector, connectorId, selectedCatalog, selectedSchema],
+    [connector, connectorId, selectedCatalog],
   )
 
   const refreshTables = useCallback(
@@ -259,7 +263,7 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
       setMetaLoading(true)
       setBrowseError('')
       try {
-        const offset = append ? tables.length : 0
+        const offset = append ? tablesLengthRef.current : 0
         const res = await api.listConnectorTables(connectorId, {
           catalog: selectedCatalog ?? undefined,
           schema: selectedSchema,
@@ -269,14 +273,18 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
           refresh,
         })
         setTableTotal(res.total)
-        setTables(prev => (append ? [...prev, ...res.tables] : res.tables))
+        setTables(prev => {
+          const next = append ? [...prev, ...res.tables] : res.tables
+          tablesLengthRef.current = next.length
+          return next
+        })
       } catch (err) {
         setBrowseError(err instanceof Error ? err.message : 'Failed to load tables')
       } finally {
         setMetaLoading(false)
       }
     },
-    [connector, connectorId, selectedCatalog, selectedSchema, tableSearch, tables.length],
+    [connector, connectorId, selectedCatalog, selectedSchema, tableSearch],
   )
 
   useEffect(() => {
@@ -294,7 +302,9 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
     if (!selectedCatalog) return
     setSelectedSchema(null)
     setSelectedTable(null)
+    setSchemas([])
     setTables([])
+    tablesLengthRef.current = 0
     refreshSchemas(false)
   }, [tab, connector?.enabled, supportsCatalogs, selectedCatalog, refreshSchemas])
 
