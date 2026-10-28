@@ -14,7 +14,7 @@ _CAI = _REPO / "deployment" / "cai"
 _LAUNCHER = _CAI / "launchers" / "studio-qdrant"
 sys.path.insert(0, str(_CAI))
 
-from common import http_ready, resolve_cai_port, run_supervised  # noqa: E402
+from common import ensure_port_free, http_ready, resolve_cai_port, run_supervised  # noqa: E402
 
 
 def build_command(env: Mapping[str, str]) -> list[str]:
@@ -50,6 +50,7 @@ def build_environment(env: Mapping[str, str]) -> dict[str, str]:
             "QDRANT__SERVICE__HTTP_PORT": str(port),
             "QDRANT__SERVICE__GRPC_PORT": "0",
             "QDRANT__STORAGE__STORAGE_PATH": str(storage),
+            "QDRANT__TELEMETRY_DISABLED": "true",
         }
     )
     if env.get("QDRANT_API_KEY"):
@@ -99,6 +100,7 @@ def main() -> int:
     build_command(env)
     check_binary(env)
     port = resolve_cai_port(env)
+    ensure_port_free(port, env.get("QDRANT_BINARY", ""))
     _start_dashboard_if_configured(env, port)
     return run_supervised(
         build_command(env),

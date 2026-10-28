@@ -33,6 +33,57 @@ def resolve_cai_port(env: Mapping[str, str]) -> int:
     return port
 
 
+def port_holders(port: int) -> list[tuple[int, str]]:
+    """(pid, command line) of other processes listening on a TCP port. Linux /proc only; empty elsewhere."""
+    inodes: set[str] = set()
+    for table in ("/proc/net/tcp", "/proc/net/tcp6"):
+        try:
+            lines = Path(table).read_text().splitlines()[1:]
+        except OSError:
+            continue
+        for line in lines:
+            fields = line.split()
+            if len(fields) > 9 and fields[3] == "0A" and int(fields[1].rsplit(":", 1)[1], 16) == port:
+                inodes.add(fields[9])
+    holders: list[tuple[int, str]] = []
+    if not inodes:
+        return holders
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdigit() or int(entry.name) == os.getpid():
+            continue
+        try:
+            for fd in (entry / "fd").iterdir():
+                target = os.readlink(fd)
+                if target.startswith("socket:[") and target[8:-1] in inodes:
+                    cmd = (entry / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace").strip()
+                    holders.append((int(entry.name), cmd))
+                    break
+        except OSError:
+            continue
+    return holders
+
+
+def ensure_port_free(port: int, stale_marker: str, wait_seconds: float = 10.0) -> None:
+    """Log who holds the port; stop leftovers of our own service (command line contains stale_marker)."""
+    import sys
+
+    holders = port_holders(port)
+    for pid, cmd in holders:
+        print(f"port {port} is held by pid {pid}: {cmd[:200]}", file=sys.stderr, flush=True)
+        if stale_marker and stale_marker in cmd:
+            print(f"stopping stale process {pid} left from a previous start", file=sys.stderr, flush=True)
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
+    deadline = time.monotonic() + wait_seconds
+    while port_holders(port) and time.monotonic() < deadline:
+        time.sleep(0.5)
+    remaining = port_holders(port)
+    if remaining:
+        raise RuntimeError(f"port {port} is still in use by {remaining}; stop that process or restart the Application")
+
+
 def build_child_env(env: Mapping[str, str]) -> dict[str, str]:
     result = dict(os.environ)
     result.update(env)
