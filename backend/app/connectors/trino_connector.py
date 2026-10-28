@@ -54,8 +54,19 @@ class TrinoConnector(DatasourceConnector):
             auth=auth,
         )
 
-    def _run_query(self, sql: str, *, catalog: str | None = None, schema: str | None = None, max_rows: int | None = None) -> list[dict]:
-        assert_connector_readonly_sql(sql)
+    def _run_query(
+        self,
+        sql: str,
+        *,
+        catalog: str | None = None,
+        schema: str | None = None,
+        max_rows: int | None = None,
+        metadata: bool = False,
+    ) -> list[dict]:
+        # SHOW/DESCRIBE are read-only but the shared SQL guard only admits SELECT; the connector builds
+        # these itself from validated identifiers, so they skip the guard.
+        if not metadata:
+            assert_connector_readonly_sql(sql)
         conn = self._connect(catalog=catalog, schema=schema)
         cur = conn.cursor()
         try:
@@ -119,14 +130,14 @@ class TrinoConnector(DatasourceConnector):
             )
 
     def list_catalogs(self) -> list[CatalogInfo]:
-        rows = self._run_query("SHOW CATALOGS", max_rows=10_000)
+        rows = self._run_query("SHOW CATALOGS", max_rows=10_000, metadata=True)
         return [CatalogInfo(name=str(next(iter(r.values())))) for r in rows if r]
 
     def list_schemas(self, *, catalog: str | None = None) -> list[SchemaInfo]:
         cat = validate_identifier(catalog or self._config.catalog or "", label="catalog")
         if not cat:
             raise ConnectorError("CATALOG_NOT_FOUND", "Catalog is required for Trino schema listing", 400)
-        rows = self._run_query(f"SHOW SCHEMAS FROM {quote_trino(cat)}", catalog=cat, max_rows=10_000)
+        rows = self._run_query(f"SHOW SCHEMAS FROM {quote_trino(cat)}", catalog=cat, max_rows=10_000, metadata=True)
         return [SchemaInfo(name=str(next(iter(r.values()))), catalog=cat) for r in rows if r]
 
     def list_tables(self, *, catalog: str | None = None, schema: str | None = None) -> list[TableInfo]:
@@ -139,6 +150,7 @@ class TrinoConnector(DatasourceConnector):
             catalog=cat,
             schema=sch,
             max_rows=10_000,
+            metadata=True,
         )
         return [
             TableInfo(name=str(next(iter(r.values()))), schema=sch, catalog=cat, table_type="TABLE")
@@ -157,7 +169,7 @@ class TrinoConnector(DatasourceConnector):
         sch = validate_identifier(schema or self._config.schema or "", label="schema")
         tbl = validate_identifier(table, label="table")
         qual = f"{quote_trino(cat)}.{quote_trino(sch)}.{quote_trino(tbl)}"
-        rows = self._run_query(f"DESCRIBE {qual}", catalog=cat, schema=sch, max_rows=10_000)
+        rows = self._run_query(f"DESCRIBE {qual}", catalog=cat, schema=sch, max_rows=10_000, metadata=True)
         cols: list[ColumnInfo] = []
         for idx, row in enumerate(rows):
             name = row.get("Column") or row.get("column") or next(iter(row.values()), "")
