@@ -417,6 +417,7 @@ export type ChatContextSourcePayload = {
     | 'semantic_entity'
     | 'semantic_metric'
     | 'semantic_term'
+    | 'mcp_connector'
   id: string
   name: string
   metadata?: Record<string, unknown>
@@ -645,6 +646,34 @@ export type PresentationTierOverridesPayload = {
   chat_details_default_open?: boolean | null
   audience_mode?: 'executive' | 'analyst' | null
   tier1_show_narrative?: boolean | null
+}
+
+export type McpTransport = 'stdio' | 'sse'
+
+export type McpServerEntryPayload = {
+  id: string
+  name: string
+  description?: string
+  enabled: boolean
+  transport: McpTransport
+  command?: string | null
+  args: string[]
+  env_var_names: string[]
+  url?: string | null
+  header_env_var_names: Record<string, string>
+  default_tool?: string | null
+}
+
+export type McpWorkspaceSettingsPayload = {
+  servers: McpServerEntryPayload[]
+}
+
+export type McpTestConnectionResult = {
+  ok: boolean
+  message: string
+  tools: string[]
+  latency_ms: number
+  missing_env_var_names: string[]
 }
 
 export type AskDataSettingsPayload = {

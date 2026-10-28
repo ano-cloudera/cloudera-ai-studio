@@ -2,6 +2,8 @@ import React from 'react'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { appConfig } from '../config/appConfig'
+import { TestBrandingWrapper } from '../test/testBrandingWrapper'
 import { buildPrimaryNavigation, AppShell } from './AppShell'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/' }))
@@ -23,9 +25,11 @@ describe('V2 application shell', () => {
     ])
 
     render(
-      <AppShell>
-        <div>Ask Data content</div>
-      </AppShell>,
+      <TestBrandingWrapper>
+        <AppShell>
+          <div>Ask Data content</div>
+        </AppShell>
+      </TestBrandingWrapper>,
     )
 
     const primaryNav = screen.getByRole('navigation', { name: 'Primary navigation' })
@@ -38,7 +42,7 @@ describe('V2 application shell', () => {
     expect(screen.queryByText('Dashboard')).toBeNull()
     expect(screen.queryByText('AI Monitoring')).toBeNull()
     expect(screen.queryByText('Scan Intelligence')).toBeNull()
-    expect(screen.getAllByText('Cloudera AI Studio').length).toBeGreaterThan(0)
+    expect(screen.getAllByText(appConfig.sidebarBrandTitle).length).toBeGreaterThan(0)
     screen.getByText('Ask Data content')
   })
 })

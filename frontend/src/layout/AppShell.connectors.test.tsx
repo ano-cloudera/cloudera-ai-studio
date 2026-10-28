@@ -2,6 +2,7 @@ import React from 'react'
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { TestBrandingWrapper } from '../test/testBrandingWrapper'
 import { buildPrimaryNavigation, AppShell } from './AppShell'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/connectors' }))
@@ -14,9 +15,11 @@ describe('AppShell connectors feature flag', () => {
     expect(nav.some(item => item.label === 'Data Sources' && item.href === '/connectors')).toBe(true)
 
     render(
-      <AppShell>
-        <div>Connectors content</div>
-      </AppShell>,
+      <TestBrandingWrapper>
+        <AppShell>
+          <div>Connectors content</div>
+        </AppShell>
+      </TestBrandingWrapper>,
     )
     const primaryNav = screen.getByRole('navigation', { name: 'Primary navigation' })
     const labels = within(primaryNav)

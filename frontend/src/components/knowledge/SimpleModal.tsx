@@ -31,17 +31,24 @@ export function SimpleModal({
     }
   }, [mounted])
 
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  const returnFocusRefStable = returnFocusRef
+
+  useEffect(() => {
+    panelRef.current?.focus()
+  }, [])
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
+      if (event.key === 'Escape') onCloseRef.current()
     }
     document.addEventListener('keydown', onKey)
-    panelRef.current?.focus()
     return () => {
       document.removeEventListener('keydown', onKey)
-      returnFocusRef?.current?.focus()
+      returnFocusRefStable?.current?.focus()
     }
-  }, [onClose, returnFocusRef])
+  }, [returnFocusRefStable])
 
   if (!mounted) return null
 

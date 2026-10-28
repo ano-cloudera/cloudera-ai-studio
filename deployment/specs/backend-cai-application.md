@@ -1,5 +1,8 @@
 # Backend CAI Application — deployment spec (neutral)
 
+**Application source code:** repository root [`backend/`](../../backend/) (not under `deployment/`).  
+**CAI launcher:** [`deployment/cai/launchers/studio-backend/app.py`](../cai/launchers/studio-backend/app.py).
+
 | Field | Value |
 |-------|--------|
 | Runtime | Python 3.10, FastAPI, uvicorn |

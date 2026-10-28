@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef } from 'react'
-import { BookOpen, Database, Layers, Search, Sigma } from 'lucide-react'
+import { BookOpen, Database, Layers, Plug, Search, Sigma } from 'lucide-react'
 import type { ChatContextSource } from '../../lib/chatContext'
 
 export type ContextPickerOption = {
@@ -15,6 +15,7 @@ function optionIcon(type: ChatContextSource['type']) {
   if (type === 'semantic_metric') return Sigma
   if (type === 'semantic_term') return BookOpen
   if (type === 'semantic_model' || type === 'semantic_entity') return Layers
+  if (type === 'mcp_connector') return Plug
   return BookOpen
 }
 

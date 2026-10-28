@@ -13,6 +13,15 @@ vi.mock('../lib/api', () => ({
     listAiProviders: vi.fn().mockResolvedValue({ providers: [] }),
     listAiModels: vi.fn().mockResolvedValue({ models: [] }),
     listModelAssignments: vi.fn().mockResolvedValue({ assignments: [] }),
+    getMcpSettings: vi.fn().mockResolvedValue({ workspace_slug: 'default', settings: { servers: [] } }),
+    putMcpSettings: vi.fn(),
+    testMcpConnection: vi.fn().mockResolvedValue({
+      ok: true,
+      message: 'Connected (1 tool: search)',
+      tools: ['search'],
+      latency_ms: 10,
+      missing_env_var_names: [],
+    }),
   },
 }))
 
@@ -54,5 +63,17 @@ describe('V2 Settings', () => {
     await waitFor(() => expect(screen.getByTestId('committed-model').textContent).toBe('openai:gpt-configured'))
     expect(screen.getByText(/Saved for new chat/i)).toBeTruthy()
     expect(screen.getByText(/Provider: OpenAI/i)).toBeTruthy()
+  })
+
+  it('shows MCP settings on the MCP tab, not on General', async () => {
+    renderWithProviders(<SettingsPage />)
+
+    expect(screen.getByRole('button', { name: /^MCP$/i })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /Save MCP connections/i })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /^MCP$/i }))
+    expect(await screen.findByRole('heading', { name: /^MCP$/i })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: /Save MCP connections/i })).toBeTruthy()
+    expect(api.getMcpSettings).toHaveBeenCalled()
   })
 })

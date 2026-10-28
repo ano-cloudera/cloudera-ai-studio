@@ -241,6 +241,16 @@ class ChatAttachmentService:
         self._session.refresh(row)
         return row
 
+    def _document_chunk_count(self, document_id: uuid.UUID) -> int:
+        doc = self._session.get(DocumentRow, document_id)
+        if not doc:
+            return 0
+        meta = doc.metadata_json or {}
+        try:
+            return max(0, int(meta.get("chunk_count") or 0))
+        except (TypeError, ValueError):
+            return 0
+
     def resolve_ready_document_ids(
         self,
         attachment_ids: list[uuid.UUID],
@@ -261,6 +271,13 @@ class ChatAttachmentService:
                 raise ChatAttachmentServiceError(
                     "attachment_not_ready",
                     "Wait until attached files finish processing.",
+                    422,
+                )
+            chunks = self._document_chunk_count(row.document_id)
+            if chunks <= 0:
+                raise ChatAttachmentServiceError(
+                    "attachment_not_indexed",
+                    "No searchable text was extracted from this file. Try another PDF or save it to Knowledge.",
                     422,
                 )
             doc_ids.append(row.document_id)

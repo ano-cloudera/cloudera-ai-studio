@@ -1,9 +1,9 @@
 {
-  "description": "Workspace Ask Data preset for Cloudera AMP / Golden Banking demo (ontology-style UX).",
+  "description": "Workspace Ask Data preset for Cloudera AMP demo (ontology-style UX). Golden Banking is the reference vertical in-repo.",
+  "hero_semantic_model_keys": ["retail_banking_analytics", "banking_analytics"],
   "starter_questions_caption": "Try a governed banking question",
   "starter_source": "configured",
   "auto_attach_semantic_model": true,
-  "default_semantic_model_id": null,
   "instruction_prompt_key": "golden_banking_executive_summary",
   "starter_questions": [
     "What is the total transaction amount?",

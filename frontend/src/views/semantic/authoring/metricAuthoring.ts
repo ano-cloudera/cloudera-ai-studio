@@ -25,17 +25,17 @@ export function physicalColumnsFromEntity(entity: SemanticEntityRecord | undefin
   if (!entity?.metadata) return []
   const raw = entity.metadata.physical_columns
   if (!Array.isArray(raw)) return []
-  return raw
-    .map(row => {
-      if (!row || typeof row !== 'object') return null
-      const name = String((row as { name?: string }).name ?? '').trim()
-      if (!name) return null
-      return {
-        name,
-        normalized_type: (row as { normalized_type?: string }).normalized_type ?? null,
-      }
+  const out: PhysicalColumnMeta[] = []
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue
+    const name = String((row as { name?: string }).name ?? '').trim()
+    if (!name) continue
+    out.push({
+      name,
+      normalized_type: (row as { normalized_type?: string }).normalized_type ?? null,
     })
-    .filter((row): row is PhysicalColumnMeta => row != null)
+  }
+  return out
 }
 
 /** Columns usable as a simple aggregate measure (includes numeric fields not imported as dimensions). */

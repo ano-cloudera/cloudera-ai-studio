@@ -1,4 +1,6 @@
 .env
+.env.local
+frontend/.env.local
 deployment/profiles/runtime-closure.env
 .venv/
 .venv.monorepo-symlink-backup-*/

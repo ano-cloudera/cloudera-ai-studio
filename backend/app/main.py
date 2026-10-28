@@ -20,6 +20,7 @@ from app.api.v1 import connectors as v1_connectors
 from app.api.v1 import ai_registry as v1_ai_registry
 from app.api.v1 import chat_attachments as v1_chat_attachments
 from app.api.v1 import chat_context as v1_chat_context
+from app.api.v1 import mcp as v1_mcp
 from app.api.v1 import tools as v1_tools
 from app.api.v1 import projects as v1_projects
 from app.api.v1 import ask_data as v1_ask_data
@@ -153,6 +154,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(v1_ai_registry.router, prefix="/api/v1")
     application.include_router(v1_chat_attachments.router, prefix="/api/v1")
     application.include_router(v1_chat_context.router, prefix="/api/v1")
+    application.include_router(v1_mcp.router, prefix="/api/v1")
     return application
 
 

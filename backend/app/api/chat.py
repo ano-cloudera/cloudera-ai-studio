@@ -38,7 +38,8 @@ async def chat(request: Request, body: AskDataRequest) -> AskDataResponse:
         body = request.app.state.chat_service.normalize_request(body)
     except ContextSourceError as exc:
         raise context_source_http_error(exc) from exc
-    _validate_selection(request, body)
+    if body.mode != "mcp":
+        _validate_selection(request, body)
     return await request.app.state.chat_service.run(body)
 
 
@@ -48,7 +49,8 @@ async def chat_stream(request: Request, body: AskDataRequest) -> StreamingRespon
         body = request.app.state.chat_service.normalize_request(body)
     except ContextSourceError as exc:
         raise context_source_http_error(exc) from exc
-    _validate_selection(request, body)
+    if body.mode != "mcp":
+        _validate_selection(request, body)
 
     async def events():
         iterator = request.app.state.chat_service.stream(body).__aiter__()

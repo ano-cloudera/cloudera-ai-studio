@@ -62,6 +62,20 @@ export const api = {
     request<{ settings: import('../types/api').AskDataSettingsPayload; workspace_slug: string }>(
       '/v1/ask-data/settings',
     ),
+  getMcpSettings: () =>
+    request<{ settings: import('../types/api').McpWorkspaceSettingsPayload; workspace_slug: string }>(
+      '/v1/mcp/settings',
+    ),
+  putMcpSettings: (body: import('../types/api').McpWorkspaceSettingsPayload) =>
+    request<{ settings: import('../types/api').McpWorkspaceSettingsPayload; workspace_slug: string }>(
+      '/v1/mcp/settings',
+      { method: 'PUT', body: JSON.stringify(body) },
+    ),
+  testMcpConnection: (body: import('../types/api').McpServerEntryPayload) =>
+    request<import('../types/api').McpTestConnectionResult>('/v1/mcp/test-connection', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   putAskDataSettings: (body: import('../types/api').AskDataSettingsPayload) =>
     request<{ settings: import('../types/api').AskDataSettingsPayload; workspace_slug: string }>(
       '/v1/ask-data/settings',
@@ -536,6 +550,7 @@ export const api = {
       expression: string
       aggregation?: string | null
       source_entity_key: string
+      allowed_dimension_keys?: string[]
     },
   ) =>
     request<{ valid: boolean; issues: Array<{ field: string; message: string }>; form_message?: string | null }>(

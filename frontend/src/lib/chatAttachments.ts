@@ -19,9 +19,15 @@ export type ChatAttachmentRecord = {
   page_count?: number | null
 }
 
-export function attachmentBlocksSend(status: ChatAttachmentStatus | undefined): boolean {
+export function attachmentBlocksSend(
+  status: ChatAttachmentStatus | undefined,
+  chunkCount?: number | null,
+): boolean {
   if (!status) return false
-  return status !== 'READY'
+  if (status === 'FAILED' || status === 'EXPIRED') return true
+  if (status !== 'READY') return true
+  if (chunkCount != null && chunkCount <= 0) return true
+  return false
 }
 
 export function attachmentContextBlocksSend(
@@ -30,7 +36,8 @@ export function attachmentContextBlocksSend(
   return sources.some(source => {
     if (source.type !== 'uploaded_file') return false
     const status = source.metadata?.status as ChatAttachmentStatus | undefined
-    return attachmentBlocksSend(status)
+    const chunkCount = source.metadata?.chunk_count as number | undefined
+    return attachmentBlocksSend(status, chunkCount)
   })
 }
 

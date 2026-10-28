@@ -25,6 +25,12 @@ import {
   USER_MESSAGE_ROW_CLASS,
 } from '../components/ConversationInner'
 import { EmptyStateLogo } from '../components/EmptyStateLogo'
+import {
+  abortInflightStream,
+  inflightStreamSessionId,
+  startInflightStream,
+  subscribeInflightStream,
+} from '../lib/askDataInflightStream'
 import { api } from '../lib/api'
 import { mergeDataNotes, parseDataProvenance } from '../lib/dataProvenance'
 import {
@@ -108,7 +114,6 @@ export function AskDataPage() {
   const [pinnedReportIds, setPinnedReportIds] = useState<string[]>([])
   const end = useRef<HTMLDivElement>(null)
   const conversationExportRef = useRef<HTMLDivElement>(null)
-  const activeRequest = useRef<AbortController | null>(null)
   const progressLiveRef = useRef({ step: 0, trace: [] as ProgressTraceEntry[] })
   const turnInFlightRef = useRef(false)
   const composerRef = useRef<HTMLTextAreaElement>(null)
@@ -123,6 +128,12 @@ export function AskDataPage() {
     const mix = validateContextMix(contextSources)
     if (mix) return mix
     if (attachmentContextBlocksSend(contextSources)) {
+      const file = contextSources.find(s => s.type === 'uploaded_file')
+      const st = file?.metadata?.status as string | undefined
+      const chunks = file?.metadata?.chunk_count as number | undefined
+      if (st === 'READY' && chunks != null && chunks <= 0) {
+        return 'No searchable text in this file yet — try another PDF or Save to Knowledge.'
+      }
       return 'Wait until attached files finish processing.'
     }
     return null
@@ -255,7 +266,29 @@ export function AskDataPage() {
   }, [searchParams])
   useEffect(() => { if (messages.length) { saveSession({ id: sessionId, title: sessionTitle(messages), updatedAt: Date.now(), messages, selection: selection || undefined }); setSessions(loadSessions()) } }, [messages, selection, sessionId])
   useEffect(() => { end.current?.scrollIntoView?.({ behavior: 'smooth' }) }, [messages, loading, progressStep])
-  useEffect(() => () => activeRequest.current?.abort(), [])
+  useEffect(() => {
+    const inflightId = inflightStreamSessionId()
+    if (inflightId) {
+      setSessionId(inflightId)
+      const sess = loadSessions().find(s => s.id === inflightId)
+      if (sess) setMessages(sess.messages)
+      setLoading(true)
+    }
+    return subscribeInflightStream(state => {
+      setLoading(state.loading)
+      setProgressStep(state.progressStep)
+      setTechnicalTrace([...state.technicalTrace])
+      if (state.error) setError(state.error)
+      if (!state.loading) {
+        turnInFlightRef.current = false
+        const sess = loadSessions().find(s => s.id === state.sessionId)
+        if (sess) {
+          setMessages(sess.messages)
+          setSessions(loadSessions())
+        }
+      }
+    })
+  }, [])
   useEffect(() => {
     api
       .askDataStarters()
@@ -300,7 +333,7 @@ export function AskDataPage() {
   const { containerRef, chatColumnRef, beginResize, moveResize, endResize, isDragging, chatStyle, paneStyle } =
     useReportSplitPane(canUseReportPanel)
 
-  async function submit(
+  function submit(
     question = input,
     _source: 'send_button' | 'enter_key' | 'starter_question' | 'clarification' = 'send_button',
     contextOverride?: ChatContextSource[],
@@ -315,97 +348,48 @@ export function AskDataPage() {
       return
     }
     turnInFlightRef.current = true
-    setMessages(current => [...current, { role: 'user', content: value }])
+    const userMessage: StoredMessage = { role: 'user', content: value }
+    const priorMessages = messages
+    setMessages(current => [...current, userMessage])
     setInput('')
     setError('')
     setLoading(true)
     setProgressStep(0)
     setTechnicalTrace([])
     progressLiveRef.current = { step: 0, trace: [] }
-    const controller = new AbortController()
-    activeRequest.current = controller
-    let timedOut = false
     const streamTimeoutMs = Number(process.env.NEXT_PUBLIC_CHAT_STREAM_TIMEOUT_MS || 180_000)
-    const timeout = window.setTimeout(() => { timedOut = true; controller.abort() }, streamTimeoutMs)
-    let streamSucceeded = false
-    try {
-      for await (const event of api.chatStream(value, sessionId, selection, controller.signal, {
-        ...(activeContext.length
-          ? {
-              context_sources: activeContext.map(source => ({
-                type: source.type,
-                id: source.id,
-                name: source.name,
-              })),
-            }
-          : { mode: 'ask_data' as const }),
-      })) {
-        if (event.type === 'progress') {
-          setProgressStep(current => {
-            const next = mergeProgressStep(current, event.stage, event.label)
-            progressLiveRef.current.step = next
-            return next
-          })
-          setTechnicalTrace(current => {
-            const entry: ProgressTraceEntry = { stage: event.stage, label: event.label, detail: event.detail }
-            const key = `${entry.stage}|${entry.label}|${entry.detail ?? ''}`
-            const last = current[current.length - 1]
-            const lastKey = last ? `${last.stage}|${last.label}|${last.detail ?? ''}` : ''
-            if (key === lastKey) return current
-            const next = [...current, entry]
-            progressLiveRef.current.trace = next
-            return next
-          })
-          continue
-        }
-        if (event.type === 'done') {
-          streamSucceeded = true
-          const finalStep = Math.max(
-            progressLiveRef.current.step,
-            DETAILED_PROGRESS_STEPS.length - 1,
-          )
-          const processSnapshot: ProcessSnapshot = {
-            activeStepIndex: finalStep,
-            technicalTrace: [...progressLiveRef.current.trace],
+    startInflightStream({
+      sessionId,
+      selection,
+      question: value,
+      userMessage,
+      priorMessages,
+      streamTimeoutMs,
+      contextPayload: activeContext.length
+        ? {
+            context_sources: activeContext.map(source => ({
+              type: source.type,
+              id: source.id,
+              name: source.name,
+            })),
           }
-          setMessages(current => [
-            ...current,
-            {
-              role: 'assistant',
-              content: event.response.answer.executive_summary,
-              response: event.response,
-              processSnapshot,
-            },
-          ])
-          if (
-            appConfig.analysisReportPanel &&
-            event.response.status === 'SUCCESS' &&
-            responseQualifiesForReportPanel(event.response)
-          ) {
-            setReportPanelOpen(true)
-            setActiveReportSectionId(event.response.request_id)
-          }
-          break
+        : { mode: 'ask_data' },
+      onDone: response => {
+        if (
+          appConfig.analysisReportPanel &&
+          response.status === 'SUCCESS' &&
+          responseQualifiesForReportPanel(response)
+        ) {
+          setReportPanelOpen(true)
+          setActiveReportSectionId(response.request_id)
         }
-      }
-    } catch (caught) {
-      if (caught instanceof DOMException && caught.name === 'AbortError') {
-        setError(timedOut ? 'Request timed out. Please try again.' : 'Request stopped.')
-      } else {
-        setError('Unable to complete the analysis right now. Please try again.')
-      }
-    } finally {
-      window.clearTimeout(timeout)
-      if (activeRequest.current === controller) activeRequest.current = null
-      turnInFlightRef.current = false
-      setLoading(false)
-      setProgressStep(0)
-      setTechnicalTrace([])
-      progressLiveRef.current = { step: 0, trace: [] }
-    }
+      },
+    })
   }
 
-  function stopRequest() { activeRequest.current?.abort() }
+  function stopRequest() {
+    abortInflightStream()
+  }
 
   const newChat = useCallback(() => {
     setSessionId(createSessionId())
@@ -1060,8 +1044,15 @@ function StructuredAnswer({
         {headerRow}
         {governedWarning}
         <div className="space-y-2">
-          <AnswerProse text={response.answer.direct_answer} omitTables={omitTablesInProse} variant="main" />
-          {!chartFirst && showExecutiveSummary && (
+          {ragProseOnly && response.status === 'SUCCESS' ? (
+            <div className="type-section-label text-cloudera-navy/80">Knowledge</div>
+          ) : null}
+          <AnswerProse
+            text={response.answer.direct_answer}
+            omitTables={omitTablesInProse}
+            variant={ragProseOnly && response.status === 'SUCCESS' ? 'secondary' : 'main'}
+          />
+          {!chartFirst && showExecutiveSummary && !ragProseOnly && (
             <AnswerProse text={response.answer.executive_summary} omitTables={omitTablesInProse} variant="support" />
           )}
         </div>

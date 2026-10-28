@@ -70,6 +70,7 @@ run_one_cycle() {
   echo "Starting next dev on :$FRONTEND_DEV_PORT (log: $LOG_FILE) …"
   (
     cd "$FRONTEND_DIR"
+    frontend_dev_load_env_files
     export BACKEND_API_URL="${BACKEND_API_URL:-http://127.0.0.1:8001}"
     export NEXT_PUBLIC_BACKEND_URL="${NEXT_PUBLIC_BACKEND_URL:-http://127.0.0.1:8001}"
     export PORT="$FRONTEND_DEV_PORT"

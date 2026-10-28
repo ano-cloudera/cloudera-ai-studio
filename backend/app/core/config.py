@@ -319,6 +319,9 @@ class Settings(BaseSettings):
     puppygraph_enabled: bool = Field(default=False, validation_alias="PUPPYGRAPH_ENABLED")
     puppygraph_base_url: str = Field(default="", validation_alias="PUPPYGRAPH_BASE_URL")
 
+    # MCP connectors (JSON list) — see config/examples/mcp-connectors.json
+    mcp_connectors_json: str = Field(default="", validation_alias="MCP_CONNECTORS_JSON")
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [value.strip() for value in self.cors_origins.split(",") if value.strip()]

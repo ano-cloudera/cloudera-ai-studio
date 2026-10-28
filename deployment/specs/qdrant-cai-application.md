@@ -1,5 +1,7 @@
 # Qdrant CAI Application — deployment spec (neutral)
 
+**CAI launcher:** [`deployment/cai/launchers/studio-qdrant/app.py`](../cai/launchers/studio-qdrant/app.py) (Qdrant binary + optional UI).
+
 | Field | Value |
 |-------|--------|
 | Image | Official Qdrant (version pinned in real CAI deploy) |

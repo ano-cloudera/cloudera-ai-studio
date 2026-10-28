@@ -16,8 +16,9 @@ import type { ModelInfo } from '../types/api'
 import { AiModelsSettingsPanel } from './settings/AiModelsSettingsPanel'
 import { AskDataPresentationSettingsPanel } from './settings/AskDataPresentationSettingsPanel'
 import { AskDataStarterSettingsPanel } from './settings/AskDataStarterSettingsPanel'
+import { AskDataMcpSettingsPanel } from './settings/AskDataMcpSettingsPanel'
 
-const SETTINGS_TABS = ['general', 'models', 'rag', 'features', 'advanced'] as const
+const SETTINGS_TABS = ['general', 'models', 'rag', 'features', 'mcp', 'advanced'] as const
 type SettingsTab = (typeof SETTINGS_TABS)[number]
 
 function ModelOptions({ models, groupByProvider }: { models: ModelInfo[]; groupByProvider: boolean }) {
@@ -225,7 +226,7 @@ export function SettingsPage() {
               tab === key ? 'border-b-2 border-cloudera-violet text-cloudera-violet' : 'text-slate-500'
             }`}
           >
-            {key === 'models' ? 'AI models' : key}
+            {key === 'models' ? 'AI models' : key === 'mcp' ? 'MCP' : key}
           </button>
         ))}
       </div>
@@ -272,9 +273,10 @@ export function SettingsPage() {
 
             {appConfig.features.aiModelRegistry ? (
               <details className="mt-6 rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3">
-                <summary className="cursor-pointer text-sm font-semibold text-cloudera-navy">Legacy chat fallback</summary>
+                <summary className="cursor-pointer text-sm font-semibold text-cloudera-navy">Default chat model</summary>
                 <p className="type-chat-meta mt-2 text-slate-500">
-                  Optional. Used only when a capability has no registry assignment. Prefer runtime assignments above.
+                  Used for new Ask Data sessions and when a capability has no registry assignment. Capability assignments
+                  above take precedence at runtime.
                 </p>
                 <div className="mt-4 space-y-4">
                   <LegacyChatModelControls
@@ -346,6 +348,17 @@ export function SettingsPage() {
                 </li>
               ))}
             </ul>
+          </>
+        ) : null}
+
+        {tab === 'mcp' ? (
+          <>
+            <h2 className="text-[15px] font-semibold text-cloudera-navy">MCP</h2>
+            {appConfig.features.askData ? (
+              <AskDataMcpSettingsPanel embedded />
+            ) : (
+              <p className="text-sm text-slate-600">MCP connections require Ask Data to be enabled for this deployment.</p>
+            )}
           </>
         ) : null}
 

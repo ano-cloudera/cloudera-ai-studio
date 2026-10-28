@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { buildPrimaryNavigation, AppShell } from '../layout/AppShell'
+import { TestBrandingWrapper } from '../test/testBrandingWrapper'
 import { appConfig } from '../config/appConfig'
 import {
   ADD_DATA_SOURCE,
@@ -49,9 +50,11 @@ describe('DATA_SOURCES_UX_RENAME', () => {
     expect(nav.some(item => item.href === '/connectors' && item.label === 'Data Sources')).toBe(true)
 
     render(
-      <AppShell>
-        <div>Data sources page</div>
-      </AppShell>,
+      <TestBrandingWrapper>
+        <AppShell>
+          <div>Data sources page</div>
+        </AppShell>
+      </TestBrandingWrapper>,
     )
     const primaryNav = screen.getByRole('navigation', { name: 'Primary navigation' })
     const linkLabels = within(primaryNav)

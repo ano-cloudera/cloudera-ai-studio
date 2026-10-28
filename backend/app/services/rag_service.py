@@ -117,6 +117,40 @@ class RAGService:
             status="NO_DATA",
         )
 
+    def _llm_unavailable_result(
+        self,
+        *,
+        library_ids: list[uuid.UUID],
+        project_id: uuid.UUID,
+        retrieval_payload: dict | None,
+        started: float,
+    ) -> RagAnswerResult:
+        message = "Model jawaban tidak tersedia saat ini. Silakan coba lagi."
+        meta = (retrieval_payload or {}).get("metadata") or {}
+        ctx = (retrieval_payload or {}).get("context") or {}
+        elapsed = int((time.perf_counter() - started) * 1000)
+        return RagAnswerResult(
+            grounding="INSUFFICIENT_EVIDENCE",
+            answer_text=message,
+            executive_summary=message,
+            insights=[],
+            caveats=["Penyusunan jawaban dari dokumen gagal; retrieval mungkin sudah berhasil."],
+            business_implications=[],
+            citations=[],
+            retrieval_meta={
+                "candidate_count": int(ctx.get("total_candidates") or 0),
+                "selected_count": int(ctx.get("selected_candidates") or 0),
+            },
+            execution_metadata={
+                **{k: meta.get(k) for k in ("embedding_ms", "vector_search_ms", "rerank_ms", "context_build_ms")},
+                "retrieval_ms": meta.get("total_retrieval_ms", 0),
+                "llm_ms": 0,
+                "total_ms": elapsed,
+            },
+            session_frame=build_rag_session_frame(library_ids=library_ids, project_id=project_id),
+            status="NO_DATA",
+        )
+
     async def rag_answer(
         self,
         *,
@@ -215,11 +249,10 @@ class RAGService:
             )
         except Exception as exc:
             logger.warning("rag llm failed %s", type(exc).__name__)
-            return self._insufficient_result(
-                message="Model jawaban tidak tersedia saat ini. Silakan coba lagi.",
-                retrieval_payload=retrieval_payload,
+            return self._llm_unavailable_result(
                 library_ids=scoped,
                 project_id=project_id,
+                retrieval_payload=retrieval_payload,
                 started=started,
             )
         llm_ms = int((time.perf_counter() - llm_started) * 1000)

@@ -3,13 +3,16 @@ import { render, type RenderOptions } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { ModelSelectionBootstrap } from '../store/ModelSelectionBootstrap'
 import { createAppStore } from '../store/store'
+import { TestBrandingWrapper } from './testBrandingWrapper'
 
 export function renderWithProviders(ui: ReactElement, options?: RenderOptions) {
   const store = createAppStore()
   function Wrapper({ children }: { children: ReactNode }) {
     return (
       <Provider store={store}>
-        <ModelSelectionBootstrap>{children}</ModelSelectionBootstrap>
+        <TestBrandingWrapper>
+          <ModelSelectionBootstrap>{children}</ModelSelectionBootstrap>
+        </TestBrandingWrapper>
       </Provider>
     )
   }

@@ -18,6 +18,8 @@ from app.db.platform_models import (
     SemanticTermRow,
     SemanticVersionRow,
 )
+from app.db.platform_models import WorkspaceRow
+from app.mcp.registry import connectors_payload
 from app.services.library_service import LibraryService
 
 
@@ -40,14 +42,39 @@ class ContextPickerOptionsService:
         knowledge = self._knowledge(workspace_id, project_id, needle, limit)
         semantic = self._semantic(workspace_id, project_id, needle, limit)
         data = self._tables(workspace_id, project_id, needle, limit)
+        ws_row = self._session.get(WorkspaceRow, workspace_id)
+        mcp = self._mcp(needle, limit, ws_row.settings_json if ws_row else None)
 
         return {
             "groups": [
                 {"id": "data", "label": "Data", "options": data},
                 {"id": "semantic", "label": "Semantic", "options": semantic},
                 {"id": "knowledge", "label": "Knowledge", "options": knowledge},
+                {"id": "mcp", "label": "MCP", "options": mcp},
             ]
         }
+
+    def _mcp(self, needle: str, limit: int, workspace_settings_json: dict | None) -> list[dict]:
+        out: list[dict] = []
+        for row in connectors_payload(self._settings, workspace_settings_json=workspace_settings_json):
+            name = str(row.get("name") or "")
+            desc = str(row.get("description") or "")
+            hay = f"{name} {desc}".lower()
+            if needle and needle not in hay:
+                continue
+            out.append(
+                {
+                    "type": "mcp_connector",
+                    "id": str(row.get("id") or ""),
+                    "name": name,
+                    "subtitle": str(row.get("transport") or "mcp"),
+                    "group": "mcp",
+                    "metadata": {"transport": row.get("transport")},
+                }
+            )
+            if len(out) >= limit:
+                break
+        return out
 
     def _knowledge(self, workspace_id: uuid.UUID, project_id: uuid.UUID, needle: str, limit: int) -> list[dict]:
         svc = LibraryService(self._session)

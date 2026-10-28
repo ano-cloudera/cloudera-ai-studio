@@ -1,9 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { SimpleModal } from './SimpleModal'
 import { api } from '../../lib/api'
 import type { LibraryRecord } from '../../types/api'
+
+const SYSTEM_LIBRARY_NAMES = new Set(['__cai_chat_attachments__'])
+
+function suggestedLibraryName(attachmentName: string): string {
+  const base = attachmentName.replace(/\.[^.]+$/, '').trim()
+  if (!base) return 'Uploaded documents'
+  return base.length > 80 ? `${base.slice(0, 77)}…` : base
+}
 
 type Props = {
   open: boolean
@@ -21,15 +29,22 @@ export function SaveToKnowledgeModal({ open, attachmentId, attachmentName, onClo
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const visibleLibraries = useMemo(
+    () => libraries.filter(lib => !SYSTEM_LIBRARY_NAMES.has(lib.name)),
+    [libraries],
+  )
+
   useEffect(() => {
     if (!open) return
     setError('')
-    setNewLibraryName('')
+    setNewLibraryName(suggestedLibraryName(attachmentName))
     void api.listLibrariesPaginated({ page: 1, page_size: 100 }).then(res => {
+      const items = res.items.filter(lib => !SYSTEM_LIBRARY_NAMES.has(lib.name))
       setLibraries(res.items)
-      setLibraryId(res.items[0]?.id ?? '')
+      setLibraryId(items[0]?.id ?? '')
+      setMode(items.length > 0 ? 'existing' : 'new')
     })
-  }, [open])
+  }, [open, attachmentName])
 
   async function handleSave() {
     setLoading(true)
@@ -68,10 +83,13 @@ export function SaveToKnowledgeModal({ open, attachmentId, attachmentName, onClo
           <select
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
             value={libraryId}
-            disabled={loading}
+            disabled={loading || visibleLibraries.length === 0}
             onChange={e => setLibraryId(e.target.value)}
           >
-            {libraries.map(lib => (
+            {visibleLibraries.length === 0 ? (
+              <option value="">No libraries yet — create one below</option>
+            ) : null}
+            {visibleLibraries.map(lib => (
               <option key={lib.id} value={lib.id}>
                 {lib.name}
               </option>
@@ -83,13 +101,18 @@ export function SaveToKnowledgeModal({ open, attachmentId, attachmentName, onClo
           Create new library
         </label>
         {mode === 'new' && (
-          <input
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            placeholder="Library name"
-            value={newLibraryName}
-            disabled={loading}
-            onChange={e => setNewLibraryName(e.target.value)}
-          />
+          <label className="block text-sm font-medium text-slate-700">
+            Library name
+            <input
+              type="text"
+              autoFocus
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-cloudera-navy"
+              placeholder="e.g. Cloudera AI Infrastructure"
+              value={newLibraryName}
+              disabled={loading}
+              onChange={e => setNewLibraryName(e.target.value)}
+            />
+          </label>
         )}
         {error ? <p className="text-sm text-rose-600">{error}</p> : null}
         <div className="flex justify-end gap-2 pt-2">

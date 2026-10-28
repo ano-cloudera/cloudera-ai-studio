@@ -2,11 +2,12 @@
 
 import { Bot } from 'lucide-react'
 import { useState } from 'react'
-import { appConfig } from '../config/appConfig'
+import { usePublicBranding } from '../config/PublicBrandingContext'
 
 export function BrandMark() {
   const [failed, setFailed] = useState(false)
-  const src = appConfig.branding.logo.trim()
+  const branding = usePublicBranding()
+  const src = branding.logoUrl.trim()
 
   return (
     <div className="flex min-w-0 items-center gap-2.5">
@@ -24,7 +25,7 @@ export function BrandMark() {
         />
       )}
       <span className="min-w-0 truncate text-[1.0625rem] font-medium leading-none text-cloudera-navy">
-        {appConfig.sidebarBrandTitle}
+        {branding.sidebarBrandTitle}
       </span>
     </div>
   )

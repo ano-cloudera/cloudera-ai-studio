@@ -1,5 +1,8 @@
 # Frontend CAI Application — deployment spec (neutral)
 
+**Application source code:** repository root [`frontend/`](../../frontend/) (not under `deployment/`).  
+**CAI launcher:** [`deployment/cai/launchers/studio-frontend/app.py`](../cai/launchers/studio-frontend/app.py).
+
 | Field | Value |
 |-------|--------|
 | Runtime | Node.js (LTS), Next.js 15 production server |

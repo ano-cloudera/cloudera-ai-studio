@@ -10,11 +10,38 @@ source "$ROOT/frontend/scripts/lib/frontend-dev-common.sh"
 LOG_FILE="${ROOT}/.tmp/frontend-3001.log"
 PID_FILE="$FRONTEND_DIR/.next-dev.pid"
 
+frontend_http_code() {
+  curl -s -o /dev/null -w '%{http_code}' --connect-timeout 2 --max-time 8 "http://127.0.0.1:$FRONTEND_DEV_PORT/" 2>/dev/null || echo "000"
+}
+
+frontend_maybe_clean_stale_next() {
+  if ! frontend_dev_check_log_stale "$LOG_FILE"; then
+    echo "Removing stale frontend/.next (dev + production build conflict)…"
+    rm -rf "$FRONTEND_DIR/.next"
+  fi
+}
+
 frontend_start() {
   mkdir -p "${ROOT}/.tmp"
-  if frontend_dev_wait_http "http://127.0.0.1:$FRONTEND_DEV_PORT/" 1; then
-    echo "ALREADY_RUNNING port=$FRONTEND_DEV_PORT"
+  local code
+  code="$(frontend_http_code)"
+  if [[ "$code" == "200" ]]; then
+    if [[ -f "$FRONTEND_DIR/.env.local" ]] && grep -q 'Anywhere AI Studio' "$FRONTEND_DIR/.env.local"; then
+      if curl -fsS --max-time 8 "http://127.0.0.1:$FRONTEND_DEV_PORT/" 2>/dev/null | grep -q 'Cloudera AI Studio'; then
+        echo "Stale Cloudera bundle on :$FRONTEND_DEV_PORT — running restart-clean for hackathon branding…"
+        frontend_restart_clean
+        return $?
+      fi
+    fi
+    echo "ALREADY_RUNNING port=$FRONTEND_DEV_PORT (HTTP 200)"
     return 0
+  fi
+  if [[ -n "$(frontend_dev_listeners)" ]]; then
+    echo "Frontend on :$FRONTEND_DEV_PORT unhealthy (HTTP $code) — stopping…"
+    frontend_stop
+    frontend_maybe_clean_stale_next
+  elif [[ "$code" == "500" ]]; then
+    frontend_maybe_clean_stale_next
   fi
   if [[ ! -d "$FRONTEND_DIR/node_modules" ]]; then
     (cd "$FRONTEND_DIR" && npm install)
@@ -23,18 +50,15 @@ frontend_start() {
   {
     echo "======== frontend start $(date -u +%Y-%m-%dT%H:%M:%SZ) ========"
   } >>"$LOG_FILE"
-  # Run `next` directly — `nohup npm` often exits after spawning and the dev server dies with the shell.
+  # Background with exec (same pattern as frontend-clean-dev.sh) so the PID stays the next server.
   (
     cd "$FRONTEND_DIR"
+    frontend_dev_load_env_files
     export BACKEND_API_URL="${BACKEND_API_URL:-http://127.0.0.1:8001}"
     export NEXT_PUBLIC_BACKEND_URL="${NEXT_PUBLIC_BACKEND_URL:-http://127.0.0.1:8001}"
-    export NEXT_PUBLIC_APP_NAME="Cloudera AI Studio"
-    export NEXT_PUBLIC_PRODUCT_NAME="Cloudera AI Studio"
-    export NEXT_PUBLIC_PRODUCT_SHORT_NAME="AI Studio"
-    export NEXT_PUBLIC_APP_SUBTITLE="AI Studio"
-    nohup ./node_modules/.bin/next dev -H 0.0.0.0 -p "$FRONTEND_DEV_PORT" >>"$LOG_FILE" 2>&1 </dev/null &
-    echo $! >"$PID_FILE"
-  )
+    exec ./node_modules/.bin/next dev -H 0.0.0.0 -p "$FRONTEND_DEV_PORT"
+  ) >>"$LOG_FILE" 2>&1 &
+  echo $! >"$PID_FILE"
   disown 2>/dev/null || true
   if ! frontend_dev_wait_ready "http://127.0.0.1:$FRONTEND_DEV_PORT/"; then
     if [[ -n "$(frontend_dev_listeners)" ]]; then
@@ -61,6 +85,14 @@ frontend_restart() {
   frontend_start
 }
 
+frontend_restart_clean() {
+  frontend_stop
+  sleep 1
+  echo "Removing $FRONTEND_DIR/.next …"
+  rm -rf "$FRONTEND_DIR/.next"
+  frontend_start
+}
+
 frontend_status() {
   local pid
   pid="$(frontend_dev_listeners | head -1 || true)"
@@ -77,6 +109,7 @@ case "$cmd" in
   start) frontend_start ;;
   stop) frontend_stop ;;
   restart) frontend_restart ;;
+  restart-clean) frontend_restart_clean ;;
   status) frontend_status ;;
   logs) tail -f "$LOG_FILE" ;;
   -h | --help | help)
@@ -84,11 +117,14 @@ case "$cmd" in
 Usage: $(basename "$0") <command>
 
 Commands:
-  start    Start Next.js dev on :3001 if not already healthy
-  stop     Stop dev server listening on :3001 (this repo only)
-  restart  stop → start
-  status   Process + HTTP check
-  logs     tail -f .tmp/frontend-3001.log
+  start         Start Next.js dev on :3001 if not already healthy (HTTP 200)
+  stop          Stop dev server listening on :3001 (this repo only)
+  restart       stop → start
+  restart-clean stop → rm .next → start (fix 500 / MODULE_NOT_FOUND)
+  status        Process + HTTP check
+  logs          tail -f .tmp/frontend-3001.log
+
+Tip: never run "npm run build" while "next dev" is running — it corrupts .next.
 EOF
     ;;
   *)

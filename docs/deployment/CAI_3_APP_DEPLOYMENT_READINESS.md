@@ -55,9 +55,9 @@ Local NFS emulation: `scripts/cai/nfs-local-emulation.sh` (under `/tmp/cai-nfs-s
 
 | App | Spec |
 |-----|------|
-| Frontend | [deployment/frontend/SPEC.md](../../deployment/frontend/SPEC.md) |
-| Backend | [deployment/backend/SPEC.md](../../deployment/backend/SPEC.md) |
-| Qdrant | [deployment/qdrant/SPEC.md](../../deployment/qdrant/SPEC.md) |
+| Frontend | [deployment/specs/frontend-cai-application.md](../../deployment/specs/frontend-cai-application.md) |
+| Backend | [deployment/specs/backend-cai-application.md](../../deployment/specs/backend-cai-application.md) |
+| Qdrant | [deployment/specs/qdrant-cai-application.md](../../deployment/specs/qdrant-cai-application.md) |
 
 ### Frontend
 

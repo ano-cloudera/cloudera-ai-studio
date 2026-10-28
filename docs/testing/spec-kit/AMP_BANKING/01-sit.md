@@ -24,7 +24,7 @@
 
 | Case ID | Action | Expected |
 |---------|--------|----------|
-| SIT-2.1 | `GET /api/v1/ask-data/settings` | `auto_attach_semantic_model=true` after profile |
+| SIT-2.1 | `GET /api/v1/ask-data/settings` | `auto_attach_semantic_model=true` and non-null `default_semantic_model_id` after profile (hero pin) |
 | SIT-2.2 | `POST /chat` without `context_sources`, Q: total transaction amount | `GOVERNED_SEMANTIC`, `SUM(amount)` in SQL |
 | SIT-2.3 | Same session Q: Break it down by channel | SUCCESS, `GROUP BY` + channel |
 | SIT-2.4 | Publish semantic model | `golden_questions.yaml` non-empty in deployment OSSIE |

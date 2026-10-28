@@ -37,6 +37,10 @@ This document maps **existing** configuration names traced from `backend/app/cor
 | `conversation_db_path` | Legacy conv sqlite | Implicit default under runtime | File path | No | Yes |
 | `CONNECTOR_METADATA_CACHE_TTL_SECONDS` | In-memory cache TTL | No | Seconds | No | No |
 | `RAG_SYSTEM_PROMPT_PATH` | Default RAG prompt file | No | Path in image or NFS | No | Optional |
+| `BRAVE_API_KEY` | MCP Brave Search stdio preset (`@modelcontextprotocol/server-brave-search`) | Optional | CAI Backend secret | **Yes** | No |
+| `MCP_CONNECTORS_JSON` | Legacy MCP connector list when workspace has no servers | Optional | JSON array | No | No |
+
+Workspace MCP server entries (stdio command, SSE URL, **env var names only**) are stored in platform metadata via `PUT /api/v1/mcp/settings` — never secret values in JSON.
 
 ### Connector / AI registry secrets (stored in DB as references)
 

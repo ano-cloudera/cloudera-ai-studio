@@ -14,7 +14,10 @@
 | UAT-5 | Open Analysis Workspace → Summary | **Governed definition** block visible on tier-3 turn |
 | UAT-6 | Ask ambiguous metric (if configured) | Clarification **chips**; pick one → prior question resolves |
 | UAT-7 | “Write Python for machine learning” | UNSUPPORTED / guardrail |
-| UAT-8 | Knowledge question (no semantic) | RAG answer with sources |
+| UAT-8 | **`@` Knowledge library** (no `@` semantic), policy-style question | RAG answer with sources |
+| UAT-8c | Remove library `@`, ask UAT-1 KPI again | Governed answer (pin / auto-attach), not document RAG |
+| UAT-9a | Knowledge → upload PDF (optional) | Document **Ready**, indexed chunks &gt; 0 |
+| UAT-9b | Ask Data → **+** attach PDF, wait **Ready** + chunks | RAG answer from attachment or clear “no text extracted” |
 
 ## Automated UAT (LLM required)
 

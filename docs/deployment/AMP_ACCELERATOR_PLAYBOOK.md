@@ -1,6 +1,6 @@
 # Cloudera AI Studio — AMP Accelerator Playbook
 
-This playbook packages **Golden Banking** as a customer-facing **ontology-style Ask Data** demo: governed metrics, multi-turn memory, Knowledge RAG, and executive presentation defaults aligned with a Databricks Ontology / Genie–style experience (numbers from semantic layer, natural language on top).
+This playbook packages the **Cloudera AI Studio AMP** accelerator: ontology-style Ask Data (governed metrics, multi-turn memory, Knowledge RAG, executive presentation). **Golden Banking** is the in-repo **reference vertical**; other industries swap assets per [AMP_VERTICAL_SWAP_CHECKLIST.md](./AMP_VERTICAL_SWAP_CHECKLIST.md). Context routing: [AMP_MULTI_CONTEXT_POLICY.md](./AMP_MULTI_CONTEXT_POLICY.md).
 
 ## What the accelerator demonstrates
 
@@ -33,11 +33,11 @@ python3 scripts/demo/bootstrap_golden_banking.py --validate
 # Publish-readiness (glossary, dimensions, metric aliases)
 python3 scripts/demo/patch_banking_semantic_publish_readiness.py
 
-# AMP demo UX preset (starters + tier1 narrative + executive mode)
+# AMP demo UX preset (starters + tier1 narrative + executive mode + hero semantic pin)
 python3 scripts/demo/apply_accelerator_demo_profile.py
 ```
 
-Attach **Banking Analytics** semantic model in Ask Data (or use starters from settings). With auto-attach enabled, `@` is optional.
+The profile script pins the **hero semantic model** from `hero_semantic_model_keys` in the preset (or the sole published model). With auto-attach enabled, governed KPI questions need **no `@`**. Secondary ontologies use **`@` Semantic** or a separate deployment preset.
 
 **P1 parity (Genie-style):**
 
@@ -85,8 +85,9 @@ Formal test pack: [docs/testing/spec-kit/AMP_BANKING/](../testing/spec-kit/AMP_B
 2. **Breakdown** — “Break it down by channel.” (chart + workspace)
 3. **Memory** — “Which channel had the highest value?” (same session)
 4. **Semantic publish** (optional 30s) — show Metrics / Glossary / publish checklist
-5. **Knowledge** — ask a policy question without semantic model attached
-6. **Guardrail** — “Write Python for machine learning” → unsupported
+5. **Knowledge** — **`@` attach the demo library**, ask a policy question (RAG + sources)
+6. **Remove `@` library** — ask the hero KPI again (back to governed / pin)
+7. **Guardrail** — “Write Python for machine learning” → unsupported
 
 ## Presentation tuning (ontology-like chat)
 
@@ -104,7 +105,7 @@ Deployment env overrides: `ASK_DATA_AUDIENCE_MODE`, `ASK_DATA_TIER1_SHOW_NARRATI
 1. Complete [CAI_REAL_DEPLOYMENT_CHECKLIST.md](./CAI_REAL_DEPLOYMENT_CHECKLIST.md) on real Cloudera AI infra
 2. Run bootstrap against deployed `GOLDEN_PATH_API_BASE`
 3. Capture evidence under `testing/evidence/golden-path/`
-4. Package from `deployment/backend/SPEC.md`, `deployment/frontend/SPEC.md`, `deployment/qdrant/SPEC.md` (see `deployment/amp/README.md`)
+4. Package from `deployment/specs/*-cai-application.md` (see `deployment/amp/README.md`)
 
 ## Troubleshooting
 
@@ -112,7 +113,8 @@ Deployment env overrides: `ASK_DATA_AUDIENCE_MODE`, `ASK_DATA_TIER1_SHOW_NARRATI
 |---------|--------|
 | Wrong metric (236 customers vs amount) | Republish semantic model; restart backend; new chat session |
 | “Which metric?” on follow-up | Backend includes registry session follow-up fix; same session after correct #8 |
-| No Knowledge answers | Qdrant up; `register_banking_knowledge.py` evidence |
+| No Knowledge answers | Qdrant up; `@` library attached; `register_banking_knowledge.py` evidence |
+| No auto semantic / wrong model | Re-run `apply_accelerator_demo_profile.py`; or Settings pin; if 2+ published models, pin is required |
 | Tier 1 feels “dry” | Run `apply_accelerator_demo_profile.py` or enable tier 1 narrative in Settings |
 
 ## Related docs

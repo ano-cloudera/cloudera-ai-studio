@@ -56,9 +56,9 @@ export function answerPresentation(response: ChatResponse): {
   }
   if (uiStatus === 'NO_DATA') {
     return {
-      title: 'No matching data',
-      showStatusChip: true,
-      statusChip: 'NO_DATA',
+      title: rag ? 'Could not answer from documents' : 'No matching data',
+      showStatusChip: !rag,
+      statusChip: rag ? null : 'NO_DATA',
     }
   }
   if (uiStatus === 'UNSUPPORTED') {

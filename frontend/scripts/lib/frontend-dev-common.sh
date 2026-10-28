@@ -151,6 +151,18 @@ frontend_dev_check_log_stale() {
   return 0
 }
 
+# Export NEXT_PUBLIC_* (and BACKEND_*) into the dev server process — Next inlines them at compile time.
+frontend_dev_load_env_files() {
+  local f
+  for f in "$REPO_ROOT/config/examples/hackathon-branding.frontend.env" "$FRONTEND_DIR/.env.local"; do
+    [[ -f "$f" ]] || continue
+    set -a
+    # shellcheck disable=SC1090
+    source "$f"
+    set +a
+  done
+}
+
 frontend_dev_assert_dev_not_running() {
   local pid
   for pid in $(frontend_dev_listeners); do

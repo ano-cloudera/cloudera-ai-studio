@@ -1,4 +1,7 @@
-/** Canonical product branding (override via NEXT_PUBLIC_* for white-label deployments). */
+/**
+ * Canonical product branding (override via NEXT_PUBLIC_* for white-label / hackathon layers).
+ * Repository and backend identity remain Cloudera AI Studio — see docs/deployment/HACKATHON_TEMP_BRANDING.md.
+ */
 export const PRODUCT_NAME = 'Cloudera AI Studio'
 export const PRODUCT_SHORT_NAME = 'AI Studio'
 
@@ -68,9 +71,12 @@ export const appConfig = {
   navigationSemanticLayer: env('NEXT_PUBLIC_NAV_SEMANTIC_LAYER', 'Semantic Layer'),
   navigationConnectors: env('NEXT_PUBLIC_NAV_CONNECTORS', 'Data Sources'),
   branding: {
-    /** Served from `public/` (default: repo `assets/Logo.png` copied to public/Logo.png). */
-    logo: env('NEXT_PUBLIC_APP_LOGO', '/Logo.png'),
-    emptyStateLogo: env('NEXT_PUBLIC_EMPTY_STATE_LOGO', '/Logo.png'),
+    /** Served from `public/` — `NEXT_PUBLIC_PRODUCT_LOGO` alias for hackathon / white-label. */
+    logo: env('NEXT_PUBLIC_PRODUCT_LOGO', env('NEXT_PUBLIC_APP_LOGO', '/Logo.png')),
+    emptyStateLogo: env(
+      'NEXT_PUBLIC_EMPTY_STATE_LOGO',
+      env('NEXT_PUBLIC_PRODUCT_LOGO', env('NEXT_PUBLIC_APP_LOGO', '/Logo.png')),
+    ),
   },
   /** Genie-style split report panel (frontend-dev). */
   analysisReportPanel: env('NEXT_PUBLIC_ANALYSIS_REPORT_PANEL', 'true') !== 'false',

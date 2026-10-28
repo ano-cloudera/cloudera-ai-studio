@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import { safeErrorMessage, toAppApiError, type AppApiError } from '../../lib/apiError'
-import type { AskDataSettingsPayload, StarterSource } from '../../types/api'
+import type { AskDataSettingsPayload } from '../../types/api'
 import { AskDataGovernedScopeSettingsPanel } from './AskDataGovernedScopeSettingsPanel'
 
 const MAX_QUESTIONS = 6
@@ -36,6 +36,7 @@ export function AskDataStarterSettingsPanel() {
       const settings = response.settings
       const normalized: AskDataSettingsPayload = {
         ...settings,
+        starter_source: settings.starter_source === 'question_bank' ? 'configured' : settings.starter_source,
         starter_questions:
           settings.starter_questions.length > 0
             ? settings.starter_questions
@@ -62,6 +63,7 @@ export function AskDataStarterSettingsPanel() {
     const questions = value.starter_questions.map(q => q.trim()).filter(Boolean)
     return {
       ...value,
+      starter_source: 'configured',
       starter_questions_caption: value.starter_questions_caption.trim() || 'Start with a question',
       starter_questions: questions,
       presentation: value.presentation ?? saved?.presentation ?? null,
@@ -90,10 +92,6 @@ export function AskDataStarterSettingsPanel() {
     } finally {
       setSaving(false)
     }
-  }
-
-  function setSource(source: StarterSource) {
-    setDraft(d => ({ ...d, starter_source: source }))
   }
 
   function updateQuestion(index: number, text: string) {
@@ -152,103 +150,40 @@ export function AskDataStarterSettingsPanel() {
         />
       </label>
 
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium text-slate-700">Source</legend>
-        <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-600">
-          <input
-            type="radio"
-            name="starter_source"
-            checked={draft.starter_source === 'configured'}
-            onChange={() => setSource('configured')}
-            className="mt-1"
-          />
-          <span>
-            <span className="font-medium text-slate-800">Custom list</span> — use the questions below in order (up to {MAX_QUESTIONS}).
-          </span>
-        </label>
-        <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-600">
-          <input
-            type="radio"
-            name="starter_source"
-            checked={draft.starter_source === 'question_bank'}
-            onChange={() => setSource('question_bank')}
-            className="mt-1"
-          />
-          <span>
-            <span className="font-medium text-slate-800">Demo question bank</span> — random governed FMCG examples (legacy UAT).
-          </span>
-        </label>
-      </fieldset>
+      <p className="text-sm text-slate-600">
+        Custom list — up to {MAX_QUESTIONS} questions shown in order. Empty list hides starters on Ask Data.
+      </p>
 
-      {draft.starter_source === 'question_bank' ? (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-sm font-medium text-slate-700">
-            Count
+      <ul className="space-y-2">
+        {draft.starter_questions.map((q, index) => (
+          <li key={index} className="flex gap-2">
             <input
-              type="number"
-              min={1}
-              max={20}
-              className="input mt-1"
-              value={draft.question_bank_limit}
-              onChange={e =>
-                setDraft(d => ({ ...d, question_bank_limit: Math.min(20, Math.max(1, Number(e.target.value) || 1)) }))
-              }
+              className="input flex-1"
+              placeholder={`Starter question ${index + 1}`}
+              value={q}
+              onChange={e => updateQuestion(index, e.target.value)}
+              maxLength={500}
             />
-          </label>
-          <label className="block text-sm font-medium text-slate-700">
-            Domain filter (optional)
-            <select
-              className="app-select mt-1 w-full"
-              value={draft.question_bank_domain ?? ''}
-              onChange={e =>
-                setDraft(d => ({
-                  ...d,
-                  question_bank_domain: e.target.value ? e.target.value : null,
-                }))
-              }
+            <button
+              type="button"
+              aria-label={`Remove question ${index + 1}`}
+              className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
+              onClick={() => removeQuestion(index)}
+              disabled={draft.starter_questions.length <= 1}
             >
-              <option value="">All domains</option>
-              <option value="sales">sales</option>
-              <option value="b2b">b2b</option>
-              <option value="stock_tempo">stock_tempo</option>
-              <option value="stock_sat_idm">stock_sat_idm</option>
-              <option value="sat_oos">sat_oos</option>
-              <option value="cross_domain">cross_domain</option>
-            </select>
-          </label>
-        </div>
-      ) : (
-        <ul className="space-y-2">
-          {draft.starter_questions.map((q, index) => (
-            <li key={index} className="flex gap-2">
-              <input
-                className="input flex-1"
-                placeholder={`Starter question ${index + 1}`}
-                value={q}
-                onChange={e => updateQuestion(index, e.target.value)}
-                maxLength={500}
-              />
-              <button
-                type="button"
-                aria-label={`Remove question ${index + 1}`}
-                className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:bg-slate-50"
-                onClick={() => removeQuestion(index)}
-                disabled={draft.starter_questions.length <= 1}
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            </li>
-          ))}
-          {draft.starter_questions.length < MAX_QUESTIONS ? (
-            <li>
-              <button type="button" className="btn-secondary inline-flex gap-2 py-2 text-sm" onClick={addQuestion}>
-                <Plus className="h-4 w-4" />
-                Add question
-              </button>
-            </li>
-          ) : null}
-        </ul>
-      )}
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </li>
+        ))}
+        {draft.starter_questions.length < MAX_QUESTIONS ? (
+          <li>
+            <button type="button" className="btn-secondary inline-flex gap-2 py-2 text-sm" onClick={addQuestion}>
+              <Plus className="h-4 w-4" />
+              Add question
+            </button>
+          </li>
+        ) : null}
+      </ul>
 
       <AskDataGovernedScopeSettingsPanel settings={draft} onChange={setDraft} />
 

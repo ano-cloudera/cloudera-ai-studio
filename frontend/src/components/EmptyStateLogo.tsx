@@ -2,7 +2,7 @@
 
 import { Bot } from 'lucide-react'
 import { useState } from 'react'
-import { appConfig } from '../config/appConfig'
+import { usePublicBranding } from '../config/PublicBrandingContext'
 
 const WRAPPER_CLASS =
   'mx-auto flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200/70 bg-white shadow-[0_1px_4px_rgba(36,19,95,0.07)] h-14 w-14 sm:h-[72px] sm:w-[72px] md:h-20 md:w-20'
@@ -16,7 +16,8 @@ type EmptyStateLogoProps = {
 /** Config-driven product logo for Ask Data empty state; circular mark with generic fallback. */
 export function EmptyStateLogo({ className = '' }: EmptyStateLogoProps) {
   const [failed, setFailed] = useState(false)
-  const src = appConfig.branding.emptyStateLogo.trim()
+  const branding = usePublicBranding()
+  const src = branding.emptyStateLogoUrl.trim()
 
   if (!src || failed) {
     return (

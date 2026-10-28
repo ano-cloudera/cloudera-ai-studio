@@ -44,4 +44,37 @@ describe('SaveToKnowledgeModal', () => {
     expect(onSaved).toHaveBeenCalledWith('Saved to Product Knowledge')
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('allows typing a full library name without losing focus on parent re-render', async () => {
+    vi.mocked(api.listLibrariesPaginated).mockResolvedValue({
+      items: [],
+      page: 1,
+      page_size: 100,
+      total: 0,
+      total_pages: 0,
+    } as never)
+    const onClose = vi.fn()
+    const { rerender } = render(
+      <SaveToKnowledgeModal
+        open
+        attachmentId="att-1"
+        attachmentName="Cloudera Deck.pdf"
+        onClose={onClose}
+        onSaved={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByLabelText('Create new library'))
+    const input = await screen.findByPlaceholderText('e.g. Cloudera AI Infrastructure')
+    fireEvent.change(input, { target: { value: 'Cloudera Infrastructure' } })
+    rerender(
+      <SaveToKnowledgeModal
+        open
+        attachmentId="att-1"
+        attachmentName="Cloudera Deck.pdf"
+        onClose={() => onClose()}
+        onSaved={vi.fn()}
+      />,
+    )
+    expect((input as HTMLInputElement).value).toBe('Cloudera Infrastructure')
+  })
 })

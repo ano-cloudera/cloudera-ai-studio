@@ -37,6 +37,12 @@ def structured_data_sources(sources: list[ChatContextSource] | None) -> list[Cha
     return [item for item in sources if item.type in structured]
 
 
+def mcp_connector_sources(sources: list[ChatContextSource] | None) -> list[ChatContextSource]:
+    if not sources:
+        return []
+    return [item for item in sources if item.type == "mcp_connector"]
+
+
 def apply_context_sources(
     request: AskDataRequest,
     *,
@@ -48,16 +54,50 @@ def apply_context_sources(
     libs = knowledge_library_sources(request.context_sources)
     files = uploaded_file_sources(request.context_sources)
     structured = structured_data_sources(request.context_sources)
+    mcp = mcp_connector_sources(request.context_sources)
 
-    if sum(bool(x) for x in (libs, files, structured)) > 1:
+    if sum(bool(x) for x in (libs, files, structured, mcp)) > 1:
         raise ContextSourceError(
             "mixed_context_unsupported",
-            "Use one context family per request: Knowledge, uploaded files, or structured data (@ table/metric/semantic).",
+            "Use one context family per request: Knowledge, uploaded files, MCP connector, or structured data (@ table/metric/semantic).",
             422,
         )
 
     if structured:
         return request
+
+    if mcp:
+        if len(mcp) > 1:
+            raise ContextSourceError(
+                "mixed_context_unsupported",
+                "Use one MCP connector per request.",
+                422,
+            )
+        from app.db.platform_models import ProjectRow, WorkspaceRow
+        from app.mcp.registry import connector_by_id
+
+        connector_id = (mcp[0].id or "").strip()
+        if not connector_id:
+            raise ContextSourceError("invalid_context", "MCP connector context is missing an id", 422)
+        project = session.get(ProjectRow, project_id)
+        workspace_json = None
+        if project is not None:
+            ws = session.get(WorkspaceRow, project.workspace_id)
+            workspace_json = ws.settings_json if ws else None
+        if (
+            connector_by_id(
+                settings,
+                workspace_settings_json=workspace_json,
+                connector_id=connector_id,
+            )
+            is None
+        ):
+            raise ContextSourceError(
+                "mcp_connector_not_found",
+                f"MCP connector {connector_id!r} is not configured",
+                404,
+            )
+        return request.model_copy(update={"mode": "mcp"})
 
     if not libs and not files:
         return request

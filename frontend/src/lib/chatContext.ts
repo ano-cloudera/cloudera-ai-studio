@@ -1,6 +1,7 @@
 export type ChatContextSourceType =
   | 'knowledge_library'
   | 'uploaded_file'
+  | 'mcp_connector'
   | 'table'
   | 'semantic_model'
   | 'semantic_entity'
@@ -55,6 +56,8 @@ export function contextSourceChipLabel(source: ChatContextSource): string {
       return `@Term: ${source.name}`
     case 'knowledge_library':
       return source.name
+    case 'mcp_connector':
+      return `@MCP: ${source.name}`
     default:
       return source.name
   }
@@ -76,6 +79,7 @@ export function consumePendingChatContext(): ChatContextSource[] | null {
     const allowed: ChatContextSourceType[] = [
       'knowledge_library',
       'uploaded_file',
+      'mcp_connector',
       ...STRUCTURED_TYPES,
     ]
     return parsed.filter(item => allowed.includes(item?.type) && item.id && item.name)
@@ -101,9 +105,10 @@ export function validateContextMix(sources: ChatContextSource[]): string | null 
   const hasLib = sources.some(s => s.type === 'knowledge_library')
   const hasFile = sources.some(s => s.type === 'uploaded_file')
   const hasStructured = sources.some(s => STRUCTURED_TYPES.includes(s.type))
-  const families = [hasLib, hasFile, hasStructured].filter(Boolean).length
+  const hasMcp = sources.some(s => s.type === 'mcp_connector')
+  const families = [hasLib, hasFile, hasStructured, hasMcp].filter(Boolean).length
   if (families > 1) {
-    return 'Use one context family per request: Knowledge, uploaded files, or structured data (@ table/metric/semantic).'
+    return 'Use one context family per request: Knowledge, uploaded files, MCP, or structured data (@ table/metric/semantic).'
   }
   if (hasLib && hasFile) {
     return 'This version supports either Knowledge context or uploaded document context in a single request.'
@@ -119,19 +124,24 @@ export function mergeKnowledgeLibraryContext(
   const withoutKnowledge = current.filter(s => s.type !== 'knowledge_library' || s.id !== next.id)
   const withoutFiles = withoutKnowledge.filter(s => s.type !== 'uploaded_file')
   const withoutStructured = withoutFiles.filter(s => !STRUCTURED_TYPES.includes(s.type))
+  const withoutMcp = withoutStructured.filter(s => s.type !== 'mcp_connector')
   if (!allowMultiple) {
     return [next]
   }
-  const knowledge = withoutStructured.filter(s => s.type === 'knowledge_library')
+  const knowledge = withoutMcp.filter(s => s.type === 'knowledge_library')
   const files = withoutKnowledge.filter(s => s.type === 'uploaded_file')
   const structured = withoutKnowledge.filter(s => STRUCTURED_TYPES.includes(s.type))
+  const mcp = withoutKnowledge.filter(s => s.type === 'mcp_connector')
   if (next.type === 'knowledge_library') {
-    return [...files, ...structured, ...knowledge.filter(s => s.id !== next.id), next]
+    return [...files, ...structured, ...mcp, ...knowledge.filter(s => s.id !== next.id), next]
+  }
+  if (next.type === 'mcp_connector') {
+    return [...knowledge, ...files, ...structured, ...mcp.filter(s => s.id !== next.id), next]
   }
   if (STRUCTURED_TYPES.includes(next.type)) {
-    return [...knowledge, ...files, ...structured.filter(s => s.id !== next.id), next]
+    return [...knowledge, ...files, ...mcp, ...structured.filter(s => s.id !== next.id), next]
   }
-  return [...knowledge, ...structured, ...files.filter(s => s.id !== next.id), next]
+  return [...knowledge, ...structured, ...mcp, ...files.filter(s => s.id !== next.id), next]
 }
 
 export function removeContextSource(current: ChatContextSource[], id: string): ChatContextSource[] {

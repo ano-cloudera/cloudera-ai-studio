@@ -1,7 +1,8 @@
+import type { SemanticArtifactPreview } from '../../types/api'
 import { SemanticArtifactPreviewPanel } from './authoring/SemanticArtifactPreviewPanel'
 
 type Props = {
-  artifact: { content_preview?: string } | null
+  artifact: SemanticArtifactPreview | null
   artifactLoading: boolean
   previewVersionId: string | null
   saving: boolean

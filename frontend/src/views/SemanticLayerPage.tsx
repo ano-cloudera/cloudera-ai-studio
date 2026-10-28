@@ -966,7 +966,9 @@ export function SemanticLayerPage() {
               readOnly={!isEditable}
               connectors={connectors}
               onChanged={() => void refreshAuthoringKeys()}
-              onEntityImported={ctx => setSuggestionsApply(ctx)}
+              onEntityImported={ctx =>
+                setSuggestionsApply({ connectionId: ctx.connectionId, tables: [ctx.qualified] })
+              }
             />
           ) : null}
 

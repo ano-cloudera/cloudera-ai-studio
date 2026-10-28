@@ -1,0 +1,40 @@
+schema_version: 1
+description: Cloudera AI Studio — 4 CAI Applications (launchers only; app source at repo backend/ and frontend/)
+applications:
+  - key: studio-backend
+    name: cai-studio-backend
+    subdomain: cai-studio-backend
+    script: deployment/cai/launchers/studio-backend/app.py
+    kernel: python3
+    runtime_selector: { editor: JupyterLab, kernel: Python 3.10, edition: Standard }
+    resources: { cpu: 4, memory_gb: 16, nvidia_gpu: 0 }
+    authentication: authenticated
+    health_path: /health
+  - key: studio-frontend
+    name: cai-studio-frontend
+    subdomain: cai-studio-frontend
+    script: deployment/cai/launchers/studio-frontend/app.py
+    kernel: python3
+    runtime_selector: { editor: JupyterLab, kernel: Python 3.10, edition: Standard }
+    resources: { cpu: 2, memory_gb: 4, nvidia_gpu: 0 }
+    authentication: authenticated
+    health_path: /
+  - key: studio-qdrant
+    name: cai-studio-qdrant
+    subdomain: cai-studio-qdrant
+    script: deployment/cai/launchers/studio-qdrant/app.py
+    kernel: python3
+    runtime_selector: { editor: JupyterLab, kernel: Python 3.10, edition: Standard }
+    resources: { cpu: 4, memory_gb: 16, nvidia_gpu: 0 }
+    authentication: authenticated
+    health_path: /readyz
+    notes: Enable CDSW_READONLY_PORT for minimal collections HTML UI (dashboard.py)
+  - key: studio-vllm
+    name: cai-studio-vllm
+    subdomain: cai-studio-vllm
+    script: deployment/cai/launchers/studio-vllm/app.py
+    kernel: python3
+    runtime_selector: { editor: JupyterLab, kernel: Python 3.10, edition: NVIDIA GPU }
+    resources: { cpu: 16, memory_gb: 64, nvidia_gpu: 1 }
+    authentication: authenticated
+    health_path: /health

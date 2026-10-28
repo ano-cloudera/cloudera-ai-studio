@@ -1,0 +1,16 @@
+[
+  {
+    "id": "studio-demo",
+    "name": "Studio Demo MCP",
+    "kind": "builtin",
+    "description": "Returns hackathon stack capability summary (no external server)."
+  },
+  {
+    "id": "http-echo",
+    "name": "HTTP Echo MCP",
+    "kind": "http",
+    "description": "Optional local demo server — scripts/mcp/http_demo_server.py",
+    "base_url": "http://127.0.0.1:8765",
+    "tool_name": "echo"
+  }
+]

@@ -1,6 +1,11 @@
 {
   "workspace_slug": "default",
   "preset": "/Users/triano/Documents/Works/cloudera/cloudera-ai-studio/config/examples/accelerator-demo-presentation.json",
+  "hero_semantic_model_keys": [
+    "retail_banking_analytics",
+    "banking_analytics"
+  ],
+  "pin_note": null,
   "settings": {
     "starter_questions_caption": "Try a governed banking question",
     "starter_questions": [
@@ -34,7 +39,7 @@
       "audience_mode": "executive",
       "tier1_show_narrative": true
     },
-    "default_semantic_model_id": null,
+    "default_semantic_model_id": "fb77c4a8-d8bc-4627-b5f3-d2b5ff01f057",
     "auto_attach_semantic_model": true,
     "instruction_prompt_key": "golden_banking_executive_summary"
   }

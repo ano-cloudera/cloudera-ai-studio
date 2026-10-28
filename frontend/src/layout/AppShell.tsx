@@ -20,6 +20,7 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import { BrandMark } from '../components/BrandMark'
 import { ConversationSessionList, type ConversationSessionListProps } from '../components/ConversationSessionList'
 import { appConfig } from '../config/appConfig'
+import { usePublicBranding } from '../config/PublicBrandingContext'
 import { usePlatformReadiness } from '../hooks/usePlatformReadiness'
 
 type NavItem = {
@@ -128,6 +129,7 @@ export function useChatLayout() {
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
+  const branding = usePublicBranding()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [chatSessionSidebar, setChatSessionSidebarState] = useState<ChatSessionSidebarState | null>(null)
   const [chatPageChrome, setChatPageChromeState] = useState<ChatPageChromeState | null>(null)
@@ -198,7 +200,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 className={`${COLLAPSED_RAIL_ITEM} border border-slate-100 bg-white shadow-[0_1px_3px_rgba(36,19,95,0.06)]`}
               >
                 <img
-                  src={appConfig.branding.logo}
+                  src={branding.logoUrl}
                   alt=""
                   aria-hidden
                   className="h-7 w-7 object-contain"
@@ -321,15 +323,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="shrink-0 border-t border-slate-100 px-3 py-3">
               <div className="flex items-center gap-2">
                 <img
-                  src="/cloudera-logo.png"
+                  src={branding.logoUrl}
                   alt=""
                   aria-hidden
                   className="h-5 w-5 shrink-0 rounded object-contain"
                 />
-                <span className="text-xs font-medium text-slate-600">{appConfig.sidebarPoweredByLabel}</span>
+                <span className="text-xs font-medium text-slate-600">{branding.sidebarPoweredByLabel}</span>
               </div>
-              {appConfig.sidebarFooterCaption ? (
-                <p className="type-chat-meta mt-1.5 leading-snug">{appConfig.sidebarFooterCaption}</p>
+              {branding.sidebarFooterCaption ? (
+                <p className="type-chat-meta mt-1.5 leading-snug">{branding.sidebarFooterCaption}</p>
               ) : null}
             </div>
           )}
@@ -342,7 +344,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {onAskData && chatPageChrome?.minimalHeader ? (
               <div className="min-w-0 flex-1" aria-hidden />
             ) : (
-              <div className="type-app-title min-w-0 truncate">{appConfig.headerTitle}</div>
+              <div className="type-app-title min-w-0 truncate">{branding.headerTitle}</div>
             )}
             <div className="flex shrink-0 items-center gap-2">
               <div className="chip py-1" title="Backend platform readiness">

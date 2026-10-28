@@ -1,0 +1,209 @@
+"""MCP protocol client (stdio + SSE) using the official MCP Python SDK."""
+
+from __future__ import annotations
+
+import logging
+import os
+import re
+import time
+from typing import Any
+
+from app.workspace.mcp_settings import McpServerEntry
+
+logger = logging.getLogger(__name__)
+
+
+def _resolve_env(env_var_names: list[str]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for key in env_var_names:
+        val = os.environ.get(key, "").strip()
+        if val:
+            out[key] = val
+    return out
+
+
+def _resolve_headers(header_env: dict[str, str]) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for header, env_key in header_env.items():
+        val = os.environ.get(env_key, "").strip()
+        if val:
+            out[header] = val
+    return out
+
+
+def _pick_tool(tools: list[Any], question: str, default_tool: str | None) -> tuple[str, dict[str, Any]]:
+    names = [getattr(t, "name", None) or t.get("name") for t in tools if getattr(t, "name", None) or t.get("name")]
+    if default_tool and default_tool in names:
+        return default_tool, _arguments_for_tool(default_tool, question)
+    lower = question.lower()
+    for hint in ("search", "brave", "web", "query"):
+        if hint in lower:
+            for name in names:
+                if hint in name.lower() or "search" in name.lower():
+                    return name, _arguments_for_tool(name, question)
+    if names:
+        first = str(names[0])
+        return first, _arguments_for_tool(first, question)
+    raise ValueError("MCP server returned no tools")
+
+
+def _arguments_for_tool(tool_name: str, question: str) -> dict[str, Any]:
+    if re.search(r"search|brave|web", tool_name, re.I):
+        return {"query": question.strip()}
+    if "time" in tool_name.lower():
+        return {}
+    return {"input": question.strip(), "query": question.strip(), "question": question.strip()}
+
+
+def _content_to_text(result: Any) -> str:
+    content = getattr(result, "content", None) or (result.get("content") if isinstance(result, dict) else None)
+    if not content:
+        return str(result)
+    parts: list[str] = []
+    for block in content:
+        text = getattr(block, "text", None)
+        if text is None and isinstance(block, dict):
+            text = block.get("text")
+        if text:
+            parts.append(str(text))
+    return "\n\n".join(parts) if parts else str(result)
+
+
+def missing_mcp_env_vars(entry: McpServerEntry) -> list[str]:
+    missing: list[str] = []
+    for key in entry.env_var_names:
+        if not os.environ.get(key, "").strip():
+            missing.append(key)
+    for env_key in entry.header_env_var_names.values():
+        if env_key and not os.environ.get(env_key, "").strip():
+            missing.append(env_key)
+    return sorted(set(missing))
+
+
+async def probe_mcp_server(entry: McpServerEntry) -> dict[str, Any]:
+    """Initialize MCP session and list tools (no tool invocation)."""
+    from mcp import ClientSession
+
+    missing = missing_mcp_env_vars(entry)
+    if missing:
+        return {
+            "ok": False,
+            "message": f"Missing backend environment variables: {', '.join(missing)}",
+            "tools": [],
+            "latency_ms": 0,
+            "missing_env_var_names": missing,
+        }
+
+    started = time.monotonic()
+
+    async def _list_tools(read: Any, write: Any) -> list[str]:
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            listed = await session.list_tools()
+            tools = listed.tools
+            names: list[str] = []
+            for t in tools:
+                name = getattr(t, "name", None) or (t.get("name") if isinstance(t, dict) else None)
+                if name:
+                    names.append(str(name))
+            return names
+
+    try:
+        if entry.transport == "stdio":
+            from mcp.client.stdio import StdioServerParameters, stdio_client
+
+            params = StdioServerParameters(
+                command=entry.command or "",
+                args=entry.args,
+                env={**os.environ.copy(), **_resolve_env(entry.env_var_names)},
+            )
+            async with stdio_client(params) as (read, write):
+                names = await _list_tools(read, write)
+        elif entry.transport == "sse":
+            from mcp.client.sse import sse_client
+
+            url = (entry.url or "").strip()
+            headers = _resolve_headers(entry.header_env_var_names)
+            async with sse_client(url, headers=headers or None) as (read, write):
+                names = await _list_tools(read, write)
+        else:
+            raise ValueError(f"Unsupported MCP transport: {entry.transport}")
+
+        latency_ms = int((time.monotonic() - started) * 1000)
+        if not names:
+            return {
+                "ok": False,
+                "message": "Connected but the server returned no tools.",
+                "tools": [],
+                "latency_ms": latency_ms,
+                "missing_env_var_names": [],
+            }
+        preview = ", ".join(names[:8])
+        if len(names) > 8:
+            preview += f", +{len(names) - 8} more"
+        return {
+            "ok": True,
+            "message": f"Connected ({len(names)} tool{'s' if len(names) != 1 else ''}: {preview})",
+            "tools": names,
+            "latency_ms": latency_ms,
+            "missing_env_var_names": [],
+        }
+    except Exception as exc:
+        latency_ms = int((time.monotonic() - started) * 1000)
+        logger.warning("mcp_probe_failed server=%s err=%s", entry.id, exc)
+        return {
+            "ok": False,
+            "message": str(exc),
+            "tools": [],
+            "latency_ms": latency_ms,
+            "missing_env_var_names": [],
+        }
+
+
+async def invoke_mcp_server(entry: McpServerEntry, *, question: str) -> dict[str, Any]:
+    from mcp import ClientSession
+
+    if entry.transport == "stdio":
+        from mcp.client.stdio import StdioServerParameters, stdio_client
+
+        params = StdioServerParameters(
+            command=entry.command or "",
+            args=entry.args,
+            env={**os.environ.copy(), **_resolve_env(entry.env_var_names)},
+        )
+        async with stdio_client(params) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                listed = await session.list_tools()
+                tools = listed.tools
+                tool_name, arguments = _pick_tool(tools, question, entry.default_tool)
+                logger.info("mcp_call server=%s tool=%s", entry.id, tool_name)
+                result = await session.call_tool(tool_name, arguments=arguments)
+                return {
+                    "server_id": entry.id,
+                    "tool": tool_name,
+                    "arguments": arguments,
+                    "content": _content_to_text(result),
+                }
+
+    if entry.transport == "sse":
+        from mcp.client.sse import sse_client
+
+        url = (entry.url or "").strip()
+        headers = _resolve_headers(entry.header_env_var_names)
+        async with sse_client(url, headers=headers or None) as (read, write):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                listed = await session.list_tools()
+                tools = listed.tools
+                tool_name, arguments = _pick_tool(tools, question, entry.default_tool)
+                logger.info("mcp_call_sse server=%s tool=%s", entry.id, tool_name)
+                result = await session.call_tool(tool_name, arguments=arguments)
+                return {
+                    "server_id": entry.id,
+                    "tool": tool_name,
+                    "arguments": arguments,
+                    "content": _content_to_text(result),
+                }
+
+    raise ValueError(f"Unsupported MCP transport: {entry.transport}")

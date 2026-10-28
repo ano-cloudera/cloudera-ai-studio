@@ -8,7 +8,7 @@ cd "$ROOT"
 docker start m1-pg-smoke m2-qdrant 2>/dev/null || true
 
 "$ROOT/scripts/dev-backend.sh" start
-"$ROOT/scripts/dev-frontend.sh" start
+"$ROOT/scripts/dev-frontend.sh" restart-clean
 
 echo ""
 "$ROOT/scripts/dev-backend.sh" status

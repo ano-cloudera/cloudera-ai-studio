@@ -60,7 +60,13 @@ from app.services.session_context import build_session_frame, capability_session
 from app.services.local_agent_client import LocalAgentClient, LocalAgentError
 from app.services.ossie_trace import NODE_LABELS, trace_detail
 from app.services.v3_answer_polish import polish_v3_answer
-from app.chat.context_sources import ContextSourceError, apply_context_sources, structured_data_sources
+from app.chat.context_sources import (
+    ContextSourceError,
+    apply_context_sources,
+    mcp_connector_sources,
+    structured_data_sources,
+)
+from app.mcp.service import run_mcp_turn
 from app.ask_data.structured_context_resolver import StructuredAskPrecedence, resolve_structured_ask
 from app.services.rag_chat import run_rag_turn, stream_rag_turn
 from app.services.user_facing_error import explain_failure
@@ -713,6 +719,81 @@ class ChatService:
         self._persist_turn(request, response, None, session_frame_override=session_frame or None)
         return response
 
+    async def _run_mcp(self, request: AskDataRequest, *, request_id: str) -> AskDataResponse:
+        started = perf_counter()
+        sources = mcp_connector_sources(request.context_sources) or []
+        if not sources:
+            raise ContextSourceError("invalid_context", "MCP mode requires an @ MCP connector chip", 422)
+        connector_id = (sources[0].id or "").strip()
+        workspace_json: dict | None = None
+        factory = self.dependencies.session_factory
+        scope = self._project_scope
+        if factory and scope:
+            try:
+                from app.db.platform_models import WorkspaceRow
+
+                ws_id = uuid.UUID(scope[0])
+                with factory() as session:
+                    row = session.get(WorkspaceRow, ws_id)
+                    workspace_json = row.settings_json if row else None
+            except ValueError:
+                workspace_json = None
+        try:
+            answer, _meta = await run_mcp_turn(
+                self.settings,
+                workspace_settings_json=workspace_json,
+                connector_id=connector_id,
+                question=request.question,
+            )
+        except ValueError as exc:
+            elapsed = round((perf_counter() - started) * 1000, 3)
+            text = str(exc)
+            return AskDataResponse(
+                request_id=request_id,
+                session_id=request.session_id,
+                status="ERROR",
+                provider=request.provider,
+                model=request.model,
+                strategy="unsupported",
+                answer=AnalysisOutput(
+                    direct_answer=text,
+                    executive_summary=text,
+                    insights=[],
+                    business_implications=[],
+                    caveats=[],
+                    data_reference=f"mcp:{connector_id}",
+                    chart_spec=None,
+                ),
+                data=QueryData(),
+                chart_spec=None,
+                timings=Timings(total_ms=elapsed),
+            )
+        elapsed = round((perf_counter() - started) * 1000, 3)
+        response = AskDataResponse(
+            request_id=request_id,
+            session_id=request.session_id,
+            status="SUCCESS",
+            provider=request.provider,
+            model=request.model,
+            strategy="mcp",
+            route="ask_data",
+            answer=AnalysisOutput(
+                direct_answer=answer,
+                executive_summary=answer[:500],
+                insights=[],
+                business_implications=[],
+                caveats=[],
+                data_reference=f"mcp:{connector_id}",
+                chart_spec=None,
+            ),
+            data=QueryData(),
+            chart_spec=None,
+            timings=Timings(total_ms=elapsed),
+        )
+        response = self._attach_usage(request, response)
+        self._persist_turn(request, response, None)
+        return response
+
     async def _stream_rag(self, request: AskDataRequest, *, request_id: str):
         conversation_history = self.history.load(request.session_id, limit=8)
         provider = self._resolve_provider(request, request_id)
@@ -1070,6 +1151,10 @@ class ChatService:
             reg.clear_request_context()
         async with self._prompt_resolution_scope():
             started = perf_counter()
+            if request.mode == "mcp":
+                logger.info("ask_data_route=mcp request_id=%s session_id=%s", request_id, request.session_id)
+                out = await self._run_mcp(request, request_id=request_id)
+                return self._finalize_response(out)
             try:
                 cap = "RAG_GENERATION" if request.mode == "rag" else "ASK_DATA"
                 request = self._prepare_registry_request(request, capability=cap)
@@ -1257,6 +1342,15 @@ class ChatService:
             reg.clear_request_context()
         async with self._prompt_resolution_scope():
             started = perf_counter()
+            if request.mode == "mcp":
+                logger.info("ask_data_route=mcp stream request_id=%s session_id=%s", request_id, request.session_id)
+                try:
+                    out = await self._run_mcp(request, request_id=request_id)
+                    yield {"type": "done", "response": self._finalize_response(out)}
+                finally:
+                    if isinstance(reg, HybridProviderRegistry):
+                        reg.clear_request_context()
+                return
             try:
                 cap = "RAG_GENERATION" if request.mode == "rag" else "ASK_DATA"
                 request = self._prepare_registry_request(request, capability=cap)

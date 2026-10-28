@@ -35,8 +35,9 @@ Strategy = Literal[
     "local_agent_exploratory",
     "history_only_analysis",
     "rag",
+    "mcp",
 ]
-ChatMode = Literal["ask_data", "rag"]
+ChatMode = Literal["ask_data", "rag", "mcp"]
 GroundingLevel = Literal["SUPPORTED", "PARTIALLY_SUPPORTED", "INSUFFICIENT_EVIDENCE"]
 ResponseRoute = Literal["ask_data", "rag"]
 ChartType = Literal["bar", "line", "area", "scatter", "pie", "table", "kpi"]
@@ -109,6 +110,7 @@ class RagRetrievalMeta(StrictModel):
 ChatContextSourceType = Literal[
     "knowledge_library",
     "uploaded_file",
+    "mcp_connector",
     "table",
     "semantic_model",
     "semantic_entity",

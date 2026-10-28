@@ -3,7 +3,10 @@ import { Plus_Jakarta_Sans } from 'next/font/google'
 import '../src/index.css'
 import { AppShell } from '../src/layout/AppShell'
 import { appConfig, PRODUCT_NAME } from '../src/config/appConfig'
+import { resolvePublicBranding } from '../src/config/publicBranding'
 import { Providers } from './providers'
+
+const publicBranding = resolvePublicBranding()
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -11,15 +14,17 @@ const plusJakarta = Plus_Jakarta_Sans({
   display: 'swap',
 })
 
+const documentTitle = publicBranding.productName || appConfig.productName || PRODUCT_NAME
+
 export const metadata = {
   title: {
-    default: appConfig.productName || PRODUCT_NAME,
-    template: `%s | ${PRODUCT_NAME}`,
+    default: documentTitle,
+    template: `%s | ${documentTitle}`,
   },
   description: appConfig.emptyStateDescription,
   icons: {
-    icon: [{ url: appConfig.branding.logo, type: 'image/png' }],
-    apple: [{ url: appConfig.branding.logo, type: 'image/png' }],
+    icon: [{ url: publicBranding.logoUrl, type: 'image/png' }],
+    apple: [{ url: publicBranding.logoUrl, type: 'image/png' }],
   },
 }
 
@@ -27,7 +32,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={plusJakarta.variable}>
       <body className={plusJakarta.className}>
-        <Providers>
+        <Providers branding={publicBranding}>
           <AppShell>{children}</AppShell>
         </Providers>
       </body>
