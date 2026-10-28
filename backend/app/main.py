@@ -85,6 +85,10 @@ async def _lifespan(application: FastAPI):
 def create_app(settings: Settings | None = None) -> FastAPI:
     configured = settings or get_settings()
     validate_startup_config(configured)
+    try:  # tables must exist before the stores below bind to the platform DB (fresh DB would fall back to legacy files)
+        init_platform_metadata(configured)
+    except Exception:
+        logger.exception("platform bootstrap failed")
     application = FastAPI(title=configured.app_name, version=ACCELERATOR_VERSION, lifespan=_lifespan)
     application.state.settings = configured
     application.state.provider_registry = ProviderRegistry(configured)
