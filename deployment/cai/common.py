@@ -39,8 +39,8 @@ def _decode_addr(hex_addr: str) -> str:
     return "::" if set(hex_addr) == {"0"} else f"ipv6:{hex_addr}"
 
 
-def port_holders(port: int) -> list[tuple[int, str]]:
-    """(pid, "<listen address> <command line>") of other processes listening on a TCP port. Linux /proc only."""
+def port_holders(port: int) -> list[tuple[int, str, str]]:
+    """(pid, listen address, command line) of other processes listening on a TCP port. Linux /proc only."""
     inodes: dict[str, str] = {}
     for table in ("/proc/net/tcp", "/proc/net/tcp6"):
         try:
@@ -51,7 +51,7 @@ def port_holders(port: int) -> list[tuple[int, str]]:
             fields = line.split()
             if len(fields) > 9 and fields[3] == "0A" and int(fields[1].rsplit(":", 1)[1], 16) == port:
                 inodes[fields[9]] = _decode_addr(fields[1].rsplit(":", 1)[0])
-    holders: list[tuple[int, str]] = []
+    holders: list[tuple[int, str, str]] = []
     if not inodes:
         return holders
     for entry in Path("/proc").iterdir():
@@ -62,23 +62,30 @@ def port_holders(port: int) -> list[tuple[int, str]]:
                 target = os.readlink(fd)
                 if target.startswith("socket:[") and target[8:-1] in inodes:
                     cmd = (entry / "cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace").strip()
-                    holders.append((int(entry.name), f"[{inodes[target[8:-1]]}] {cmd}"))
+                    holders.append((int(entry.name), inodes[target[8:-1]], cmd))
                     break
         except OSError:
             continue
     return holders
 
 
+_CONFLICTING_ADDRS = {"127.0.0.1", "0.0.0.0", "::"}
+
+
+def _conflicting_holders(port: int) -> list[tuple[int, str, str]]:
+    # CAI's own launcher listens on the pod IP of the Application port; that does not block a loopback bind.
+    return [h for h in port_holders(port) if h[1] in _CONFLICTING_ADDRS]
+
+
 def ensure_port_free(port: int, stale_marker: str, wait_seconds: float = 10.0) -> None:
-    """Log who holds the port; stop leftovers of our own service (command line contains stale_marker)."""
+    """Stop leftovers of our own service on the port; fail clearly if another process blocks a loopback bind."""
     import sys
 
-    holders = port_holders(port)
-    if holders:
-        ports = {k: v for k, v in os.environ.items() if k.startswith("CDSW_") and "PORT" in k}
-        print(f"CAI port variables: {ports}", file=sys.stderr, flush=True)
-    for pid, cmd in holders:
-        print(f"port {port} is held by pid {pid}: {cmd[:200]}", file=sys.stderr, flush=True)
+    for pid, addr, cmd in port_holders(port):
+        if addr not in _CONFLICTING_ADDRS:
+            print(f"port {port}: ignoring listener on {addr} (pid {pid}); it does not conflict with a loopback bind", file=sys.stderr, flush=True)
+            continue
+        print(f"port {port} is held by pid {pid} on {addr}: {cmd[:200]}", file=sys.stderr, flush=True)
         if stale_marker and stale_marker in cmd:
             print(f"stopping stale process {pid} left from a previous start", file=sys.stderr, flush=True)
             try:
@@ -86,14 +93,20 @@ def ensure_port_free(port: int, stale_marker: str, wait_seconds: float = 10.0) -
             except OSError:
                 pass
     deadline = time.monotonic() + wait_seconds
-    while port_holders(port) and time.monotonic() < deadline:
+    while _conflicting_holders(port) and time.monotonic() < deadline:
         time.sleep(0.5)
-    remaining = port_holders(port)
+    remaining = _conflicting_holders(port)
     if remaining:
-        raise RuntimeError(
-            f"port {port} is still in use by {remaining}. If CDSW_APP_PORT (or PORT) is set in the Application "
-            "environment, remove it: CAI assigns the Application port itself."
-        )
+        raise RuntimeError(f"port {port} is still in use by {remaining}; stop that process or restart the Application")
+
+
+def log_cai_endpoint() -> None:
+    """Log the engine's own address info (pod IP changes on every start; never hard-code it)."""
+    import sys
+
+    keys = ("CDSW_IP_ADDRESS", "CDSW_DOMAIN", "CDSW_ENGINE_ID", "CDSW_APP_PORT")
+    info = {key: os.environ[key] for key in keys if os.environ.get(key)}
+    print(f"CAI endpoint info: {info}", file=sys.stderr, flush=True)
 
 
 def build_child_env(env: Mapping[str, str]) -> dict[str, str]:

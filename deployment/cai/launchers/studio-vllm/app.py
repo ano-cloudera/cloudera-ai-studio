@@ -14,7 +14,7 @@ except NameError:  # CAI runs an Application script in a kernel, where __file__ 
 _CAI = _REPO / "deployment" / "cai"
 sys.path.insert(0, str(_CAI))
 
-from common import http_ready, resolve_cai_port, run_supervised  # noqa: E402
+from common import http_ready, resolve_cai_port, log_cai_endpoint, run_supervised  # noqa: E402
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_SERVED_MODEL = "studio-llm"
@@ -104,6 +104,7 @@ def redacted(command: list[str]) -> list[str]:
 
 def main() -> int:
     env = dict(os.environ)
+    log_cai_endpoint()
     command = build_command(env)
     port = resolve_port(env)
     extra = runtime_environment(env)

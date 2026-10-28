@@ -6,7 +6,7 @@ These folders are **not** duplicate backend/frontend apps. Each `launchers/studi
 |----------|--------|
 | `launchers/studio-backend/` | [`backend/`](../../backend/) FastAPI |
 | `launchers/studio-frontend/` | [`frontend/`](../../frontend/) Next.js |
-| `launchers/studio-qdrant/` | Qdrant process + optional `dashboard.py` UI |
+| `launchers/studio-qdrant/` | Qdrant process; official Web UI served at `/dashboard` (same port) |
 | `launchers/studio-vllm/` | vLLM OpenAI API |
 
 See [../README.md](../README.md) for the full deployment map.

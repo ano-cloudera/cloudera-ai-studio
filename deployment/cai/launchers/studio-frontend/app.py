@@ -11,11 +11,12 @@ except NameError:  # CAI runs an Application script in a kernel, where __file__ 
 _CAI = _REPO / "deployment" / "cai"
 sys.path.insert(0, str(_CAI))
 
-from common import http_ready, resolve_cai_port, run_supervised  # noqa: E402
+from common import http_ready, resolve_cai_port, log_cai_endpoint, run_supervised  # noqa: E402
 
 
 def main() -> int:
     env = dict(os.environ)
+    log_cai_endpoint()
     node_home = env.get("NODE_HOME", "").strip()
     if node_home:  # CAI runtimes ship without Node; npm's shebang needs `node` on PATH
         env["PATH"] = f"{node_home}/bin{os.pathsep}{env.get('PATH', '')}"

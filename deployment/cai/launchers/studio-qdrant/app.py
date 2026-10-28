@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import sys
-import threading
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -11,10 +10,9 @@ try:
 except NameError:  # CAI runs an Application script in a kernel, where __file__ is not defined
     _REPO = Path(os.environ.get("STUDIO_REPO_ROOT", "/home/cdsw/cloudera-ai-studio"))
 _CAI = _REPO / "deployment" / "cai"
-_LAUNCHER = _CAI / "launchers" / "studio-qdrant"
 sys.path.insert(0, str(_CAI))
 
-from common import ensure_port_free, http_ready, resolve_cai_port, run_supervised  # noqa: E402
+from common import ensure_port_free, http_ready, resolve_cai_port, log_cai_endpoint, run_supervised  # noqa: E402
 
 
 def build_command(env: Mapping[str, str]) -> list[str]:
@@ -68,40 +66,13 @@ def build_environment(env: Mapping[str, str]) -> dict[str, str]:
     return child
 
 
-def _start_dashboard_if_configured(env: Mapping[str, str], qdrant_port: int) -> None:
-    readonly = (env.get("CDSW_READONLY_PORT") or "").strip()
-    if not readonly:
-        return
-    try:
-        ui_port = int(readonly)
-    except ValueError:
-        return
-
-    def _run() -> None:
-        import subprocess
-
-        subprocess.run(
-            [
-                sys.executable,
-                str(_LAUNCHER / "dashboard.py"),
-                "--qdrant-url",
-                f"http://127.0.0.1:{qdrant_port}",
-                "--port",
-                str(ui_port),
-            ],
-            check=False,
-        )
-
-    threading.Thread(target=_run, daemon=True).start()
-
-
 def main() -> int:
     env = dict(os.environ)
+    log_cai_endpoint()
     build_command(env)
     check_binary(env)
     port = resolve_cai_port(env)
     ensure_port_free(port, env.get("QDRANT_BINARY", ""))
-    _start_dashboard_if_configured(env, port)
     return run_supervised(
         build_command(env),
         env=build_environment(env),
