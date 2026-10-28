@@ -6,7 +6,7 @@ Deploy **Cloudera AI Studio** as four Cloudera AI Applications, aligned with BNI
 |---|-------------|----------|--------|
 | 1 | **Backend** (source: `backend/`) | `deployment/cai/launchers/studio-backend/app.py` | `GET /health` |
 | 2 | **Frontend** (source: `frontend/`) | `deployment/cai/launchers/studio-frontend/app.py` | `GET /` |
-| 3 | **Qdrant** (+ UI) | `deployment/cai/launchers/studio-qdrant/app.py` | `GET /readyz`; UI on **CDSW_READONLY_PORT** |
+| 3 | **Qdrant** (+ UI) | `deployment/cai/launchers/studio-qdrant/app.py` | `GET /readyz`; official UI at `/dashboard` (same port) |
 | 4 | **vLLM** | `deployment/cai/launchers/studio-vllm/app.py` | `GET /health` |
 
 Folder map: [deployment/README.md](../../deployment/README.md)
@@ -24,6 +24,7 @@ bash scripts/bootstrap/bootstrap-local.sh   # or equivalent venv on Session
 
 # Qdrant binary (Application cannot download)
 bash scripts/cai/prepare_qdrant_binary.sh /home/cdsw/tools/qdrant/qdrant
+bash scripts/cai/prepare_qdrant_ui.sh /home/cdsw/tools/qdrant/static   # official Web UI at /dashboard
 
 # Embedding model (Application cannot download; ~2.3 GB, needs huggingface_hub in the Session venv)
 bash scripts/cai/prepare_embedding_model.sh /home/cdsw/models/bge-m3
@@ -37,7 +38,7 @@ cd frontend && npm ci && npm run build
 
 ## Deploy order
 
-1. **Qdrant** — set `QDRANT_BINARY`, `QDRANT_STORAGE_PATH`, enable **readonly port** for UI.
+1. **Qdrant** — set `QDRANT_BINARY`, `QDRANT_STORAGE_PATH`, `QDRANT_STATIC_DIR`; open `<qdrant-app-url>/dashboard` to confirm UI.
 2. **vLLM** — set `MODEL_PATH`, GPU runtime; note public/internal URL.
 3. **Backend** — NFS `CAI_DATA_DIR`, `QDRANT_URL`, `CORS_ORIGINS`, LLM (`OPENAI_API_BASE` → vLLM or Gemini secret).
 4. **Frontend** — `BACKEND_API_URL` (internal), `NEXT_PUBLIC_BACKEND_URL` (browser).
@@ -105,7 +106,7 @@ Pass criteria: `"ok": true` (MCP settings, connectors, live `@` MCP chat, core M
 | Step | Owner | Done when |
 |------|--------|-----------|
 | 1 | Infra | NFS volume mounted; 4 CAI Applications created from manifest |
-| 2 | Qdrant | `/readyz` OK; readonly UI lists collections |
+| 2 | Qdrant | `/readyz` OK; `/dashboard` UI lists collections |
 | 3 | vLLM | `/health` OK; `curl /v1/models` returns `studio-llm` |
 | 4 | Backend | `/health/ready` `core_ready`; bootstrap + profile applied |
 | 5 | Frontend | Loads Ask Data; CORS OK |

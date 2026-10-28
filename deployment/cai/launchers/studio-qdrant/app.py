@@ -33,6 +33,12 @@ def check_binary(env: Mapping[str, str]) -> Path:
     return path
 
 
+def static_dir(env: Mapping[str, str]) -> Path:
+    """Official Web UI files, served by Qdrant itself at /dashboard on the Application port."""
+    explicit = env.get("QDRANT_STATIC_DIR", "").strip()
+    return Path(explicit) if explicit else Path(env.get("QDRANT_BINARY", "")).parent / "static"
+
+
 def build_environment(env: Mapping[str, str]) -> dict[str, str]:
     port = resolve_cai_port(env)
     storage = Path(env.get("QDRANT_STORAGE_PATH", "/tmp/cai-qdrant"))
@@ -48,6 +54,16 @@ def build_environment(env: Mapping[str, str]) -> dict[str, str]:
     )
     if env.get("QDRANT_API_KEY"):
         child["QDRANT__SERVICE__API_KEY"] = env["QDRANT_API_KEY"]
+    static = static_dir(env)
+    if (static / "index.html").is_file():
+        child["QDRANT__SERVICE__STATIC_CONTENT_DIR"] = str(static)
+    else:
+        print(
+            f"Qdrant Web UI not found at {static}; /dashboard disabled. "
+            "Run: bash scripts/cai/prepare_qdrant_ui.sh",
+            file=sys.stderr,
+            flush=True,
+        )
     return child
 
 

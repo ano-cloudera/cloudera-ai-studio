@@ -28,7 +28,7 @@ applications:
     resources: { cpu: 4, memory_gb: 16, nvidia_gpu: 0 }
     authentication: authenticated
     health_path: /readyz
-    notes: Enable CDSW_READONLY_PORT for minimal collections HTML UI (dashboard.py)
+    notes: Official Web UI at /dashboard (same port) via QDRANT_STATIC_DIR; install with scripts/cai/prepare_qdrant_ui.sh
   - key: studio-vllm
     name: cai-studio-vllm
     subdomain: cai-studio-vllm
