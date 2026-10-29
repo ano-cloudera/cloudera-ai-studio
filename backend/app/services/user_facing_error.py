@@ -156,6 +156,13 @@ async def explain_failure(
     request_id: str,
 ) -> AnalysisOutput:
     """Natural-language ERROR body; never leaks driver or validator internals."""
+    logger.warning(
+        "ask_data_failure request_id=%s kind=%s code=%s detail=%s",
+        request_id,
+        failure.get("kind"),
+        failure.get("code"),
+        str(failure.get("detail") or "")[:500],
+    )
     payload = {
         "question": question,
         "request_id": request_id,
