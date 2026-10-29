@@ -42,3 +42,9 @@ describe('bare table references', () => {
     expect(parseDataProvenance('Computed from the governed metric.')?.sources).toEqual([])
   })
 })
+
+describe('mcp references', () => {
+  it('does not show a raw connector id as a data note', () => {
+    expect(parseDataProvenance('mcp:c5c0bb14-273c-48de-be41-ad815637cfda')).toBeNull()
+  })
+})

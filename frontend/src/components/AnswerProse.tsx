@@ -1,5 +1,18 @@
 import { formatAnswerParagraphs } from '../lib/answerFormatting'
 
+/** `**bold**` only; everything else stays plain text (no HTML is ever interpreted). */
+function renderInline(text: string) {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
+    part.startsWith('**') && part.endsWith('**') && part.length > 4 ? (
+      <strong key={index} className="font-semibold text-slate-900">
+        {part.slice(2, -2)}
+      </strong>
+    ) : (
+      part
+    ),
+  )
+}
+
 export function AnswerProse({
   text,
   omitTables = false,
@@ -37,9 +50,18 @@ export function AnswerProse({
                 </span>
               )
             }
+            const bullet = line.match(/^\s*[-•*]\s+(.*)$/)
+            if (bullet) {
+              return (
+                <span key={lineIndex} className="flex gap-2 pl-1">
+                  <span className="mt-[0.55em] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" aria-hidden />
+                  <span className="min-w-0">{renderInline(bullet[1] ?? '')}</span>
+                </span>
+              )
+            }
             return (
               <span key={lineIndex} className="block">
-                {line}
+                {renderInline(line)}
               </span>
             )
           })}

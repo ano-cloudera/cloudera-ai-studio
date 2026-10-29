@@ -33,7 +33,7 @@ function proseWithoutTables(prose: string, tables: string[]): string | null {
 }
 
 const INTERNAL_DATA_REF =
-  /^(clarification_required|ask_data_scope|explicit structured context|no query result was used\.?|retrieved document evidence)$/i
+  /^(clarification_required|ask_data_scope|explicit structured context|no query result was used\.?|retrieved document evidence|mcp:.*)$/i
 
 export function parseDataProvenance(dataReference: string | null | undefined): DataProvenance | null {
   if (!dataReference?.trim()) return null
