@@ -150,3 +150,25 @@ def test_lowest_region_orders_ascending(ctx: SemanticContextService) -> None:
     sql = ctx.compile_governed(resolution["metric"], question, resolution["dimensions"])
     assert "GROUP BY d.region_name" in sql
     assert "ORDER BY metric_value ASC" in sql
+
+
+_SESSION = {"last_metric": "total_applications", "last_question": "How many credit applications do we have in total?"}
+
+
+def test_explicit_metric_wins_over_the_previous_turn(ctx: SemanticContextService) -> None:
+    resolution = ctx.resolve("What is the approval rate by region?", session_analysis_context=_SESSION)
+    assert resolution["status"] == "resolved"
+    assert resolution["metric"] == "approval_rate"
+    assert resolution["dimensions"] == ["credit_applications_region_name"]
+
+
+def test_follow_up_breakdown_uses_the_named_dimension(ctx: SemanticContextService) -> None:
+    resolution = ctx.resolve("Break it down by region", session_analysis_context=_SESSION)
+    assert resolution["metric"] == "total_applications"
+    assert resolution["matched_alias"] == "session_metric_continuation"
+    assert resolution["dimensions"] == ["credit_applications_region_name"]
+
+
+def test_follow_up_without_a_dimension_asks_instead_of_guessing(ctx: SemanticContextService) -> None:
+    resolution = ctx.resolve("Break it down", session_analysis_context=_SESSION)
+    assert resolution["status"] == "needs_clarification"

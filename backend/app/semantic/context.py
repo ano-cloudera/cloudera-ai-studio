@@ -749,6 +749,13 @@ class SemanticContextService:
             inferred = infer_breakdown_dimensions(question, allowed, self.registry.runtime_extensions)
             if inferred:
                 dimensions = inferred
+        from app.ask_data.intent_satisfaction import infer_dimensions_from_question
+
+        named = infer_dimensions_from_question(
+            question, allowed, dataset_name=str(definition.get("base_dataset") or ""), registry=self.registry
+        )
+        if named:
+            dimensions = named
         if any(
             term in normalized
             for term in ("bulan", "bulanan", "oktober", "november", "desember", "month")
@@ -757,8 +764,9 @@ class SemanticContextService:
                 if time_dim in allowed:
                     dimensions = [time_dim, *[d for d in dimensions if d != time_dim]]
                     break
-        if not dimensions and allowed:
-            dimensions = [sorted(allowed)[0]]
+        if not dimensions:
+            # No dimension was named or carried over: let normal resolution ask, rather than guessing one.
+            return None
         return {
             "status": "resolved",
             "metric": metric,
@@ -793,6 +801,10 @@ class SemanticContextService:
         if not follow or follow.get("status") != "resolved":
             return None
         metric = str(follow["metric"])
+        explicit = self.registry.resolve_metric(question)
+        if explicit.get("status") == "resolved" and str(explicit.get("metric")) != metric:
+            # The question names a different metric ("approval rate by region"): do not continue the last one.
+            return None
         follow["definition"] = self.metric_definition(metric)
         allowed = set(follow["definition"].get("allowed_dimensions") or [])
         dimensions = [str(d) for d in (follow.get("dimensions") or []) if str(d) in allowed]
@@ -801,6 +813,12 @@ class SemanticContextService:
 
             dimensions = infer_breakdown_dimensions(
                 question, allowed, self.registry.runtime_extensions
+            )
+        if not dimensions:
+            from app.ask_data.intent_satisfaction import infer_dimensions_from_question
+
+            dimensions = infer_dimensions_from_question(
+                question, allowed, dataset_name=str(follow["definition"].get("base_dataset") or ""), registry=self.registry
             )
         follow["dimensions"] = list(dict.fromkeys(dimensions))
         follow["dimension_mismatch"] = list(follow.get("dimension_mismatch") or [])
