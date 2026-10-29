@@ -8,7 +8,7 @@ from typing import Any
 
 from app.core.config import Settings
 from app.llm.base import LLMProvider
-from app.mcp.client import invoke_mcp_server
+from app.mcp.client import describe_exception, invoke_mcp_server
 from app.mcp.planner import PlannedCall, missing_inputs_message, narrate_result, plan_tool_call
 from app.mcp.registry import connector_by_id, resolve_server_entry
 
@@ -64,7 +64,7 @@ async def run_mcp_turn(
         result = await invoke_mcp_server(entry, question=question, planner=planner)
     except Exception as exc:
         logger.exception("mcp_invoke_failed connector=%s", connector_id)
-        raise ValueError(f"MCP call failed: {exc}") from exc
+        raise ValueError(f"MCP call failed: {describe_exception(exc)}") from exc
 
     if result.get("missing"):
         call = PlannedCall(

@@ -147,3 +147,39 @@ def test_without_a_model_the_raw_result_is_still_shown(monkeypatch) -> None:
     )
     # No planner: the old behavior sends the raw question text, so the tool reports the unusable input.
     assert answer.startswith("**MCP (Credit Risk Model)**")
+
+
+def test_a_missing_server_script_is_reported_plainly() -> None:
+    from app.mcp.client import probe_mcp_server, stdio_preflight_problem
+
+    entry = McpServerEntry(
+        id="x", name="X", transport="stdio", command=sys.executable,
+        args=["/home/cdsw/cloudera-ai-studio/scripts/mcp/credit_risk_server."],
+    )
+    entry.args = ["/nonexistent/credit_risk_server.py"]
+    assert stdio_preflight_problem(entry) == "Server script not found: /nonexistent/credit_risk_server.py"
+    probe = asyncio.run(probe_mcp_server(entry))
+    assert probe["ok"] is False and probe["message"].startswith("Server script not found")
+
+
+def test_a_missing_command_is_reported_plainly() -> None:
+    from app.mcp.client import stdio_preflight_problem
+
+    entry = McpServerEntry(id="x", name="X", transport="stdio", command="/nonexistent/python", args=[])
+    assert stdio_preflight_problem(entry) == "Command not found: /nonexistent/python"
+
+
+def test_exception_groups_are_unwrapped_to_the_real_cause() -> None:
+    from exceptiongroup import ExceptionGroup  # Python 3.10 has no builtin; anyio and mcp depend on this backport
+
+    from app.mcp.client import describe_exception
+
+    group = ExceptionGroup("unhandled errors in a TaskGroup", [FileNotFoundError("no such file"), ValueError("boom")])
+    assert describe_exception(group) == "no such file; boom"
+
+
+def test_the_real_server_still_connects_after_the_preflight() -> None:
+    from app.mcp.client import probe_mcp_server
+
+    probe = asyncio.run(probe_mcp_server(_entry()))
+    assert probe["ok"] is True and "assess_application_risk" in probe["tools"]

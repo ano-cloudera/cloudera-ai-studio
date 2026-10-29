@@ -5,7 +5,9 @@ from __future__ import annotations
 import logging
 import os
 import re
+import shutil
 import time
+from pathlib import Path
 from typing import Any
 
 from app.workspace.mcp_settings import McpServerEntry
@@ -69,6 +71,42 @@ def _content_to_text(result: Any) -> str:
     return "\n\n".join(parts) if parts else str(result)
 
 
+def describe_exception(exc: BaseException) -> str:
+    """The real cause behind an ExceptionGroup ("unhandled errors in a TaskGroup") raised by the MCP transport."""
+    parts: list[str] = []
+
+    def walk(error: BaseException) -> None:
+        children = getattr(error, "exceptions", None)
+        if children:
+            for child in children:
+                walk(child)
+            return
+        text = str(error).strip() or type(error).__name__
+        if text not in parts:
+            parts.append(text)
+
+    walk(exc)
+    return "; ".join(parts)
+
+
+def stdio_preflight_problem(entry: McpServerEntry) -> str | None:
+    """A readable reason when a stdio server cannot even start (missing command or script), else None."""
+    if entry.transport != "stdio":
+        return None
+    command = (entry.command or "").strip()
+    if not command:
+        return "No command is configured for this stdio server."
+    if "/" in command:
+        if not Path(command).exists():
+            return f"Command not found: {command}"
+    elif shutil.which(command) is None:
+        return f"Command not found on the backend PATH: {command}"
+    for arg in entry.args:
+        if arg.startswith("/") and arg.endswith((".py", ".js", ".mjs")) and not Path(arg).exists():
+            return f"Server script not found: {arg}"
+    return None
+
+
 def missing_mcp_env_vars(entry: McpServerEntry) -> list[str]:
     missing: list[str] = []
     for key in entry.env_var_names:
@@ -93,6 +131,10 @@ async def probe_mcp_server(entry: McpServerEntry) -> dict[str, Any]:
             "latency_ms": 0,
             "missing_env_var_names": missing,
         }
+
+    problem = stdio_preflight_problem(entry)
+    if problem:
+        return {"ok": False, "message": problem, "tools": [], "latency_ms": 0, "missing_env_var_names": []}
 
     started = time.monotonic()
 
@@ -150,10 +192,11 @@ async def probe_mcp_server(entry: McpServerEntry) -> dict[str, Any]:
         }
     except Exception as exc:
         latency_ms = int((time.monotonic() - started) * 1000)
-        logger.warning("mcp_probe_failed server=%s err=%s", entry.id, exc)
+        message = describe_exception(exc)
+        logger.warning("mcp_probe_failed server=%s err=%s", entry.id, message)
         return {
             "ok": False,
-            "message": str(exc),
+            "message": message,
             "tools": [],
             "latency_ms": latency_ms,
             "missing_env_var_names": [],
@@ -196,6 +239,10 @@ async def _run_session(session: Any, entry: McpServerEntry, question: str, plann
 async def invoke_mcp_server(entry: McpServerEntry, *, question: str, planner: Any = None) -> dict[str, Any]:
     """Call one tool of the server. `planner(tools, question)` may return a PlannedCall with typed arguments."""
     from mcp import ClientSession
+
+    problem = stdio_preflight_problem(entry)
+    if problem:
+        raise ValueError(problem)
 
     if entry.transport == "stdio":
         from mcp.client.stdio import StdioServerParameters, stdio_client
