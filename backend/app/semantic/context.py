@@ -704,7 +704,7 @@ class SemanticContextService:
         analysis_context: dict[str, Any],
     ) -> dict[str, Any] | None:
         metric = analysis_context.get("last_metric")
-        if not isinstance(metric, str) or not metric.strip():
+        if not isinstance(metric, str) or not metric.strip() or metric not in self.metrics:
             return None
         normalized = " ".join(question.casefold().replace("–", "-").split())
         if any(term in normalized for term in ("uplift", "status dominan", "dominan tadi", "by uplift")):
@@ -783,6 +783,10 @@ class SemanticContextService:
     ) -> dict[str, Any] | None:
         """Registry-staged runtimes skip the TEMPO graph; still honor multi-turn context."""
         if not session_analysis_context:
+            return None
+        last_metric = session_analysis_context.get("last_metric")
+        if isinstance(last_metric, str) and last_metric.strip() and last_metric not in self.metrics:
+            # The previous turn used another semantic model (e.g. an @ chip was dropped): nothing to continue.
             return None
         from app.services.conversational import TurnUnderstanding
         from app.services.follow_up import try_follow_up_governed_resolution

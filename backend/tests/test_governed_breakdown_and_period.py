@@ -172,3 +172,15 @@ def test_follow_up_breakdown_uses_the_named_dimension(ctx: SemanticContextServic
 def test_follow_up_without_a_dimension_asks_instead_of_guessing(ctx: SemanticContextService) -> None:
     resolution = ctx.resolve("Break it down", session_analysis_context=_SESSION)
     assert resolution["status"] == "needs_clarification"
+
+
+_OTHER_MODEL_SESSION = {"last_metric": "delinquency_rate", "last_question": "What is our delinquency rate in Q3 2026?"}
+
+
+def test_a_metric_from_another_model_is_not_continued_and_does_not_crash(ctx: SemanticContextService) -> None:
+    follow_up = ctx.resolve("Break it down by region", session_analysis_context=_OTHER_MODEL_SESSION)
+    assert follow_up["status"] == "needs_clarification"
+
+    named = ctx.resolve("What is the approval rate by region?", session_analysis_context=_OTHER_MODEL_SESSION)
+    assert named["metric"] == "approval_rate"
+    assert named["dimensions"] == ["credit_applications_region_name"]
