@@ -1,5 +1,5 @@
 import type { ChatResponse } from '../../types/api'
-import { executiveTrustLine, isExecutiveAudience } from '../../lib/audienceMode'
+import { isExecutiveAudience } from '../../lib/audienceMode'
 
 type Props = {
   response: ChatResponse
@@ -28,16 +28,8 @@ export function ContextModeBadge({ response, executive = isExecutiveAudience() }
     )
   }
   if (mode === 'GOVERNED_SEMANTIC') {
-    if (executive) {
-      const trust = executiveTrustLine(response)
-      if (trust) {
-        return (
-          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-900">
-            {trust}
-          </span>
-        )
-      }
-    }
+    // The executive view keeps the answer card clean: no verification chip.
+    if (executive) return null
     const metric = response.data.governed_metric
     return (
       <span

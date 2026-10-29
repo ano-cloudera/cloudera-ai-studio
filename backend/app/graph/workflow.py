@@ -415,7 +415,9 @@ def build_workflow(deps: WorkflowDependencies):
                 validated_sql=data_ref,
                 governed_partial_caveats=[
                     "Turn ini menganalisis ulang angka governed dari pertanyaan sebelumnya; "
-                    "tidak ada query Impala baru dijalankan."
+                    "tidak ada query baru dijalankan."
+                    if detect_language(str(state.get("question") or "")) == "id"
+                    else "This turn re-analyzes the governed numbers from the previous question; no new query was run."
                 ],
                 inquiry_brief={
                     "mode": "history_only_analysis",
@@ -1064,7 +1066,10 @@ def build_workflow(deps: WorkflowDependencies):
                 row_count = len(rows)
                 caveat = (
                     "Ringkasan narasi otomatis: model analisis gagal merespons, "
-                    "tetapi angka di bawah valid dari query governed Impala."
+                    "tetapi angka di bawah valid dari query governed."
+                    if detect_language(str(state.get("question") or "")) == "id"
+                    else "Automatic summary: the analysis model did not respond, "
+                    "but the numbers below come from the governed query."
                 )
                 metric = resolution.get("metric") if isinstance(resolution, dict) else None
                 question_text = str(state.get("question") or "")

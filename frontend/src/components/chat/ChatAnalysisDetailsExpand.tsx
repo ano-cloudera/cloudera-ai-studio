@@ -43,14 +43,14 @@ export function ChatAnalysisDetailsExpand({
   if (!hasSql && !showTableInExpand && !hasKpi) return null
 
   const label = executiveQueryOnly
-    ? 'Lihat query yang dijalankan'
+    ? 'View the executed query'
     : executiveMode
-      ? 'Detail data'
+      ? 'Data details'
     : tier === 1
       ? hasSql
-        ? 'Sumber data & query'
-        : 'Sumber data'
-      : 'Detail tabel & query'
+        ? 'Data source & query'
+        : 'Data source'
+      : 'Table & query details'
 
   const showDataTab = showTableInExpand || hasKpi
   const showQueryTab = hasSql && (!executiveMode || executiveQueryOnly)

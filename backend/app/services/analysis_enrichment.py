@@ -6,6 +6,8 @@ import inspect
 import re
 from typing import Any, Callable, Awaitable
 
+from app.core.language import detect_language
+
 # Value metrics where contribution % vs company total is meaningful.
 _PARETO_VALUE_METRICS = frozenset(
     {
@@ -139,6 +141,9 @@ async def apply_analysis_enrichment(
     caveat = (
         "Kontribusi % dan kumulatif % dihitung terhadap total governed untuk filter/periode yang sama "
         f"(bukan hanya jumlah {len(enriched_rows)} baris ranking)."
+        if detect_language(question) == "id"
+        else "Contribution % and cumulative % are computed against the governed total for the same filters and period "
+        f"(not only the sum of the {len(enriched_rows)} ranked rows)."
     )
     return {
         **result,

@@ -34,20 +34,13 @@ export function metricDisplayLabel(response: ChatResponse): string | null {
   return title || null
 }
 
-export function executiveTrustLine(response: ChatResponse): string | null {
-  if (response.context_mode !== 'GOVERNED_SEMANTIC') return null
-  const label = metricDisplayLabel(response)
-  if (label) return `Angka terverifikasi · ${label}`
-  return 'Angka terverifikasi · semantic model'
-}
-
 export function executiveSourceHint(sources: string[]): string | null {
   if (!sources.length) return null
   const first = sources[0]
   if (!first) return null
   const schema = first.split('.')[0]
   if (schema && schema !== first) {
-    return `Sumber data: ${schema.replace(/_/g, ' ')}`
+    return `Data source: ${schema.replace(/_/g, ' ')}`
   }
   return null
 }

@@ -304,7 +304,7 @@ function drawDataTable(
   const body = slice.map(row => columns.map(col => formatCellValue(row[col])))
 
   ensureSpace(pdf, cursor, 22, drawRunningHeader)
-  drawSectionLabel(pdf, cursor, 'Tabel data')
+  drawSectionLabel(pdf, cursor, 'Data table')
   const tableTop = cursor.y
 
   autoTable(pdf, {
@@ -410,7 +410,7 @@ function drawCaveats(
 ): void {
   if (!caveats.length) return
   ensureSpace(pdf, cursor, MIN_BLOCK_MM, drawRunningHeader)
-  drawSectionLabel(pdf, cursor, 'Catatan data')
+  drawSectionLabel(pdf, cursor, 'Data note')
   drawBulletList(pdf, cursor, caveats, drawRunningHeader)
 }
 

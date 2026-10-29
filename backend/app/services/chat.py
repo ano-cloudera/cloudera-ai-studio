@@ -8,6 +8,7 @@ from typing import Any
 import uuid
 
 from app.core.config import Settings
+from app.core.language import detect_language
 from app.core.models import (
     AnalysisOutput,
     AskDataClarification,
@@ -84,8 +85,11 @@ def _normalize_governed_v3_response(response: AskDataResponse) -> AskDataRespons
         return response
     caveats = list(response.answer.caveats)
     caveat = (
-        "Jawaban belum terhubung ke hasil query governed Impala (tidak ada query_id atau baris data). "
+        "Jawaban belum terhubung ke hasil query governed (tidak ada query_id atau baris data). "
         "Ulangi dengan pertanyaan analitik yang spesifik."
+        if detect_language(response.answer.direct_answer) == "id"
+        else "The answer is not linked to a governed query result (no query_id or data rows). "
+        "Ask a specific analytical question."
     )
     if caveat not in caveats:
         caveats.insert(0, caveat)
