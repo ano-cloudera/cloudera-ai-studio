@@ -162,7 +162,8 @@ def test_banking_capability_insights_not_tempo_catalog(tmp_path: Path) -> None:
     assert lines
     assert not any("Sell-In" in line or "Stock Tempo" in line or "Alfamart" in line for line in lines)
     assert any("customer" in line.casefold() or "Customer" in line for line in lines)
-    assert all("Contoh:" in line for line in lines)
+    assert all("Example:" in line for line in lines)
+    assert all("Contoh:" in line for line in ctx.domain_capability_insight_lines(language="id"))
 
 
 def test_banking_top_customer_by_amount_groups_by_customer_id(tmp_path: Path) -> None:

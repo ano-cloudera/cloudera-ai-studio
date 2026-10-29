@@ -62,7 +62,7 @@ class FakeContext:
         _ = kwargs
         return self.sql
 
-    def domain_capability_insight_lines(self, *, exclude_focus: str | None = None):
+    def domain_capability_insight_lines(self, *, exclude_focus: str | None = None, language: str = "en"):
         lines = [f"Domain insight {i}" for i in range(9)]
         if exclude_focus:
             return [line for line in lines if exclude_focus not in line.casefold()]

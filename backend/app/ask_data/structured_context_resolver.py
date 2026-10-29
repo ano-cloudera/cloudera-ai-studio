@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.language import detect_language
 from app.ask_data.datasource_router import AskDataDatasourceRouter
 from app.ask_data.raw_table_companion import expand_raw_table_context
 from app.ask_data.table_context_id import RawTableRef, decode_raw_table_id, encode_raw_table_id
@@ -107,17 +108,24 @@ def _model_metric_clarification(
         if options:
             return ClarificationPayload(
                 reason="metric_ambiguous",
-                message="Metrik mana yang ingin Anda lihat? Pilih salah satu metric yang dipublish di semantic model ini.",
+                message=_metric_clarification_message(question),
                 options=options,
             )
     raw = ctx.registry._metric_picker_clarification(question)
-    return _clarification_from_resolution(_map_picker_options_to_db_metrics(session, model, raw))
+    return _clarification_from_resolution(_map_picker_options_to_db_metrics(session, model, raw, question))
+
+
+def _metric_clarification_message(question: str) -> str:
+    if detect_language(question) == "id":
+        return "Metrik mana yang ingin Anda lihat? Pilih salah satu metric yang dipublish di semantic model ini."
+    return "Which metric would you like to report on? Pick one of the metrics published in this semantic model."
 
 
 def _map_picker_options_to_db_metrics(
     session: Session,
     model: SemanticModelRow,
     resolution: dict[str, Any],
+    question: str = "",
 ) -> dict[str, Any]:
     if not model.active_version_id or resolution.get("status") != "needs_clarification":
         return resolution
@@ -157,7 +165,7 @@ def _map_picker_options_to_db_metrics(
         return resolution
     out = dict(resolution)
     out["options"] = mapped
-    out["question"] = "Metrik mana yang ingin Anda lihat? Pilih salah satu metric yang dipublish di semantic model ini."
+    out["question"] = _metric_clarification_message(question)
     return out
 
 
@@ -773,7 +781,7 @@ def _resolve_explicit_model(
             context_mode=None,
         )
     if resolution.get("status") == "needs_clarification":
-        resolution = _map_picker_options_to_db_metrics(session, model, resolution)
+        resolution = _map_picker_options_to_db_metrics(session, model, resolution, question)
         metric_clarification = _clarification_from_resolution(resolution) or _model_metric_clarification(
             session, model, ctx, question
         )

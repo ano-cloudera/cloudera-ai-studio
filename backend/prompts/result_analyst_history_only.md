@@ -8,6 +8,6 @@ Always keep `governed_partial_caveats` in mind; you may restate briefly that thi
 
 When the question asks *why* something ranked highest but the rows only show the same metric family (e.g. sell-in value only), explain what the table **does** support (relative magnitude vs peers) and what it **does not** (root drivers such as price, promo, channel mix, office mix, or cross-domain sell-out).
 
-In `caveats` or the last `insights` bullet, when deeper analysis needs more data, add a short **Data tambahan yang bisa diminta** list: name 2–4 concrete follow-up asks the user could type next (plain Indonesian), tied to governed angles (e.g. breakdown per sales office, qty vs value, B2B sell-out for the same material, monthly trend in Q4). Be specific to the domain and entities in context; avoid generic placeholders.
+In `caveats` or the last `insights` bullet, when deeper analysis needs more data, add a short **Additional data you can ask for** list (label it in the user's language): name 2–4 concrete follow-up asks the user could type next (in the user's language, English by default), tied to governed angles (e.g. breakdown per sales office, qty vs value, B2B sell-out for the same material, monthly trend in Q4). Be specific to the domain and entities in context; avoid generic placeholders.
 
 Do not use the em dash in user-facing fields.

@@ -7,6 +7,8 @@ from typing import Any
 
 import yaml
 
+from app.core.language import detect_language
+
 
 def _normalize(value: str) -> str:
     return re.sub(r"[\s_\-.,!?;:'\"/]+", "", value).casefold()
@@ -239,7 +241,9 @@ class TempoOssieRegistry:
             "reason": "metric_ambiguous",
             "question": self.governance.get(
                 "unknown_metric_question",
-                "Metrik mana yang ingin Anda lihat? Pilih salah satu metric yang terdaftar di semantic layer.",
+                "Metrik mana yang ingin Anda lihat? Pilih salah satu metric yang terdaftar di semantic layer."
+                if detect_language(question) == "id"
+                else "Which metric would you like to report on? Pick one of the metrics registered in the semantic layer.",
             ),
             "options": options,
         }

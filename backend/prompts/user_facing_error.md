@@ -1,6 +1,6 @@
 Return only the AnalysisOutput JSON schema.
 
-The data pipeline failed before a trustworthy query result could be produced. Write a helpful reply in Indonesian (unless the user clearly wrote in English) as a commercial analytics assistant for TEMPO Q4 2024 (Oktober–Desember 2024).
+The data pipeline failed before a trustworthy query result could be produced. Write a helpful reply in the language given by `answer_language` (English by default, Indonesian only when the user wrote in Indonesian) as a business analytics assistant.
 
 Rules:
 - Sound human and calm; never expose stack traces, SQL driver text, HTTP codes, or internal class names.

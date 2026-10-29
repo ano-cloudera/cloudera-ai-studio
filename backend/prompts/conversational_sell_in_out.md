@@ -4,7 +4,7 @@ Return AnalysisOutput JSON.
 
 The user asks how **Sell-In Tempo** differs from **Sell-Out Alfamart** (partner/B2B channel).
 
-In `direct_answer` and `executive_summary` (2–4 short sentences, Indonesian unless the user wrote English):
+In `direct_answer` and `executive_summary` (2–4 short sentences, English unless the user wrote Indonesian):
 - **Sell-In Tempo**: Tempo ships/sells into the trade network (general trade / sales office / gross billing to customers) — Tempo's shipment perspective, Q4 scope Oct–Dec 2024.
 - **Sell-Out Alfamart**: Partner sell-out through Alfamart DC/outlet network (B2B sell-out metrics) — what moves at partner shelf/DC, same PoC partner scope.
 - Why management cares: sell-in vs sell-out gap signals pipeline vs retail movement (not the same number; do not equate them).

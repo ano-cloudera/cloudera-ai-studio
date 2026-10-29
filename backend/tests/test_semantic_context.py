@@ -235,7 +235,8 @@ def test_domain_capability_insight_lines_lists_published_metrics_by_default() ->
     ctx = SemanticContextService()
     lines = ctx.domain_capability_insight_lines()
     assert lines
-    assert all("Contoh:" in line for line in lines)
+    assert all("Example:" in line for line in lines)
+    assert all("Contoh:" in line for line in ctx.domain_capability_insight_lines(language="id"))
     assert not any("TEMPO selama Q4" in line for line in lines)
 
 

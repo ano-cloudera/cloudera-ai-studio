@@ -8,6 +8,7 @@ import os
 import re
 
 from app.core.config import get_settings
+from app.core.language import detect_language
 from app.semantic.domain_graph import (
     build_business_context,
     classify_cabang_grain,
@@ -1865,6 +1866,7 @@ class SemanticContextService:
         configured_starters: list[str] | None = None,
         settings: Any | None = None,
         limit: int = 6,
+        language: str = "en",
     ) -> list[str]:
         from app.ask_data.capability_catalog import resolve_capability_insight_lines
 
@@ -1874,6 +1876,7 @@ class SemanticContextService:
             exclude_focus=exclude_focus,
             limit=limit,
             settings=settings or get_settings(),
+            language=language,
         )
 
     def guidance_context(
@@ -1912,6 +1915,7 @@ class SemanticContextService:
             lines = self.domain_capability_insight_lines(
                 exclude_focus=excluded_topic,
                 configured_starters=configured_starters,
+                language=detect_language(question),
             )
             return {
                 **context,

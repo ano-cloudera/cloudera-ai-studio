@@ -13,6 +13,7 @@ from typing import Any, Callable
 
 from langgraph.graph import END, START, StateGraph
 
+from app.core.language import detect_language
 from app.core.models import AnalysisOutput, QueryPlan
 from app.graph.inquiry_brief import build_inquiry_brief
 from app.graph.judge import judge_review
@@ -312,22 +313,33 @@ def build_workflow(deps: WorkflowDependencies):
                             deterministic_capability_follow_up_answer(
                                 excluded_focus=excluded if isinstance(excluded, str) else None,
                                 session_hint=hint,
+                                language=detect_language(original_question),
                             )
                         )
                     else:
-                        answer = AnalysisOutput.model_validate(deterministic_capability_overview_answer())
+                        answer = AnalysisOutput.model_validate(
+                            deterministic_capability_overview_answer(detect_language(original_question))
+                        )
                 elif intent.rationale == "promo_proxy_explain":
                     answer = AnalysisOutput.model_validate(deterministic_promo_uplift_proxy_explain())
                 else:
+                    greet_id = detect_language(original_question) == "id"
                     answer = AnalysisOutput(
-                        direct_answer="Halo! Saya asisten Ask Data Cloudera AI Studio.",
+                        direct_answer=(
+                            "Halo! Saya asisten Ask Data Cloudera AI Studio."
+                            if greet_id
+                            else "Hello! I'm the Ask Data assistant for Cloudera AI Studio."
+                        ),
                         executive_summary=(
                             "Saya menjawab pertanyaan bisnis menggunakan semantic model dan metric "
                             "yang dipublish. Ajukan pertanyaan spesifik setelah memilih @Semantic model."
+                            if greet_id
+                            else "I answer business questions using the published semantic model and metrics. "
+                            "Ask a specific question after choosing a @Semantic model."
                         ),
                         insights=[],
                         business_implications=[],
-                        caveats=["Tidak ada query di turn ini."],
+                        caveats=["Tidak ada query di turn ini." if greet_id else "No query ran on this turn."],
                         data_reference="Published semantic model capability catalog.",
                         chart_spec=None,
                     )
@@ -340,6 +352,7 @@ def build_workflow(deps: WorkflowDependencies):
                     excluded_key = excluded if isinstance(excluded, str) else None
                     insight_lines = deps.semantic_context.domain_capability_insight_lines(
                         exclude_focus=excluded_key,
+                        language=detect_language(original_question),
                     )
                 answer = answer.model_copy(update={"insights": insight_lines})
             return {
@@ -934,7 +947,11 @@ def build_workflow(deps: WorkflowDependencies):
         if not rows:
             update.update(
                 status="NO_DATA",
-                answer=_safe_answer("Tidak ada data yang cocok untuk pertanyaan dan filter tersebut."),
+                answer=_safe_answer(
+                    "Tidak ada data yang cocok untuk pertanyaan dan filter tersebut."
+                    if detect_language(state.get("original_question") or state["question"]) == "id"
+                    else "No data matches this question and these filters."
+                ),
                 chart_spec=None,
             )
             return update
@@ -1050,11 +1067,18 @@ def build_workflow(deps: WorkflowDependencies):
                     direct = deterministic_ops_workload_answer(question_text, metric_text, rows)
                     deterministic_narrative = direct is not None
                 if not direct:
-                    direct = (
-                        f"Query governed selesai dengan {row_count} baris hasil. "
-                        "Gunakan tabel di bawah untuk membandingkan cabang/material; "
-                        "minta penjelasan ulang jika perlu narasi manajemen lebih rinci."
-                    )
+                    if detect_language(question_text) == "id":
+                        direct = (
+                            f"Query governed selesai dengan {row_count} baris hasil. "
+                            "Gunakan tabel di bawah untuk membandingkan cabang/material; "
+                            "minta penjelasan ulang jika perlu narasi manajemen lebih rinci."
+                        )
+                    else:
+                        direct = (
+                            f"The governed query returned {row_count} rows. "
+                            "Use the table below to compare the results; "
+                            "ask for a follow-up if you need a more detailed management narrative."
+                        )
                 answer_caveats = [] if deterministic_narrative else [caveat]
                 return {
                     **state,
