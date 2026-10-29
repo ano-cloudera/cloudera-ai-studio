@@ -1,0 +1,89 @@
+{
+  "name": "credit-approval-likelihood",
+  "version": "1.0",
+  "algorithm": "logistic regression (L2, C=1.0)",
+  "trained_on": "synthetic credit_applications.csv (12000 rows)",
+  "trained_at": "2026-10-29",
+  "thresholds": {
+    "credit_score": 650.0,
+    "dti_ratio": 0.45
+  },
+  "log_amount": {
+    "mean": 17.700019210075837,
+    "std": 0.635828183192054
+  },
+  "categories": {
+    "application_channel": [
+      "Branch",
+      "Digital",
+      "Partner"
+    ],
+    "region_name": [
+      "Bali",
+      "DKI Jakarta",
+      "Jawa Barat",
+      "Jawa Tengah",
+      "Jawa Timur",
+      "Sumatera Utara"
+    ],
+    "customer_segment": [
+      "Priority",
+      "Retail",
+      "SME"
+    ],
+    "product_category": [
+      "Micro Loan",
+      "Personal Loan",
+      "Working Capital"
+    ]
+  },
+  "feature_names": [
+    "min_margin",
+    "score_margin",
+    "dti_margin",
+    "log_amount",
+    "application_channel=Branch",
+    "application_channel=Digital",
+    "application_channel=Partner",
+    "region_name=Bali",
+    "region_name=DKI Jakarta",
+    "region_name=Jawa Barat",
+    "region_name=Jawa Tengah",
+    "region_name=Jawa Timur",
+    "region_name=Sumatera Utara",
+    "customer_segment=Priority",
+    "customer_segment=Retail",
+    "customer_segment=SME",
+    "product_category=Micro Loan",
+    "product_category=Personal Loan",
+    "product_category=Working Capital"
+  ],
+  "intercept": 0.06984364871484111,
+  "coefficients": {
+    "min_margin": 10.24389,
+    "score_margin": 0.107935,
+    "dti_margin": 0.145291,
+    "log_amount": 0.041692,
+    "application_channel=Branch": -0.044612,
+    "application_channel=Digital": 0.093231,
+    "application_channel=Partner": 0.030152,
+    "region_name=Bali": -0.062038,
+    "region_name=DKI Jakarta": 0.072938,
+    "region_name=Jawa Barat": 0.115933,
+    "region_name=Jawa Tengah": -0.062893,
+    "region_name=Jawa Timur": 0.002555,
+    "region_name=Sumatera Utara": 0.012275,
+    "customer_segment=Priority": 0.069491,
+    "customer_segment=Retail": -0.092978,
+    "customer_segment=SME": 0.102258,
+    "product_category=Micro Loan": -0.097462,
+    "product_category=Personal Loan": 0.137539,
+    "product_category=Working Capital": 0.038694
+  },
+  "metrics": {
+    "holdout_rows": 2400,
+    "roc_auc": 0.9951,
+    "accuracy": 0.9838,
+    "brier": 0.0202
+  }
+}
