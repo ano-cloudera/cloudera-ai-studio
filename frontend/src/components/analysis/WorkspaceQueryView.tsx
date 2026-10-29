@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, Copy, Database, ExternalLink } from 'lucide-react'
+import { Briefcase, Check, Copy, Database, ExternalLink } from 'lucide-react'
 import { appConfig } from '../../config/appConfig'
 import { mergeDataNotes, parseDataProvenance } from '../../lib/dataProvenance'
 import type { ChatResponse } from '../../types/api'
@@ -36,6 +36,12 @@ export function WorkspaceQueryView({ response }: Props) {
   const provenance = parseDataProvenance(response.answer.data_reference)
   const dataNote = mergeDataNotes(response.answer.caveats, provenance)
   const sources = resolveSources(response.answer.data_reference.trim(), provenance?.sources ?? [])
+  const governedLabel =
+    response.data.governed_metric_display_name?.trim() ||
+    (response.data.governed_metric ? response.data.governed_metric.replace(/_/g, ' ') : null)
+  const showDefinition =
+    response.context_mode === 'GOVERNED_SEMANTIC' &&
+    Boolean(governedLabel || response.data.governed_metric_expression || response.data.governed_base_dataset)
   async function copySql() {
     if (!sql) return
     try {
@@ -61,6 +67,34 @@ export function WorkspaceQueryView({ response }: Props) {
           ) : null}
         </WorkspaceSectionContent>
       </WorkspaceSection>
+
+      {showDefinition && (
+        <WorkspaceSection>
+          <WorkspaceSectionHeader icon={Briefcase} tone="violet" title="Governed definition" />
+          <WorkspaceSectionContent>
+            <dl className="workspace-body-text space-y-2 text-sm text-slate-700">
+              {governedLabel ? (
+                <div>
+                  <dt className="font-semibold text-cloudera-navy">Metric</dt>
+                  <dd>{governedLabel}</dd>
+                </div>
+              ) : null}
+              {response.data.governed_base_dataset ? (
+                <div>
+                  <dt className="font-semibold text-cloudera-navy">Entity</dt>
+                  <dd>{response.data.governed_base_dataset}</dd>
+                </div>
+              ) : null}
+              {response.data.governed_metric_expression ? (
+                <div>
+                  <dt className="font-semibold text-cloudera-navy">Expression</dt>
+                  <dd className="font-mono text-xs text-slate-600">{response.data.governed_metric_expression}</dd>
+                </div>
+              ) : null}
+            </dl>
+          </WorkspaceSectionContent>
+        </WorkspaceSection>
+      )}
 
       {sql ? (
         <div className="sm:ml-[calc(3rem+1rem)] lg:ml-[calc(3rem+1.125rem)]">
