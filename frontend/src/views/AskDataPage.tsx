@@ -875,7 +875,7 @@ function StructuredAnswer({
 
   const governedWarning = missingGovernedEvidence ? (
     <p className="answer-response-metadata rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
-      Narasi di bawah belum terhubung ke query governed Impala (tidak ada query_id / baris data). Ulangi pertanyaan analitik atau gunakan contoh starter.
+      The narrative below is not linked to a governed query (no query_id or data rows). Ask the analytic question again or use a starter question.
     </p>
   ) : null
 

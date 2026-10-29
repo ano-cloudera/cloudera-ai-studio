@@ -196,8 +196,8 @@ export function ReportDocumentSection({ response }: Props) {
 
           {!hasVisualChart && response.chart_spec?.type !== 'kpi' && hasTable && (
             <p className="mt-4 text-xs text-slate-500 sm:ml-[calc(3rem+1rem)]">
-              Tidak ada grafik untuk turn ini — buka tab <strong className="font-semibold">Table</strong> untuk
-              baris lengkap.
+              No chart for this turn. Open the <strong className="font-semibold">Table</strong> tab for the full
+              rows.
             </p>
           )}
 

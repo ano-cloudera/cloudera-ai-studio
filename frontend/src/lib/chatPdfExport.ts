@@ -450,7 +450,7 @@ async function drawAssistantTurn(
       drawBodyText(
         pdf,
         cursor,
-        'Grafik tidak bisa disertakan dalam PDF; gunakan tabel data di bawah.',
+        'The chart could not be included in the PDF; use the data table below.',
         { fontSize: 8, color: MUTED },
         drawRunningHeader,
       )
