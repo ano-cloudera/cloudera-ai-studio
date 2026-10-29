@@ -5,8 +5,15 @@ export type DataProvenance = {
   sources: string[]
 }
 
+// A reference that is only a table identifier ("default.credit_applications", "hive.default.t"), as written for
+// connector-backed models, whose schema is not one of the legacy gold/silver/bronze layers.
+const BARE_TABLE_PATTERN = /^`?"?[a-z_][a-z0-9_]*"?`?(?:\.`?"?[a-z_][a-z0-9_]*"?`?){1,2}$/i
+
 function uniqueTables(value: string): string[] {
   const matches = value.match(TABLE_PATTERN) ?? []
+  if (!matches.length && BARE_TABLE_PATTERN.test(value.trim())) {
+    return [value.trim().replace(/[`"]/g, '').toLowerCase()]
+  }
   return [...new Set(matches.map(item => item.toLowerCase()))]
 }
 

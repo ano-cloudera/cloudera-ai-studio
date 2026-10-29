@@ -22,3 +22,23 @@ describe('dataProvenance', () => {
     expect(parsed?.note).toMatch(/Material-level/i)
   })
 })
+
+
+describe('bare table references', () => {
+  it('treats a connector table identifier as a source, not as a note', () => {
+    expect(parseDataProvenance('default.credit_applications')).toEqual({
+      note: null,
+      sources: ['default.credit_applications'],
+    })
+  })
+
+  it('handles quoted three-part names', () => {
+    expect(parseDataProvenance('"hive"."default"."credit_applications"')?.sources).toEqual([
+      'hive.default.credit_applications',
+    ])
+  })
+
+  it('does not mistake a sentence for a table', () => {
+    expect(parseDataProvenance('Computed from the governed metric.')?.sources).toEqual([])
+  })
+})
