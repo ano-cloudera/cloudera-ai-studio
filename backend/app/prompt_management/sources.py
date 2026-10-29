@@ -4,7 +4,7 @@ from pathlib import Path
 
 from app.core.config import BACKEND_ROOT, Settings
 from app.prompt_management.keys import ASK_DATA_SYSTEM, RAG_INSUFFICIENT_EVIDENCE, RAG_SYSTEM
-from app.rag.prompt import INSUFFICIENT_ANSWER_ID
+from app.rag.prompt import INSUFFICIENT_ANSWER_EN
 
 PROMPT_DIR = BACKEND_ROOT / "prompts"
 
@@ -18,7 +18,7 @@ class FilePromptSource:
     }
 
     TEXT_MAP: dict[str, str] = {
-        RAG_INSUFFICIENT_EVIDENCE: INSUFFICIENT_ANSWER_ID,
+        RAG_INSUFFICIENT_EVIDENCE: INSUFFICIENT_ANSWER_EN,
     }
 
     def get(self, prompt_key: str) -> str | None:

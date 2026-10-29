@@ -27,3 +27,15 @@ from app.core.language import detect_language
 )
 def test_detect_language_defaults_to_english(text, expected):
     assert detect_language(text) == expected
+
+
+def test_rag_insufficient_message_follows_the_question_language() -> None:
+    from types import SimpleNamespace
+
+    from app.rag.prompt import INSUFFICIENT_ANSWER_EN, INSUFFICIENT_ANSWER_ID, load_rag_insufficient_message
+
+    settings = SimpleNamespace(rag_system_prompt_path=None)
+    english = load_rag_insufficient_message(settings, question="When is a segment flagged for investigation?")
+    indonesian = load_rag_insufficient_message(settings, question="Kapan segmen ditandai untuk investigasi?")
+    assert english == INSUFFICIENT_ANSWER_EN
+    assert indonesian == INSUFFICIENT_ANSWER_ID

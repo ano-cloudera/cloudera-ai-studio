@@ -11,6 +11,7 @@ from app.core.config import Settings
 from app.llm.base import LLMProvider
 from app.rag.citations_util import citation_records, citations_from_evidence, validate_cited_ids
 from app.rag.models import RagLlmOutput
+from app.core.language import detect_language
 from app.rag.prompt import build_rag_user_message, load_rag_insufficient_message, load_rag_system_prompt
 from app.rag.scope import bounded_rag_dialog, build_rag_session_frame, resolve_library_ids
 from app.retrieval.types import RetrievalCandidate
@@ -91,6 +92,7 @@ class RAGService:
         library_ids: list[uuid.UUID],
         project_id: uuid.UUID,
         started: float,
+        question: str = "",
     ) -> RagAnswerResult:
         meta = (retrieval_payload or {}).get("metadata") or {}
         ctx = (retrieval_payload or {}).get("context") or {}
@@ -100,7 +102,11 @@ class RAGService:
             answer_text=message,
             executive_summary=message,
             insights=[],
-            caveats=["Tidak ada bukti dokumen yang cukup untuk jawaban ter-grounding."],
+            caveats=[
+                "Tidak ada bukti dokumen yang cukup untuk jawaban ter-grounding."
+                if detect_language(question) == "id"
+                else "There is not enough document evidence for a grounded answer."
+            ],
             business_implications=[],
             citations=[],
             retrieval_meta={
@@ -189,11 +195,14 @@ class RAGService:
                 message=(
                     "Pilih perpustakaan knowledge (library) terlebih dahulu, atau konfigurasi "
                     "RAG_DEFAULT_LIBRARY_IDS untuk cakupan proyek."
+                    if detect_language(query) == "id"
+                    else "Choose a knowledge library first, or configure RAG_DEFAULT_LIBRARY_IDS for the project scope."
                 ),
                 retrieval_payload=None,
                 library_ids=[],
                 project_id=project_id,
                 started=started,
+                question=query,
             )
 
         retrieval = self._retrieval(session)
@@ -208,11 +217,16 @@ class RAGService:
         except RetrievalServiceError as exc:
             logger.warning("rag retrieval failed code=%s", exc.code)
             return self._insufficient_result(
-                message=f"Knowledge retrieval tidak tersedia ({exc.code}). Coba lagi nanti.",
+                message=(
+                    f"Knowledge retrieval tidak tersedia ({exc.code}). Coba lagi nanti."
+                    if detect_language(query) == "id"
+                    else f"Knowledge retrieval is unavailable ({exc.code}). Please try again later."
+                ),
                 retrieval_payload=None,
                 library_ids=scoped,
                 project_id=project_id,
                 started=started,
+                question=query,
             )
 
         evidence = self._evidence_from_payload(retrieval_payload)
@@ -220,8 +234,9 @@ class RAGService:
         if not evidence or (min_score > 0 and self._top_score(evidence) < min_score):
             return self._insufficient_result(
                 message=load_rag_insufficient_message(
-                    self._settings, session=session, workspace_id=workspace_id, project_id=project_id
+                    self._settings, session=session, workspace_id=workspace_id, project_id=project_id, question=query
                 ),
+                question=query,
                 retrieval_payload=retrieval_payload,
                 library_ids=scoped,
                 project_id=project_id,
@@ -263,7 +278,7 @@ class RAGService:
 
         if grounding == "INSUFFICIENT_EVIDENCE":
             answer = load_rag_insufficient_message(
-                self._settings, session=session, workspace_id=workspace_id, project_id=project_id
+                self._settings, session=session, workspace_id=workspace_id, project_id=project_id, question=query
             )
             summary = answer
             status = "NO_DATA"
@@ -271,7 +286,11 @@ class RAGService:
         else:
             status = "SUCCESS"
             if grounding == "PARTIALLY_SUPPORTED" and not llm_out.caveats:
-                llm_out.caveats.append("Jawaban hanya sebagian didukung oleh bukti yang tersedia.")
+                llm_out.caveats.append(
+                    "Jawaban hanya sebagian didukung oleh bukti yang tersedia."
+                    if detect_language(query) == "id"
+                    else "This answer is only partly supported by the available evidence."
+                )
             answer, summary, insights, implications, caveats = normalize_rag_llm_output(llm_out)
 
         meta = retrieval_payload.get("metadata") or {}

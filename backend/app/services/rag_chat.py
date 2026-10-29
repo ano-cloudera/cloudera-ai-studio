@@ -6,6 +6,7 @@ from time import perf_counter
 from typing import AsyncIterator
 
 from app.core.config import Settings
+from app.core.language import detect_language
 from app.core.models import AnalysisOutput, AskDataRequest, AskDataResponse, QueryData, RagRetrievalMeta, Timings
 from app.db.platform_engine import get_session_factory
 from app.llm.base import LLMProvider
@@ -28,10 +29,13 @@ def _postgres_ready(settings: Settings) -> bool:
     return platform_metadata_configured(settings)
 
 
-def _unsupported_message() -> AnalysisOutput:
+def _unsupported_message(question: str = "") -> AnalysisOutput:
     text = (
         "Knowledge RAG memerlukan STATE_STORE=postgres dan layanan dokumen aktif. "
         "Ask Data tetap tersedia tanpa knowledge."
+        if detect_language(question) == "id"
+        else "Knowledge RAG needs STATE_STORE=postgres and an active document service. "
+        "Ask Data remains available without knowledge."
     )
     return AnalysisOutput(
         direct_answer=text,
@@ -107,7 +111,7 @@ async def run_rag_turn(
                 strategy="rag",
                 route="rag",
                 grounding="INSUFFICIENT_EVIDENCE",
-                answer=_unsupported_message(),
+                answer=_unsupported_message(request.question),
                 data=QueryData(),
                 chart_spec=None,
                 timings=Timings(total_ms=round((perf_counter() - started) * 1000, 3)),
@@ -127,7 +131,7 @@ async def run_rag_turn(
                 strategy="rag",
                 route="rag",
                 grounding="INSUFFICIENT_EVIDENCE",
-                answer=_unsupported_message(),
+                answer=_unsupported_message(request.question),
                 data=QueryData(),
                 chart_spec=None,
                 timings=Timings(total_ms=round((perf_counter() - started) * 1000, 3)),

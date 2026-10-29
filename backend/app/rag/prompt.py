@@ -3,10 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.core.config import BACKEND_ROOT, Settings
+from app.core.language import detect_language
 from app.retrieval.types import RetrievalCandidate
 
 DEFAULT_PROMPT_PATH = BACKEND_ROOT / "prompts" / "rag_system.txt"
 
+INSUFFICIENT_ANSWER_EN = (
+    "The selected documents do not contain enough evidence to answer this question. "
+    "Try the library that holds the relevant document, upload it, or rephrase the question."
+)
 INSUFFICIENT_ANSWER_ID = (
     "Data yang tersedia belum cukup untuk menjawab pertanyaan ini secara ter-grounding. "
     "Unggah dokumen yang relevan, pilih perpustakaan yang tepat, atau perjelas pertanyaan Anda."
@@ -33,13 +38,18 @@ def load_rag_system_prompt(
     return "Answer from supplied evidence only. Do not invent sources."
 
 
-def load_rag_insufficient_message(settings: Settings, *, session=None, workspace_id=None, project_id=None) -> str:
+def load_rag_insufficient_message(
+    settings: Settings, *, session=None, workspace_id=None, project_id=None, question: str = ""
+) -> str:
     from app.prompt_management.keys import RAG_INSUFFICIENT_EVIDENCE
     from app.prompt_management.resolver import PromptResolver
 
     resolver = PromptResolver(settings, session=session)
-    text = resolver.resolve(RAG_INSUFFICIENT_EVIDENCE, workspace_id=workspace_id, project_id=project_id).content
-    return text.strip() or INSUFFICIENT_ANSWER_ID
+    text = resolver.resolve(RAG_INSUFFICIENT_EVIDENCE, workspace_id=workspace_id, project_id=project_id).content.strip()
+    # A message edited in Prompt Management wins; the built-in default follows the question's language.
+    if text and text not in (INSUFFICIENT_ANSWER_EN, INSUFFICIENT_ANSWER_ID):
+        return text
+    return INSUFFICIENT_ANSWER_ID if detect_language(question) == "id" else INSUFFICIENT_ANSWER_EN
 
 
 def format_evidence_block(candidate: RetrievalCandidate, index: int) -> str:
