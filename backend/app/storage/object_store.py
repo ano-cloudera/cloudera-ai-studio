@@ -66,6 +66,7 @@ class NFSObjectStore:
             raise ObjectStoreError("object not found")
         if path.is_file():
             path.unlink()
+            self._prune_empty_parents(path.parent)
             return
         if path.is_dir():
             for child in sorted(path.rglob("*"), reverse=True):
@@ -74,8 +75,18 @@ class NFSObjectStore:
                 elif child.is_dir():
                     child.rmdir()
             path.rmdir()
+            self._prune_empty_parents(path.parent)
             return
         raise ObjectStoreError("object not found")
+
+    def _prune_empty_parents(self, directory: Path) -> None:
+        """Remove now-empty ancestor folders (never the root) so deleted documents leave no id folders behind."""
+        while directory != self._root and self._root in directory.parents:
+            try:
+                directory.rmdir()
+            except OSError:  # not empty (or already gone): stop climbing
+                return
+            directory = directory.parent
 
     def exists(self, key: str) -> bool:
         try:
