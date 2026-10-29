@@ -1045,9 +1045,6 @@ function StructuredAnswer({
         {headerRow}
         {governedWarning}
         <div className="space-y-2">
-          {ragProseOnly && response.status === 'SUCCESS' ? (
-            <div className="type-section-label text-cloudera-navy/80">Knowledge</div>
-          ) : null}
           <AnswerProse
             text={response.answer.direct_answer}
             omitTables={omitTablesInProse}
@@ -1126,7 +1123,7 @@ function StructuredAnswer({
         </button>
       ) : null}
 
-      <div className={`answer-meta-stack ${dataNoteInNarrative ? 'answer-meta-stack-flush' : ''}`}>
+      <div className={`answer-meta-stack ${dataNoteInNarrative || isRagResponse(response) ? 'answer-meta-stack-flush' : ''}`}>
         {isRagResponse(response) && ragCitationCount(response) > 0 ? (
           <RagSourcesList citations={response.citations ?? []} onViewSources={onViewRagSources} />
         ) : null}
