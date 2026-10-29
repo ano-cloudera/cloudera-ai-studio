@@ -5,7 +5,7 @@ from typing import Any
 from app.ask_data.physical_identifiers import normalize_table_key
 from app.ask_data.types import DatasourceExecutionContext
 from app.semantic.context import SemanticContextService, TablePolicy
-from app.sql.validator import ValidatedSQL, _FORBIDDEN, _ALLOWED_FUNCTIONS, _table_name
+from app.sql.validator import ValidatedSQL, _FORBIDDEN, _ALLOWED_FUNCTIONS, _table_name, has_projected_star
 import sqlglot
 from sqlglot import exp
 
@@ -36,7 +36,7 @@ def validate_ask_data_sql(
     root = statements[0]
     if not isinstance(root, (exp.Select, exp.Union, exp.Intersect, exp.Except)):
         return ValidatedSQL(False, error=f"Only SELECT queries are allowed, got {type(root).__name__}")
-    if any(select.find(exp.Star) is not None for select in root.find_all(exp.Select)):
+    if has_projected_star(root):
         return ValidatedSQL(False, error="SELECT * is not allowed")
 
     for function in root.find_all(exp.Func):

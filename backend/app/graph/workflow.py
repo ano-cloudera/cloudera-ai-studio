@@ -811,19 +811,32 @@ def build_workflow(deps: WorkflowDependencies):
         started = perf_counter()
         result = deps.sql_validator(state.get("sql", ""), state)
         retry_count = state.get("retry_count", 0)
-        if not result.valid and retry_count < 1:
-            repair = await _provider(state, deps).generate_structured(
-                [
-                    {"role": "system", "content": _ask_data_global_system() + "\n" + _prompt("sql_repair.md")},
-                    {"role": "user", "content": json.dumps({"invalid_sql": state.get("sql"), "error": result.error, "semantic_context": state.get("semantic_context")}, ensure_ascii=False)},
-                ],
-                QueryPlan,
-                temperature=0,
-                max_tokens=1200,
+        if not result.valid:
+            logger.warning(
+                "sql_validation_failed request_id=%s error=%s sql=%s",
+                state.get("request_id"),
+                result.error,
+                str(state.get("sql") or "")[:400],
             )
+        if not result.valid and retry_count < 1:
+            try:
+                repair = await _provider(state, deps).generate_structured(
+                    [
+                        {"role": "system", "content": _ask_data_global_system() + "\n" + _prompt("sql_repair.md")},
+                        {"role": "user", "content": json.dumps({"invalid_sql": state.get("sql"), "error": result.error, "semantic_context": state.get("semantic_context")}, ensure_ascii=False)},
+                    ],
+                    QueryPlan,
+                    temperature=0,
+                    max_tokens=1200,
+                )
+            except ProviderError:
+                # A malformed repair must not hide the real validation error behind a generic failure.
+                logger.warning("sql_repair_failed request_id=%s", state.get("request_id"))
+                repair = None
             retry_count += 1
-            result = deps.sql_validator(repair.sql or "", state)
-            state = {**state, "query_plan": repair.model_dump(), "sql": repair.sql or ""}
+            if repair is not None:
+                result = deps.sql_validator(repair.sql or "", state)
+                state = {**state, "query_plan": repair.model_dump(), "sql": repair.sql or ""}
         update: AskDataState = {
             **state,
             "retry_count": retry_count,

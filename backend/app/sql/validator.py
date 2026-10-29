@@ -29,6 +29,15 @@ _ALLOWED_FUNCTIONS = {
 }
 
 
+def has_projected_star(root: exp.Expression) -> bool:
+    """True for `SELECT *` / `t.*`; `COUNT(*)` is an aggregate and stays allowed."""
+    return any(
+        star.find_ancestor(exp.Count) is None
+        for select in root.find_all(exp.Select)
+        for star in select.find_all(exp.Star)
+    )
+
+
 def _table_name(table: exp.Table) -> str:
     return ".".join(value for value in (table.catalog, table.db, table.name) if value).casefold()
 
@@ -47,7 +56,7 @@ def validate_sql(sql: str, context: SemanticContextService, *, max_rows: int = 2
     root = statements[0]
     if not isinstance(root, (exp.Select, exp.Union, exp.Intersect, exp.Except)):
         return ValidatedSQL(False, error=f"Only SELECT queries are allowed, got {type(root).__name__}")
-    if any(select.find(exp.Star) is not None for select in root.find_all(exp.Select)):
+    if has_projected_star(root):
         return ValidatedSQL(False, error="SELECT * is not allowed")
 
     for function in root.find_all(exp.Func):

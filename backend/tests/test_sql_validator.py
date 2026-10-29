@@ -65,3 +65,15 @@ def test_validator_rejects_unapproved_functions() -> None:
     assert rejected.valid is False
     assert rejected.error == "Function not allowed: reflect"
     assert accepted.valid is True
+
+
+def test_count_star_is_an_aggregate_not_a_select_star() -> None:
+    import sqlglot
+
+    from app.sql.validator import has_projected_star
+
+    assert has_projected_star(sqlglot.parse_one("SELECT COUNT(*) AS n FROM t")) is False
+    assert has_projected_star(sqlglot.parse_one("SELECT region, COUNT(*) AS n FROM t GROUP BY region")) is False
+    assert has_projected_star(sqlglot.parse_one("SELECT * FROM t")) is True
+    assert has_projected_star(sqlglot.parse_one("SELECT t.* FROM t")) is True
+    assert has_projected_star(sqlglot.parse_one("SELECT COUNT(*), * FROM t")) is True
