@@ -156,7 +156,7 @@ export function ReportDocumentSection({ response }: Props) {
                       onClick={() => setTab('table')}
                       className="text-xs font-semibold text-cloudera-orange hover:underline"
                     >
-                      Lihat detail →
+                      View details →
                     </button>
                   ) : null
                 }
