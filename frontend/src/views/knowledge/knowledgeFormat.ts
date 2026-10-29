@@ -6,8 +6,15 @@ export function formatBytes(size: number): string {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`
 }
 
+// The API stores UTC but SQLite drops the offset, so timestamps can arrive without a "Z"; `new Date` would then read
+// them as local time (7 hr off in WIB).
+function parseApiDate(iso: string): Date {
+  const hasZone = /(Z|[+-]\d{2}:?\d{2})$/i.test(iso)
+  return new Date(hasZone || !/T\d/.test(iso) ? iso : `${iso}Z`)
+}
+
 export function formatRelative(iso: string): string {
-  const then = new Date(iso).getTime()
+  const then = parseApiDate(iso).getTime()
   if (Number.isNaN(then)) return '—'
   const diffMs = Date.now() - then
   const mins = Math.floor(diffMs / 60_000)
@@ -20,7 +27,7 @@ export function formatRelative(iso: string): string {
 }
 
 export function formatShortDate(iso: string): string {
-  const d = new Date(iso)
+  const d = parseApiDate(iso)
   if (Number.isNaN(d.getTime())) return '—'
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
