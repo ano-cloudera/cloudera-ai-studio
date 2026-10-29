@@ -160,7 +160,41 @@ async def probe_mcp_server(entry: McpServerEntry) -> dict[str, Any]:
         }
 
 
-async def invoke_mcp_server(entry: McpServerEntry, *, question: str) -> dict[str, Any]:
+async def _run_session(session: Any, entry: McpServerEntry, question: str, planner: Any) -> dict[str, Any]:
+    """Initialize, pick the tool and arguments (planner first, keyword fallback), call it."""
+    await session.initialize()
+    tools = (await session.list_tools()).tools
+    planned = None
+    if planner is not None:
+        try:
+            planned = await planner(tools, question)
+        except Exception:  # noqa: BLE001 - a failed plan must degrade to the keyword picker, not fail the turn
+            logger.warning("mcp_plan_failed server=%s", entry.id, exc_info=True)
+    if planned is not None:
+        if planned.missing:
+            return {
+                "server_id": entry.id,
+                "tool": planned.tool,
+                "arguments": planned.arguments,
+                "missing": planned.missing,
+                "descriptions": planned.descriptions,
+                "content": "",
+            }
+        tool_name, arguments = planned.tool, planned.arguments
+    else:
+        tool_name, arguments = _pick_tool(tools, question, entry.default_tool)
+    logger.info("mcp_call server=%s tool=%s planned=%s", entry.id, tool_name, planned is not None)
+    result = await session.call_tool(tool_name, arguments=arguments)
+    return {
+        "server_id": entry.id,
+        "tool": tool_name,
+        "arguments": arguments,
+        "content": _content_to_text(result),
+    }
+
+
+async def invoke_mcp_server(entry: McpServerEntry, *, question: str, planner: Any = None) -> dict[str, Any]:
+    """Call one tool of the server. `planner(tools, question)` may return a PlannedCall with typed arguments."""
     from mcp import ClientSession
 
     if entry.transport == "stdio":
@@ -173,18 +207,7 @@ async def invoke_mcp_server(entry: McpServerEntry, *, question: str) -> dict[str
         )
         async with stdio_client(params) as (read, write):
             async with ClientSession(read, write) as session:
-                await session.initialize()
-                listed = await session.list_tools()
-                tools = listed.tools
-                tool_name, arguments = _pick_tool(tools, question, entry.default_tool)
-                logger.info("mcp_call server=%s tool=%s", entry.id, tool_name)
-                result = await session.call_tool(tool_name, arguments=arguments)
-                return {
-                    "server_id": entry.id,
-                    "tool": tool_name,
-                    "arguments": arguments,
-                    "content": _content_to_text(result),
-                }
+                return await _run_session(session, entry, question, planner)
 
     if entry.transport == "sse":
         from mcp.client.sse import sse_client
@@ -193,17 +216,6 @@ async def invoke_mcp_server(entry: McpServerEntry, *, question: str) -> dict[str
         headers = _resolve_headers(entry.header_env_var_names)
         async with sse_client(url, headers=headers or None) as (read, write):
             async with ClientSession(read, write) as session:
-                await session.initialize()
-                listed = await session.list_tools()
-                tools = listed.tools
-                tool_name, arguments = _pick_tool(tools, question, entry.default_tool)
-                logger.info("mcp_call_sse server=%s tool=%s", entry.id, tool_name)
-                result = await session.call_tool(tool_name, arguments=arguments)
-                return {
-                    "server_id": entry.id,
-                    "tool": tool_name,
-                    "arguments": arguments,
-                    "content": _content_to_text(result),
-                }
+                return await _run_session(session, entry, question, planner)
 
     raise ValueError(f"Unsupported MCP transport: {entry.transport}")

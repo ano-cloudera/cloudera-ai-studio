@@ -742,12 +742,19 @@ class ChatService:
                     workspace_json = row.settings_json if row else None
             except ValueError:
                 workspace_json = None
+        provider = None
+        try:
+            prepared = self._prepare_registry_request(request, capability="ASK_DATA")
+            provider = self.dependencies.provider_registry.resolve(prepared.provider, prepared.model)
+        except Exception as exc:  # noqa: BLE001 - without a model the tool still runs and its raw result is shown
+            logger.info("mcp_llm_unavailable request_id=%s reason=%s", request_id, type(exc).__name__)
         try:
             answer, _meta = await run_mcp_turn(
                 self.settings,
                 workspace_settings_json=workspace_json,
                 connector_id=connector_id,
                 question=request.question,
+                provider=provider,
             )
         except ValueError as exc:
             elapsed = round((perf_counter() - started) * 1000, 3)
