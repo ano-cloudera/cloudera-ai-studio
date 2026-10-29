@@ -433,7 +433,15 @@ export function KnowledgePage() {
           }
         }),
       )
-      if (!cancelled) setUploadQueue(current => current.map(item => updates.find(u => u.id === item.id) ?? item))
+      if (cancelled) return
+      setUploadQueue(current => current.map(item => updates.find(u => u.id === item.id) ?? item))
+      const settled = updates.some(
+        (u, i) => u.status !== pending[i]!.status && (u.status === 'READY' || u.status === 'FAILED'),
+      )
+      if (settled) {
+        void refreshLibraryDetail()
+        void refreshDocuments()
+      }
     }
     void tick()
     const timer = window.setInterval(() => void tick(), 2500)
@@ -441,7 +449,7 @@ export function KnowledgePage() {
       cancelled = true
       window.clearInterval(timer)
     }
-  }, [uploadQueue])
+  }, [uploadQueue, refreshDocuments, refreshLibraryDetail])
 
   async function handleUpload(files: FileList | null) {
     if (!files?.length || !selectedLibraryId || atCapacity) return
