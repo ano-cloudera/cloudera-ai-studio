@@ -3,7 +3,7 @@ import { SourceFileIcon } from './SourceFileIcon'
 
 type Props = {
   citations: CitationRecord[]
-  onViewSources: () => void
+  onViewSources?: () => void
   /** At most this many distinct file/page rows are listed inline. */
   limit?: number
 }
