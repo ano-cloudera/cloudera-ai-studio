@@ -1,8 +1,8 @@
 'use client'
 
-import { X } from 'lucide-react'
+import { ExternalLink, FileText, X } from 'lucide-react'
 import type { ChatResponse } from '../../types/api'
-import { formatCitationLabel } from '../../lib/ragReport'
+import { citationPdfUrl, tidySnippet } from '../../lib/ragReport'
 
 type Props = {
   open: boolean
@@ -23,16 +23,52 @@ export function RagSourcesDrawer({ open, response, onClose }: Props) {
           </button>
         </div>
         <ul className="flex-1 space-y-3 overflow-y-auto p-4 text-sm text-slate-700">
-          {response.citations.map((cite, index) => (
-            <li
-              key={cite.chunk_id || `${index}`}
-              className="rounded-lg border border-slate-200 p-3"
-              data-testid="rag-source-item"
-            >
-              <div className="font-semibold text-cloudera-navy">[{index + 1}] {formatCitationLabel(cite, index)}</div>
-              {cite.snippet ? <p className="mt-2 text-xs leading-relaxed text-slate-600">{cite.snippet}</p> : null}
-            </li>
-          ))}
+          {response.citations.map((cite, index) => {
+            const pdfUrl = citationPdfUrl(cite)
+            const snippet = tidySnippet(cite.snippet)
+            return (
+              <li
+                key={cite.chunk_id || `${index}`}
+                className="rounded-xl border border-slate-200 bg-white p-3.5"
+                data-testid="rag-source-item"
+              >
+                <div className="flex items-start gap-2.5">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <FileText size={15} aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="break-words font-semibold leading-snug text-cloudera-navy">
+                      [{index + 1}] {cite.filename?.trim() || `Document ${index + 1}`}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                      {cite.page_number != null ? (
+                        <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
+                          Page {cite.page_number}
+                        </span>
+                      ) : null}
+                      {cite.section?.trim() ? <span>{cite.section}</span> : null}
+                    </div>
+                  </div>
+                </div>
+                {snippet ? (
+                  <p className="mt-3 border-l-2 border-slate-200 pl-3 text-[13px] leading-relaxed text-slate-600">
+                    {snippet}
+                  </p>
+                ) : null}
+                {pdfUrl ? (
+                  <a
+                    href={pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-cloudera-orange hover:underline"
+                  >
+                    Open PDF{cite.page_number != null ? ` at page ${cite.page_number}` : ''}
+                    <ExternalLink size={12} aria-hidden />
+                  </a>
+                ) : null}
+              </li>
+            )
+          })}
         </ul>
       </div>
     </div>
