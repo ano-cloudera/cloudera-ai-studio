@@ -73,3 +73,35 @@ def test_duplicate_name():
     )
     assert result.valid is False
     assert any(i.field == "name" for i in result.issues)
+
+
+def test_physical_numeric_type_wins_over_a_loose_dimension_type():
+    dims = [_dim("credit_applications", "decision_time_hours", "string")]
+    result = validate_metric_draft(
+        name="Average Decision Time",
+        business_definition="Average decision time in hours.",
+        expression="AVG(decision_time_hours)",
+        aggregation=None,
+        source_entity_key="credit_applications",
+        entity_keys={"credit_applications"},
+        dimensions=dims,
+        existing_metric_names=set(),
+        source_entity_metadata={"physical_columns": [{"name": "decision_time_hours", "normalized_type": "FLOAT"}]},
+    )
+    assert result.valid is True, [i.message for i in result.issues]
+
+
+def test_physical_text_type_still_blocks_a_numeric_aggregate():
+    dims = [_dim("credit_applications", "region_name", "decimal")]
+    result = validate_metric_draft(
+        name="Bad",
+        business_definition="x",
+        expression="SUM(region_name)",
+        aggregation="sum",
+        source_entity_key="credit_applications",
+        entity_keys={"credit_applications"},
+        dimensions=dims,
+        existing_metric_names=set(),
+        source_entity_metadata={"physical_columns": [{"name": "region_name", "normalized_type": "STRING"}]},
+    )
+    assert result.valid is False

@@ -37,17 +37,23 @@ def _column_types_for_entity(
     entity_metadata: dict | None = None,
 ) -> dict[str, str]:
     out: dict[str, str] = {}
-    for d in dimensions:
-        if d.source_entity_key == entity_key and d.source_column:
-            out[d.source_column] = (d.data_type or "string").lower()
+    # The physical column type is the source of truth; a dimension's declared type may be a loose guess
+    # (a numeric measure such as decision_time_hours can be listed as a "string" dimension).
     if entity_metadata:
         for col in entity_metadata.get("physical_columns") or []:
             if not isinstance(col, dict):
                 continue
             name = str(col.get("name") or "").strip()
-            if not name:
-                continue
-            out.setdefault(name, str(col.get("normalized_type") or "string").lower())
+            physical = str(col.get("normalized_type") or "").strip().lower()
+            if name and physical and physical != "unknown":
+                out[name] = physical
+    for d in dimensions:
+        if d.source_entity_key == entity_key and d.source_column:
+            out.setdefault(d.source_column, (d.data_type or "string").lower())
+    if entity_metadata:
+        for col in entity_metadata.get("physical_columns") or []:
+            if isinstance(col, dict) and str(col.get("name") or "").strip():
+                out.setdefault(str(col["name"]).strip(), "string")
     return out
 
 
