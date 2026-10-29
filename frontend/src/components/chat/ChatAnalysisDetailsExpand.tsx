@@ -56,7 +56,7 @@ export function ChatAnalysisDetailsExpand({
   const showQueryTab = hasSql && (!executiveMode || executiveQueryOnly)
 
   return (
-    <div className="rounded-xl border border-slate-200/90 bg-slate-50/40">
+    <div className="rounded-xl border border-slate-200 bg-white">
       <button
         type="button"
         onClick={() => setOpen(previous => !previous)}

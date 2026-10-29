@@ -100,7 +100,7 @@ export function ResponseFooter({
         ) : null}
       </div>
       {processOpen && processSnapshot && (
-        <div className="mt-3 rounded-lg border border-slate-200/90 bg-slate-50/60 px-3 py-3">
+        <div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5">
           <ProgressStepsPanel
             activeStepIndex={processSnapshot.activeStepIndex}
             technicalTrace={processSnapshot.technicalTrace}
