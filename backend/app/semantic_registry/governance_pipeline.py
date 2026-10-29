@@ -883,8 +883,9 @@ class SemanticGovernancePipeline:
             a1 = adapter.generate_artifact(self._session, version_id, write_file=False)
             a2 = adapter.generate_artifact(self._session, version_id, write_file=False)
             checks += 2
-            yaml.safe_load(a1.content_preview)
-            parsed = yaml.safe_load(a1.content_preview)
+            # Parse the full document: `content_preview` is cut at 8000 characters and a model with
+            # enough metrics would then fail with a ScannerError in the middle of a word.
+            parsed = yaml.safe_load(a1.content or a1.content_preview)
             if not isinstance(parsed, dict):
                 add(
                     ValidationIssue(
