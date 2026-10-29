@@ -14,7 +14,7 @@ _DEFAULT_CONFIG = PresentationTierConfig()
 
 
 def _has_visual_chart(chart: ChartSpec | None, row_count: int) -> bool:
-    if chart is None or row_count <= 0:
+    if chart is None or row_count < 2:  # a single data point is a KPI, not a chart
         return False
     if chart.type not in _VISUAL_CHART_TYPES:
         return False

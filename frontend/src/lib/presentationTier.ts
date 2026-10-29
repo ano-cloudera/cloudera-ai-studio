@@ -13,7 +13,7 @@ function hasVisualChart(response: ChatResponse): boolean {
   if (!spec?.type || !VISUAL_CHART_TYPES.includes(spec.type as (typeof VISUAL_CHART_TYPES)[number])) {
     return false
   }
-  return Boolean(spec.x && spec.y && response.data.rows.length > 0)
+  return Boolean(spec.x && spec.y && response.data.rows.length > 1)
 }
 
 function backendTierOverride(response: ChatResponse): PresentationTier | null {
