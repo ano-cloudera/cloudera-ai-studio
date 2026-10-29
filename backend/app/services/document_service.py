@@ -59,6 +59,12 @@ class DocumentService:
             raise DocumentServiceError("not_found", "Document not found", 404)
         return row
 
+    def read_document_file(self, row: DocumentRow) -> bytes:
+        try:
+            return self._store.get(row.storage_path)
+        except ObjectStoreError as exc:
+            raise DocumentServiceError("file_missing", "The stored file is not available", 404) from exc
+
     def get_library_for_project(self, library_id: uuid.UUID, project_id: uuid.UUID) -> LibraryRow:
         library = self._session.get(LibraryRow, library_id)
         if not library or library.project_id != project_id:

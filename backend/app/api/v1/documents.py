@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Response, UploadFile
 from sqlalchemy.orm import Session
 
 from app.api.v1.deps import default_project_context, postgres_session, require_postgres_settings
@@ -10,6 +10,7 @@ from app.api.v1.project_scope import assert_document_scope
 from app.core.config import Settings
 from app.documents.batch_upload import BatchFileInput, RejectedBatchItem, validate_file_batch
 from app.documents.bulk_schemas import BulkDeleteDocumentsRequest, BulkDeleteResponse
+from app.documents.file_response import document_file_response_meta
 from app.documents.schemas import DocumentRename, DocumentResponse
 from app.documents.validation import parse_allowed_types
 from app.services.bulk_delete_service import BulkDeleteService, BulkDeleteServiceError
@@ -224,6 +225,26 @@ def get_document(
     except DocumentServiceError as exc:
         raise _handle_document_error(exc) from exc
     return {"document": _public_document(DocumentResponse.from_row(row))}
+
+
+@router.get("/documents/{document_id}/file")
+def get_document_file(
+    document_id: uuid.UUID,
+    session: Session = Depends(postgres_session),
+    settings: Settings = Depends(require_postgres_settings),
+    ctx=Depends(default_project_context),
+) -> Response:
+    """The original upload, for opening a cited source. Scoped to the active project like every document route."""
+    _, project_id = ctx
+    service = _document_service(settings, session)
+    try:
+        row = service.get_document(document_id)
+        assert_document_scope(row, project_id=project_id)
+        data = service.read_document_file(row)
+    except DocumentServiceError as exc:
+        raise _handle_document_error(exc) from exc
+    media_type, headers = document_file_response_meta(row.original_filename or row.filename, row.mime_type)
+    return Response(content=data, media_type=media_type, headers=headers)
 
 
 @router.patch("/documents/{document_id}")
