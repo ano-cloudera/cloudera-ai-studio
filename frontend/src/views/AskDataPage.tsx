@@ -11,6 +11,7 @@ import { appConfig } from '../config/appConfig'
 import { downloadConversationPdf } from '../lib/chatPdfExport'
 import { clarificationChoices, type ClarificationChoice } from '../lib/clarificationPrompts'
 import { ContextModeBadge } from '../components/chat/ContextModeBadge'
+import { RagSourcesList } from '../components/chat/RagSourcesList'
 import { answerPresentation, hasGovernedEvidence } from '../lib/governedEvidence'
 import { AnswerChart } from '../components/AnswerChart'
 import { AnswerProse } from '../components/AnswerProse'
@@ -69,7 +70,7 @@ import {
   reportSectionsFromMessages,
   responseQualifiesForReportPanel,
 } from '../lib/reportDocument'
-import { isRagResponse, ragCitationCount, formatCitationLabel } from '../lib/ragReport'
+import { isRagResponse, ragCitationCount } from '../lib/ragReport'
 import {
   consumePendingChatContext,
   knowledgeLibraryContext,
@@ -1121,28 +1122,13 @@ function StructuredAnswer({
           onClick={onOpenWorkspace}
           className="text-left text-xs font-semibold text-cloudera-navy underline-offset-2 hover:underline"
         >
-          Buka {appConfig.reportDocumentLabel}
+          Open {appConfig.reportDocumentLabel}
         </button>
       ) : null}
 
       <div className={`answer-meta-stack ${dataNoteInNarrative ? 'answer-meta-stack-flush' : ''}`}>
         {isRagResponse(response) && ragCitationCount(response) > 0 ? (
-          <div className="space-y-1 text-xs text-slate-600">
-            <div className="font-semibold text-cloudera-navy">Sources</div>
-            <ol className="list-decimal space-y-0.5 pl-4">
-              {(response.citations ?? []).slice(0, 5).map((cite, index) => (
-                <li key={cite.chunk_id || index}>{formatCitationLabel(cite, index)}</li>
-              ))}
-            </ol>
-            <button
-              type="button"
-              className="font-semibold text-cloudera-navy hover:underline"
-              data-testid="rag-view-sources"
-              onClick={onViewRagSources}
-            >
-              {ragCitationCount(response)} source{ragCitationCount(response) === 1 ? '' : 's'} · View sources
-            </button>
-          </div>
+          <RagSourcesList citations={response.citations ?? []} onViewSources={onViewRagSources} />
         ) : null}
         {showDataNoteBlock && !dataNoteInNarrative && (
           <DataNote

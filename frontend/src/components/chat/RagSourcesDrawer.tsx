@@ -1,8 +1,9 @@
 'use client'
 
-import { ExternalLink, FileText, X } from 'lucide-react'
+import { ExternalLink, X } from 'lucide-react'
 import type { ChatResponse } from '../../types/api'
 import { citationPdfUrl, tidySnippet } from '../../lib/ragReport'
+import { SourceFileIcon } from './SourceFileIcon'
 
 type Props = {
   open: boolean
@@ -33,9 +34,7 @@ export function RagSourcesDrawer({ open, response, onClose }: Props) {
                 data-testid="rag-source-item"
               >
                 <div className="flex items-start gap-2.5">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                    <FileText size={15} aria-hidden />
-                  </span>
+                  <SourceFileIcon filename={cite.filename} />
                   <div className="min-w-0 flex-1">
                     <div className="break-words font-semibold leading-snug text-cloudera-navy">
                       [{index + 1}] {cite.filename?.trim() || `Document ${index + 1}`}
