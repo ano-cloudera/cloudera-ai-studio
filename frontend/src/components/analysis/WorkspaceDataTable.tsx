@@ -51,7 +51,7 @@ function RankCell({ rank }: { rank: number }) {
 export function WorkspaceDataTable({ title, columns, rows, metric, unitFormat, rowCount }: Props) {
   const [sort, setSort] = useState<SortState>(null)
 
-  const displayColumns = useMemo(() => [RANK_KEY, ...columns], [columns])
+  const displayColumns = useMemo(() => (rows.length > 1 ? [RANK_KEY, ...columns] : columns), [columns, rows.length])
 
   const sortedRows = useMemo(() => {
     const indexed = rows.map((row, index) => ({ row, rank: index + 1 }))
@@ -87,7 +87,7 @@ export function WorkspaceDataTable({ title, columns, rows, metric, unitFormat, r
   }
 
   function downloadTableCsv() {
-    const headers = displayColumns.map(col => (col === RANK_KEY ? 'Rank' : workspaceColumnLabel(col)))
+    const headers = displayColumns.map(col => (col === RANK_KEY ? 'Rank' : workspaceColumnLabel(col, metric)))
     const csvRows = sortedRows.map(({ row, rank }) =>
       displayColumns.map(col => {
         if (col === RANK_KEY) return String(rank)
@@ -111,22 +111,23 @@ export function WorkspaceDataTable({ title, columns, rows, metric, unitFormat, r
             <thead className="app-table-head sticky top-0 z-[1] backdrop-blur-sm">
               <tr>
                 {displayColumns.map(column => {
-                  const numeric = isNumericColumn(column, metric)
-                  const label = column === RANK_KEY ? 'Rank' : workspaceColumnLabel(column)
+                  const isRank = column === RANK_KEY
+                  const numeric = !isRank && isNumericColumn(column, metric)
+                  const label = column === RANK_KEY ? 'Rank' : workspaceColumnLabel(column, metric)
                   const sortable = isRankSortableColumn(column)
                   return (
                     <th
                       key={column}
                       className={`px-3 py-2.5 text-[13px] font-semibold text-slate-600 ${
                         numeric ? 'text-right' : 'text-left'
-                      } ${column === RANK_KEY ? 'text-center' : ''}`}
+                      } ${isRank ? 'w-16 pl-4' : ''}`}
                     >
                       {sortable ? (
                         <button
                           type="button"
                           onClick={() => toggleSort(column)}
                           className={`inline-flex w-full items-center gap-1 hover:text-cloudera-navy ${
-                            numeric ? 'justify-end' : column === RANK_KEY ? 'justify-center' : 'justify-start'
+                            numeric ? 'justify-end' : 'justify-start'
                           }`}
                         >
                           {label}
@@ -153,7 +154,7 @@ export function WorkspaceDataTable({ title, columns, rows, metric, unitFormat, r
                     {displayColumns.map(column => {
                       if (column === RANK_KEY) {
                         return (
-                          <td key={column} className="px-3 py-2 text-center">
+                          <td key={column} className="w-16 py-2 pl-3 pr-3 text-left">
                             <RankCell rank={rank} />
                           </td>
                         )

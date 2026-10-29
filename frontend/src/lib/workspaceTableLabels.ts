@@ -1,13 +1,15 @@
 import { formatBusinessLabel } from './businessPresentation'
 
 const WORKSPACE_COLUMN_LABELS: Record<string, string> = {
-  metric_value: 'Sales Value',
+  metric_value: 'Value',
   contribution_pct: 'Contribution',
   cumulative_pct: 'Cumulative Contribution',
 }
 
-export function workspaceColumnLabel(column: string): string {
+export function workspaceColumnLabel(column: string, metric?: string): string {
   const key = column.trim().toLowerCase()
+  // The value column is named after the governed metric ("Total Applications"), not a hard-coded "Sales Value".
+  if (key === 'metric_value' && metric?.trim()) return formatBusinessLabel(metric)
   return WORKSPACE_COLUMN_LABELS[key] ?? formatBusinessLabel(column)
 }
 
