@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.connectors.identifiers import quote_hive, validate_identifier
+from app.connectors.identifiers import quote_hive, quote_trino, validate_identifier
 
 
 def sqlglot_dialect(connector_type: str | None, *, legacy_data_backend: str = "impala") -> str:
@@ -31,7 +31,8 @@ def qualified_physical_name(
         parts = [p for p in (cat, sch, tbl) if p]
         if len(parts) < 2:
             raise ValueError("Trino requires catalog and schema")
-        return ".".join(quote_hive(p) for p in parts)
+        # Trino quotes identifiers with double quotes; backticks do not parse under the trino dialect.
+        return ".".join(quote_trino(p) for p in parts)
     if connector_type == "postgres":
         sch = validate_identifier(schema or "public", label="schema")
         return f"{sch}.{tbl}"

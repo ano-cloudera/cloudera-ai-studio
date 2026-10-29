@@ -26,7 +26,7 @@ def test_qualified_names() -> None:
         schema="gold",
         table_name="sales_monthly",
         view_name=None,
-    ) == "`hive`.`gold`.`sales_monthly`"
+    ) == '"hive"."gold"."sales_monthly"'
     assert qualified_physical_name(
         connector_type="postgres",
         catalog=None,
@@ -45,3 +45,17 @@ def test_trino_requires_catalog_schema() -> None:
             table_name="t",
             view_name=None,
         )
+
+
+def test_trino_qualified_name_parses_under_the_trino_dialect() -> None:
+    import sqlglot
+
+    name = qualified_physical_name(
+        connector_type="trino",
+        catalog="hive",
+        schema="default",
+        table_name="credit_applications",
+        view_name=None,
+    )
+    table = sqlglot.parse_one(f"SELECT 1 FROM {name} d", read="trino").find(sqlglot.exp.Table)
+    assert (table.catalog, table.db, table.name) == ("hive", "default", "credit_applications")
