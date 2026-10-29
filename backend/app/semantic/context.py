@@ -849,6 +849,15 @@ class SemanticContextService:
                     dimensions = infer_breakdown_dimensions(
                         question, allowed, self.registry.runtime_extensions
                     )
+            if not dimensions:
+                from app.ask_data.intent_satisfaction import infer_dimensions_from_question
+
+                dimensions = infer_dimensions_from_question(
+                    question,
+                    allowed,
+                    dataset_name=str(definition["base_dataset"]),
+                    registry=self.registry,
+                )
             resolution["dimensions"] = dimensions
             resolution["dimension_mismatch"] = list(resolution.get("dimension_mismatch") or [])
             constraints = parse_requested_constraints(question)
@@ -948,6 +957,12 @@ class SemanticContextService:
                     dimensions = infer_breakdown_dimensions(
                         question, allowed, self.registry.runtime_extensions
                     )
+            if not dimensions:
+                from app.ask_data.intent_satisfaction import infer_dimensions_from_question
+
+                dimensions = infer_dimensions_from_question(
+                    question, allowed, dataset_name=dataset_name, registry=self.registry
+                )
         dimensions = list(dict.fromkeys(dimensions))
         if any(name not in allowed for name in dimensions):
             raise ValueError("Requested dimension is not governed for this metric")
@@ -970,7 +985,9 @@ class SemanticContextService:
             sql.append("WHERE " + "\n  AND ".join(predicates))
         if dim_exprs:
             sql.append("GROUP BY " + ", ".join(dim_exprs))
-        sql.append("ORDER BY metric_value DESC")
+        from app.ask_data.intent_satisfaction import requested_sort_direction
+
+        sql.append(f"ORDER BY metric_value {requested_sort_direction(question)}")
         sql.append(f"LIMIT {get_settings().sql_max_rows}")
         return "\n".join(sql)
 
