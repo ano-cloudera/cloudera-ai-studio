@@ -69,11 +69,13 @@ describe('V2 Settings', () => {
     renderWithProviders(<SettingsPage />)
 
     expect(screen.getByRole('button', { name: /^MCP$/i })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /Save MCP connections/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /Add server/i })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: /^MCP$/i }))
     expect(await screen.findByRole('heading', { name: /^MCP$/i })).toBeTruthy()
-    expect(await screen.findByRole('button', { name: /Save MCP connections/i })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: /Add server/i })).toBeTruthy()
+    // Saving is per server now, so there is no global save button.
+    expect(screen.queryByRole('button', { name: /Save MCP connections/i })).toBeNull()
     expect(api.getMcpSettings).toHaveBeenCalled()
   })
 })
