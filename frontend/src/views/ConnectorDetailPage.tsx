@@ -598,7 +598,7 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
               {browseError ? (
                 <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{browseError}</div>
               ) : null}
-              <div className="grid gap-4 lg:grid-cols-[240px_1fr]">
+              <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
                 <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
                   {metaLoading && !schemas.length ? (
                     <div className="h-32 animate-pulse rounded bg-slate-100" />
@@ -678,7 +678,7 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
                     </>
                   )}
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="min-w-0 rounded-xl border border-slate-200 bg-white p-4">
                   {!selectedTable ? (
                     <p className="text-sm text-slate-500">Select a table to inspect columns and preview sample data.</p>
                   ) : tableDetail ? (
@@ -718,7 +718,8 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
                         </button>
                       </div>
                       {detailTab === 'columns' ? (
-                        <table className="app-data-table mt-4 min-w-full">
+                        <div className="mt-4 overflow-x-auto">
+                        <table className="app-data-table min-w-full">
                           <thead className="app-table-head">
                             <tr>
                               <th className="py-2">Column</th>
@@ -740,6 +741,7 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
                             ))}
                           </tbody>
                         </table>
+                        </div>
                       ) : (
                         <div className="mt-4">
                           <div className="mb-2 flex items-center gap-2 text-sm">
