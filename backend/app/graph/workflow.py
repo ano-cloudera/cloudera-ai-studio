@@ -637,6 +637,28 @@ def build_workflow(deps: WorkflowDependencies):
             from_source = None
             if ds_ctx and ds_ctx.qualified_sources:
                 from_source = ds_ctx.qualified_sources.get(dataset_name)
+            if from_source and getattr(deps.semantic_context, "_registry_runtime", False):
+                from app.ask_data.value_filters import resolve_value_filters
+
+                value_filters = await resolve_value_filters(
+                    question=state["question"],
+                    dataset_name=dataset_name,
+                    metric_expression=str(definition.get("expression") or ""),
+                    allowed_dimensions=allowed_dims,
+                    from_source=from_source,
+                    semantic_context=deps.semantic_context,
+                    executor=deps.query_executor,
+                    state=state,
+                )
+                if value_filters:
+                    extra_predicates = [*(extra_predicates or []), *(f.predicate() for f in value_filters)]
+                    scope = "; ".join(f.describe() for f in value_filters)
+                    partial_caveats = [
+                        *partial_caveats,
+                        f"Difilter ke: {scope}."
+                        if detect_language(state["question"]) == "id"
+                        else f"Filtered to: {scope}.",
+                    ]
             governed_sql = (
                 deps.semantic_context.compile_governed(
                     metric,
@@ -1051,14 +1073,16 @@ def build_workflow(deps: WorkflowDependencies):
                     max_tokens=1800,
                 )
                 break
-            except ProviderError:
+            except ProviderError as exc:
+                logger.warning(
+                    "analyze_result_failed request_id=%s attempt=%s code=%s",
+                    state.get("request_id"),
+                    attempt + 1,
+                    getattr(exc, "code", type(exc).__name__),
+                )
                 if attempt == 0:
                     await asyncio.sleep(2.0)
                     continue
-                logger.warning(
-                    "analyze_result_invalid_structured_output request_id=%s",
-                    state.get("request_id"),
-                )
         if analysis is None:
             rows = state.get("query_result", {}).get("rows") or []
             if rows:
@@ -1074,18 +1098,16 @@ def build_workflow(deps: WorkflowDependencies):
                 direct = None
                 deterministic_narrative = False
                 if not direct:
-                    if detect_language(question_text) == "id":
-                        direct = (
-                            f"Query governed selesai dengan {row_count} baris hasil. "
-                            "Gunakan tabel di bawah untuk membandingkan hasilnya; "
-                            "minta penjelasan ulang jika perlu narasi manajemen lebih rinci."
-                        )
-                    else:
-                        direct = (
-                            f"The governed query returned {row_count} rows. "
-                            "Use the table below to compare the results; "
-                            "ask for a follow-up if you need a more detailed management narrative."
-                        )
+                    from app.services.rows_summary import summarize_rows
+
+                    direct = summarize_rows(rows, language=detect_language(question_text))
+                if not direct:
+                    plural = "" if row_count == 1 else "s"
+                    direct = (
+                        f"Query governed selesai dengan {row_count} baris hasil. Gunakan tabel di bawah untuk melihat hasilnya."
+                        if detect_language(question_text) == "id"
+                        else f"The governed query returned {row_count} row{plural}. Use the table below to see the result."
+                    )
                 answer_caveats = [] if deterministic_narrative else [caveat]
                 return {
                     **state,

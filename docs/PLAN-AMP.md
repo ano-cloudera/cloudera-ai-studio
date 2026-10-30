@@ -59,15 +59,13 @@ Dikerjakan **terakhir**, setelah semua fase di atas settle di folder ini (`cloud
 
 ## Fase 4: Pertanyaan kompleks
 
-- [ ] 4.1 Jalankan lima pertanyaan uji sebagai patokan *(kamu menjalankan, saya baca hasilnya)*
-  1. Which region has a below-average approval rate and an above-average delinquency rate?
-  2. For the region with the lowest approval rate, show its delinquency rate and average decision time by channel.
-  3. How did the approval rate by region change between March to May and June to August 2026, and which region moved the most?
-  4. Which region and channel combinations are more than 15 percentage points below the overall approval rate, and does the policy say that triggers an investigation?
-  5. What share of approvals in Jawa Barat Digital were policy exceptions, and what does the approval policy say about them?
-- [ ] 4.2 Graph konteks bisnis di backend (YAML): entitas, kunci join, konsep yang terhubung ke dokumen dan model MCP
-- [ ] 4.3 Pemecahan pertanyaan lintas tabel dan lintas sumber memakai graph itu
-- [ ] 4.4 Tes untuk lima pertanyaan di atas
+- [x] 4.1 Patokan dijalankan (10 pertanyaan): 1 lulus, 2 setengah benar, 7 salah. Penyebab: filter nilai dimensi diabaikan, hanya satu model terpasang, perbandingan dua periode dan ambang hitungan tidak didukung, langkah bertingkat, pertanyaan multi-sumber dijawab separuh, pesan cadangan buruk
+- [x] 4.2 Langkah 0: ringkasan cadangan deterministik (angka, kelompok tertinggi dan terendah, singular) dan log penyebab kegagalan model analisis (`analyze_result_failed`)
+- [x] 4.3 Langkah 1: filter nilai dimensi dari data (`ask_data/value_filters.py`): nilai diambil lewat `SELECT DISTINCT` yang di-cache, kolom id, kolom rumus metrik, dan kolom kardinalitas tinggi tidak pernah difilter; filter dicantumkan di jawaban
+- [ ] 4.4 Langkah 2: drill-across (satu metrik per query, digabung lewat dimensi bersama), termasuk dua periode dan rata-rata keseluruhan deterministik
+- [ ] 4.5 Langkah 3: rencana bertingkat dan penanda "bagian ini butuh chip dokumen atau model" untuk pertanyaan multi-sumber
+- [ ] 4.6 Keputusan: dua entitas (credit_applications dan loan_quality) dalam satu model dengan relasi, atau dua model dengan dimensi yang diakui bersama
+- [ ] 4.7 Jalankan ulang 10 pertanyaan uji di CAI setelah tiap langkah dan catat skornya
 
 PuppyGraph asli ditunda: hanya tersedia sebagai Docker, dan image 3 GB tidak praktis dipindah ke CAI. Infisical self-host dibatalkan (tidak praktis di CAI), kodenya sudah dihapus.
 
