@@ -57,7 +57,7 @@ def trace_detail(node: str, state: dict[str, Any]) -> str | None:
         result = state.get("query_result") or {}
         count = result.get("row_count")
         if count is not None:
-            return f"{count} rows"
+            return f"{count} row" if count == 1 else f"{count} rows"
     if node == "judge_answer":
         review = state.get("judge_review") or {}
         if review.get("accept"):

@@ -38,6 +38,7 @@ vi.mock('../../../lib/api', () => {
     previewSemanticEntityImport: vi.fn().mockResolvedValue({ preview: { existing_entity: null, columns: [] } }),
     listSemanticMetrics: vi.fn().mockResolvedValue({ metrics: [], total: 0, page: 1, page_size: 10 }),
     listSemanticDimensions: vi.fn().mockResolvedValue({ dimensions: [], total: 0, page: 1, page_size: 10 }),
+    listSemanticRelationships: vi.fn().mockResolvedValue({ relationships: [], total: 0, page: 1, page_size: 10 }),
     createSemanticMetric: vi.fn(),
     patchSemanticMetric: vi.fn(),
     listSemanticRecentDefinitions: vi.fn().mockResolvedValue({

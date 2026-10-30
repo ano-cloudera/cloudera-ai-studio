@@ -134,6 +134,7 @@ vi.mock('../../../lib/api', () => ({
     patchSemanticEntity: vi.fn(),
     previewSemanticEntityImport: vi.fn(),
     listSemanticMetrics: vi.fn(),
+  listSemanticRelationships: vi.fn().mockResolvedValue({ relationships: [], total: 0 }),
     bulkDeleteSemanticMetrics: vi.fn(),
     deleteSemanticMetric: vi.fn(),
     createSemanticMetric: vi.fn(),
@@ -474,7 +475,7 @@ describe('SEM-2A matrix', () => {
     expect(screen.getByText('Glossary term')).toBeTruthy()
     fireEvent.click(screen.getByText('Cancel'))
     const row = screen.getByText('Sell Out').closest('tr')
-    fireEvent.click(within(row!).getByRole('button', { name: 'Edit' }))
+    fireEvent.click(within(row!).getByRole('button', { name: 'Actions for Sell Out' }))
     fireEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }))
     await waitFor(() => expect(screen.getByDisplayValue('Sell Out')).toBeTruthy())
   })

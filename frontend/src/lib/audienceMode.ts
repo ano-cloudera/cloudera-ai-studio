@@ -38,9 +38,9 @@ export function executiveSourceHint(sources: string[]): string | null {
   if (!sources.length) return null
   const first = sources[0]
   if (!first) return null
-  const schema = first.split('.')[0]
-  if (schema && schema !== first) {
-    return `Data source: ${schema.replace(/_/g, ' ')}`
+  const table = first.split('.').pop()
+  if (table) {
+    return `Data source: ${table}`
   }
   return null
 }

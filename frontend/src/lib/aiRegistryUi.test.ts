@@ -28,7 +28,7 @@ describe('aiRegistryUi', () => {
 
   it('maps provider in use errors', () => {
     expect(aiRegistryErrorMessage({ code: 'PROVIDER_IN_USE', status: 409, message: 'x', retryable: false })).toMatch(
-      /cannot be deleted/i,
+      /could not be deleted/i,
     )
   })
 })
