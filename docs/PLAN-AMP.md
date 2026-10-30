@@ -28,12 +28,16 @@ Status terakhir diperbarui: 2026-10-30. Pembersihan repo (2.5, 2.6) selesai.
 - [x] 2.5 Bersihkan repo: `testing/evidence`, sisa banking, `PROJECT_STATE.md`, `frontend/.next-dev.pid`, file `.zip` *(perlu persetujuan; satu commit yang bisa dibatalkan)*
 - [x] 2.6 Perbarui `.gitignore` agar state lokal tidak ikut
 
-## Fase 3: Bootstrap otomatis
+## Fase 3: AMP sebagai akselerator umum (untuk setiap PoC)
 
-- [ ] 3.1 Task muat data demo ke Trino (`scripts/cai/load_credit_risk_demo.py`)
-- [ ] 3.2 Ekspor semantic model credit-risk (dua model, metrik, sinonim, definisi bisnis) menjadi file di repo *(butuh ekspor dari instance CAI yang sudah terisi)*
-- [ ] 3.3 Skrip bootstrap lewat API: Data Source Trino, publish semantic model, pin default, library Knowledge dan upload PDF, server MCP, pengaturan LLM
-- [ ] 3.4 Perbarui README: langkah manual diganti ringkasan otomatis
+Arah baru: AMP membawa **platform**, bukan satu use case. Data, semantic model, dokumen, dan server MCP dikonfigurasi per PoC lewat UI.
+Bootstrap otomatis credit-risk **tidak lagi wajib**; jadi paket contoh opsional.
+
+- [ ] 3.1 Hapus sisa logika khusus domain lama di kode (perutean sell-in/sell-out, DC, picking, katalog domain lama) supaya platform netral
+- [ ] 3.2 Variabel env AMP tidak terikat Trino saja: Trino, Impala, PostgreSQL, dan kunci LLM; cara menambah variabel baru per PoC didokumentasikan
+- [ ] 3.3 Panduan "membawa AMP ke PoC baru": daftar yang diganti per PoC (sumber data, semantic model, dokumen, MCP, branding, pertanyaan awal)
+- [ ] 3.4 Paket contoh opsional (credit-risk): data, PDF, server MCP; task opsional yang berhenti sendiri kalau tidak dipakai
+- [ ] 3.5 Pertanyaan awal dan teks contoh di UI dapat diatur lewat Settings, bukan terikat ke satu domain
 
 ## Fase 4: Pertanyaan kompleks
 
