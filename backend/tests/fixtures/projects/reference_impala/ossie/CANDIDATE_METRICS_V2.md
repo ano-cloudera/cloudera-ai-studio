@@ -1,10 +1,10 @@
 # Candidate metrics for Semantic Contract v2
 
-Promote to [tempo_core.ossie.yaml](tempo_core.ossie.yaml) only after:
+Promote to [reference_core.ossie.yaml](reference_core.ossie.yaml) only after:
 
 1. Exploratory Gold view deployed and row counts validated.
 2. ≥2 golden questions in [golden_questions.yaml](golden_questions.yaml) pass as `supported`.
-3. Business owner sign-off in [tempo_governance.yaml](tempo_governance.yaml).
+3. Business owner sign-off in [reference_governance.yaml](reference_governance.yaml).
 
 | Candidate ID | Name | Source view | Catalog IDs | Status |
 |--------------|------|-------------|-------------|--------|

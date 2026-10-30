@@ -828,7 +828,7 @@ class ChatService:
                 return
             yield event
 
-    async def _run_via_tempo_agent_v3(
+    async def _run_via_local_agent_v3(
         self,
         request: AskDataRequest,
         *,
@@ -847,7 +847,7 @@ class ChatService:
                 answer_language="id",
             )
         except LocalAgentError as exc:
-            logger.warning("tempo_agent_v3_primary_failed request_id=%s code=%s", request_id, exc.code)
+            logger.warning("local_agent_v3_primary_failed request_id=%s code=%s", request_id, exc.code)
             provider = self.dependencies.provider_registry.resolve(request.provider, request.model)
             answer = await explain_failure(
                 provider=provider,
@@ -1264,7 +1264,7 @@ class ChatService:
                     client = self._v3_client()
                     if client is not None:
                         logger.info("ask_data_route=v3 request_id=%s session_id=%s", request_id, request.session_id)
-                        v3_response = await self._run_via_tempo_agent_v3(
+                        v3_response = await self._run_via_local_agent_v3(
                             request, request_id=request_id, question=question, client=client
                         )
                         if v3_response.status != "ERROR" or not self._v3_fallback_to_ossie_on_error():
@@ -1534,7 +1534,7 @@ class ChatService:
                             yield {"type": "done", "response": self._finalize_response(response)}
                             return
                     fallback = self._v3_fallback_to_ossie_on_error()
-                    response = await self._run_via_tempo_agent_v3(
+                    response = await self._run_via_local_agent_v3(
                         request, request_id=request_id, question=question, client=client
                     )
                     if response.status != "ERROR" or not fallback:
@@ -1543,7 +1543,7 @@ class ChatService:
                     logger.info("ask_data_v3_stream_fallback_ossie request_id=%s", request_id)
                 except LocalAgentError:
                     if not self._v3_fallback_to_ossie_on_error():
-                        response = await self._run_via_tempo_agent_v3(
+                        response = await self._run_via_local_agent_v3(
                             request, request_id=request_id, question=question, client=client
                         )
                         yield {"type": "done", "response": self._finalize_response(response)}

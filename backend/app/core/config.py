@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     sql_max_rows: int = Field(default=200, ge=1, le=1000)
     data_backend: str = Field(default="impala", validation_alias="DATA_BACKEND")
     duckdb_path: Path = Field(
-        default=BACKEND_ROOT / "runtime" / "tempo_gold_local.duckdb",
+        default=BACKEND_ROOT / "runtime" / "reference_gold_local.duckdb",
         validation_alias="DUCKDB_PATH",
     )
     impala_host: str = "localhost"
@@ -94,7 +94,7 @@ class Settings(BaseSettings):
         validation_alias="SEMANTIC_RUNTIME_STORAGE_ROOT",
     )
     semantic_default_model_key: str = Field(
-        default="tempo_core",
+        default="reference_core",
         validation_alias="SEMANTIC_DEFAULT_MODEL_KEY",
     )
     connector_max_rows: int = Field(default=1000, ge=1, le=10_000, validation_alias="CONNECTOR_MAX_ROWS")
@@ -241,13 +241,13 @@ class Settings(BaseSettings):
         description="Optional soft cap for Usage UI (0 = hidden)",
     )
 
-    # Optional fallback: a separately governed sibling system (TEMPO Local
+    # Optional fallback: a separately governed sibling system (REFERENCE Local
     # Agent) queried only when our own OSSIE-driven planner can't match a
     # published metric at all (strategy=unsupported). Disabled by default -
     # empty base_url means the fallback node is skipped entirely, so
     # existing behavior is unchanged unless an operator opts in.
     local_agent_base_url: str = ""
-    # When true and base_url is set, force tempo_agent_v3 (legacy; prefer ask_data_routing=v3).
+    # When true and base_url is set, force local_agent_v3 (legacy; prefer ask_data_routing=v3).
     local_agent_primary: bool = False
     # auto | ossie | v3 — see app/services/ask_data_routing.py
     ask_data_routing: str = "auto"
@@ -298,10 +298,10 @@ class Settings(BaseSettings):
         validation_alias="ASK_DATA_TIER1_SHOW_NARRATIVE",
         description="When true, tier-1 KPI chat shows executive summary and insights (not only the headline).",
     )
-    ask_data_legacy_tempo_capability_catalog: bool = Field(
+    ask_data_legacy_capability_catalog: bool = Field(
         default=False,
-        validation_alias="ASK_DATA_LEGACY_TEMPO_CAPABILITY_CATALOG",
-        description="When true, legacy 9-domain capability menu is used for local Tempo OSSIE deployments.",
+        validation_alias="ASK_DATA_LEGACY_CAPABILITY_CATALOG",
+        description="When true, legacy 9-domain capability menu is used for local Reference OSSIE deployments.",
     )
     local_agent_timeout_seconds: float = Field(default=180, gt=0, le=600)
     local_agent_engine: str = "langgraph"
@@ -312,7 +312,7 @@ class Settings(BaseSettings):
     judge_max_iterations: int = Field(default=2, ge=0, le=5)
     judge_enabled: bool = True
 
-    # In-process TEMPO domain graph (knowledge/tempo_domain_graph.yaml)
+    # In-process REFERENCE domain graph (knowledge/business_graph.yaml)
     business_graph_enabled: bool = Field(default=True, validation_alias="BUSINESS_GRAPH_ENABLED")
 
     # Phase C7 — optional PuppyGraph (off critical path; schema stub in knowledge/)

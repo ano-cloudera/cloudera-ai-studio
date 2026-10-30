@@ -153,7 +153,7 @@ def test_checksum_blocks_activation(s4_client):
             model_key=model.key,
             deployment_id=dep.id,
         )
-        core = root / "ossie" / "tempo_core.ossie.yaml"
+        core = root / "ossie" / "reference_core.ossie.yaml"
         core.write_text(core.read_text() + "\n# tamper\n", encoding="utf-8")
     act = client.post(f"/api/v1/semantic/runtime/deployments/{dep_id}/activate")
     assert act.status_code == 422

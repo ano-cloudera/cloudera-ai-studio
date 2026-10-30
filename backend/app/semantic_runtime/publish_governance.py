@@ -1,4 +1,4 @@
-"""Build tempo_governance.yaml for NFS deployments from registry metadata."""
+"""Build reference_governance.yaml for NFS deployments from registry metadata."""
 from __future__ import annotations
 
 import uuid

@@ -1,6 +1,6 @@
 # Reference Impala Semantic Profile
 
-This project is the additive, default-off real-data profile for TEMPO Q4 2024.
+This project is the additive, default-off real-data profile for REFERENCE Q4 2024.
 It must not replace or mutate `projects/reference` until the cutover gates pass.
 
 ## Source contract

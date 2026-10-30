@@ -124,7 +124,7 @@ def test_analytic_follow_up_question_is_not_merged_after_success_turn() -> None:
             },
         }
     ]
-    reply = "Top 10 produk dengan penjualan terbesar di Tempo"
+    reply = "Top 10 produk dengan penjualan terbesar di Reference"
     assert contextualize_question(reply, history) == reply
 
 
@@ -146,10 +146,10 @@ def test_short_sell_in_follow_up_reuses_the_previous_question() -> None:
 def test_sell_out_clarification_replies_all_merge_with_the_prior_question(reply: str) -> None:
     history = [
         {
-            "question": "Top 10 DC Alfamart dengan penjualan tertinggi",
+            "question": "Top 10 DC Acme dengan penjualan tertinggi",
             "answer": {
                 "direct_answer": (
-                    "Apakah Anda ingin melihat Sell-In (penjualan Tempo ke customer) "
+                    "Apakah Anda ingin melihat Sell-In (penjualan Reference ke customer) "
                     "atau Sell-Out (penjualan partner ke konsumen akhir)?"
                 ),
             },
@@ -159,7 +159,7 @@ def test_sell_out_clarification_replies_all_merge_with_the_prior_question(reply:
     contextualized = contextualize_question(reply, history, clarification_choice="sell-out")
 
     assert contextualized == (
-        "Top 10 DC Alfamart dengan penjualan tertinggi\n"
+        "Top 10 DC Acme dengan penjualan tertinggi\n"
         "Klarifikasi pengguna: sell-out"
     )
 
@@ -169,7 +169,7 @@ def test_plain_sell_in_choice_preserves_the_original_top_product_request() -> No
         {
             "question": "Berapa total produk dengan penjualan terbanyak, kasih top 5 saja?",
             "answer": {
-                "direct_answer": "Apakah Anda ingin melihat Sell-In (penjualan Tempo ke customer) atau Sell-Out?",
+                "direct_answer": "Apakah Anda ingin melihat Sell-In (penjualan Reference ke customer) atau Sell-Out?",
             },
         }
     ]
@@ -187,13 +187,13 @@ def test_descriptive_sell_in_choice_does_not_add_customer_as_a_dimension() -> No
         {
             "question": "Berapa total produk dengan penjualan terbanyak, kasih top 5 saja?",
             "answer": {
-                "direct_answer": "Apakah Anda ingin melihat Sell-In (penjualan Tempo ke customer) atau Sell-Out?",
+                "direct_answer": "Apakah Anda ingin melihat Sell-In (penjualan Reference ke customer) atau Sell-Out?",
             },
         }
     ]
 
     contextualized = contextualize_question(
-        "penjualan tempo ke customer", history, clarification_choice="sell-in"
+        "penjualan reference ke customer", history, clarification_choice="sell-in"
     )
 
     assert contextualized.endswith("Klarifikasi pengguna: sell-in")
@@ -209,7 +209,7 @@ def test_standalone_question_is_not_rewritten_from_history() -> None:
 def test_service_level_worst_branch_follow_up_rewrites_to_material_drilldown() -> None:
     history = [
         {
-            "question": "Hitung service level/ fill rate di cabang tempo dan urutkan SL terjelek?",
+            "question": "Hitung service level/ fill rate di cabang reference dan urutkan SL terjelek?",
             "answer": {
                 "direct_answer": "Cabang dengan fill rate terendah adalah 0245 (41,36%).",
                 "executive_summary": "",
@@ -220,7 +220,7 @@ def test_service_level_worst_branch_follow_up_rewrites_to_material_drilldown() -
     follow_up = "coba bantu analisa cabang paling jelek itu untuk yang top 1 ya kenapa dia bisa jelek ?"
 
     rewrite = (
-        "Untuk sales office 0245 (cabang Tempo) pada Q4 2024, "
+        "Untuk sales office 0245 (cabang Reference) pada Q4 2024, "
         "tampilkan 10 material dengan fill rate / service level terendah "
         f"Pertanyaan asli pengguna: {follow_up}"
     )
@@ -233,7 +233,7 @@ def test_service_level_worst_branch_follow_up_rewrites_to_material_drilldown() -
 
 def test_unrelated_new_question_after_roi_promo_clarification_is_not_rewritten() -> None:
     # The ROI-promo proxy clarification is a long paragraph that happens to
-    # share common domain words ("penjualan", "Tempo") with almost any new
+    # share common domain words ("penjualan", "Reference") with almost any new
     # question - a brand-new, unrelated topic must not be misread as the
     # user answering the ROI clarification just because of that overlap.
     history = [
@@ -241,11 +241,11 @@ def test_unrelated_new_question_after_roi_promo_clarification_is_not_rewritten()
             "question": "Hitung promo dengan ROI terbaik dan berikan rekomendasi/ saran",
             "answer": {
                 "direct_answer": (
-                    "TEMPO tidak memiliki data biaya promo atau ROI langsung untuk SAT Promo "
-                    "(Alfamart) - data yang tersedia hanya deskripsi mekanisme promo (teks bebas), "
+                    "REFERENCE tidak memiliki data biaya promo atau ROI langsung untuk SAT Promo "
+                    "(Acme) - data yang tersedia hanya deskripsi mekanisme promo (teks bebas), "
                     "bukan nilai biaya terstruktur, dan SAT Promo hanya mencakup Desember 2024 tanpa "
                     "baseline bulan sebelumnya di channel yang sama. Satu-satunya proxy yang bisa "
-                    "dihitung adalah dampak penjualan General Trade (bukan Alfamart langsung) untuk "
+                    "dihitung adalah dampak penjualan General Trade (bukan Acme langsung) untuk "
                     "material yang sama, dibandingkan November (baseline) vs Desember (bulan promo). "
                     "Metrik mana yang Anda mau?"
                 ),
@@ -255,7 +255,7 @@ def test_unrelated_new_question_after_roi_promo_clarification_is_not_rewritten()
         }
     ]
 
-    reply = "Top 10 produk dengan penjualan terbesar di Tempo"
+    reply = "Top 10 produk dengan penjualan terbesar di Reference"
     assert contextualize_question(reply, history) == reply
 
 
@@ -265,14 +265,14 @@ def test_unrelated_new_question_after_sales_stage_clarification_is_not_rewritten
             "question": "berapa penjualan bulan ini?",
             "answer": {
                 "direct_answer": (
-                    "Apakah Anda ingin melihat Sell-In (penjualan Tempo ke customer) atau "
+                    "Apakah Anda ingin melihat Sell-In (penjualan Reference ke customer) atau "
                     "Sell-Out (penjualan partner ke konsumen akhir)?"
                 ),
             },
         }
     ]
 
-    reply = "stok gudang tempo berapa banyak"
+    reply = "stok gudang reference berapa banyak"
     assert contextualize_question(reply, history) == reply
 
 
@@ -280,7 +280,7 @@ def test_short_answer_to_stock_clarification_reuses_previous_question() -> None:
     history = [
         {
             "question": "Mau tahu tentang data stok, bisa analisis apa saja?",
-            "answer": {"direct_answer": "Mau stok gudang Tempo, stok DC partner, atau stok retail?"},
+            "answer": {"direct_answer": "Mau stok gudang Reference, stok DC partner, atau stok retail?"},
         }
     ]
 
@@ -298,7 +298,7 @@ def test_domain_choice_can_be_found_in_executive_summary() -> None:
             "question": "Data stok bisa dipakai untuk analisis apa?",
             "answer": {
                 "direct_answer": "Ada beberapa arah analisis stok yang tersedia.",
-                "executive_summary": "Pilih stok gudang Tempo, DC partner, atau retail store.",
+                "executive_summary": "Pilih stok gudang Reference, DC partner, atau retail store.",
                 "insights": ["Contoh: stok retail per division."],
             },
         }

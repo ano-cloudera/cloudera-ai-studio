@@ -16,7 +16,7 @@ def test_get_settings_document_storage_not_double_backend():
         _env_file=None,
         document_storage_root=Path("backend/runtime/document_storage"),
         semantic_runtime_storage_root=Path("backend/var/semantic-runtime"),
-        duckdb_path=BACKEND_ROOT / "runtime" / "tempo_gold_local.duckdb",
+        duckdb_path=BACKEND_ROOT / "runtime" / "reference_gold_local.duckdb",
     )
     from app.core import config as config_mod
 

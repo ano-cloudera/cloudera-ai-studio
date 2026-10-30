@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 _CONCEPT_PATTERNS: dict[str, tuple[str, ...]] = {
-    "sell_in": ("sell-in", "sell in", "sellin", "general trade", "tempo ke customer", "billing tempo"),
+    "sell_in": ("sell-in", "sell in", "sellin", "general trade", "reference ke customer", "billing reference"),
     "sell_out": (
         "sell-out",
         "sell out",
@@ -16,8 +16,8 @@ _CONCEPT_PATTERNS: dict[str, tuple[str, ...]] = {
         "penjualan partner",
         "sell-out partner",
     ),
-    "b2b": ("b2b", "alfamart", "partner alfamart", "penjualan b2b", "penjualan alfamart"),
-    "stock_tempo": ("stock tempo", "stok tempo", "stok gudang tempo", "gudang tempo", "warehouse stock"),
+    "b2b": ("b2b", "acme", "partner acme", "penjualan b2b", "penjualan acme"),
+    "stock_warehouse": ("stock reference", "stok reference", "stok gudang reference", "gudang reference", "warehouse stock"),
     "dc_stock": ("dc stock", "dcstock", "stok dc", "stok sat", "sat dc", "penumpukan"),
     "store_stock": ("store stock", "storestock", "stok store", "stok toko", "stok retail"),
     "oos": ("oos", "out of stock", "kehabisan stok", "stok kosong"),
@@ -65,9 +65,9 @@ def detect_concepts(question: str) -> set[str]:
         found.add("dc_stock")
     if ("stok" in words or "stock" in words) and bool(words & {"toko", "store", "retail"}):
         found.add("store_stock")
-    if ("stok" in words or "stock" in words or "gudang" in words) and "tempo" in lowered:
-        found.add("stock_tempo")
-    if "penjualan" in words and "tempo" in lowered:
+    if ("stok" in words or "stock" in words or "gudang" in words) and "reference" in lowered:
+        found.add("stock_warehouse")
+    if "penjualan" in words and "reference" in lowered:
         found.add("sell_in")
     if "sell-in" in lowered or "sell in" in lowered:
         found.add("sell_in")
@@ -113,7 +113,7 @@ def wants_cross_domain_compare(question: str, *, allow_implicit_b2b_check: bool 
         return True
     if re.search(r"sell[\s-]?in.{0,40}sell[\s-]?out|sell[\s-]?out.{0,40}sell[\s-]?in", lowered):
         return True
-    if allow_implicit_b2b_check and any(t in lowered for t in ("b2b", "penjualan b2b", "alfamart")):
+    if allow_implicit_b2b_check and any(t in lowered for t in ("b2b", "penjualan b2b", "acme")):
         return True
     return False
 
@@ -176,7 +176,7 @@ def try_resolve_cross_domain(
     if "sell-in" in lowered or "sell in" in lowered:
         has_sell_in = True
     has_sell_out = bool(concept_set & {"sell_out", "b2b"})
-    has_stock_tempo = "stock_tempo" in concept_set
+    has_stock_warehouse = "stock_warehouse" in concept_set
     has_dc_stock = "dc_stock" in concept_set
     has_store_stock = "store_stock" in concept_set
     has_oos = "oos" in concept_set
@@ -229,12 +229,12 @@ def try_resolve_cross_domain(
             follow_up_entity_filters=[],
         )
 
-    if has_stock_tempo and has_sell_in and material_focus:
+    if has_stock_warehouse and has_sell_in and material_focus:
         dims = ["calmonth", "material"] if any(t in lowered for t in ("per bulan", "bulanan", "tren", "trend")) else ["material"]
         return CrossDomainResolution(
-            metric="stock_tempo_to_sell_in_ratio",
+            metric="stock_warehouse_to_sell_in_ratio",
             dimensions=dims,
-            matched_alias="cross_domain_stock_tempo_sell_in",
+            matched_alias="cross_domain_stock_warehouse_sell_in",
             follow_up_entity_filters=predicates,
         )
 

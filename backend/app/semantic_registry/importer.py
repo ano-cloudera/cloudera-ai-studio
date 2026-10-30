@@ -19,7 +19,7 @@ from app.db.platform_models import (
     SemanticTermRow,
     SemanticVersionRow,
 )
-from app.semantic.registry import TempoOssieRegistry
+from app.semantic.registry import OssieRegistry
 from app.semantic_registry.validation import SemanticValidationService
 
 
@@ -93,12 +93,12 @@ class OssieImporter:
     ) -> ImportSummary:
         summary = ImportSummary()
         project_dir = project_dir.resolve()
-        if not (project_dir / "ossie" / "tempo_core.ossie.yaml").is_file():
-            summary.errors.append(f"Missing tempo_core.ossie.yaml under {project_dir}")
+        if not (project_dir / "ossie" / "reference_core.ossie.yaml").is_file():
+            summary.errors.append(f"Missing reference_core.ossie.yaml under {project_dir}")
             return summary
 
         try:
-            registry = TempoOssieRegistry(project_dir)
+            registry = OssieRegistry(project_dir)
         except Exception as exc:
             summary.errors.append(f"Failed to load OSSIE: {type(exc).__name__}: {exc}")
             return summary
@@ -187,7 +187,7 @@ class OssieImporter:
                 format=str(config.get("unit_format") or "") or None,
                 unit=None,
                 synonyms=list(ai_ctx.get("synonyms") or []),
-                metadata_={"ossie_metric": metric_name, "tempo_extension": config},
+                metadata_={"ossie_metric": metric_name, "reference_extension": config},
             )
             self._session.add(row)
             summary.metrics += 1

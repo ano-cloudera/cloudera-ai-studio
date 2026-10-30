@@ -68,12 +68,12 @@ def test_backend_cai_entrypoint_resolves_checkout_without_file(monkeypatch) -> N
 def test_frontend_cai_entrypoint_uses_dynamic_port_and_backend_url() -> None:
     payload = dry_run(
         ROOT / "frontend" / "app_cai_frontend.py",
-        {"CDSW_APP_PORT": "4321", "NEXT_PUBLIC_BACKEND_URL": "https://tempo-backend.example"},
+        {"CDSW_APP_PORT": "4321", "NEXT_PUBLIC_BACKEND_URL": "https://reference-backend.example"},
     )
 
     assert payload["cwd"].endswith("frontend")
     assert payload["command"][-4:] == ["-H", "127.0.0.1", "-p", "4321"]
-    assert payload["backend_url"] == "https://tempo-backend.example"
+    assert payload["backend_url"] == "https://reference-backend.example"
 
 
 def test_frontend_cai_entrypoint_resolves_checkout_without_file(monkeypatch) -> None:

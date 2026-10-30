@@ -17,7 +17,7 @@ def test_question_bank_has_six_actual_domains_with_five_each() -> None:
     assert counts == {
         "sales": 5,
         "b2b": 5,
-        "stock_tempo": 5,
+        "stock_warehouse": 5,
         "stock_sat_idm": 5,
         "sat_oos": 5,
         "cross_domain": 5,

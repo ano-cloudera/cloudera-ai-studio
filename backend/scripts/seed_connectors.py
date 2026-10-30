@@ -30,8 +30,8 @@ def main() -> int:
         svc = ConnectorRegistryService(session, settings=settings)
         seeds = [
             {
-                "key": "tempo_impala",
-                "name": "Tempo Impala",
+                "key": "reference_impala",
+                "name": "Reference Impala",
                 "connector_type": "impala",
                 "config": {
                     "host": os.environ.get("DEV_IMPALA_HOST", settings.impala_host),
@@ -40,7 +40,7 @@ def main() -> int:
                     "auth_type": "plain",
                     "username": os.environ.get("DEV_IMPALA_USER", settings.impala_user or "impala"),
                 },
-                "secret_ref": "env://CONNECTOR_TEMPO_IMPALA_PASSWORD",
+                "secret_ref": "env://CONNECTOR_REFERENCE_IMPALA_PASSWORD",
             },
             {
                 "key": "cdw_trino",

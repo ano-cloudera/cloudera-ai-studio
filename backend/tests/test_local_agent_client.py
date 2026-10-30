@@ -167,7 +167,7 @@ async def test_ask_data_uses_v3_contract_endpoint() -> None:
                 "session_id": "s1",
                 "status": "SUCCESS",
                 "provider": "openai",
-                "model": "tempo-agent-v3",
+                "model": "local-agent-v3",
                 "strategy": "governed",
                 "answer": {
                     "direct_answer": "OK",
@@ -190,7 +190,7 @@ async def test_ask_data_uses_v3_contract_endpoint() -> None:
         "Top DC stok",
         session_id="s1",
         provider="openai",
-        model="tempo-agent-v3",
+        model="local-agent-v3",
         request_id="r1",
     )
     assert response.strategy == "governed"

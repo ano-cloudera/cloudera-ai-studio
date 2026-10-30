@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict
 
 
 DATA_PATH = Path(__file__).resolve().parents[2] / "data" / "random_queries.yaml"
-Domain = Literal["sales", "b2b", "stock_tempo", "stock_sat_idm", "sat_oos", "cross_domain"]
+Domain = Literal["sales", "b2b", "stock_warehouse", "stock_sat_idm", "sat_oos", "cross_domain"]
 Difficulty = Literal["simple", "medium", "complex"]
 
 
@@ -24,11 +24,11 @@ CURATED_CONTRACTS: dict[str, dict] = {
     "b2b-003": {"metric": "b2b_branch_sell_out_quantity", "dimensions": ["e_store"]},
     "b2b-004": {"metric": "b2b_material_plu_value", "dimensions": ["material", "kode_plu"]},
     "b2b-005": {"metric": "b2b_customer_sell_out_quantity", "dimensions": ["customer", "branch"]},
-    "stock-tempo-001": {"metric": "stock_tempo_total_qty", "dimensions": ["calmonth"]},
-    "stock-tempo-002": {"metric": "material_warehouse_stock_quantity", "dimensions": ["material"]},
-    "stock-tempo-003": {"metric": "stock_tempo_value", "dimensions": ["plant"]},
-    "stock-tempo-004": {"metric": "stock_tempo_value", "dimensions": ["calmonth", "material"]},
-    "stock-tempo-005": {"metric": "months_of_stock_cover", "dimensions": ["material"]},
+    "stock-warehouse-001": {"metric": "stock_warehouse_total_qty", "dimensions": ["calmonth"]},
+    "stock-warehouse-002": {"metric": "material_warehouse_stock_quantity", "dimensions": ["material"]},
+    "stock-warehouse-003": {"metric": "stock_warehouse_value", "dimensions": ["plant"]},
+    "stock-warehouse-004": {"metric": "stock_warehouse_value", "dimensions": ["calmonth", "material"]},
+    "stock-warehouse-005": {"metric": "months_of_stock_cover", "dimensions": ["material"]},
     "stock-idm-001": {"metric": "sat_dc_stock_quantity", "dimensions": ["thn", "bln"]},
     "stock-idm-002": {"metric": "sat_dc_stock_quantity", "dimensions": ["dcname"]},
     "stock-idm-003": {"metric": "sat_dc_stock_value", "dimensions": ["plu"]},
@@ -39,7 +39,7 @@ CURATED_CONTRACTS: dict[str, dict] = {
     "oos-003": {"metric": "sat_oos_rate", "dimensions": ["material_code"]},
     "oos-004": {"metric": "sat_oos_rate", "dimensions": ["plu"]},
     "oos-005": {"metric": "sat_oos_rate", "dimensions": ["cust_id", "material_code"]},
-    "cross-001": {"metric": "stock_tempo_to_sell_in_ratio", "dimensions": ["material"]},
+    "cross-001": {"metric": "stock_warehouse_to_sell_in_ratio", "dimensions": ["material"]},
     "cross-002": {"metric": "sell_out_to_sell_in_material_ratio_v2", "dimensions": ["material"]},
     "cross-003": {"metric": "branch_sell_out_vs_dc_stock", "dimensions": ["branch"]},
     "cross-004": {"metric": "sat_store_stock_vs_oos_rate", "dimensions": ["plu"]},

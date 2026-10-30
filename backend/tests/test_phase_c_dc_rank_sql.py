@@ -30,7 +30,7 @@ def test_dc_penumpukan_compiles_group_by_dcname() -> None:
 def test_dc_partner_top_n_compiles_without_partner_predicate() -> None:
     settings = Settings(_env_file=None)
     ctx = SemanticContextService(settings.project_root / settings.ossie_project_id)
-    q = "maksud saya stok di DC partner, top 10 DC Alfamart Q4 2024"
+    q = "maksud saya stok di DC partner, top 10 DC Acme Q4 2024"
     resolution = ctx.resolve(q)
     assert resolution.get("metric") == "sat_dc_stock_quantity"
     sql = ctx.compile_governed("sat_dc_stock_quantity", q, resolution.get("dimensions"))

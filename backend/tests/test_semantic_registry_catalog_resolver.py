@@ -5,14 +5,14 @@ from pathlib import Path
 
 import pytest
 
-from app.semantic.registry import TempoOssieRegistry, _is_semantic_registry_catalog
+from app.semantic.registry import OssieRegistry, _is_semantic_registry_catalog
 
 
-def _banking_registry(tmp_path: Path) -> TempoOssieRegistry:
+def _banking_registry(tmp_path: Path) -> OssieRegistry:
     root = tmp_path / "banking_runtime"
     ossie = root / "ossie"
     ossie.mkdir(parents=True)
-    (ossie / "tempo_core.ossie.yaml").write_text(
+    (ossie / "reference_core.ossie.yaml").write_text(
         """
 version: "0.2.0.dev0"
 name: banking_analytics
@@ -38,7 +38,7 @@ metrics:
         - dialect: ANSI_SQL
           expression: COUNT(DISTINCT customer_id)
     custom_extensions:
-      - vendor_name: TEMPO
+      - vendor_name: REFERENCE
         data: '{"base_dataset": "customers", "allowed_dimensions": []}'
   - name: total_transaction_amount
     description: Total Transaction Amount
@@ -49,20 +49,20 @@ metrics:
         - dialect: ANSI_SQL
           expression: SUM(amount)
     custom_extensions:
-      - vendor_name: TEMPO
+      - vendor_name: REFERENCE
         data: '{"base_dataset": "transactions", "allowed_dimensions": []}'
 """,
         encoding="utf-8",
     )
-    (ossie / "tempo_governance.yaml").write_text(
+    (ossie / "reference_governance.yaml").write_text(
         'unknown_metric_question: "Which metric would you like to report on?"\n',
         encoding="utf-8",
     )
     (ossie / "golden_questions.yaml").write_text("questions: []\n", encoding="utf-8")
-    return TempoOssieRegistry(root, validate_profile=False)
+    return OssieRegistry(root, validate_profile=False)
 
 
-def test_catalog_detector_skips_tempo_metrics() -> None:
+def test_catalog_detector_skips_reference_metrics() -> None:
     assert not _is_semantic_registry_catalog({"sat_dc_stock_quantity": {}})
     assert _is_semantic_registry_catalog({"total_transaction_amount": {}})
 

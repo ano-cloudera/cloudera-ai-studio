@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-const STORAGE_KEY = 'tempo-report-left-width-px'
+const STORAGE_KEY = 'reference-report-left-width-px'
 const DEFAULT_CHAT_RATIO = 0.58
 const MIN_LEFT_PX = 420
 const MIN_RIGHT_PX = 420
@@ -21,7 +21,7 @@ function readStoredLeftPx(containerWidth: number): number {
     const n = Number(raw.replace('px', ''))
     if (Number.isFinite(n)) return clampLeft(n, containerWidth)
   }
-  const legacy = sessionStorage.getItem('tempo-report-pane-percent')
+  const legacy = sessionStorage.getItem('reference-report-pane-percent')
   if (legacy) {
     const pct = Number(legacy)
     if (Number.isFinite(pct)) return clampLeft(containerWidth * ((100 - pct) / 100), containerWidth)

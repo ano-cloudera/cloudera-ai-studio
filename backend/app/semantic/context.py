@@ -15,7 +15,7 @@ from app.semantic.domain_graph import (
     try_clarification_intent,
     try_governed_intent_route,
 )
-from app.semantic.registry import TempoOssieRegistry
+from app.semantic.registry import OssieRegistry
 from app.semantic.questions import CURATED_CONTRACTS, QuestionBank
 
 
@@ -41,7 +41,7 @@ _MATERIAL_QUERY_ALIASES = {"FE001": "001-00-03"}
 def _material_code_for_query(code: str) -> str:
     normalized = code.strip().upper()
     return _MATERIAL_QUERY_ALIASES.get(normalized, code)
-_BRANCH_SKIP = frozenset({"partner", "alfamart", "tempo", "b2b", "dc", "branch", "cabang", "outlet", "store"})
+_BRANCH_SKIP = frozenset({"partner", "acme", "reference", "b2b", "dc", "branch", "cabang", "outlet", "store"})
 _PLU_ENTITY_RE = re.compile(r"\bplu\s+['\"]?(\d+)\b", re.IGNORECASE)
 _POLITE_SEKARANG_PREFIX_RE = re.compile(
     r"^(?:\s*)sekarang\s+(?:bisa|boleh|tolong|mohon|please|can|could)\b",
@@ -134,7 +134,7 @@ def _bill_to_po_resolution(question: str) -> tuple[str, list[str], str] | None:
 
 
 def _dc_partner_stock_penumpukan_resolution(question: str) -> tuple[str, list[str], str] | None:
-    """SAT partner DC stock ranking (dcname), not Tempo sell-in billing or B2B sell-out."""
+    """SAT partner DC stock ranking (dcname), not Reference sell-in billing or B2B sell-out."""
     lowered = question.casefold()
     words = set(re.findall(r"[a-z0-9]+", lowered))
     if "dc" not in words:
@@ -211,7 +211,7 @@ def _branch_name_predicate(branch_value: str) -> str:
 _BRANCH_PREP = frozenset({"di", "ke", "untuk", "pada", "dalam", "dan", "atau", "the", "a"})
 # Indonesian / scope words after "DC …" that are not partner-DC names (NLU false positives).
 _DC_NAME_STOPWORDS = frozenset({
-    "mana", "yang", "dengan", "partner", "alfamart", "tertinggi", "terbesar", "terbanyak",
+    "mana", "yang", "dengan", "partner", "acme", "tertinggi", "terbesar", "terbanyak",
     "terendah", "terkecil", "paling", "stok", "stock", "sat", "idm", "di", "ke", "dan",
     "atau", "untuk", "pada", "adalah", "juga", "serta", "rank", "top", "the", "a",
 })
@@ -220,7 +220,7 @@ _DC_NAME_STOPWORDS = frozenset({
 def _dc_name_capture_from_question(question: str) -> str | None:
     """Extract a city/label after 'DC' only when it looks like a real DC name, not 'DC mana' / 'DC dengan'."""
     lowered = question.casefold()
-    if re.search(r"\btop\s*\d+\s+dc\b|\b\d+\s+dc\b|\bdc\s+(?:dengan|partner|alfamart)\b", lowered):
+    if re.search(r"\btop\s*\d+\s+dc\b|\b\d+\s+dc\b|\bdc\s+(?:dengan|partner|acme)\b", lowered):
         return None
     match = re.search(r"\bdc\s+([a-zA-Z][a-zA-Z\s-]{1,30}?)(?:\s+q[1-4]|\s+\d{4}\b|[?.!,]|$)", question, re.IGNORECASE)
     if not match:
@@ -234,7 +234,7 @@ def _dc_name_capture_from_question(question: str) -> str | None:
 
 
 def _normalize_branch_entity_candidate(candidate: str) -> str | None:
-    """Turn 'cabang di Alfamart' / 'di palembang' into a branch filter token, or None if not a branch name."""
+    """Turn 'cabang di Acme' / 'di palembang' into a branch filter token, or None if not a branch name."""
     cleaned = candidate.strip().strip("?.,!;:\"'""''")
     if cleaned.casefold() in _BRANCH_PREP:
         return None
@@ -245,10 +245,10 @@ def _normalize_branch_entity_candidate(candidate: str) -> str | None:
     if cleaned.casefold() in _BRANCH_SKIP:
         return None
     head = cleaned.split()[0].casefold() if cleaned.split() else ""
-    if head in {"alfamart", "partner", "idm", "sat", "b2b"}:
+    if head in {"acme", "partner", "idm", "sat", "b2b"}:
         return None
-    # Partner network context, not a DC label (e.g. "penjualan cabang di Alfamart" = rank all DCs).
-    if cleaned.casefold() in {"alfamart", "partner", "idm", "sat", "sat-idm", "sat idm", "b2b", "sell-out", "sellout"}:
+    # Partner network context, not a DC label (e.g. "penjualan cabang di Acme" = rank all DCs).
+    if cleaned.casefold() in {"acme", "partner", "idm", "sat", "sat-idm", "sat idm", "b2b", "sell-out", "sellout"}:
         return None
     rank_tail = {
         "tertinggi", "terendah", "terbesar", "terkecil", "terbanyak", "terburuk", "terlaris",
@@ -260,7 +260,7 @@ def _normalize_branch_entity_candidate(candidate: str) -> str | None:
     cleaned = " ".join(parts).strip()
     if not cleaned or cleaned.casefold() in _BRANCH_SKIP:
         return None
-    if cleaned.casefold() in {"alfamart", "partner", "idm", "sat", "sat-idm", "sat idm"}:
+    if cleaned.casefold() in {"acme", "partner", "idm", "sat", "sat-idm", "sat idm"}:
         return None
     return cleaned
 
@@ -433,11 +433,11 @@ _DOMAIN_DATASETS = {
         "b2b_branch_estore", "b2b_material_plu", "b2b_customer_branch_estore",
         "b2b_customer_material_plu", "customer_reconciliation",
     },
-    "stock_tempo": {"stock_tempo_month", "material_360"},
+    "stock_warehouse": {"stock_warehouse_month", "material_360"},
     "stock_sat_idm": {"sat_dc_month"},
     "sat_oos": {"sat_oos_material_month"},
     "cross_domain": {
-        "material_360", "customer_reconciliation", "stock_tempo_sales_material_month",
+        "material_360", "customer_reconciliation", "stock_warehouse_sales_material_month",
         "sales_b2b_material_month", "b2b_sat_branch_month", "sat_dc_oos_material_month",
     },
 }
@@ -445,7 +445,7 @@ _DOMAIN_DATASETS = {
 _CONCEPT_PATTERNS = {
     "sell_in": ("sell-in", "sell in"),
     "sell_out": ("sell-out", "sell out"),
-    "stock_tempo": ("stock tempo", "stok tempo", "gudang tempo"),
+    "stock_warehouse": ("stock reference", "stok reference", "gudang reference"),
     "dc_stock": ("dc stock", "dcstock", "stok dc"),
     "store_stock": ("store stock", "storestock", "stok store"),
     "oos": ("oos", "out of stock"),
@@ -456,7 +456,7 @@ _CONCEPT_PATTERNS = {
 
 _GUIDANCE_TOPICS = {
     "sales": ("sales",),
-    "stock": ("stock_tempo", "stock_sat_idm"),
+    "stock": ("stock_warehouse", "stock_sat_idm"),
     "oos": ("sat_oos",),
     "b2b": ("b2b",),
 }
@@ -464,8 +464,8 @@ _GUIDANCE_TOPICS = {
 _METRIC_HELP_ID: dict[str, str] = {
     "gross_billing_value": "Gross Sales / Sell-In",
     "b2b_branch_sell_out_value": "nilai Sell-Out B2B per cabang",
-    "stock_tempo_total_qty": "stok gudang Tempo",
-    "sat_dc_stock_quantity": "stok DC partner (Alfamart)",
+    "stock_warehouse_total_qty": "stok gudang Reference",
+    "sat_dc_stock_quantity": "stok DC partner (Acme)",
     "sat_store_stock_quantity": "stok toko retail",
     "sat_oos_rate": "tingkat OOS di toko SAT",
     "service_fill_rate": "service level / fill rate cabang",
@@ -476,9 +476,9 @@ _METRIC_HELP_ID: dict[str, str] = {
 
 _DOMAIN_NAMES_BY_GUIDANCE_FOCUS: dict[str, frozenset[str]] = {
     "sales": frozenset({"Sales / Sell-In"}),
-    "stock": frozenset({"Stock Tempo", "Stock SAT (Alfamart)"}),
-    "stock_tempo": frozenset({"Stock Tempo"}),
-    "stock_sat": frozenset({"Stock SAT (Alfamart)"}),
+    "stock": frozenset({"Stock Reference", "Stock SAT (Acme)"}),
+    "stock_warehouse": frozenset({"Stock Reference"}),
+    "stock_sat": frozenset({"Stock SAT (Acme)"}),
     "oos": frozenset({"SAT OOS"}),
     "b2b": frozenset({"B2B / Sell-Out"}),
     "service_level": frozenset({"Service Level"}),
@@ -536,8 +536,8 @@ def guidance_focus_from_metric(metric: str | None) -> str | None:
         return "service_level"
     if "sat_dc" in m or "sat_store" in m:
         return "stock_sat"
-    if "stock_tempo" in m or "warehouse_stock" in m or "months_of_stock" in m:
-        return "stock_tempo"
+    if "stock_warehouse" in m or "warehouse_stock" in m or "months_of_stock" in m:
+        return "stock_warehouse"
     if "sell_out" in m or "b2b_branch" in m or "material_sell_out" in m:
         return "b2b"
     if "sell_in" in m or "sales_office" in m or "gross_billing" in m or "material_sell_in" in m:
@@ -547,13 +547,13 @@ def guidance_focus_from_metric(metric: str | None) -> str | None:
     return None
 
 _GUIDANCE_DOMAIN_OPTIONS = (
-    {"name": "Sales / Sell-In", "metrics": ["gross_billing_value"], "examples": ["Berapa Gross Sales TEMPO selama Q4 2024?"]},
+    {"name": "Sales / Sell-In", "metrics": ["gross_billing_value"], "examples": ["Berapa Gross Sales REFERENCE selama Q4 2024?"]},
     {"name": "B2B / Sell-Out", "metrics": ["b2b_branch_sell_out_value"], "examples": ["Branch mana dengan nilai Sell-Out terbesar?"]},
-    {"name": "Stock Tempo", "metrics": ["stock_tempo_total_qty"], "examples": ["Bagaimana tren stok gudang Tempo per bulan?"]},
+    {"name": "Stock Reference", "metrics": ["stock_warehouse_total_qty"], "examples": ["Bagaimana tren stok gudang Reference per bulan?"]},
     {
-        "name": "Stock SAT (Alfamart)",
+        "name": "Stock SAT (Acme)",
         "metrics": ["sat_dc_stock_quantity", "sat_store_stock_quantity"],
-        "examples": ["Berapa stok DC Alfamart atau stok retail per division?"],
+        "examples": ["Berapa stok DC Acme atau stok retail per division?"],
     },
     {"name": "SAT OOS", "metrics": ["sat_oos_rate"], "examples": ["Material mana dengan SAT OOS rate tertinggi?"]},
     {"name": "Service Level", "metrics": ["service_fill_rate"], "examples": ["Material mana dengan Fill Rate terendah?"]},
@@ -580,7 +580,7 @@ def _question_prefers_sell_out(question: str) -> bool:
     lowered = _normalize_sales_typos(question)
     sell_in = any(
         term in lowered
-        for term in ("sell-in", "sell in", "klarifikasi pengguna: sell-in", "tempo ke customer", "general trade")
+        for term in ("sell-in", "sell in", "klarifikasi pengguna: sell-in", "reference ke customer", "general trade")
     )
     sell_out = any(
         term in lowered
@@ -607,14 +607,14 @@ def _question_requests_branch_sales_ranking(question: str) -> bool:
     )
     if not sales:
         requests_ranking, _ = _question_requests_ranking(question)
-        if requests_ranking and "alfamart" in lowered:
+        if requests_ranking and "acme" in lowered:
             return True
         return False
     if _question_prefers_sell_out(question):
         return True
     return any(
         term in lowered
-        for term in ("sell-in", "sell in", "klarifikasi pengguna: sell-in", "tempo ke customer")
+        for term in ("sell-in", "sell in", "klarifikasi pengguna: sell-in", "reference ke customer")
     ) or not any(term in lowered for term in ("sell-out", "sell out"))
 
 
@@ -634,7 +634,7 @@ def _metric_covers_concept(metric: str, concept: str) -> bool:
     checks = {
         "sell_in": "sell_in" in metric,
         "sell_out": "sell_out" in metric,
-        "stock_tempo": "stock_tempo" in metric or "warehouse_stock" in metric,
+        "stock_warehouse": "stock_warehouse" in metric or "warehouse_stock" in metric,
         "dc_stock": "dc_stock" in metric,
         "store_stock": "store_stock" in metric,
         "oos": "oos" in metric,
@@ -648,7 +648,7 @@ def _metric_covers_concept(metric: str, concept: str) -> bool:
 class SemanticContextService:
     def __init__(self, project_dir: Path = PROJECT_DIR, *, validate_profile: bool = True) -> None:
         self._registry_runtime = not validate_profile
-        self.registry = TempoOssieRegistry(project_dir, validate_profile=validate_profile)
+        self.registry = OssieRegistry(project_dir, validate_profile=validate_profile)
         self.datasets = self.registry.datasets
         self.metrics = self.registry.metrics
         self._tables: dict[str, TablePolicy] = {}
@@ -781,7 +781,7 @@ class SemanticContextService:
         session_analysis_context: dict[str, Any] | None,
         turn_understanding: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
-        """Registry-staged runtimes skip the TEMPO graph; still honor multi-turn context."""
+        """Registry-staged runtimes skip the REFERENCE graph; still honor multi-turn context."""
         if not session_analysis_context:
             return None
         last_metric = session_analysis_context.get("last_metric")
@@ -829,7 +829,7 @@ class SemanticContextService:
         return follow
 
     def _resolve_registry_runtime(self, question: str) -> dict[str, Any]:
-        """Governed resolution for registry-staged OSSIE (no TEMPO domain graph)."""
+        """Governed resolution for registry-staged OSSIE (no REFERENCE domain graph)."""
         from app.ask_data.intent_satisfaction import (
             parse_requested_constraints,
             validate_registry_resolution,
@@ -1064,7 +1064,7 @@ class SemanticContextService:
 
         from app.services.cross_domain_compare import resolution_to_payload, try_resolve_cross_domain
 
-        # Journey compares (stok Tempo vs sell-in, sell-in vs sell-out, …) must win over
+        # Journey compares (stok Reference vs sell-in, sell-in vs sell-out, …) must win over
         # session follow-up, which otherwise keeps service-level grain (e.g. fill rate @ material).
         cross_early = try_resolve_cross_domain(question)
         if cross_early:
@@ -1174,10 +1174,10 @@ class SemanticContextService:
             )
 
         if re.search(r"\bFE\d+\b", question, flags=re.IGNORECASE) and any(
-            term in lowered for term in ("stok tempo", "stock tempo", "hubungan stok", "stok gudang tempo")
+            term in lowered for term in ("stok reference", "stock reference", "hubungan stok", "stok gudang reference")
         ) and any(term in lowered for term in ("sell-in", "sell in", "sellin")):
             return resolved(
-                "stock_tempo_to_sell_in_ratio",
+                "stock_warehouse_to_sell_in_ratio",
                 ["calmonth", "material"],
                 matched_alias="cross_stock_sell_in_material",
             )
@@ -1240,7 +1240,7 @@ class SemanticContextService:
             }
         if mentions_oos and any(
             phrase in lowered
-            for phrase in ("store stock", "stok store", "stok toko", "dc stock", "stok dc", "stok tempo")
+            for phrase in ("store stock", "stok store", "stok toko", "dc stock", "stok dc", "stok reference")
         ):
             return {
                 "status": "fallback",
@@ -1333,9 +1333,9 @@ class SemanticContextService:
             wants_material = "material" in words or bool(words & {"produk", "sku"})
             dims = ["calmonth", "material"] if wants_material else ["calmonth"]
             return resolved(
-                "stock_tempo_to_sell_in_ratio",
+                "stock_warehouse_to_sell_in_ratio",
                 dims,
-                matched_alias="stock_tempo_sell_in_ratio",
+                matched_alias="stock_warehouse_sell_in_ratio",
             )
 
         # These high-frequency Service Level intents have exact published
@@ -1696,7 +1696,7 @@ class SemanticContextService:
             # "cabang paling jelek … tadi" refers to prior office; material list still wants largest qty DESC.
             ascending = False
         stock_cover_metric = metric == "months_of_stock_cover"
-        stock_tempo_sell_in_ratio = metric == "stock_tempo_to_sell_in_ratio"
+        stock_warehouse_sell_in_ratio = metric == "stock_warehouse_to_sell_in_ratio"
         if stock_cover_metric and any(
             t in lowered for t in ("perputaran", "turnover", "putaran stok", "inventory turnover")
         ):
@@ -1749,7 +1749,7 @@ class SemanticContextService:
         if stock_cover_metric and "material" in dimensions and "sell_in_bill_qty" in field_set:
             having_clauses.append("SUM(d.sell_in_bill_qty) > 0")
         if (
-            stock_tempo_sell_in_ratio
+            stock_warehouse_sell_in_ratio
             and not asks_zero_movement
             and "sell_in_bill_qty" in field_set
         ):
@@ -1779,7 +1779,7 @@ class SemanticContextService:
         elif sort_stock_cover_by_value:
             sql.append("ORDER BY SUM(d.warehouse_stock_val) DESC NULLS LAST")
         else:
-            nulls_suffix = " NULLS LAST" if (stock_cover_metric or stock_tempo_sell_in_ratio) else ""
+            nulls_suffix = " NULLS LAST" if (stock_cover_metric or stock_warehouse_sell_in_ratio) else ""
             sql.append(f"ORDER BY metric_value {'ASC' if ascending else 'DESC'}{nulls_suffix}")
         is_stock_metric = any(
             marker in metric
@@ -1840,7 +1840,7 @@ class SemanticContextService:
                     "dimensions": definition["allowed_dimensions"],
                 })
         payload: dict[str, Any] = {
-            "authority": "Apache Ossie TEMPO Q4 2024",
+            "authority": "Apache Ossie REFERENCE Q4 2024",
             "datasets": datasets,
             "metrics": metrics,
             "relationships": [],
@@ -1861,7 +1861,7 @@ class SemanticContextService:
     def greeting_context(self) -> dict[str, Any]:
         from app.ask_data.capability_catalog import (
             is_legacy_reference_catalog,
-            legacy_tempo_capability_catalog_enabled,
+            legacy_capability_catalog_enabled,
             resolve_capability_insight_lines,
             resolve_example_questions,
             uses_published_metric_catalog,
@@ -1870,7 +1870,7 @@ class SemanticContextService:
         summary = self.registry.capability_summary()
         settings = get_settings()
         legacy_menu = (
-            legacy_tempo_capability_catalog_enabled(settings)
+            legacy_capability_catalog_enabled(settings)
             and is_legacy_reference_catalog(self.metrics)
             and not uses_published_metric_catalog(self)
         )
@@ -1885,10 +1885,10 @@ class SemanticContextService:
                 "metric_count": len(self.metrics),
             }
         return {
-            "scope": summary.get("scope") or "TEMPO Q4 2024",
+            "scope": summary.get("scope") or "REFERENCE Q4 2024",
             "domains": [
-                "Sales / Sell-In", "B2B / Sell-Out", "Stock Tempo",
-                "Stock SAT (Alfamart)", "SAT OOS", "Service Level",
+                "Sales / Sell-In", "B2B / Sell-Out", "Stock Reference",
+                "Stock SAT (Acme)", "SAT OOS", "Service Level",
                 "Picking", "Unloading", "SAT Promo",
             ],
             "examples": list(summary.get("examples") or [])[:4],

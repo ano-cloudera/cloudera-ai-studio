@@ -60,7 +60,8 @@ PuppyGraph asli ditunda: hanya tersedia sebagai Docker, dan image 3 GB tidak pra
 
 - [ ] Tes banking lama di repo lama yang bergantung pada kunci LLM (`SECRET_NOT_FOUND`)
 - [ ] Sekitar 46 error tipe TypeScript di file tes (build tidak terpengaruh)
-- [ ] Nama domain lama (TEMPO) di kode dan tes
+- [x] Istilah domain lama (nama perusahaan dan jaringan ritel) dihapus dari kode, tes, prompt, dan dokumen
+- [ ] Logika perutean khusus domain lama (sell-in/sell-out, DC, picking) masih ada di kode; hapus bertahap bila tidak dipakai
 - [ ] Riwayat chat hanya di browser (localStorage); pertimbangkan simpan di server
 - [ ] Ekspor jawaban yang rapi untuk dibagikan
 

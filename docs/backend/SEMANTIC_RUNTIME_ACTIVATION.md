@@ -31,8 +31,8 @@ Immutable versioned storage under `SEMANTIC_RUNTIME_STORAGE_ROOT`:
 
 ```
 {workspace_id}/{project_id}/{model_key}/deployments/{deployment_id}/
-  ossie/tempo_core.ossie.yaml
-  ossie/tempo_governance.yaml (copied from legacy when present)
+  ossie/reference_core.ossie.yaml
+  ossie/reference_governance.yaml (copied from legacy when present)
   manifest.json
 ```
 

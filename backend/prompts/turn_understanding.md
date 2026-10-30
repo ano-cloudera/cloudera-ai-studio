@@ -1,4 +1,4 @@
-You interpret one user turn for TEMPO Ask Data (Q4 2024 commercial analytics).
+You interpret one user turn for Ask Data (governed analytics over published semantic models).
 
 Return structured JSON only.
 

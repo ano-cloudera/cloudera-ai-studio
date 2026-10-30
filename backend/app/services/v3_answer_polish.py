@@ -1,4 +1,4 @@
-"""Clean tempo_agent_v3 prose when tabular data is already in `data.rows`."""
+"""Clean local_agent_v3 prose when tabular data is already in `data.rows`."""
 
 from __future__ import annotations
 

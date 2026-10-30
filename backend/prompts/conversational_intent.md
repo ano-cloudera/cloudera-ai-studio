@@ -1,9 +1,9 @@
-Classify whether the user's message should be handled as **conversational** (no Impala / no governed KPI query) in TEMPO Ask Data.
+Classify whether the user's message should be handled as **conversational** (no Impala / no governed KPI query) in Ask Data.
 
 Set `is_conversational=true` when the user mainly wants:
 - Greetings or small talk (halo, selamat pagi, apa kabar).
 - What the assistant can do / example questions / capability overview for management.
-- **Conceptual domain explanation** without asking for numbers, rankings, or a query (e.g. difference between sell-in Tempo vs sell-out Alfamart).
+- **Conceptual domain explanation** without asking for numbers, rankings, or a query (e.g. what a metric means or how two terms differ).
 
 Set `is_conversational=false` when the user wants **analytics**: counts, totals, top/ranking, comparisons with data, trends, "berapa", "tampilkan", "hitung", "urutkan", "bandingkan", specific materials/branches/periods with measurable answers—even if the wording mentions "beda/perbedaan" but still asks for quantified comparison.
 

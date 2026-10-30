@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class LocalAgentError(Exception):
-    """Any failure calling the TEMPO Local Agent fallback - always caught by
+    """Any failure calling the REFERENCE Local Agent fallback - always caught by
     the workflow node, never allowed to fail the overall request."""
 
     def __init__(self, code: str, *, http_status: int | None = None) -> None:
@@ -38,8 +38,8 @@ def _is_retryable_local_agent_failure(error: LocalAgentError) -> bool:
 
 
 class LocalAgentClient:
-    """Thin client for the separately deployed TEMPO Local Agent REST API
-    (reference/tempo-agent-api). Used only as a last-resort fallback when
+    """Thin client for the separately deployed REFERENCE Local Agent REST API
+    (reference/local-agent-api). Used only as a last-resort fallback when
     our own OSSIE planner reports strategy=unsupported - this system has
     its own independent governed KPI catalog (SQL always comes from a
     registered query_id, never LLM-generated - see that repo's

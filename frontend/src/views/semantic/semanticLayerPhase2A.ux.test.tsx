@@ -13,8 +13,8 @@ vi.mock('../../lib/api', () => ({
           id: 'm1',
           workspace_id: 'w1',
           project_id: 'p1',
-          name: 'Tempo Core',
-          key: 'tempo_core',
+          name: 'Reference Core',
+          key: 'reference_core',
           description: null,
           active_version_id: 'v-active',
           created_at: '',
@@ -48,7 +48,7 @@ vi.mock('../../lib/api', () => ({
     listSemanticTerms: vi.fn().mockResolvedValue({ terms: [], total: 0 }),
     listSemanticRecentDefinitions: vi.fn().mockResolvedValue({ definitions: [], total: 0, page: 1, page_size: 10 }),
     getSemanticModelOverview: vi.fn().mockResolvedValue({
-      model: { id: 'm1', name: 'Tempo Core', key: 'tempo_core', updated_at: null },
+      model: { id: 'm1', name: 'Reference Core', key: 'reference_core', updated_at: null },
       state: 'Ready',
       counts: { entities: 1, metrics: 2, dimensions: 3, relationships: 4, terms: 5 },
       issue_count: 0,
@@ -87,7 +87,7 @@ describe('Phase 2A UX polish', () => {
       <SemanticOverviewPanel
         versionId="v1"
         overview={{
-          model: { id: 'm1', name: 'Tempo Core', key: 'tempo_core', updated_at: null },
+          model: { id: 'm1', name: 'Reference Core', key: 'reference_core', updated_at: null },
           state: 'Ready',
           counts: { entities: 1, metrics: 2, dimensions: 3, relationships: 4, terms: 5 },
           issue_count: 0,
@@ -97,7 +97,7 @@ describe('Phase 2A UX polish', () => {
     )
     const group = screen.getByTestId('semantic-overview-summary')
     expect(group.children.length).toBe(5)
-    expect(screen.queryByText(/^Tempo Core$/)).toBeNull()
+    expect(screen.queryByText(/^Reference Core$/)).toBeNull()
     expect(screen.getByTestId('semantic-overview-readiness')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Model health' })).toBeNull()
   })

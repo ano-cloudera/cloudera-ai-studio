@@ -48,7 +48,7 @@ def resolve_allowed_dimension_keys_for_publish(
     dimensions,
     relationships,
 ) -> list[str]:
-    """Publish-time allowed_dimensions for OSSIE tempo extension."""
+    """Publish-time allowed_dimensions for OSSIE reference extension."""
     stored = allowed_dimension_keys_from_metadata(metric_metadata)
     if stored is None:
         return sorted(entity_dimension_keys)

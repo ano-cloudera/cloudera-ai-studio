@@ -57,7 +57,7 @@ def _fallback_answer(failure: dict[str, Any], *, request_id: str) -> AnalysisOut
         )
         summary = (
             "Biasanya ini terjadi pada pertanyaan multi-konsep atau wording yang mendorong SQL di luar "
-            "katalog metrik TEMPO. Coba pecah pertanyaan per metrik (misalnya picking vs unloading "
+            "katalog metrik REFERENCE. Coba pecah pertanyaan per metrik (misalnya picking vs unloading "
             "terpisah) atau pilih opsi klarifikasi Sell-In/Sell-Out bila diminta."
         )
         caveats = [f"Request ID: {request_id}."]

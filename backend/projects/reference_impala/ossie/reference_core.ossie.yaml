@@ -30,7 +30,7 @@ datasets:
       - dialect: ANSI_SQL
         expression: amount
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"reference","grain":"record","layer":"reference"}'
 metrics:
 - name: reference_placeholder_metric
@@ -43,5 +43,5 @@ metrics:
   ai_context:
     instructions: Placeholder metric. Do not use for business questions.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"REF-01","base_dataset":"reference_dataset","allowed_dimensions":["category"],"governance_status":"reference","unit_format":"number"}'

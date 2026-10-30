@@ -36,7 +36,7 @@ def deterministic_judge(state: dict[str, Any]) -> list[str]:
 
     if row_count > 0:
         ref = str(answer.get("data_reference") or "")
-        if ref and "gold." not in ref.lower() and not ref.startswith("TEMPO Local Agent"):
+        if ref and "gold." not in ref.lower() and not ref.startswith("REFERENCE Local Agent"):
             issues.append("Executed rows present but data_reference lacks gold view citation.")
 
     direct = str(answer.get("direct_answer") or "").strip()

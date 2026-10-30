@@ -13,7 +13,7 @@ class FakeProvider:
 
 @pytest.mark.asyncio
 async def test_sell_in_vs_sell_out_concept_classified_conversational() -> None:
-    q = "Halo, apa bedanya sell-in Tempo dan sell-out Alfamart untuk tim manajemen?"
+    q = "Halo, apa bedanya sell-in Reference dan sell-out Acme untuk tim manajemen?"
     provider = FakeProvider(
         ConversationalIntent(
             is_conversational=True,
@@ -28,7 +28,7 @@ async def test_sell_in_vs_sell_out_concept_classified_conversational() -> None:
 
 @pytest.mark.asyncio
 async def test_analytic_sell_in_question_classified_not_conversational() -> None:
-    q = "Berapa total sell-in Tempo Q4 2024?"
+    q = "Berapa total sell-in Reference Q4 2024?"
     provider = FakeProvider(
         ConversationalIntent(
             is_conversational=False,

@@ -44,13 +44,13 @@ async def test_classify_uses_llm_structured_output() -> None:
 def test_understanding_mode_skip_when_session_has_context_but_no_bindings() -> None:
     history = [
         {
-            "question": "Top 10 DC Alfamart",
+            "question": "Top 10 DC Acme",
             "answer": {"direct_answer": "Berikut ranking DC."},
         }
     ]
     session = _session_block(history)
     assert session["result_catalog"] == []
-    assert _understanding_mode(session, "Berapa total sell-in Tempo Q4 2024?") == UnderstandingMode.SKIP
+    assert _understanding_mode(session, "Berapa total sell-in Reference Q4 2024?") == UnderstandingMode.SKIP
 
 
 def test_understanding_mode_lite_on_first_turn() -> None:

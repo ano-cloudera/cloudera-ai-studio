@@ -4,7 +4,7 @@ from app.semantic.context import SemanticContextService
 from tests.test_history import contextualize_question
 
 
-def test_context_is_derived_from_the_actual_tempo_ossie_contract() -> None:
+def test_context_is_derived_from_the_actual_reference_ossie_contract() -> None:
     context = SemanticContextService()
 
     assert len(context.datasets) == 24
@@ -18,11 +18,11 @@ def test_context_is_derived_from_the_actual_tempo_ossie_contract() -> None:
 def test_context_compacts_only_approved_schema_without_credentials() -> None:
     context = SemanticContextService()
 
-    payload = context.planner_context(["sales", "stock_tempo"])
+    payload = context.planner_context(["sales", "stock_warehouse"])
     serialized = str(payload).lower()
 
     assert "gold.rpt_sap_material_month_semantic" in serialized
-    assert "gold.corr_stock_tempo_month_seta" in serialized
+    assert "gold.corr_stock_warehouse_month_seta" in serialized
     assert "password" not in serialized
     assert "api_key" not in serialized
 
@@ -56,11 +56,11 @@ def test_top_products_gross_sales_uses_governed_material_metric() -> None:
     assert "LIMIT 5" in sql
 
 
-@pytest.mark.parametrize("reply", ["sell in", "penjualan tempo ke customer"])
+@pytest.mark.parametrize("reply", ["sell in", "penjualan reference ke customer"])
 def test_sell_in_clarification_keeps_top_product_grain(reply: str) -> None:
     history = [{
         "question": "Berapa total produk dengan penjualan terbanyak, kasih top 5 saja?",
-        "answer": {"direct_answer": "Pilih Sell-In (penjualan Tempo ke customer) atau Sell-Out?"},
+        "answer": {"direct_answer": "Pilih Sell-In (penjualan Reference ke customer) atau Sell-Out?"},
     }]
 
     contextualized = contextualize_question(reply, history, clarification_choice="sell-in")
@@ -80,7 +80,7 @@ def test_stock_guidance_uses_governed_metric_knowledge_and_examples() -> None:
 
     metric_names = {metric["name"] for metric in guidance["metrics"]}
     assert guidance["focus"] == "stock"
-    assert "stock_tempo_total_qty" in metric_names
+    assert "stock_warehouse_total_qty" in metric_names
     assert "sat_store_stock_quantity" in metric_names
     assert any("stok" in example.casefold() or "stock" in example.casefold() for example in guidance["examples"])
 
@@ -237,13 +237,13 @@ def test_domain_capability_insight_lines_lists_published_metrics_by_default() ->
     assert lines
     assert all("Example:" in line for line in lines)
     assert all("Contoh:" in line for line in ctx.domain_capability_insight_lines(language="id"))
-    assert not any("TEMPO selama Q4" in line for line in lines)
+    assert not any("REFERENCE selama Q4" in line for line in lines)
 
 
 def test_domain_capability_insight_lines_respects_excluded_focus(monkeypatch) -> None:
     from app.core.config import get_settings
 
-    monkeypatch.setenv("ASK_DATA_LEGACY_TEMPO_CAPABILITY_CATALOG", "true")
+    monkeypatch.setenv("ASK_DATA_LEGACY_CAPABILITY_CATALOG", "true")
     get_settings.cache_clear()
     ctx = SemanticContextService()
     lines = ctx.domain_capability_insight_lines(exclude_focus="sales")
@@ -254,14 +254,14 @@ def test_domain_capability_insight_lines_respects_excluded_focus(monkeypatch) ->
 def test_broad_guidance_offers_cross_domain_governed_examples(monkeypatch) -> None:
     from app.core.config import get_settings
 
-    monkeypatch.setenv("ASK_DATA_LEGACY_TEMPO_CAPABILITY_CATALOG", "true")
+    monkeypatch.setenv("ASK_DATA_LEGACY_CAPABILITY_CATALOG", "true")
     get_settings.cache_clear()
     guidance = SemanticContextService().guidance_context("Halo, bisa bantu apa?")
 
     options = {option["name"]: option for option in guidance["domain_options"]}
     assert len(options) == 9
     assert len(guidance["domain_capability_lines"]) == 9
-    assert options["Stock SAT (Alfamart)"]["metrics"] == [
+    assert options["Stock SAT (Acme)"]["metrics"] == [
         "sat_dc_stock_quantity",
         "sat_store_stock_quantity",
     ]
@@ -296,21 +296,21 @@ def test_company_wide_governed_metric_keeps_higher_default_limit() -> None:
     assert "LIMIT 50" in sql
 
 
-def test_stock_tempo_to_sell_in_ratio_ranking_filters_zero_sell_in_and_nulls_last() -> None:
+def test_stock_warehouse_to_sell_in_ratio_ranking_filters_zero_sell_in_and_nulls_last() -> None:
     context = SemanticContextService()
     sql = context.compile_governed(
-        "stock_tempo_to_sell_in_ratio",
-        "Produk mana dengan rasio stok Tempo terhadap penjualan sell-in paling tinggi?",
+        "stock_warehouse_to_sell_in_ratio",
+        "Produk mana dengan rasio stok Reference terhadap penjualan sell-in paling tinggi?",
         ["material"],
     )
     assert "HAVING SUM(d.sell_in_bill_qty) > 0" in sql
     assert "ORDER BY metric_value DESC NULLS LAST" in sql
 
 
-def test_stock_tempo_to_sell_in_ratio_zero_movement_skips_sell_in_having() -> None:
+def test_stock_warehouse_to_sell_in_ratio_zero_movement_skips_sell_in_having() -> None:
     context = SemanticContextService()
     sql = context.compile_governed(
-        "stock_tempo_to_sell_in_ratio",
+        "stock_warehouse_to_sell_in_ratio",
         "Material apa yang tidak laku sama sekali di Q4?",
         ["material"],
     )
@@ -318,8 +318,8 @@ def test_stock_tempo_to_sell_in_ratio_zero_movement_skips_sell_in_having() -> No
 
 
 @pytest.mark.parametrize("question", [
-    "Produk mana dengan rasio stok Tempo terhadap penjualan sell-in paling tinggi?",
-    "Produk mana dengan perbandingan stok Tempo dan sell-in paling tinggi?",
+    "Produk mana dengan rasio stok Reference terhadap penjualan sell-in paling tinggi?",
+    "Produk mana dengan perbandingan stok Reference dan sell-in paling tinggi?",
     "Branch mana dengan sell-out tinggi dibanding DC stock?",
     "PLU mana dengan store stock tinggi tetapi OOS juga tinggi?",
 ])
@@ -432,7 +432,7 @@ def test_stok_sekarang_still_uses_latest_month_snapshot() -> None:
 def test_two_office_material_compare_raises_row_limit() -> None:
     context = SemanticContextService()
     question = (
-        "Q4 2024, bandingkan sales office Tempo (sell-in) 0201 vs 0212: "
+        "Q4 2024, bandingkan sales office Reference (sell-in) 0201 vs 0212: "
         "tampilkan total nilai sell-in gross billing masing-masing cabang dan "
         "10 material/produk dengan kontribusi penjualan terbesar per cabang"
     )
@@ -468,7 +468,7 @@ def test_b2b_branch_city_fragment_uses_like_predicate() -> None:
 def test_b2b_dc_ranking_question_still_uses_value_ranking() -> None:
     context = SemanticContextService()
     question = (
-        "Top 10 DC Alfamart dengan penjualan tertinggi\n"
+        "Top 10 DC Acme dengan penjualan tertinggi\n"
         "Klarifikasi pengguna: sell-out"
     )
     resolution = context.resolve(question)
@@ -504,10 +504,10 @@ def test_stock_cover_at_branch_sets_dimension_mismatch_not_sql_fallback() -> Non
     assert resolution.get("dimension_mismatch") == ["branch"]
 
 
-def test_dc_alfamart_sell_out_clarification_resolves_to_branch_ranking() -> None:
+def test_dc_acme_sell_out_clarification_resolves_to_branch_ranking() -> None:
     context = SemanticContextService()
     question = (
-        "Top 10 DC Alfamart dengan penjualan tertinggi\n"
+        "Top 10 DC Acme dengan penjualan tertinggi\n"
         "Klarifikasi pengguna: sell-out"
     )
     resolution = context.resolve(question)
@@ -524,8 +524,8 @@ def test_dc_alfamart_sell_out_clarification_resolves_to_branch_ranking() -> None
 @pytest.mark.parametrize("question", [
     "toko mana yang penjualannya paling tinggi",
     "outlet mana yang paling laris",
-    "top 10 outlet alfamart",
-    "toko dengan omset terbesar di alfamart",
+    "top 10 outlet acme",
+    "toko dengan omset terbesar di acme",
     "e-store mana yang paling banyak penjualannya",
 ])
 def test_outlet_toko_gerai_questions_resolve_to_b2b_branch_metric_without_sales_stage_clarification(
@@ -553,14 +553,14 @@ def test_existing_salesoffice_and_ratio_direction_skips_are_unaffected() -> None
     salesoffice_resolution = context.resolve("sales office mana dengan penjualan tertinggi")
     assert salesoffice_resolution["status"] == "resolved"
 
-    ratio_resolution = context.resolve("rasio penjualan partner terhadap penjualan tempo")
+    ratio_resolution = context.resolve("rasio penjualan partner terhadap penjualan reference")
     assert ratio_resolution["status"] == "resolved"
     assert ratio_resolution["metric"] == "sell_out_to_sell_in_value_ratio"
 
 
 @pytest.mark.parametrize("question", [
     "tren penjualan sell-in per bulan, naik atau turun",
-    "tren stok tempo per bulan",
+    "tren stok reference per bulan",
 ])
 def test_pure_trend_questions_order_chronologically(question: str) -> None:
     context = SemanticContextService()
@@ -657,18 +657,18 @@ def test_aggregate_oos_question_about_percent_of_stores_stays_dimensionless() ->
     assert resolution.get("dimensions") == []
 
 
-def test_top_products_at_tempo_resolves_sell_in_via_domain_graph() -> None:
-    resolution = SemanticContextService().resolve("Top 10 produk dengan penjualan terbesar di Tempo")
+def test_top_products_at_reference_resolves_sell_in_via_domain_graph() -> None:
+    resolution = SemanticContextService().resolve("Top 10 produk dengan penjualan terbesar di Reference")
     assert resolution["status"] == "resolved"
     assert resolution["metric"] == "material_sell_in_value"
 
 
 @pytest.mark.parametrize("question", [
-    "penjualan terbesar di Tempo",
-    "berapa penjualan di Tempo bulan ini",
+    "penjualan terbesar di Reference",
+    "berapa penjualan di Reference bulan ini",
 ])
-def test_sales_questions_mentioning_tempo_as_a_location_still_ask_sales_stage(question: str) -> None:
-    # Generic "penjualan di Tempo" without product/top ranking stays ambiguous
+def test_sales_questions_mentioning_reference_as_a_location_still_ask_sales_stage(question: str) -> None:
+    # Generic "penjualan di Reference" without product/top ranking stays ambiguous
     # (General Trade/Sell-In vs B2B/Sell-Out). B3 Q01 is explicit Top-N produk
     # and resolves via domain graph governed_intents instead.
     resolution = SemanticContextService().resolve(question)
@@ -678,7 +678,7 @@ def test_sales_questions_mentioning_tempo_as_a_location_still_ask_sales_stage(qu
 
 
 @pytest.mark.parametrize("question", [
-    "Top 10 cabang/ sales office dengan penjualan terbesar di tempo",
+    "Top 10 cabang/ sales office dengan penjualan terbesar di reference",
     "Sales office mana dengan picking delay rate tertinggi?",
     "Cabang mana dengan rata-rata unloading terlama Q4?",
 ])
@@ -711,7 +711,7 @@ def test_promo_uplift_ranking_defaults_to_top_ten() -> None:
 
 def test_promo_b2b_sellout_uplift_resolves_without_gt_clarification() -> None:
     resolution = SemanticContextService().resolve(
-        "Uplift sell-out Alfamart untuk material SAT Promo Nov vs Des 2024"
+        "Uplift sell-out Acme untuk material SAT Promo Nov vs Des 2024"
     )
     assert resolution["status"] == "resolved"
     assert resolution["metric"] == "promo_b2b_sellout_revenue_uplift"
@@ -728,7 +728,7 @@ def test_promo_program_status_distribution_resolves_observation_count() -> None:
 
 def test_material_sell_in_quantity_ranking_route() -> None:
     resolution = SemanticContextService().resolve(
-        "Produk mana yang paling banyak terjual (quantity sell-in) di Tempo Q4 2024? Top 10"
+        "Produk mana yang paling banyak terjual (quantity sell-in) di Reference Q4 2024? Top 10"
     )
     assert resolution["status"] == "resolved"
     assert resolution["metric"] == "material_sell_in_quantity"
@@ -753,10 +753,10 @@ def test_promo_uplift_honours_explicit_top_five() -> None:
     assert "LIMIT 5" in sql
 
 
-@pytest.mark.tempo_domain
+@pytest.mark.reference_domain
 def test_promo_roi_proxy_clarification_answer_in_prose_resolves_revenue_uplift() -> None:
     answer = (
-        "oke sekali lagi coba keluarkan penjualan General Trade (bukan Alfamart langsung) "
+        "oke sekali lagi coba keluarkan penjualan General Trade (bukan Acme langsung) "
         "untuk material yang sama, dibandingkan November (baseline) vs Desember (bulan promo)"
     )
     resolution = SemanticContextService().resolve(answer)
@@ -765,7 +765,7 @@ def test_promo_roi_proxy_clarification_answer_in_prose_resolves_revenue_uplift()
     assert resolution["metric"] == "promo_material_revenue_uplift"
 
 
-@pytest.mark.tempo_domain
+@pytest.mark.reference_domain
 @pytest.mark.parametrize("choice", ["Revenue Uplift", "revenue uplift"])
 def test_promo_roi_proxy_short_label_still_resolves(choice: str) -> None:
     resolution = SemanticContextService().resolve(choice)
@@ -775,7 +775,7 @@ def test_promo_roi_proxy_short_label_still_resolves(choice: str) -> None:
 
 
 def test_uat_branch_service_level_ranking_resolves_sales_office_fill_rate() -> None:
-    question = "Hitung service level/ fill rate di cabang tempo dan urutkan SL terjelek"
+    question = "Hitung service level/ fill rate di cabang reference dan urutkan SL terjelek"
     service = SemanticContextService()
     resolution = service.resolve(question)
 
@@ -798,7 +798,7 @@ def test_tingkat_layanan_wording_resolves_sales_office_service_level() -> None:
 
 
 @pytest.mark.parametrize("question", [
-    "Service level / fill rate cabang Tempo terbaik?",
+    "Service level / fill rate cabang Reference terbaik?",
     "Hitung service level fill rate per sales office dan urutkan terbaik",
     "Sales office mana dengan service level terendah Q4 2024? Top 10",
 ])
@@ -810,7 +810,7 @@ def test_other_branch_service_level_rankings_remain_governed(question: str) -> N
 
 
 def test_tingkat_pemenuhan_cabang_resolves_office_fill_rate() -> None:
-    question = "Cabang Tempo mana dengan tingkat pemenuhan terendah November 2024?"
+    question = "Cabang Reference mana dengan tingkat pemenuhan terendah November 2024?"
     service = SemanticContextService()
     resolution = service.resolve(question)
 
@@ -914,7 +914,7 @@ def test_november_penagihan_material_uses_single_month_filter() -> None:
 
 
 def test_sat_store_stock_october_resolves() -> None:
-    question = "Rata-rata stok toko Alfamart Oktober 2024 per divisi"
+    question = "Rata-rata stok toko Acme Oktober 2024 per divisi"
     service = SemanticContextService()
     resolution = service.resolve(question)
 

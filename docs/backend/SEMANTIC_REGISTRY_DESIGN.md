@@ -37,7 +37,7 @@ Editing ACTIVE: **clone** to new DRAFT, then edit.
 - `SemanticGovernancePipeline` (S3) — structural, source, semantic, artifact, readiness validation; persisted runs  
 - `SemanticSourceValidator` — Impala (+ duckdb dev path) and Trino adapters (`metadata_only` / `safe_query`)  
 - `SemanticDiffService` — version diff + breaking-change classification  
-- `OssieImporter` — read-only bootstrap from existing `tempo_core.ossie.yaml`  
+- `OssieImporter` — read-only bootstrap from existing `reference_core.ossie.yaml`  
 - `OssieRuntimeAdapter` — deterministic YAML preview from normalized rows  
 
 ## Validation (S3)

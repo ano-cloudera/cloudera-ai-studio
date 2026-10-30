@@ -60,7 +60,7 @@ Point `BACKEND_API_URL` at **backend** with `STATE_STORE=postgres` for Knowledge
 
 | Cause | Fix |
 |--------|-----|
-| Running **`frontend/`** on :3000 (legacy Tempo UI) | Use **`frontend/`** on :3001 |
+| Running **`frontend/`** on :3000 (legacy Reference UI) | Use **`frontend/`** on :3001 |
 | `NEXT_PUBLIC_FEATURE_DOCUMENTS=false` | Set `true` in `.env.local`; **restart** `next dev` |
 | Stale `.next` after flag change | `rm -rf .next && npm run dev` |
 | Backend not on postgres | Knowledge APIs return 503 |

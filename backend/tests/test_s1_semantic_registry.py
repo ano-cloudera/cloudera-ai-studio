@@ -174,7 +174,7 @@ def test_project_isolation(s1_client):
 def test_ossie_import_and_artifact_preview(s1_client):
     client, factory = s1_client
     project_dir = BACKEND_ROOT / "projects" / "reference_impala"
-    if not (project_dir / "ossie" / "tempo_core.ossie.yaml").is_file():
+    if not (project_dir / "ossie" / "reference_core.ossie.yaml").is_file():
         pytest.skip("OSSIE fixture not present")
     with factory() as session:
         _ws, project = ensure_platform_seed(session, backend_root=BACKEND_ROOT)

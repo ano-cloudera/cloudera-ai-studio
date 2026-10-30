@@ -26,7 +26,7 @@ def test_build_session_frame_captures_ranked_entities() -> None:
 
 def test_referential_follow_up_detected() -> None:
     assert is_referential_follow_up("kenapa cabang itu jelek?")
-    assert not is_referential_follow_up("Top 10 cabang dengan penjualan terbesar di tempo")
+    assert not is_referential_follow_up("Top 10 cabang dengan penjualan terbesar di reference")
 
 
 def test_session_frame_reads_top_row_and_branch_from_answer() -> None:
@@ -129,7 +129,7 @@ def test_rank_comparison_from_prior_chart_rows() -> None:
 def test_service_level_worst_branch_rewrite_uses_rows() -> None:
     history = [
         {
-            "question": "Hitung service level/ fill rate di cabang tempo dan urutkan SL terjelek?",
+            "question": "Hitung service level/ fill rate di cabang reference dan urutkan SL terjelek?",
             "answer": {"direct_answer": "Cabang 0245 terendah.", "executive_summary": ""},
             "rows": [{"sales_off": "0245", "service_fill_rate": 0.4136}],
         }

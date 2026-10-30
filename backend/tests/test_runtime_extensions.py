@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.semantic.registry import TempoOssieRegistry
+from app.semantic.registry import OssieRegistry
 from app.semantic.runtime_extensions import (
     load_profile,
     resolve_runtime_extensions,
@@ -21,7 +21,7 @@ def test_auto_detect_profile_by_source_substring(tmp_path: Path) -> None:
     root = tmp_path / "runtime"
     ossie = root / "ossie"
     ossie.mkdir(parents=True)
-    (ossie / "tempo_core.ossie.yaml").write_text(
+    (ossie / "reference_core.ossie.yaml").write_text(
         """
 name: demo
 datasets:
@@ -35,9 +35,9 @@ metrics: []
 """,
         encoding="utf-8",
     )
-    (ossie / "tempo_governance.yaml").write_text("runtime_extensions:\n  profile: banking_demo\n", encoding="utf-8")
+    (ossie / "reference_governance.yaml").write_text("runtime_extensions:\n  profile: banking_demo\n", encoding="utf-8")
     (ossie / "golden_questions.yaml").write_text("questions: []\n", encoding="utf-8")
-    reg = TempoOssieRegistry(root, validate_profile=False)
+    reg = OssieRegistry(root, validate_profile=False)
     assert reg.runtime_extensions is not None
     assert "transactions_failed_transaction_rate" in reg.metrics or "metric_enrichment" in reg.runtime_extensions
 

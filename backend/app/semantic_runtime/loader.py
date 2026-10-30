@@ -15,7 +15,7 @@ from app.core.config import Settings, get_settings
 from app.db.platform_models import SemanticModelRow, SemanticRuntimeDeploymentRow, SemanticRuntimeStateRow
 from app.projects.resolver import resolve_ossie_project_dir
 from app.semantic.context import SemanticContextService
-from app.semantic.registry import TempoOssieRegistry
+from app.semantic.registry import OssieRegistry
 from app.semantic_runtime.storage import deployment_dir
 
 logger = logging.getLogger(__name__)
@@ -146,7 +146,7 @@ class SemanticRuntimeLoader:
         workspace_id: uuid.UUID,
         project_id: uuid.UUID,
     ) -> RuntimeContextBundle | None:
-        """Prefer any published semantic runtime in the project over legacy Tempo OSSIE."""
+        """Prefer any published semantic runtime in the project over legacy Reference OSSIE."""
         models = session.execute(
             select(SemanticModelRow).where(
                 SemanticModelRow.workspace_id == workspace_id,
@@ -187,11 +187,11 @@ class SemanticRuntimeLoader:
 
     @staticmethod
     def smoke_test_project_dir(project_dir: Path) -> tuple[bool, str]:
-        core = project_dir / "ossie" / "tempo_core.ossie.yaml"
+        core = project_dir / "ossie" / "reference_core.ossie.yaml"
         if not core.is_file():
-            return False, "Missing tempo_core.ossie.yaml"
+            return False, "Missing reference_core.ossie.yaml"
         try:
-            registry = TempoOssieRegistry(project_dir)
+            registry = OssieRegistry(project_dir)
             if not registry.metrics:
                 return False, "No metrics in staged OSSIE artifact"
             if not registry.datasets:
@@ -203,7 +203,7 @@ class SemanticRuntimeLoader:
             except yaml.YAMLError as exc:
                 return False, f"Invalid YAML: {exc}"
             if isinstance(parsed, dict) and parsed.get("metrics") and parsed.get("datasets"):
-                return True, "ok (registry artifact; full TEMPO profile not required)"
+                return True, "ok (registry artifact; full REFERENCE profile not required)"
             return False, "OSSIE artifact failed load and is not a minimal valid document"
         except Exception as exc:
             return False, f"{type(exc).__name__}: {exc}"

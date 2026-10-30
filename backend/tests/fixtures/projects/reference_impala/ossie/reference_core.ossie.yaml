@@ -1,13 +1,13 @@
 version: 0.2.0.dev0
-name: tempo_q4_governed
-description: Governed TEMPO Q4 2024 semantic model over audited Impala Gold semantic views. Official revenue is Gross Billing
+name: reference_q4_governed
+description: Governed REFERENCE Q4 2024 semantic model over audited Impala Gold semantic views. Official revenue is Gross Billing
   Value from BILL_VAL.
 ai_context:
   instructions: Use only published metrics and dimensions. Gold monetary fields are already normalized to IDR. Never apply
     another 100x scaling. Sell-In and Sell-Out are separate stages and must not be added as one revenue figure. Do not invent
     joins. State Q4-only, shared-customer-only, proxy, data-quality, and pending-business-approval caveats.
   synonyms:
-  - TEMPO commercial intelligence
+  - REFERENCE commercial intelligence
   - Sell-In Sell-Out analytics
 datasets:
 - name: monthly_executive
@@ -146,7 +146,7 @@ datasets:
         expression: stock_to_sales_bill_qty_ratio
     datatype: Decimal
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"executive","grain":"calmonth","layer":"semantic_gold","time_scope":[202410,202411,202412]}'
 - name: material_360
   source: gold.rpt_sap_material_month_semantic
@@ -315,7 +315,7 @@ datasets:
         expression: sales_do_amt_to_bill_val_ratio
     datatype: Decimal
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"material_360","grain":"calmonth+material","layer":"semantic_gold","coverage_filters":["has_sell_in","has_stock","has_service_level","has_sell_out"]}'
 - name: service_level_material
   source: gold.rpt_service_level_material_month_semantic
@@ -324,7 +324,7 @@ datasets:
   - material
   description: Material-month fulfillment performance with optional Sell-In and Stock context.
   ai_context:
-    instructions: Recompute aggregate Fill Rate from total DO and PO; never average row ratios. In Tempo management vocabulary, "service level" / "tingkat layanan" mean the same KPI as Fill Rate (DO/PO).
+    instructions: Recompute aggregate Fill Rate from total DO and PO; never average row ratios. In Reference management vocabulary, "service level" / "tingkat layanan" mean the same KPI as Fill Rate (DO/PO).
     synonyms:
     - service level
     - services level
@@ -419,7 +419,7 @@ datasets:
     datatype: Boolean
     dimension: {}
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"fulfillment","grain":"calmonth+material","layer":"semantic_gold"}'
 - name: service_level_sales_office
   source: gold.corr_service_sales_office_material_month
@@ -429,7 +429,7 @@ datasets:
   - sales_off
   description: Service Level (fulfillment) performance by sales office, material, and month.
   ai_context:
-    instructions: Recompute aggregate Fill Rate from total DO and PO; never average row ratios. sales_off is a working PoC assumption (a branch in a given region), not yet Tempo-confirmed - see service_level_material's counterpart in Sales/B2B. The source data's customer-group dimension (c_0cust_grp3) is confirmed constant for this period and is intentionally not exposed here - it would never produce more than one group. A separate SAP characteristic-group code (0AF_CGR6) exists in the source but its business meaning is unconfirmed by Tempo and is also intentionally excluded.
+    instructions: Recompute aggregate Fill Rate from total DO and PO; never average row ratios. sales_off is a working PoC assumption (a branch in a given region), not yet Reference-confirmed - see service_level_material's counterpart in Sales/B2B. The source data's customer-group dimension (c_0cust_grp3) is confirmed constant for this period and is intentionally not exposed here - it would never produce more than one group. A separate SAP characteristic-group code (0AF_CGR6) exists in the source but its business meaning is unconfirmed by Reference and is also intentionally excluded.
     synonyms:
     - service level per sales office
     - service level sales office
@@ -480,7 +480,7 @@ datasets:
         expression: service_fill_rate
     datatype: Decimal
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"fulfillment","grain":"calmonth+material+sales_off","layer":"semantic_gold","built":"2026-09-28"}'
 - name: service_level_sales_office_cust_group
   source: gold.corr_service_sales_office_cust_group_material_month
@@ -548,7 +548,7 @@ datasets:
         expression: service_fill_rate
     datatype: Decimal
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"fulfillment","grain":"calmonth+material+sales_off+cust_grp3","layer":"semantic_gold","built":"2026-10-07"}'
 - name: customer_material_360
   source: gold.rpt_sap_customer_material_month_semantic
@@ -599,7 +599,7 @@ datasets:
         expression: sell_in_bill_qty
     datatype: Decimal
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"sales_sell_in","grain":"calmonth+material+customer","layer":"semantic_gold"}'
 - name: sales_office_material_360
   source: gold.rpt_sap_sales_office_material_month_semantic
@@ -609,7 +609,7 @@ datasets:
   - sales_office
   description: Sell-In value and quantity by sales office, material, and month.
   ai_context:
-    instructions: sales_office here is a working PoC assumption ("a branch in a given region"), not yet a Tempo-confirmed business definition - see TEMPO_SALES_FIELD_CATALOG.md's note that 0SALES_OFF is pending Tempo follow-up. Always preserve the pending-confirmation caveat. This is a separate, finer-grained view from sales_office_q4 (which is Q4-total-only, no material dimension, and also covers Picking/Unloading).
+    instructions: sales_office here is a working PoC assumption ("a branch in a given region"), not yet a Reference-confirmed business definition - see REFERENCE_SALES_FIELD_CATALOG.md's note that 0SALES_OFF is pending Reference follow-up. Always preserve the pending-confirmation caveat. This is a separate, finer-grained view from sales_office_q4 (which is Q4-total-only, no material dimension, and also covers Picking/Unloading).
     synonyms:
     - sell-in per sales office
     - penjualan per sales office
@@ -650,7 +650,7 @@ datasets:
         expression: sell_in_bill_qty
     datatype: Decimal
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"sales_sell_in","grain":"calmonth+material+sales_office","layer":"semantic_gold"}'
 - name: customer_reconciliation
   source: gold.rpt_sap_customer_reconciliation_semantic
@@ -738,7 +738,7 @@ datasets:
     datatype: Boolean
     dimension: {}
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"customer_reconciliation","grain":"calmonth+customer","layer":"semantic_gold","scope":"shared_customer_only"}'
 - name: sales_office_q4
   source: gold.rpt_sales_office_performance_semantic
@@ -856,7 +856,7 @@ datasets:
         expression: picking_rows_per_sales_line
     datatype: Decimal
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"sales_office_operations","grain":"reporting_period+sales_office","layer":"semantic_gold","scope":"2024Q4"}'
 - name: b2b_branch_estore
   source: gold.corr_b2b_branch_estore_month
@@ -924,7 +924,7 @@ datasets:
         expression: row_count
     datatype: Integer
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"b2b","grain":"calmonth+sales_off+branch+e_store","layer":"semantic_gold","built":"2026-09-24"}'
 - name: b2b_material_plu
   source: gold.corr_b2b_material_plu
@@ -990,7 +990,7 @@ datasets:
         expression: row_count
     datatype: Integer
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"b2b","grain":"calmonth+material+kode_plu","layer":"semantic_gold","built":"2026-09-24"}'
 - name: b2b_branch_material
   source: gold.corr_b2b_branch_material_month
@@ -1000,13 +1000,13 @@ datasets:
   - material
   description: B2B (Sell-Out) monthly aggregate by partner branch/DC and SAP material, October-December 2024.
   ai_context:
-    instructions: Use for top products sell-out at a specific Alfamart DC/branch. branch and material coexist on the same
+    instructions: Use for top products sell-out at a specific Acme DC/branch. branch and material coexist on the same
       grain; do not fall back to company-wide material sell-out when the user names a branch from a prior ranking table.
     synonyms:
     - b2b branch material
     - sell-out per cabang per produk
     - top produk sell-out di dc
-    - produk sell-out cabang alfamart
+    - produk sell-out cabang acme
   fields:
   - name: calmonth
     expression:
@@ -1050,7 +1050,7 @@ datasets:
         expression: row_count
     datatype: Integer
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"b2b","grain":"calmonth+branch+material","layer":"semantic_gold","built":"2026-10-07"}'
 - name: b2b_customer_branch_estore
   source: gold.corr_b2b_customer_branch_estore_month
@@ -1062,7 +1062,7 @@ datasets:
   - e_store
   description: B2B (Sell-Out) monthly aggregate by customer, sales office, branch, and e-store, October-December 2024.
   ai_context:
-    instructions: customer, sales_off, and branch/e_store are independent dimensions by a direct user decision (see TEMPO_KAMUS_DATA_AI.md §4) - do not unify sales_off with branch/dcname, and do not assume a fixed customer-to-branch mapping.
+    instructions: customer, sales_off, and branch/e_store are independent dimensions by a direct user decision (see REFERENCE_KAMUS_DATA_AI.md §4) - do not unify sales_off with branch/dcname, and do not assume a fixed customer-to-branch mapping.
     synonyms:
     - b2b customer
     - top customer b2b
@@ -1124,7 +1124,7 @@ datasets:
         expression: row_count
     datatype: Integer
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"b2b","grain":"calmonth+customer+sales_off+branch+e_store","layer":"semantic_gold","built":"2026-09-28"}'
 - name: b2b_customer_material_plu
   source: gold.corr_b2b_customer_material_plu_month
@@ -1196,22 +1196,22 @@ datasets:
         expression: row_count
     datatype: Integer
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"b2b","grain":"calmonth+customer+material+kode_plu","layer":"semantic_gold","built":"2026-09-28"}'
-- name: stock_tempo_month
-  source: gold.corr_stock_tempo_month_seta
+- name: stock_warehouse_month
+  source: gold.corr_stock_warehouse_month_seta
   primary_key:
   - calmonth
   - material
   - plant
-  description: Tempo warehouse stock monthly aggregate by material and plant, using Set A columns only (totstck/valstck/cnsstck,
+  description: Reference warehouse stock monthly aggregate by material and plant, using Set A columns only (totstck/valstck/cnsstck,
     without the duplicate _1 suffix), October-December 2024.
   ai_context:
-    instructions: 'Set A only by PoC decision (24 Sep 2026): Set B (columns with _1 suffix) is excluded pending official Tempo
-      confirmation. See datasets/audit/16_stock_tempo_set_a_vs_b_investigation.sql for the investigation.'
+    instructions: 'Set A only by PoC decision (24 Sep 2026): Set B (columns with _1 suffix) is excluded pending official Reference
+      confirmation. See datasets/audit/16_stock_warehouse_set_a_vs_b_investigation.sql for the investigation.'
     synonyms:
-    - stok gudang tempo
-    - warehouse stock tempo
+    - stok gudang reference
+    - warehouse stock reference
   fields:
   - name: calmonth
     expression:
@@ -1260,8 +1260,8 @@ datasets:
         expression: row_count
     datatype: Integer
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"domain":"stock_tempo","grain":"calmonth+material+plant","layer":"semantic_gold","built":"2026-09-24"}'
+  - vendor_name: REFERENCE
+    data: '{"domain":"stock_warehouse","grain":"calmonth+material+plant","layer":"semantic_gold","built":"2026-09-24"}'
 - name: sat_dc_month
   source: gold.rpt_sat_dc_month
   primary_key:
@@ -1270,20 +1270,20 @@ datasets:
   - dcname
   - plu
   - division
-  description: Stock SAT (Alfamart partner DC and retail store stock) monthly aggregate, October-December 2024. Confirmed
-    by Tempo (Pak Hieronimus Gunawan, 1 Oct 2026) that B2B/Sell-Out data is Alfamart only; SAT's 36 DC names match B2B's
-    36 branches at 100%, and this is the same Alfamart partner network, not a generic "partner" placeholder. The source
+  description: Stock SAT (Acme partner DC and retail store stock) monthly aggregate, October-December 2024. Confirmed
+    by Reference (Pak Hieronimus Gunawan, 1 Oct 2026) that B2B/Sell-Out data is Acme only; SAT's 36 DC names match B2B's
+    36 branches at 100%, and this is the same Acme partner network, not a generic "partner" placeholder. The source
     file's separate "IDM" sheet (122 DC/depo/warehouse locations, 0% DC-name and PLU overlap with B2B/SAT) is an unrelated
     partner network and is intentionally excluded from this dataset - see gold.rpt_idm_dc_month if IDM data is needed.
   ai_context:
-    instructions: bln is a 3-letter month code (OCT/NOV/DEC), not a number. division meaning is still hypothesis pending Tempo
+    instructions: bln is a 3-letter month code (OCT/NOV/DEC), not a number. division meaning is still hypothesis pending Reference
       confirmation.
     synonyms:
     - stock sat
     - stock sat idm
     - stok dc partner
-    - stok dc alfamart
-    - stok store alfamart
+    - stok dc acme
+    - stok store acme
   fields:
   - name: thn
     expression:
@@ -1356,7 +1356,7 @@ datasets:
         expression: row_count
     datatype: Integer
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"stock_sat","grain":"thn+bln+dcname+plu+division","layer":"semantic_gold","built":"2026-09-24"}'
 - name: sat_oos_material_month
   source: gold.rpt_sat_oos_material_month
@@ -1368,7 +1368,7 @@ datasets:
   description: SAT OOS (retail shelf out-of-stock survey) monthly aggregate by customer/store and material, October-December
     2024.
   ai_context:
-    instructions: 'Stok_akhir = 0 is used as the OOS definition (PoC default, pending official Tempo sign-off, see Kamus
+    instructions: 'Stok_akhir = 0 is used as the OOS definition (PoC default, pending official Reference sign-off, see Kamus
       section 6).'
     synonyms:
     - oos rate
@@ -1430,17 +1430,17 @@ datasets:
         expression: oos_rate_pct
     datatype: Decimal
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"sat_oos","grain":"calmonth_date+cust_id+material_code+plu","layer":"semantic_gold","built":"2026-09-24"}'
-- name: stock_tempo_sales_material_month
-  source: gold.corr_stock_tempo_sales_material_month
+- name: stock_warehouse_sales_material_month
+  source: gold.corr_stock_warehouse_sales_material_month
   primary_key:
   - calmonth
   - material
-  description: Journey view A - Tempo warehouse stock (Set A) joined to Sales Sell-In by material and month, October-December
+  description: Journey view A - Reference warehouse stock (Set A) joined to Sales Sell-In by material and month, October-December
     2024.
   ai_context:
-    instructions: No runtime-invented join - this is a pre-built Gold view joining stock_tempo_month and material_360 at
+    instructions: No runtime-invented join - this is a pre-built Gold view joining stock_warehouse_month and material_360 at
       the material+calmonth grain.
     synonyms:
     - stok vs sell-in
@@ -1492,7 +1492,7 @@ datasets:
         expression: stock_to_sell_in_ratio
     datatype: Decimal
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"journey_stock_sales","grain":"calmonth+material","layer":"semantic_gold","built":"2026-09-24"}'
 - name: sales_b2b_material_month
   source: gold.corr_sales_b2b_material_month
@@ -1541,16 +1541,16 @@ datasets:
         expression: sell_out_to_sell_in_ratio
     datatype: Decimal
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"journey_sales_b2b","grain":"calmonth+material","layer":"semantic_gold","built":"2026-09-24"}'
 - name: b2b_sat_branch_month
   source: gold.corr_b2b_sat_branch_month
   primary_key:
   - calmonth
   - branch
-  description: Journey view C - B2B Sell-Out joined to Stock SAT (Alfamart partner DC/store stock) by branch=dcname and
+  description: Journey view C - B2B Sell-Out joined to Stock SAT (Acme partner DC/store stock) by branch=dcname and
     month, October-December 2024. Highest-priority journey view - join key confirmed 100% match rate (36/36 DC names)
-    at build time, and both sides confirmed as the same Alfamart partner network (Tempo, 1 Oct 2026). Only joins the SAT
+    at build time, and both sides confirmed as the same Acme partner network (Reference, 1 Oct 2026). Only joins the SAT
     partition of the source stock data (part_flag='SAT') - the IDM partition is a different, unrelated partner network
     and is never joined here.
   ai_context:
@@ -1559,7 +1559,7 @@ datasets:
     synonyms:
     - replenishment dc
     - sell-out vs stok dc
-    - stok alfamart vs penjualan alfamart
+    - stok acme vs penjualan acme
   fields:
   - name: calmonth
     expression:
@@ -1615,16 +1615,16 @@ datasets:
         expression: store_stock_val
     datatype: Decimal
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"journey_b2b_sat","grain":"calmonth+branch","layer":"semantic_gold","built":"2026-09-24"}'
 - name: sat_dc_oos_material_month
   source: gold.corr_sat_dc_oos_material_month
   primary_key:
   - calmonth
   - plu
-  description: Journey view D - Stock SAT (Alfamart partner DC/store stock) joined to SAT OOS (shelf survey) by PLU and
+  description: Journey view D - Stock SAT (Acme partner DC/store stock) joined to SAT OOS (shelf survey) by PLU and
     month, October-December 2024. Join match rate 79.6% (9125/11458 rows) at build time (24 Sep 2026). Both sides are
-    the same Alfamart partner network (Tempo, 1 Oct 2026) - the IDM partition of the source stock data is excluded here.
+    the same Acme partner network (Reference, 1 Oct 2026) - the IDM partition of the source stock data is excluded here.
   ai_context:
     instructions: Join key is plu + calmonth on both sides. Not all SAT PLU-months have a matching OOS survey in the
       same month (match rate 79.6%, not 100%) - state this caveat when using unmatched rows.
@@ -1673,7 +1673,7 @@ datasets:
         expression: survey_count
     datatype: Integer
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"journey_sat_oos","grain":"calmonth+plu","layer":"semantic_gold","built":"2026-09-24"}'
 - name: sat_promo_material_december
   source: gold.rpt_sat_promo_material_december_semantic
@@ -1684,7 +1684,7 @@ datasets:
   - program_status
   description: December 2024 SAT Promo field-audit observations aggregated by material, raw mechanism, and raw program-status code.
   ai_context:
-    instructions: Use only for December 2024 field-audit coverage. Mekanisme is a raw source code/text with no confirmed business mapping - never infer meaning from it. program_status is confirmed by Tempo (Pak Hieronimus Gunawan, WhatsApp, 28 Sep 2026, replying to "Y = active kah?" with "abaikan saja pak, di list tersebut, artinya aktif") - every row/status code in this list represents an active promo observation, so program_status does not distinguish active from inactive and must not be used to filter, count, or report an "active promo" subset differently from the total. This dataset itself has no cost/revenue/uplift field - never claim revenue attribution, uplift, effectiveness, or ROI directly from it. A cross-channel proxy for ROI/uplift exists via sat_promo_material_uplift (General Trade Sell-In for the same SAP material codes, Nov vs Dec) - route ROI/uplift/effectiveness questions there instead of answering from this dataset.
+    instructions: Use only for December 2024 field-audit coverage. Mekanisme is a raw source code/text with no confirmed business mapping - never infer meaning from it. program_status is confirmed by Reference (Pak Hieronimus Gunawan, WhatsApp, 28 Sep 2026, replying to "Y = active kah?" with "abaikan saja pak, di list tersebut, artinya aktif") - every row/status code in this list represents an active promo observation, so program_status does not distinguish active from inactive and must not be used to filter, count, or report an "active promo" subset differently from the total. This dataset itself has no cost/revenue/uplift field - never claim revenue attribution, uplift, effectiveness, or ROI directly from it. A cross-channel proxy for ROI/uplift exists via sat_promo_material_uplift (General Trade Sell-In for the same SAP material codes, Nov vs Dec) - route ROI/uplift/effectiveness questions there instead of answering from this dataset.
     synonyms:
     - sat promo desember
     - audit promo lapangan
@@ -1730,26 +1730,26 @@ datasets:
         expression: promo_observation_count
     datatype: Integer
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"domain":"sat_promo","grain":"reporting_month+material_code+mekanisme+program_status","layer":"semantic_gold","time_scope":[202412],"status_semantics":"all_rows_confirmed_active_by_tempo_2026_09_28"}'
+  - vendor_name: REFERENCE
+    data: '{"domain":"sat_promo","grain":"reporting_month+material_code+mekanisme+program_status","layer":"semantic_gold","time_scope":[202412],"status_semantics":"all_rows_confirmed_active_by_reference_2026_09_28"}'
 - name: sat_promo_material_uplift
   source: gold.rpt_sat_promo_material_uplift
   primary_key:
   - material
-  description: Cross-channel ROI/uplift proxy for SAT Promo (Alfamart) materials - General Trade Sell-In revenue/quantity/margin,
+  description: Cross-channel ROI/uplift proxy for SAT Promo (Acme) materials - General Trade Sell-In revenue/quantity/margin,
     November 2024 (baseline) vs December 2024 (promo month), for the 77 SAP material codes that appear in SAT Promo.
   ai_context:
-    instructions: This is a PROXY, not a direct measurement of the Alfamart promo's own ROI - SAT Promo (the Alfamart/B2B
+    instructions: This is a PROXY, not a direct measurement of the Acme promo's own ROI - SAT Promo (the Acme/B2B
       promo program) has no structured cost column (only a free-text "mekanisme" field) and only covers December 2024
       with no same-channel baseline, so no direct ROI/cost metric is possible from SAT Promo itself. This dataset instead
       measures whether General Trade (a DIFFERENT channel from where the promo ran) also saw a sales change for the same
       material codes between Nov and Dec - a cross-channel "halo effect" proxy, confirmed structurally valid (SAT Promo's
       material_code is 100% (77/77) resolvable against this dataset's material, both using the same SAP material code
       space) but not a causal attribution. Always label results as a proxy/indirect signal, never as "the promo's ROI"
-      outright. margin_val uses zcost, confirmed by Tempo's own custom_key_figure_sales reference table to mean "COGS
+      outright. margin_val uses zcost, confirmed by Reference's own custom_key_figure_sales reference table to mean "COGS
       Value" - aggregate COGS/revenue ratio sanity-checked at ~85%, a plausible FMCG distributor margin, but zcost itself
-      is still pending full Tempo confirmation for this exact time period. Never claim this proxy measures Alfamart's
-      own channel economics - zcost and the underlying sales here are General Trade, not Alfamart/B2B.
+      is still pending full Reference confirmation for this exact time period. Never claim this proxy measures Acme's
+      own channel economics - zcost and the underlying sales here are General Trade, not Acme/B2B.
     synonyms:
     - promo roi
     - roi promo
@@ -1819,23 +1819,23 @@ datasets:
         expression: margin_uplift
     datatype: Decimal
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"sat_promo_roi_proxy","grain":"material","layer":"semantic_gold","built":"2026-10-01","status_semantics":"cross_channel_proxy_not_causal_attribution"}'
 - name: sat_promo_b2b_sellout_uplift
   source: gold.rpt_sat_promo_b2b_sellout_uplift
   primary_key:
   - material
-  description: B2B/Alfamart partner sell-out uplift proxy for SAT Promo materials — billed value/qty December 2024 minus
+  description: B2B/Acme partner sell-out uplift proxy for SAT Promo materials — billed value/qty December 2024 minus
     November 2024 on silver.b2b_oct_dec_2024 for the same SAP material codes as SAT Promo.
   ai_context:
     instructions: Same-channel (partner sell-out) companion to sat_promo_material_uplift (General Trade sell-in proxy).
       Still NOT promo ROI — no structured promo cost field. Label as B2B sell-out uplift for promo SKU list, not causal
-      ROI. Prefer this when the user asks uplift/ROI on Alfamart, B2B, sell-out, or partner channel for promo materials.
+      ROI. Prefer this when the user asks uplift/ROI on Acme, B2B, sell-out, or partner channel for promo materials.
     synonyms:
     - promo sell-out uplift
-    - uplift sell-out alfamart
+    - uplift sell-out acme
     - promo b2b uplift
-    - roi promo alfamart sell-out
+    - roi promo acme sell-out
   fields:
   - name: material
     expression:
@@ -1881,7 +1881,7 @@ datasets:
         expression: b2b_sellout_volume_uplift
     datatype: Decimal
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"domain":"sat_promo_roi_proxy","grain":"material","layer":"semantic_gold","built":"2026-10-07","status_semantics":"b2b_sellout_proxy_not_roi"}'
 relationships: []
 metrics:
@@ -1891,7 +1891,7 @@ metrics:
     - dialect: ANSI_SQL
       expression: SUM(monthly_executive.sales_bill_val)
   datatype: Decimal
-  description: Official TEMPO revenue figure, Gross Billing Value from BILL_VAL in IDR.
+  description: Official REFERENCE revenue figure, Gross Billing Value from BILL_VAL in IDR.
   ai_context:
     synonyms:
     - gbv
@@ -1908,12 +1908,12 @@ metrics:
     - total sell-in
     - total penjualan sell-in
     - nilai sell-in
-    - omset tempo
-    - omzet tempo
+    - omset reference
+    - omzet reference
     - total omset
     instructions: Use for official company-level revenue with no breakdown, or a monthly trend only. Covers plain "sell-in"/"penjualan sell-in" questions with no explicit "gross" wording - a business user clarifying a Sell-In vs Sell-Out ambiguity typically answers with just "sell-in", not "gross sell-in". This metric only allows the calmonth dimension - it does NOT support a product/material breakdown. For "top N product/material by sales/revenue" questions, use material_sell_in_value instead. Gold is already IDR; never multiply by 100 again.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-01","base_dataset":"monthly_executive","allowed_dimensions":["calmonth"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"SI-01","unit_format":"currency_idr"}'
 - name: billing_quantity
   expression:
@@ -1931,7 +1931,7 @@ metrics:
     - sell-in quantity
     - volume billing
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-02","base_dataset":"monthly_executive","allowed_dimensions":["calmonth"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"SI-02","unit_format":"quantity"}'
 - name: company_fill_rate
   expression:
@@ -1953,7 +1953,7 @@ metrics:
       When "fill rate" or "service level" is asked without a material/SKU/office qualifier, this
       is the intended metric (company-wide aggregate).
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"FL-01-EXEC","base_dataset":"monthly_executive","allowed_dimensions":["calmonth"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"FL-01","unit_format":"percent"}'
 - name: do_amount_to_billing_value_ratio
   expression:
@@ -1968,7 +1968,7 @@ metrics:
     - rasio do terhadap billing
     instructions: Data-quality metric, not an official revenue KPI.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-DQ-01","base_dataset":"monthly_executive","allowed_dimensions":["calmonth"],"governance_status":"data_quality_metric","business_approval_status":"internal_technical_review","original_kpi_id":"SI-05","unit_format":"ratio"}'
 - name: stock_to_sell_in_quantity_ratio
   expression:
@@ -1983,7 +1983,7 @@ metrics:
     - rasio stok terhadap sell-in
     instructions: Supporting proxy; stock is a snapshot, not inventory flow.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"ST-SI-01","base_dataset":"monthly_executive","allowed_dimensions":["calmonth"],"governance_status":"supporting","business_approval_status":"pending_business_confirmation","original_kpi_id":"ST-06","unit_format":"ratio"}'
 - name: material_sell_in_value
   expression:
@@ -2015,7 +2015,7 @@ metrics:
     - sales per product
     instructions: Use for "top N product/material by sales/revenue" questions (e.g. "top 5 produk", "produk terlaris", "best selling product") - this is the material-grain counterpart to gross_billing_value, which is company-level and does not support a product/material breakdown.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-01-MAT","base_dataset":"material_360","allowed_dimensions":["calmonth","material"],"required_filters":["has_sell_in"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"SI-01","unit_format":"currency_idr"}'
 - name: material_sell_in_quantity
   expression:
@@ -2035,7 +2035,7 @@ metrics:
       - jumlah terjual per produk
     instructions: Use for "top N product/material by quantity sold" questions when the user asks about volume/qty rather than revenue/value.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-02-MAT","base_dataset":"material_360","allowed_dimensions":["calmonth","material"],"required_filters":["has_sell_in"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"SI-02","unit_format":"quantity"}'
 - name: customer_sell_in_value
   expression:
@@ -2052,7 +2052,7 @@ metrics:
     - revenue per customer
     instructions: Full Sales customer population, unlike shared_customer_sell_in_value which is shared-customer-only and has no material dimension. Use this for "which customer buys the most" or "top customer by sell-in" questions.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-01-CUST","base_dataset":"customer_material_360","allowed_dimensions":["calmonth","material","customer"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"SI-01","unit_format":"currency_idr"}'
 - name: customer_sell_in_quantity
   expression:
@@ -2066,7 +2066,7 @@ metrics:
     - customer sell-in quantity
     - volume per customer
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-02-CUST","base_dataset":"customer_material_360","allowed_dimensions":["calmonth","material","customer"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"SI-02","unit_format":"quantity"}'
 - name: sales_office_material_sell_in_value
   expression:
@@ -2082,14 +2082,14 @@ metrics:
     - penjualan per sales office
     - cabang dengan penjualan terbesar
     - cabang dengan sell-in terbesar
-    - top cabang penjualan tempo
+    - top cabang penjualan reference
     - cabang sell-in tertinggi
     - cabang dengan sell-in tertinggi
     - cabang penjualan tertinggi
     - top cabang dengan penjualan
-    instructions: sales_office is a working PoC assumption (a branch in a given region), not yet Tempo-confirmed - see the sales_office_material_360 dataset's instructions. This is a finer grain than sales_office_sell_in_value (SI-13-Q4), which is Q4-total-only with no material dimension.
+    instructions: sales_office is a working PoC assumption (a branch in a given region), not yet Reference-confirmed - see the sales_office_material_360 dataset's instructions. This is a finer grain than sales_office_sell_in_value (SI-13-Q4), which is Q4-total-only with no material dimension.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-13-MAT","base_dataset":"sales_office_material_360","allowed_dimensions":["calmonth","material","sales_office"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"SI-13","unit_format":"currency_idr"}'
 - name: sales_office_material_sell_in_quantity
   expression:
@@ -2103,7 +2103,7 @@ metrics:
     - sell-in quantity per sales office
     - volume per sales office
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-13-MAT-QTY","base_dataset":"sales_office_material_360","allowed_dimensions":["calmonth","material","sales_office"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"SI-13","unit_format":"quantity"}'
 - name: material_delivery_order_quantity
   expression:
@@ -2120,8 +2120,8 @@ metrics:
     - jumlah do per material
     instructions: This is DO_QTY, not billed quantity. Use material_sell_in_quantity for BILL_QTY.
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"metric_id":"SI-03-MAT","base_dataset":"material_360","allowed_dimensions":["calmonth","material"],"required_filters":["has_sell_in"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_tempo_meeting_2026_09_28","original_kpi_id":"SI-03","unit_format":"quantity"}'
+  - vendor_name: REFERENCE
+    data: '{"metric_id":"SI-03-MAT","base_dataset":"material_360","allowed_dimensions":["calmonth","material"],"required_filters":["has_sell_in"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_reference_meeting_2026_09_28","original_kpi_id":"SI-03","unit_format":"quantity"}'
 - name: material_delivery_order_amount
   expression:
     dialects:
@@ -2137,23 +2137,23 @@ metrics:
     - nilai do per material
     instructions: This is DO_AMT and is not official revenue. Use material_sell_in_value for BILL_VAL and official Gross Billing Value.
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"metric_id":"SI-04-MAT","base_dataset":"material_360","allowed_dimensions":["calmonth","material"],"required_filters":["has_sell_in"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_tempo_meeting_2026_09_28","original_kpi_id":"SI-04","unit_format":"currency_idr"}'
+  - vendor_name: REFERENCE
+    data: '{"metric_id":"SI-04-MAT","base_dataset":"material_360","allowed_dimensions":["calmonth","material"],"required_filters":["has_sell_in"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_reference_meeting_2026_09_28","original_kpi_id":"SI-04","unit_format":"currency_idr"}'
 - name: material_warehouse_stock_quantity
   expression:
     dialects:
     - dialect: ANSI_SQL
       expression: SUM(material_360.warehouse_stock_qty)
   datatype: Decimal
-  description: Tempo warehouse stock snapshot quantity by material and month.
+  description: Reference warehouse stock snapshot quantity by material and month.
   ai_context:
     synonyms:
     - stok material
     - stok gudang
     - warehouse stock
-    - stok gudang tempo
+    - stok gudang reference
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"ST-01-MAT","base_dataset":"material_360","allowed_dimensions":["calmonth","material"],"required_filters":["has_stock"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"ST-01","unit_format":"quantity"}'
 - name: material_fill_rate
   expression:
@@ -2181,7 +2181,7 @@ metrics:
       Use for business bill-to-PO / pemenuhan PO questions; values below 1.0
       mean unfulfilled PO quantity remains.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"FL-01-MAT","base_dataset":"material_360","allowed_dimensions":["calmonth","material"],"required_filters":["has_service_level"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"FL-01","unit_format":"percent"}'
 - name: material_sell_out_value
   expression:
@@ -2198,14 +2198,14 @@ metrics:
     - top produk di b2b
     - produk b2b dengan penjualan tertinggi
     - produk terlaris b2b
-    - sku terlaris di alfamart
+    - sku terlaris di acme
     - produk paling banyak terjual di partner
     - penjualan produk ke konsumen akhir
     - produk b2b tidak laku
-    - produk zero movement di alfamart
+    - produk zero movement di acme
     - sku tanpa penjualan di partner
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SO-01-MAT","base_dataset":"material_360","allowed_dimensions":["calmonth","material","retail_plu"],"required_filters":["has_sell_out"],"governance_status":"scoped_metric","business_approval_status":"pending_business_confirmation","original_kpi_id":"SO-01","unit_format":"currency_idr"}'
 - name: material_sell_out_to_sell_in_value_ratio
   expression:
@@ -2222,7 +2222,7 @@ metrics:
     - rasio sell-out terhadap sell-in terendah
     instructions: Not official sell-through; price bases can differ. For lowest-ratio rankings, exclude zero sell-out rows (governed HAVING).
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SO-07-MAT","base_dataset":"material_360","allowed_dimensions":["calmonth","material"],"required_filters":["has_sell_in","has_sell_out"],"governance_status":"approved_candidate_with_caveat","business_approval_status":"pending_business_confirmation","original_kpi_id":"SO-07","unit_format":"ratio"}'
 - name: sell_in_quantity_per_stock_unit
   expression:
@@ -2237,7 +2237,7 @@ metrics:
     - sell-in per stock unit
     instructions: Proxy only; not official inventory turnover.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-16-MAT","base_dataset":"material_360","allowed_dimensions":["calmonth","material"],"required_filters":["has_sell_in","has_stock"],"governance_status":"supporting","business_approval_status":"pending_business_confirmation","original_kpi_id":"SI-16","unit_format":"ratio"}'
 - name: months_of_stock_cover
   expression:
@@ -2268,7 +2268,7 @@ metrics:
       reflects only Q4 2024 velocity, and flag low Q4 sell-in volume as
       the likely cause of an extreme ratio.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-16-MAT-INV","base_dataset":"material_360","allowed_dimensions":["calmonth","material"],"required_filters":["has_sell_in","has_stock"],"governance_status":"supporting","business_approval_status":"pending_business_confirmation","original_kpi_id":"SI-16","unit_format":"ratio"}'
 - name: material_do_amount_to_billing_value_ratio
   expression:
@@ -2287,7 +2287,7 @@ metrics:
       When users ask bill-to-PO or rasio penagihan vs PO for operational gaps,
       route to material_fill_rate (DO qty / PO qty), not this ratio.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-DQ-02","base_dataset":"material_360","allowed_dimensions":["calmonth","material"],"required_filters":["has_sell_in"],"governance_status":"data_quality_metric","business_approval_status":"internal_technical_review","original_kpi_id":"SI-05","unit_format":"ratio"}'
 - name: service_fill_rate
   expression:
@@ -2311,7 +2311,7 @@ metrics:
     - material dengan fill rate rendah
     - material dengan fill rate tinggi
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"FL-01","base_dataset":"service_level_material","allowed_dimensions":["calmonth","material","fill_rate_band"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"FL-01","unit_format":"percent"}'
 - name: service_po_quantity
   expression:
@@ -2326,7 +2326,7 @@ metrics:
     - demand quantity
     - jumlah pesanan
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"FL-04","base_dataset":"service_level_material","allowed_dimensions":["calmonth","material","fill_rate_band"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"FL-04","unit_format":"quantity"}'
 - name: service_do_quantity
   expression:
@@ -2341,7 +2341,7 @@ metrics:
     - fulfilled quantity
     - jumlah terpenuhi
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"FL-05","base_dataset":"service_level_material","allowed_dimensions":["calmonth","material","fill_rate_band"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"FL-05","unit_format":"quantity"}'
 - name: service_unfulfilled_quantity
   expression:
@@ -2359,7 +2359,7 @@ metrics:
     - selisih po dan do
     instructions: Recompute from aggregate PO_QTY minus aggregate DO_QTY; never average row-level gaps or fill-rate percentages.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"FL-02","base_dataset":"service_level_material","allowed_dimensions":["calmonth","material","fill_rate_band"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"FL-02","unit_format":"quantity"}'
 - name: service_material_month_count
   expression:
@@ -2376,7 +2376,7 @@ metrics:
     - berapa banyak material di setiap band fill rate
     - distribusi fill rate band
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"FL-06","base_dataset":"service_level_material","allowed_dimensions":["calmonth","material","fill_rate_band"],"governance_status":"fixed_pending_business_approval","business_approval_status":"pending_business_confirmation","original_kpi_id":"FL-06","unit_format":"count"}'
 - name: sales_office_service_fill_rate
   expression:
@@ -2396,23 +2396,23 @@ metrics:
     - sales office dengan fill rate terendah
     - sales office mana dengan fill rate terendah
     - sales office mana dengan fill rate tertinggi
-    - service level cabang tempo
-    - tingkat layanan cabang tempo
-    - fill rate cabang tempo
+    - service level cabang reference
+    - tingkat layanan cabang reference
+    - fill rate cabang reference
     - cabang dengan service level terbaik
     - cabang dengan service level terjelek
-    - service level di cabang tempo
-    - fill rate di cabang tempo
+    - service level di cabang reference
+    - fill rate di cabang reference
     - service level per cabang
     - tingkat layanan per cabang
     - tingkat pemenuhan cabang
     - tingkat pemenuhan per cabang
-    - otif cabang tempo
+    - otif cabang reference
     - otif sales office
     - on time in full cabang
-    instructions: Recompute aggregate Fill Rate from total DO and PO; never average row ratios. Tempo management uses "service level" / "tingkat layanan" / "tingkat pemenuhan" as synonyms for Fill Rate at sales-office grain. When the user says OTIF or on-time-in-full, treat as a fill-rate proxy (DO/PO) and state that official OTIF is not a separate governed KPI in this catalog. sales_off is a working PoC assumption, not yet Tempo-confirmed. Prefer this metric over the plain service_fill_rate whenever the question asks for a sales-office breakdown/comparison (e.g. "sales office mana...") rather than a company- or material-level answer.
+    instructions: Recompute aggregate Fill Rate from total DO and PO; never average row ratios. Reference management uses "service level" / "tingkat layanan" / "tingkat pemenuhan" as synonyms for Fill Rate at sales-office grain. When the user says OTIF or on-time-in-full, treat as a fill-rate proxy (DO/PO) and state that official OTIF is not a separate governed KPI in this catalog. sales_off is a working PoC assumption, not yet Reference-confirmed. Prefer this metric over the plain service_fill_rate whenever the question asks for a sales-office breakdown/comparison (e.g. "sales office mana...") rather than a company- or material-level answer.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"FL-01-OFFICE","base_dataset":"service_level_sales_office","allowed_dimensions":["calmonth","material","sales_off"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"FL-01","unit_format":"percent"}'
 - name: sales_office_cust_group_service_fill_rate
   expression:
@@ -2429,7 +2429,7 @@ metrics:
     instructions: Use when the question names customer group / cust grp3 / segment alongside office or material. Recompute
       from DO/PO totals; never average row ratios.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"FL-01-CGRP","base_dataset":"service_level_sales_office_cust_group","allowed_dimensions":["calmonth","material","sales_off","cust_grp3"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"FL-01","unit_format":"percent"}'
 - name: sales_office_service_do_quantity
   expression:
@@ -2443,7 +2443,7 @@ metrics:
     - do quantity per sales office
     - jumlah do per sales office
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"FL-05-OFFICE","base_dataset":"service_level_sales_office","allowed_dimensions":["calmonth","material","sales_off"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"FL-05","unit_format":"quantity"}'
 - name: sales_office_service_po_quantity
   expression:
@@ -2457,7 +2457,7 @@ metrics:
     - po quantity per sales office
     - jumlah po per sales office
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"FL-04-OFFICE","base_dataset":"service_level_sales_office","allowed_dimensions":["calmonth","material","sales_off"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"FL-04","unit_format":"quantity"}'
 - name: sales_office_service_unfulfilled_quantity
   expression:
@@ -2474,7 +2474,7 @@ metrics:
     - unfulfilled quantity per sales office
     - sales office gap po vs do
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"FL-02-OFFICE","base_dataset":"service_level_sales_office","allowed_dimensions":["calmonth","material","sales_off"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"FL-02","unit_format":"quantity"}'
 - name: sell_in_minus_sell_out_value
   expression:
@@ -2488,11 +2488,11 @@ metrics:
     - sell-in sell-out variance
     - gap sell-in sell-out
     - selisih sell-in dan sell-out
-    - selisih penjualan tempo dan penjualan partner
+    - selisih penjualan reference dan penjualan partner
     - beda sell-in sell-out per customer
     - customer mana dengan selisih sell-in sell-out terbesar
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SO-06","base_dataset":"customer_reconciliation","allowed_dimensions":["calmonth","customer"],"row_filter":"reconciliation_scope = ''shared_customer_only''","governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"SO-06","unit_format":"currency_idr"}'
 - name: sell_out_to_sell_in_value_ratio
   expression:
@@ -2505,11 +2505,11 @@ metrics:
     synonyms:
     - sell-out to sell-in ratio
     - rasio sell-out terhadap sell-in
-    - rasio penjualan partner terhadap penjualan tempo
+    - rasio penjualan partner terhadap penjualan reference
     - perbandingan sell-out dan sell-in per customer
     instructions: Canonical ratio direction. Not official sell-through.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SO-07","base_dataset":"customer_reconciliation","allowed_dimensions":["calmonth","customer"],"row_filter":"reconciliation_scope = ''shared_customer_only''","governance_status":"approved_candidate_with_caveat","business_approval_status":"pending_business_confirmation","original_kpi_id":"SO-07","unit_format":"ratio"}'
 - name: sell_in_to_sell_out_value_ratio
   expression:
@@ -2522,7 +2522,7 @@ metrics:
     synonyms:
     - sell-in to sell-out ratio
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SO-07-INVERSE","base_dataset":"customer_reconciliation","allowed_dimensions":["calmonth","customer"],"row_filter":"reconciliation_scope = ''shared_customer_only''","governance_status":"supporting","business_approval_status":"pending_business_confirmation","original_kpi_id":"SO-07","unit_format":"ratio"}'
 - name: absolute_variance_rate_vs_sell_out
   expression:
@@ -2536,7 +2536,7 @@ metrics:
     synonyms:
     - absolute reconciliation variance rate
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SO-06-PCT","base_dataset":"customer_reconciliation","allowed_dimensions":["calmonth","customer"],"row_filter":"reconciliation_scope = ''shared_customer_only''","governance_status":"supporting","business_approval_status":"pending_business_confirmation","original_kpi_id":"SO-06","unit_format":"ratio"}'
 - name: shared_customer_sell_in_value
   expression:
@@ -2549,7 +2549,7 @@ metrics:
     synonyms:
     - shared customer sell-in
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-01-SHARED","base_dataset":"customer_reconciliation","allowed_dimensions":["calmonth","customer"],"row_filter":"reconciliation_scope = ''shared_customer_only''","governance_status":"scoped_metric","business_approval_status":"pending_business_confirmation","original_kpi_id":"SI-01","unit_format":"currency_idr"}'
 - name: shared_customer_sell_out_value
   expression:
@@ -2562,7 +2562,7 @@ metrics:
     synonyms:
     - shared customer sell-out
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SO-01-SHARED","base_dataset":"customer_reconciliation","allowed_dimensions":["calmonth","customer"],"row_filter":"reconciliation_scope = ''shared_customer_only''","governance_status":"scoped_metric","business_approval_status":"pending_business_confirmation","original_kpi_id":"SO-01","unit_format":"currency_idr"}'
 - name: sales_office_sell_in_value
   expression:
@@ -2577,7 +2577,7 @@ metrics:
     - nilai sell-in cabang
     instructions: Q4 aggregate only.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"SI-13-Q4","base_dataset":"sales_office_q4","allowed_dimensions":["reporting_period","sales_office"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"SI-13","unit_format":"currency_idr"}'
 - name: picking_delay_rate
   expression:
@@ -2595,7 +2595,7 @@ metrics:
     - persentase keterlambatan picking
     instructions: Q4 aggregate; only offices with Picking data.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"PK-01-Q4","base_dataset":"sales_office_q4","allowed_dimensions":["reporting_period","sales_office"],"row_filter":"has_picking = TRUE","governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"PK-01","unit_format":"percent"}'
 - name: average_picking_minutes
   expression:
@@ -2620,12 +2620,12 @@ metrics:
       data (confirmed 1 Oct 2026); sales offices without a value should be
       reported as having no recorded picking data, never silently omitted
       or shown as zero. No external industry-standard benchmark for
-      picking/unloading duration exists anywhere in TEMPO's governed data -
+      picking/unloading duration exists anywhere in REFERENCE's governed data -
       never invent or estimate an industry-average figure to compare
       against; if the user asks for an industry comparison, state plainly
       that no such benchmark is available in this system.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"PK-03-Q4","base_dataset":"sales_office_q4","allowed_dimensions":["reporting_period","sales_office"],"row_filter":"has_picking = TRUE","governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"PK-03","unit_format":"minutes"}'
 - name: picking_workload_rows
   expression:
@@ -2642,7 +2642,7 @@ metrics:
     - jumlah baris picking
     instructions: Q4 aggregate workload count; not a productivity rate.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"PK-04-Q4","base_dataset":"sales_office_q4","allowed_dimensions":["reporting_period","sales_office"],"row_filter":"has_picking = TRUE","governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"PK-04","unit_format":"count"}'
 - name: average_unloading_minutes
   expression:
@@ -2668,12 +2668,12 @@ metrics:
       offices without a value should be reported as having no recorded
       unloading data, never silently omitted or shown as zero. No external
       industry-standard benchmark for picking/unloading duration exists
-      anywhere in TEMPO's governed data - never invent or estimate an
+      anywhere in REFERENCE's governed data - never invent or estimate an
       industry-average figure to compare against; if the user asks for an
       industry comparison, state plainly that no such benchmark is
       available in this system.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"UL-01-Q4","base_dataset":"sales_office_q4","allowed_dimensions":["reporting_period","sales_office"],"row_filter":"has_unloading = TRUE","governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"UL-01","unit_format":"minutes"}'
 - name: unloading_event_count
   expression:
@@ -2691,7 +2691,7 @@ metrics:
     - dokumen unloading
     instructions: Q4 aggregate event-row count; do not describe it as quantity unloaded.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"UL-02-Q4","base_dataset":"sales_office_q4","allowed_dimensions":["reporting_period","sales_office"],"row_filter":"has_unloading = TRUE","governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"UL-02","unit_format":"count"}'
 - name: picking_rows_per_sales_line
   expression:
@@ -2710,7 +2710,7 @@ metrics:
     - sales office mana dengan beban picking tertinggi
     instructions: Supporting workload proxy, not productivity.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"XD-03-Q4","base_dataset":"sales_office_q4","allowed_dimensions":["reporting_period","sales_office"],"row_filter":"has_sell_in = TRUE AND has_picking = TRUE","governance_status":"supporting","business_approval_status":"pending_business_confirmation","original_kpi_id":"XD-03","unit_format":"ratio"}'
 - name: b2b_branch_sell_out_value
   expression:
@@ -2732,11 +2732,11 @@ metrics:
     - top cabang b2b penjualan
     - penjualan partner ke konsumen akhir per cabang
     - penjualan partner ke konsumen akhir per branch
-    - top outlet penjualan alfamart
+    - top outlet penjualan acme
     - penjualan per outlet
     - penjualan per gerai
-    - gerai alfamart dengan penjualan tertinggi
-    - toko alfamart dengan penjualan tertinggi
+    - gerai acme dengan penjualan tertinggi
+    - toko acme dengan penjualan tertinggi
     - outlet mana yang paling laris
     - outlet mana yang paling banyak penjualannya
     - outlet terlaris
@@ -2746,13 +2746,13 @@ metrics:
     - toko dengan penjualan terbesar
     - omset outlet terbesar
     - omset toko terbesar
-    - top outlet alfamart
-    - top gerai alfamart
-    - top toko alfamart
+    - top outlet acme
+    - top gerai acme
+    - top toko acme
     - e-store mana yang paling banyak penjualannya
     - e-store dengan penjualan tertinggi
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"B2B-01-BR","base_dataset":"b2b_branch_estore","allowed_dimensions":["calmonth","sales_off","branch","e_store"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"B02","unit_format":"currency_idr"}'
 - name: b2b_branch_sell_out_quantity
   expression:
@@ -2760,7 +2760,7 @@ metrics:
     - dialect: ANSI_SQL
       expression: SUM(b2b_branch_estore.b2b_bill_qty)
   datatype: Decimal
-  description: B2B Sell-Out billed quantity by partner branch/DC, TEMPO sales office, and e-store.
+  description: B2B Sell-Out billed quantity by partner branch/DC, REFERENCE sales office, and e-store.
   ai_context:
     synonyms:
     - branch b2b bill quantity
@@ -2773,8 +2773,8 @@ metrics:
     - quantity terjual per toko
     instructions: Branch and sales_off are distinct dimensions. Group by the dimension requested by the user; never treat either as a measure.
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"metric_id":"B2B-02-BR","base_dataset":"b2b_branch_estore","allowed_dimensions":["calmonth","sales_off","branch","e_store"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_tempo_meeting_2026_09_28","original_kpi_id":"B02","unit_format":"quantity"}'
+  - vendor_name: REFERENCE
+    data: '{"metric_id":"B2B-02-BR","base_dataset":"b2b_branch_estore","allowed_dimensions":["calmonth","sales_off","branch","e_store"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_reference_meeting_2026_09_28","original_kpi_id":"B02","unit_format":"quantity"}'
 - name: b2b_branch_material_sell_out_value
   expression:
     dialects:
@@ -2786,11 +2786,11 @@ metrics:
     synonyms:
     - sell-out cabang material
     - top produk sell-out di cabang
-    - produk sell-out dc alfamart
+    - produk sell-out dc acme
     - breakdown produk per dc b2b
     instructions: Prefer this over material_sell_out_value when the question filters or refers to a specific branch/DC from a prior B2B ranking.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"B2B-03-BR-MAT","base_dataset":"b2b_branch_material","allowed_dimensions":["calmonth","branch","material"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"B02","unit_format":"currency_idr"}'
 - name: b2b_branch_material_sell_out_quantity
   expression:
@@ -2804,7 +2804,7 @@ metrics:
     - qty sell-out cabang material
     - quantity sell-out per dc per produk
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"B2B-04-BR-MAT","base_dataset":"b2b_branch_material","allowed_dimensions":["calmonth","branch","material"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"B02","unit_format":"quantity"}'
 - name: b2b_material_plu_value
   expression:
@@ -2821,7 +2821,7 @@ metrics:
     - revenue b2b plu
     instructions: PLU and material are independent dimensions, no confirmed mapping between them.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"B2B-02-PLU","base_dataset":"b2b_material_plu","allowed_dimensions":["calmonth","material","kode_plu","ka_group"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"B05","unit_format":"currency_idr"}'
 - name: b2b_material_plu_quantity
   expression:
@@ -2838,8 +2838,8 @@ metrics:
     - sell-out quantity per plu
     instructions: PLU and material remain independent dimensions until an official mapping is available.
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"metric_id":"B2B-03-PLU","base_dataset":"b2b_material_plu","allowed_dimensions":["calmonth","material","kode_plu","ka_group"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_tempo_meeting_2026_09_28","original_kpi_id":"SO-02","unit_format":"quantity"}'
+  - vendor_name: REFERENCE
+    data: '{"metric_id":"B2B-03-PLU","base_dataset":"b2b_material_plu","allowed_dimensions":["calmonth","material","kode_plu","ka_group"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_reference_meeting_2026_09_28","original_kpi_id":"SO-02","unit_format":"quantity"}'
 - name: b2b_customer_sell_out_value
   expression:
     dialects:
@@ -2855,7 +2855,7 @@ metrics:
     - revenue b2b per customer
     instructions: customer, sales_off, and branch/e_store are independent dimensions (see b2b_customer_branch_estore's instructions). Use this for "which customer has the highest B2B/Sell-Out value" questions.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"B2B-01-CUST","base_dataset":"b2b_customer_branch_estore","allowed_dimensions":["calmonth","customer","sales_off","branch","e_store"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"B02","unit_format":"currency_idr"}'
 - name: b2b_customer_sell_out_quantity
   expression:
@@ -2869,7 +2869,7 @@ metrics:
     - b2b customer quantity
     - volume b2b per customer
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"B2B-02-CUST","base_dataset":"b2b_customer_branch_estore","allowed_dimensions":["calmonth","customer","sales_off","branch","e_store"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"B02","unit_format":"quantity"}'
 - name: b2b_customer_material_plu_value
   expression:
@@ -2884,7 +2884,7 @@ metrics:
     - top customer produk b2b
     instructions: customer, material, and kode_plu are independent dimensions, no confirmed mapping between material and kode_plu.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"B2B-02-PLU-CUST","base_dataset":"b2b_customer_material_plu","allowed_dimensions":["calmonth","customer","material","kode_plu","ka_group"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"B05","unit_format":"currency_idr"}'
 - name: b2b_customer_material_plu_quantity
   expression:
@@ -2897,105 +2897,105 @@ metrics:
     synonyms:
     - b2b customer material quantity
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"B2B-03-PLU-CUST","base_dataset":"b2b_customer_material_plu","allowed_dimensions":["calmonth","customer","material","kode_plu","ka_group"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"SO-02","unit_format":"quantity"}'
-- name: stock_tempo_total_qty
+- name: stock_warehouse_total_qty
   expression:
     dialects:
     - dialect: ANSI_SQL
-      expression: SUM(stock_tempo_month.total_stock_qty)
+      expression: SUM(stock_warehouse_month.total_stock_qty)
   datatype: Decimal
-  description: Tempo warehouse total stock quantity by material and plant, Set A columns only, October-December 2024.
+  description: Reference warehouse total stock quantity by material and plant, Set A columns only, October-December 2024.
   ai_context:
     synonyms:
-    - stok tempo
-    - stock tempo
-    - total stok gudang tempo
-    - stock tempo quantity
+    - stok reference
+    - stock reference
+    - total stok gudang reference
+    - stock reference quantity
     - stok gudang mana yang paling banyak
     - gudang mana dengan stok terbanyak
-    - stok per gudang tempo
-    - gudang tempo mana yang paling banyak
-    - stok gudang tempo mana yang paling banyak
-    instructions: Set A only (PoC decision, 24 Sep 2026); Set B excluded pending official Tempo confirmation.
+    - stok per gudang reference
+    - gudang reference mana yang paling banyak
+    - stok gudang reference mana yang paling banyak
+    instructions: Set A only (PoC decision, 24 Sep 2026); Set B excluded pending official Reference confirmation.
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"metric_id":"ST-02-SETA","base_dataset":"stock_tempo_month","allowed_dimensions":["calmonth","material","plant"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"T01","unit_format":"quantity"}'
-- name: stock_tempo_consignment_qty
+  - vendor_name: REFERENCE
+    data: '{"metric_id":"ST-02-SETA","base_dataset":"stock_warehouse_month","allowed_dimensions":["calmonth","material","plant"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"T01","unit_format":"quantity"}'
+- name: stock_warehouse_consignment_qty
   expression:
     dialects:
     - dialect: ANSI_SQL
-      expression: SUM(stock_tempo_month.consignment_stock_qty)
+      expression: SUM(stock_warehouse_month.consignment_stock_qty)
   datatype: Decimal
-  description: Stock tempo yang berstatus konsinyasi (consignment) di gudang Tempo, per material dan plant, Set A columns only, October-December 2024.
+  description: Stock reference yang berstatus konsinyasi (consignment) di gudang Reference, per material dan plant, Set A columns only, October-December 2024.
   ai_context:
     synonyms:
     - stok konsinyasi
     - stock konsinyasi
     - consignment stock
-    - stok konsinyasi tempo
+    - stok konsinyasi reference
     - stok konsinyasi per gudang
     - gudang mana dengan stok konsinyasi terbanyak
-    instructions: Set A only (PoC decision, 24 Sep 2026); Set B excluded pending official Tempo confirmation. This is a
+    instructions: Set A only (PoC decision, 24 Sep 2026); Set B excluded pending official Reference confirmation. This is a
       subset of total_stock_qty (consignment-flagged rows only, ~6% of rows), not an additional pipeline figure - never
-      add it to stock_tempo_total_qty as a combined total.
+      add it to stock_warehouse_total_qty as a combined total.
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"metric_id":"ST-07-SETA","base_dataset":"stock_tempo_month","allowed_dimensions":["calmonth","material","plant"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"T07","unit_format":"quantity"}'
-- name: stock_tempo_value
+  - vendor_name: REFERENCE
+    data: '{"metric_id":"ST-07-SETA","base_dataset":"stock_warehouse_month","allowed_dimensions":["calmonth","material","plant"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"T07","unit_format":"quantity"}'
+- name: stock_warehouse_value
   expression:
     dialects:
     - dialect: ANSI_SQL
-      expression: SUM(stock_tempo_month.stock_value)
+      expression: SUM(stock_warehouse_month.stock_value)
   datatype: Decimal
-  description: Tempo warehouse stock value (IDR) by material and plant, Set A columns only, October-December 2024.
+  description: Reference warehouse stock value (IDR) by material and plant, Set A columns only, October-December 2024.
   ai_context:
     synonyms:
-    - nilai stock tempo
-    - valuasi stok tempo
-    - stock value tempo
-    - tempo stock value
-    - stock tempo value
+    - nilai stock reference
+    - valuasi stok reference
+    - stock value reference
+    - reference stock value
+    - stock reference value
     - nilai stok gudang mana yang paling tinggi
     - gudang mana dengan nilai stok tertinggi
-    - nilai stok per gudang tempo
-    - nilai gudang tempo mana yang paling tinggi
-    - nilai stok gudang tempo mana yang paling tinggi
-    instructions: Set A only (PoC decision, 24 Sep 2026); Set B excluded pending official Tempo confirmation.
+    - nilai stok per gudang reference
+    - nilai gudang reference mana yang paling tinggi
+    - nilai stok gudang reference mana yang paling tinggi
+    instructions: Set A only (PoC decision, 24 Sep 2026); Set B excluded pending official Reference confirmation.
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"metric_id":"ST-03-SETA","base_dataset":"stock_tempo_month","allowed_dimensions":["calmonth","material","plant"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"T05","unit_format":"currency_idr"}'
+  - vendor_name: REFERENCE
+    data: '{"metric_id":"ST-03-SETA","base_dataset":"stock_warehouse_month","allowed_dimensions":["calmonth","material","plant"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"T05","unit_format":"currency_idr"}'
 - name: sat_dc_stock_quantity
   expression:
     dialects:
     - dialect: ANSI_SQL
       expression: SUM(sat_dc_month.dc_stock_qty)
   datatype: Decimal
-  description: Alfamart partner DC stock quantity by DC name, PLU, and division, October-December 2024.
+  description: Acme partner DC stock quantity by DC name, PLU, and division, October-December 2024.
   ai_context:
     synonyms:
     - idm stock
     - stock idm
     - dcstock
     - stok dc partner
-    - stok dc alfamart
+    - stok dc acme
     - dc stock quantity
     - stok dc per divisi
     - stok dc per unit bisnis
     - divisi mana dengan stok dc terbanyak
     - unit bisnis mana dengan stok dc terbanyak
-    instructions: DC-level quantity only. Never add it to store stock quantity as a total pipeline metric. Confirmed Alfamart-only
-      (Tempo, 1 Oct 2026) - same partner network as B2B.
+    instructions: DC-level quantity only. Never add it to store stock quantity as a total pipeline metric. Confirmed Acme-only
+      (Reference, 1 Oct 2026) - same partner network as B2B.
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"metric_id":"SI-01-SAT","base_dataset":"sat_dc_month","allowed_dimensions":["thn","bln","dcname","plu","division"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_tempo_2026_09_28","original_kpi_id":"I01","unit_format":"quantity"}'
+  - vendor_name: REFERENCE
+    data: '{"metric_id":"SI-01-SAT","base_dataset":"sat_dc_month","allowed_dimensions":["thn","bln","dcname","plu","division"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_reference_2026_09_28","original_kpi_id":"I01","unit_format":"quantity"}'
 - name: sat_dc_stock_value
   expression:
     dialects:
     - dialect: ANSI_SQL
       expression: SUM(sat_dc_month.dc_stock_val)
   datatype: Decimal
-  description: Value in IDR of TEMPO products held at Alfamart partner distribution-center level.
+  description: Value in IDR of REFERENCE products held at Acme partner distribution-center level.
   ai_context:
     synonyms:
     - nilai stok dc sat-idm
@@ -3007,18 +3007,18 @@ metrics:
     - nilai stok dc per divisi
     - nilai stok dc per unit bisnis
     - divisi mana dengan nilai stok dc tertinggi
-    instructions: DC-level value only. Never add it to store stock value as a total pipeline metric. Confirmed Alfamart-only
-      (Tempo, 1 Oct 2026) - same partner network as B2B.
+    instructions: DC-level value only. Never add it to store stock value as a total pipeline metric. Confirmed Acme-only
+      (Reference, 1 Oct 2026) - same partner network as B2B.
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"metric_id":"SI-03-SAT","base_dataset":"sat_dc_month","allowed_dimensions":["thn","bln","dcname","plu","division"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_tempo_2026_09_28","original_kpi_id":"I08-DC","unit_format":"currency_idr"}'
+  - vendor_name: REFERENCE
+    data: '{"metric_id":"SI-03-SAT","base_dataset":"sat_dc_month","allowed_dimensions":["thn","bln","dcname","plu","division"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_reference_2026_09_28","original_kpi_id":"I08-DC","unit_format":"currency_idr"}'
 - name: sat_store_stock_quantity
   expression:
     dialects:
     - dialect: ANSI_SQL
       expression: SUM(sat_dc_month.store_stock_qty)
   datatype: Decimal
-  description: Retail store stock quantity (under an Alfamart partner DC) by DC name, PLU, and division, October-December
+  description: Retail store stock quantity (under an Acme partner DC) by DC name, PLU, and division, October-December
     2024.
   ai_context:
     synonyms:
@@ -3026,24 +3026,24 @@ metrics:
     - stok store
     - stok retail
     - stok toko retail
-    - stok toko alfamart
+    - stok toko acme
     - retail stock
     - store stock quantity
     - stok toko per divisi
     - stok toko per unit bisnis
     - divisi mana dengan stok toko terbanyak
     instructions: Store/customer-level quantity only. Never add it to DC stock quantity as a total pipeline metric. Confirmed
-      Alfamart-only (Tempo, 1 Oct 2026) - same partner network as B2B.
+      Acme-only (Reference, 1 Oct 2026) - same partner network as B2B.
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"metric_id":"SI-02-SAT","base_dataset":"sat_dc_month","allowed_dimensions":["thn","bln","dcname","plu","division"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_tempo_2026_09_28","original_kpi_id":"I02","unit_format":"quantity"}'
+  - vendor_name: REFERENCE
+    data: '{"metric_id":"SI-02-SAT","base_dataset":"sat_dc_month","allowed_dimensions":["thn","bln","dcname","plu","division"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_reference_2026_09_28","original_kpi_id":"I02","unit_format":"quantity"}'
 - name: sat_store_stock_value
   expression:
     dialects:
     - dialect: ANSI_SQL
       expression: SUM(sat_dc_month.store_stock_val)
   datatype: Decimal
-  description: Value in IDR of TEMPO products held at retail store/customer level under Alfamart partner DCs.
+  description: Value in IDR of REFERENCE products held at retail store/customer level under Acme partner DCs.
   ai_context:
     synonyms:
     - nilai stok store sat-idm
@@ -3053,10 +3053,10 @@ metrics:
     - nilai stok toko per divisi
     - divisi mana dengan nilai stok toko tertinggi
     instructions: Store/customer-level value only. Never add it to DC stock value as a total pipeline metric. Confirmed
-      Alfamart-only (Tempo, 1 Oct 2026) - same partner network as B2B.
+      Acme-only (Reference, 1 Oct 2026) - same partner network as B2B.
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"metric_id":"SI-04-SAT","base_dataset":"sat_dc_month","allowed_dimensions":["thn","bln","dcname","plu","division"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_tempo_2026_09_28","original_kpi_id":"I08-STORE","unit_format":"currency_idr"}'
+  - vendor_name: REFERENCE
+    data: '{"metric_id":"SI-04-SAT","base_dataset":"sat_dc_month","allowed_dimensions":["thn","bln","dcname","plu","division"],"governance_status":"approved_candidate","business_approval_status":"confirmed_by_reference_2026_09_28","original_kpi_id":"I08-STORE","unit_format":"currency_idr"}'
 - name: sat_oos_rate
   expression:
     dialects:
@@ -3076,9 +3076,9 @@ metrics:
     - produk mana yang paling sering kehabisan stok
     - persentase toko yang stoknya habis
     - stok kosong di toko
-    instructions: 'Stok_akhir = 0 as OOS definition is a PoC default, pending official Tempo sign-off.'
+    instructions: 'Stok_akhir = 0 as OOS definition is a PoC default, pending official Reference sign-off.'
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"OOS-01","base_dataset":"sat_oos_material_month","allowed_dimensions":["calmonth_date","cust_id","cust_code","material_code","plu"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"O01","unit_format":"percent"}'
 - name: promo_observation_count
   expression:
@@ -3104,9 +3104,9 @@ metrics:
     - mekanisme promo apa yang paling banyak
     - jumlah observasi per status program
     - observasi promo per status program
-    instructions: This is an observation-row count, not unique products, redemptions, or sales. Mechanism labels are raw and unmapped - never infer meaning from mekanisme. Every row in this data is a confirmed-active promo observation (Tempo confirmation, 28 Sep 2026); program_status codes Y/X/T do not distinguish active from inactive, so do not filter or break out an "active" subset by status - report the status code as-is if asked, but the whole dataset is active. State the December-only caveat.
+    instructions: This is an observation-row count, not unique products, redemptions, or sales. Mechanism labels are raw and unmapped - never infer meaning from mekanisme. Every row in this data is a confirmed-active promo observation (Reference confirmation, 28 Sep 2026); program_status codes Y/X/T do not distinguish active from inactive, so do not filter or break out an "active" subset by status - report the status code as-is if asked, but the whole dataset is active. State the December-only caveat.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"PR-03","base_dataset":"sat_promo_material_december","allowed_dimensions":["reporting_month","material_code","mekanisme","program_status"],"governance_status":"approved_candidate_with_caveat","business_approval_status":"pending_business_confirmation","original_kpi_id":"PR-03","unit_format":"count"}'
 - name: promo_material_count
   expression:
@@ -3124,9 +3124,9 @@ metrics:
     - distinct promo materials
     - jumlah sku promo per mekanisme
     - jumlah sku promo per status program
-    instructions: Count distinct material codes only. Every row in this data is a confirmed-active promo observation (Tempo confirmation, 28 Sep 2026), so this count does represent active-promo material coverage - but it still does not indicate effectiveness, uplift, revenue attribution, or ROI. State the December-only caveat.
+    instructions: Count distinct material codes only. Every row in this data is a confirmed-active promo observation (Reference confirmation, 28 Sep 2026), so this count does represent active-promo material coverage - but it still does not indicate effectiveness, uplift, revenue attribution, or ROI. State the December-only caveat.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"PR-02","base_dataset":"sat_promo_material_december","allowed_dimensions":["reporting_month","mekanisme","program_status"],"governance_status":"approved_candidate_with_caveat","business_approval_status":"pending_business_confirmation","original_kpi_id":"PR-02","unit_format":"count"}'
 - name: promo_material_revenue_uplift
   expression:
@@ -3141,11 +3141,11 @@ metrics:
     - revenue uplift promo
     - promo revenue uplift
     - roi promo revenue
-    instructions: This is a cross-channel proxy, not the Alfamart promo's own measured revenue impact - see sat_promo_material_uplift's
-      dataset instructions. Always state this is an indirect/proxy signal (General Trade sales change, not Alfamart sales
+    instructions: This is a cross-channel proxy, not the Acme promo's own measured revenue impact - see sat_promo_material_uplift's
+      dataset instructions. Always state this is an indirect/proxy signal (General Trade sales change, not Acme sales
       change) when presenting this number, and never label it "ROI" without that qualifier.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"PR-03-PROXY","base_dataset":"sat_promo_material_uplift","allowed_dimensions":["material"],"governance_status":"approved_candidate_with_caveat","business_approval_status":"pending_business_confirmation","original_kpi_id":"PR-03","unit_format":"currency_idr"}'
 - name: promo_material_volume_uplift
   expression:
@@ -3161,10 +3161,10 @@ metrics:
     - promo volume uplift
     - promo quantity uplift
     - roi promo volume
-    instructions: This is a cross-channel proxy, not the Alfamart promo's own measured volume impact - see sat_promo_material_uplift's
+    instructions: This is a cross-channel proxy, not the Acme promo's own measured volume impact - see sat_promo_material_uplift's
       dataset instructions. Always state this is an indirect/proxy signal when presenting this number.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"PR-04-PROXY","base_dataset":"sat_promo_material_uplift","allowed_dimensions":["material"],"governance_status":"approved_candidate_with_caveat","business_approval_status":"pending_business_confirmation","original_kpi_id":"PR-04","unit_format":"quantity"}'
 - name: promo_material_margin_uplift
   expression:
@@ -3181,13 +3181,13 @@ metrics:
     - promo margin uplift
     - roi promo margin
     - promo roi terbaik
-    instructions: This is a cross-channel proxy, not the Alfamart promo's own measured margin impact - see sat_promo_material_uplift's
-      dataset instructions. zcost (COGS) is confirmed by Tempo's own custom_key_figure_sales reference table, but this
+    instructions: This is a cross-channel proxy, not the Acme promo's own measured margin impact - see sat_promo_material_uplift's
+      dataset instructions. zcost (COGS) is confirmed by Reference's own custom_key_figure_sales reference table, but this
       metric still cannot be called a true "ROI" without a promo cost denominator (SAT Promo has no structured cost
       field) - present it as a margin uplift signal, not a completed ROI ratio, unless the user explicitly accepts this
       framing.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"PR-05-PROXY","base_dataset":"sat_promo_material_uplift","allowed_dimensions":["material"],"governance_status":"approved_candidate_with_caveat","business_approval_status":"pending_business_confirmation","original_kpi_id":"PR-05","unit_format":"currency_idr"}'
 - name: promo_b2b_sellout_revenue_uplift
   expression:
@@ -3195,18 +3195,18 @@ metrics:
     - dialect: ANSI_SQL
       expression: SUM(sat_promo_b2b_sellout_uplift.b2b_sellout_revenue_uplift)
   datatype: Decimal
-  description: B2B/Alfamart sell-out revenue uplift (Dec minus Nov 2024) for SAT Promo material codes — partner-channel
+  description: B2B/Acme sell-out revenue uplift (Dec minus Nov 2024) for SAT Promo material codes — partner-channel
     proxy, not ROI.
   ai_context:
     synonyms:
     - promo sell-out uplift
-    - uplift sell-out alfamart promo
+    - uplift sell-out acme promo
     - roi promo b2b
-    - promo alfamart sell-out
-    instructions: Prefer over promo_material_revenue_uplift when the user asks Alfamart/B2B/sell-out channel uplift for promo
+    - promo acme sell-out
+    instructions: Prefer over promo_material_revenue_uplift when the user asks Acme/B2B/sell-out channel uplift for promo
       SKUs. Still not ROI without promo cost — state proxy clearly.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"PR-06-B2B-PROXY","base_dataset":"sat_promo_b2b_sellout_uplift","allowed_dimensions":["material"],"governance_status":"approved_candidate_with_caveat","business_approval_status":"pending_business_confirmation","original_kpi_id":"PR-06","unit_format":"currency_idr"}'
 - name: promo_b2b_sellout_volume_uplift
   expression:
@@ -3214,19 +3214,19 @@ metrics:
     - dialect: ANSI_SQL
       expression: SUM(sat_promo_b2b_sellout_uplift.b2b_sellout_volume_uplift)
   datatype: Decimal
-  description: B2B/Alfamart sell-out quantity uplift (Dec minus Nov 2024) for SAT Promo material codes.
+  description: B2B/Acme sell-out quantity uplift (Dec minus Nov 2024) for SAT Promo material codes.
   ai_context:
     synonyms:
     - promo sell-out qty uplift
     - volume uplift promo b2b
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"PR-07-B2B-PROXY","base_dataset":"sat_promo_b2b_sellout_uplift","allowed_dimensions":["material"],"governance_status":"approved_candidate_with_caveat","business_approval_status":"pending_business_confirmation","original_kpi_id":"PR-07","unit_format":"quantity"}'
-- name: stock_tempo_to_sell_in_ratio
+- name: stock_warehouse_to_sell_in_ratio
   expression:
     dialects:
     - dialect: ANSI_SQL
-      expression: SUM(stock_tempo_sales_material_month.total_stock_qty) / NULLIF(SUM(stock_tempo_sales_material_month.sell_in_bill_qty),
+      expression: SUM(stock_warehouse_sales_material_month.total_stock_qty) / NULLIF(SUM(stock_warehouse_sales_material_month.sell_in_bill_qty),
         0)
   datatype: Decimal
   description: Journey metric - warehouse stock quantity divided by Sell-In billing quantity by material and month. High
@@ -3235,10 +3235,10 @@ metrics:
     synonyms:
     - stok macet
     - stock to sell-in
-    instructions: Pre-built Gold view join (stock_tempo_month + material_360), no runtime join needed.
+    instructions: Pre-built Gold view join (stock_warehouse_month + material_360), no runtime join needed.
   custom_extensions:
-  - vendor_name: TEMPO
-    data: '{"metric_id":"JNY-01","base_dataset":"stock_tempo_sales_material_month","allowed_dimensions":["calmonth","material"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"T07","unit_format":"ratio"}'
+  - vendor_name: REFERENCE
+    data: '{"metric_id":"JNY-01","base_dataset":"stock_warehouse_sales_material_month","allowed_dimensions":["calmonth","material"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"T07","unit_format":"ratio"}'
 - name: sell_out_to_sell_in_material_ratio_v2
   expression:
     dialects:
@@ -3253,7 +3253,7 @@ metrics:
     - replenishment gap
     instructions: Pre-built Gold view join (material_360 + b2b_material_plu), no runtime join needed.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"JNY-02","base_dataset":"sales_b2b_material_month","allowed_dimensions":["calmonth","material"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"B06","unit_format":"ratio"}'
 - name: branch_sell_out_vs_dc_stock
   expression:
@@ -3261,16 +3261,16 @@ metrics:
     - dialect: ANSI_SQL
       expression: SUM(b2b_sat_branch_month.branch_sell_out_value) / NULLIF(SUM(b2b_sat_branch_month.dc_stock_qty), 0)
   datatype: Decimal
-  description: Journey metric - B2B Sell-Out value divided by Alfamart partner DC stock quantity by branch and month. Diagnoses
+  description: Journey metric - B2B Sell-Out value divided by Acme partner DC stock quantity by branch and month. Diagnoses
     whether DC replenishment keeps up with sell-out.
   ai_context:
     synonyms:
     - replenishment sehat
     - sell-out vs stok dc
     instructions: Pre-built Gold view join (b2b_branch_estore + sat_dc_month, part_flag='SAT' only), join key branch=dcname
-      confirmed 100% match rate. No runtime join needed. Both sides confirmed Alfamart-only (Tempo, 1 Oct 2026).
+      confirmed 100% match rate. No runtime join needed. Both sides confirmed Acme-only (Reference, 1 Oct 2026).
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"JNY-03","base_dataset":"b2b_sat_branch_month","allowed_dimensions":["calmonth","branch"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"I06","unit_format":"ratio"}'
 - name: sat_store_stock_vs_oos_rate
   expression:
@@ -3278,7 +3278,7 @@ metrics:
     - dialect: ANSI_SQL
       expression: SUM(sat_dc_oos_material_month.store_stock_qty)
   datatype: Decimal
-  description: Journey metric - Alfamart retail store stock quantity alongside OOS rate by PLU and month, for detecting
+  description: Journey metric - Acme retail store stock quantity alongside OOS rate by PLU and month, for detecting
     the "stock exists but shelf is empty" distribution anomaly.
   ai_context:
     synonyms:
@@ -3287,5 +3287,5 @@ metrics:
     instructions: Pre-built Gold view join (sat_dc_month, part_flag='SAT' only, + sat_oos_material_month), join key plu+calmonth,
       match rate 79.6% (not 100%) - not every PLU-month has a matching OOS survey.
   custom_extensions:
-  - vendor_name: TEMPO
+  - vendor_name: REFERENCE
     data: '{"metric_id":"JNY-04","base_dataset":"sat_dc_oos_material_month","allowed_dimensions":["calmonth","plu","dcname"],"governance_status":"approved_candidate","business_approval_status":"pending_business_confirmation","original_kpi_id":"O10","unit_format":"quantity"}'

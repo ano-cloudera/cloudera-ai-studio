@@ -1,5 +1,5 @@
 # Example runtime profile for auto-imported banking_demo OSSIE models.
-# Attach via tempo_governance.yaml: runtime_extensions: { profile: banking_demo }
+# Attach via reference_governance.yaml: runtime_extensions: { profile: banking_demo }
 # Or inline the same keys under runtime_extensions in governance.
 match:
   source_substrings:

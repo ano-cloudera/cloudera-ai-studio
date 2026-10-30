@@ -35,13 +35,13 @@ def metric(name, desc, expr, syn=()):
         - dialect: ANSI_SQL
           expression: {expr}
     custom_extensions:
-      - vendor_name: TEMPO
+      - vendor_name: REFERENCE
         data: '{{"base_dataset": "credit_applications", "allowed_dimensions": [{ALLOWED}]}}'
 """
 ms = metric("approval_rate","Share of approved applications (0-100).","COUNT(CASE WHEN decision_status = 'Approved' THEN 1 END) * 100.0 / COUNT(application_id)",["approval rate"]) + metric("total_applications","Total number of credit applications.","COUNT(application_id)",["total applications"])
 def build():
     root = pathlib.Path(tempfile.mkdtemp())/"rt"; o=root/"ossie"; o.mkdir(parents=True)
-    (o/"tempo_core.ossie.yaml").write_text(f'''version: "0.2.0.dev0"
+    (o/"reference_core.ossie.yaml").write_text(f'''version: "0.2.0.dev0"
 name: credit
 description: x
 datasets:
@@ -51,7 +51,7 @@ datasets:
     fields:
 {fields()}metrics:
 {ms}''')
-    (o/"tempo_governance.yaml").write_text('unknown_metric_question: "Which?"\n')
+    (o/"reference_governance.yaml").write_text('unknown_metric_question: "Which?"\n')
     (o/"golden_questions.yaml").write_text("questions: []\n")
     return SemanticContextService(root, validate_profile=False)
 

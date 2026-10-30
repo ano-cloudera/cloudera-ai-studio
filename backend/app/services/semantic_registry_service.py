@@ -933,7 +933,7 @@ class SemanticRegistryService:
 
         settings = get_settings()
         project_dir = Path(resolve_ossie_project_dir(settings)).resolve()
-        ossie_file = project_dir / "ossie" / "tempo_core.ossie.yaml"
+        ossie_file = project_dir / "ossie" / "reference_core.ossie.yaml"
         return {
             "project_dir": str(project_dir),
             "ossie_file": str(ossie_file),

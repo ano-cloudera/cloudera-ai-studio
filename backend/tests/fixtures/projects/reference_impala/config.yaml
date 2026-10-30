@@ -24,8 +24,8 @@ data_scope:
 
 semantic:
   execution_mode: ossie
-  model_file: ossie/tempo_core.ossie.yaml
-  governance_file: ossie/tempo_governance.yaml
+  model_file: ossie/reference_core.ossie.yaml
+  governance_file: ossie/reference_governance.yaml
   golden_questions_file: ossie/golden_questions.yaml
   metric_catalog_view: gold.rpt_semantic_metric_catalog
   allow_free_sql: false
@@ -34,7 +34,7 @@ semantic:
 capabilities:
   welcome_title: Halo, saya SCAN
   welcome_message: >-
-    Saya dapat membantu analisis data Tempo periode Oktober–Desember 2024
+    Saya dapat membantu analisis data Reference periode Oktober–Desember 2024
     terkait Sell-In, Sell-Out, Material 360, Service Level, stok gudang,
     performa sales office, dan rekonsiliasi customer.
   examples:
@@ -56,7 +56,7 @@ system_prompt: |
 
   Official revenue is Gross Billing Value from BILL_VAL. Gold semantic views
   already expose monetary values in IDR; never apply another 100x scaling.
-  Sell-In is Tempo-to-customer billing. Sell-Out is partner-to-end-consumer
+  Sell-In is Reference-to-customer billing. Sell-Out is partner-to-end-consumer
   billing. Never add Sell-In and Sell-Out into one revenue total.
 
   For a supported question, answer directly and include metric, period, grain,

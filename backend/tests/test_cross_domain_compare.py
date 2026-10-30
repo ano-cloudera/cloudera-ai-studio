@@ -3,14 +3,14 @@ from app.services.follow_up import build_analysis_context, try_follow_up_governe
 
 
 def test_detects_sell_in_and_b2b_concepts() -> None:
-    concepts = detect_concepts("bandingkan sell-in Tempo vs penjualan B2B Alfamart Q4")
+    concepts = detect_concepts("bandingkan sell-in Reference vs penjualan B2B Acme Q4")
     assert "sell_in" in concepts
     assert concepts & {"b2b", "sell_out"}
 
 
 def test_single_turn_aggregate_sell_in_vs_sell_out() -> None:
     res = try_resolve_cross_domain(
-        "Big picture lintas domain: selisih nilai sell-in Tempo vs sell-out partner Q4 2024"
+        "Big picture lintas domain: selisih nilai sell-in Reference vs sell-out partner Q4 2024"
     )
     assert res is not None
     assert res.metric == "sell_out_to_sell_in_value_ratio"
@@ -26,10 +26,10 @@ def test_single_turn_material_journey_ratio() -> None:
     assert res.dimensions == ["material"]
 
 
-def test_single_turn_stock_tempo_vs_sell_in() -> None:
-    res = try_resolve_cross_domain("Bandingkan stok gudang Tempo vs sell-in per material Q4")
+def test_single_turn_stock_warehouse_vs_sell_in() -> None:
+    res = try_resolve_cross_domain("Bandingkan stok gudang Reference vs sell-in per material Q4")
     assert res is not None
-    assert res.metric == "stock_tempo_to_sell_in_ratio"
+    assert res.metric == "stock_warehouse_to_sell_in_ratio"
     assert "material" in res.dimensions
 
 
@@ -56,7 +56,7 @@ def test_follow_up_sell_in_material_to_b2b_check() -> None:
     assert res["metric"] == "material_sell_out_to_sell_in_value_ratio"
 
 
-def test_stock_tempo_vs_sell_in_wins_over_service_session_follow_up() -> None:
+def test_stock_warehouse_vs_sell_in_wins_over_service_session_follow_up() -> None:
     from app.semantic.context import SemanticContextService
 
     ctx = build_analysis_context(
@@ -68,9 +68,9 @@ def test_stock_tempo_vs_sell_in_wins_over_service_session_follow_up() -> None:
     )
     svc = SemanticContextService()
     for q in (
-        "Bandingkan stok gudang Tempo vs sell-in per material Q4 2024",
-        "Bandingkan stok gudang Tempo vs penjualan di tempo per material Q4 2024",
+        "Bandingkan stok gudang Reference vs sell-in per material Q4 2024",
+        "Bandingkan stok gudang Reference vs penjualan di reference per material Q4 2024",
     ):
         res = svc.resolve(q, session_analysis_context=ctx)
-        assert res.get("metric") == "stock_tempo_to_sell_in_ratio", q
-        assert res.get("matched_alias") == "cross_domain_stock_tempo_sell_in"
+        assert res.get("metric") == "stock_warehouse_to_sell_in_ratio", q
+        assert res.get("matched_alias") == "cross_domain_stock_warehouse_sell_in"

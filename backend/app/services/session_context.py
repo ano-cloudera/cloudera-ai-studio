@@ -231,7 +231,7 @@ def infer_governed_metric_from_turn(entry: dict, *, ranked_entities: list[dict[s
             "sell out",
             "sellout",
             "dc ",
-            "alfamart",
+            "acme",
             "partner",
             "konsumen akhir",
             "estore",
@@ -242,7 +242,7 @@ def infer_governed_metric_from_turn(entry: dict, *, ranked_entities: list[dict[s
     if dimension in ("sales_off", "sales_office"):
         return "sales_office_sell_in_value"
     if dimension == "material":
-        if any(hint in question for hint in ("b2b", "sell-out", "sell out", "alfamart")):
+        if any(hint in question for hint in ("b2b", "sell-out", "sell out", "acme")):
             return "b2b_material_plu_value"
         return "material_sell_in_value"
     if dimension == "dcname":
@@ -407,7 +407,7 @@ def _rewrite_rank_comparison_from_chart(question: str, history: list[dict]) -> s
         grain = "branch partner B2B"
         metric_hint = "nilai sell-out B2B"
     else:
-        grain = "sales office Tempo (sell-in)"
+        grain = "sales office Reference (sell-in)"
         metric_hint = "nilai sell-in gross billing"
     return (
         f"Q4 2024, bandingkan {grain} {entity_a} vs {entity_b}: "
@@ -446,7 +446,7 @@ def answer_offers_clarification_choice(clarification: str) -> bool:
         ("sell-in" in offered and "sell-out" in offered)
         or ("dc stock" in offered and "store stock" in offered)
         or ("stok dc" in offered and "stok store" in offered)
-        or ("stok gudang tempo" in offered and ("stok dc" in offered or "stok retail" in offered))
+        or ("stok gudang reference" in offered and ("stok dc" in offered or "stok retail" in offered))
         or ("proxy" in offered and "promo" in offered and "metrik mana" in offered)
         or ("picking" in offered and "unloading" in offered and "metrik" in offered)
         or (" atau " in f" {offered} " and "?" in clarification)
@@ -498,7 +498,7 @@ def rewrite_referential_analytic_question(question: str, history: list[dict]) ->
     branch = entities.get("sales_off") or entities.get("sales_office")
     if service_context and branch and any(t in normalized for t in ("kenapa", "analisa", "penyebab", "mengapa", "jelek", "terendah")):
         return (
-            f"Untuk sales office {branch} (cabang Tempo) pada Q4 2024, "
+            f"Untuk sales office {branch} (cabang Reference) pada Q4 2024, "
             f"tampilkan 10 material dengan fill rate / service level terendah "
             f"dan selisih quantity PO vs DO terbesar (breakdown per material). "
             f"Pertanyaan asli pengguna: {question.strip()}"
@@ -506,7 +506,7 @@ def rewrite_referential_analytic_question(question: str, history: list[dict]) ->
 
     if service_context and (_TOP_ONE_RE.search(normalized) or any(t in normalized for t in ("paling jelek", "terjelek"))) and not branch:
         return (
-            f"Lanjutan analisis service level cabang Tempo Q4 2024: "
+            f"Lanjutan analisis service level cabang Reference Q4 2024: "
             f"{question.strip()} "
             f"(gunakan konteks jawaban sebelumnya: {frame.get('prior_answer_excerpt', '')})"
         )

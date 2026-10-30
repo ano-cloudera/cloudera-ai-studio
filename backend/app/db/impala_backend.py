@@ -54,7 +54,7 @@ def _is_transient_connection_error(exc: Exception) -> bool:
             "connection refused",
             "remote end closed",
             "broken pipe",
-            "temporarily unavailable",
+            "referencerarily unavailable",
             "timed out",
             "timeout",
         )

@@ -15,7 +15,7 @@ PYTHONPATH=. .venv/bin/pytest -q tests
 
 `GET /health` is deliberately lightweight. `GET /health/ready` reports safe LLM, semantic, and Impala configuration readiness. `GET /models` reports configured availability. `GET /random-queries` supports `domain`, `difficulty`, and `limit`. `POST /chat` and `POST /chat/stream` accept `session_id`, `question`, `provider`, and the exact configured `model` returned by `/models`.
 
-### Governed stack with tempo_agent_v3 (judge loop)
+### Governed stack with local_agent_v3 (judge loop)
 
 From repo root, one command starts agent v3 (`:9766`), backend v2 (`:8000`, routes Ask Data via `ASK_DATA_ROUTING=auto|ossie|v3`), and frontend (`:3000`):
 
@@ -23,9 +23,9 @@ From repo root, one command starts agent v3 (`:9766`), backend v2 (`:8000`, rout
 ./scripts/run-local-stack-governed.sh
 ```
 
-Requires repo-root `.env` (Impala AWS profile + `GEMINI_API_KEY` for v3). Smoke without Impala: `TEMPO_MOCK_MODE=1 ./scripts/run-local-stack-governed.sh`.
+Requires repo-root `.env` (Impala AWS profile + `GEMINI_API_KEY` for v3). Smoke without Impala: `REFERENCE_MOCK_MODE=1 ./scripts/run-local-stack-governed.sh`.
 
-Default engine is **`langgraph`** (KPI graph + judge + Impala). Set `TEMPO_AGENT_V3_ENGINE=deep` only for coordinator demos.
+Default engine is **`langgraph`** (KPI graph + judge + Impala). Set `REFERENCE_AGENT_V3_ENGINE=deep` only for coordinator demos.
 
 ### Conversation memory (CAI)
 
@@ -35,7 +35,7 @@ Each turn stores the question, answer JSON, **query rows**, `status`/`strategy`,
 
 ### Domain business graph (Phase C6)
 
-Metadata graph in `knowledge/tempo_domain_graph.yaml` (no Agent Studio, no PuppyGraph required). It powers cabang/sales-office disambiguation, journey hints (Stock→Sell-In→B2B→SAT→OOS), and `inquiry_brief.business_context`. Toggle with `BUSINESS_GRAPH_ENABLED`. Numbers still come only from OSSIE + Impala.
+Metadata graph in `knowledge/business_graph.yaml` (no Agent Studio, no PuppyGraph required). It powers cabang/sales-office disambiguation, journey hints (Stock→Sell-In→B2B→SAT→OOS), and `inquiry_brief.business_context`. Toggle with `BUSINESS_GRAPH_ENABLED`. Numbers still come only from OSSIE + Impala.
 
 ### B3 management regression
 
@@ -60,7 +60,7 @@ cd backend && PYTHONPATH=. python scripts/run_uat_management_followup.py http://
 
 Each turn is scored by **Gemini judge** (grounding, domain sell-in/sell-out, follow-up coherence) using rubrics in the YAML. Use `--skip-judge` for mechanical-only runs. Reports include `judge` per turn under `eval/uat_management_run_*.json`.
 
-**5 questions × domain** (sales, b2b, stock_tempo, stock_sat, sat_oos, service_level, picking, unloading, promo, cross_domain):
+**5 questions × domain** (sales, b2b, stock_warehouse, stock_sat, sat_oos, service_level, picking, unloading, promo, cross_domain):
 
 ```bash
 cd backend && PYTHONPATH=. python scripts/run_uat_domain_5x5.py http://127.0.0.1:8000 gemini

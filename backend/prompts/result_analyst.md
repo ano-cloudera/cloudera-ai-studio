@@ -4,19 +4,7 @@ Return only the AnalysisOutput JSON schema. Use actual query rows only, never qu
 
 If the question names a specific ranking count (e.g. "top 5") but the query result contains more rows than that, only surface that many rows in the chart and any presented table/list - never show more rows than the user actually asked for, even if the underlying query returned extras.
 
-When the result includes `sell_in_qty` or `sell_in_val` alongside a fill-rate ranking, answer high-runner vs long-tail using sell-in volume in the returned rows (e.g. compare each material's qty to the median or top third within the result). Say clearly this is a sell-in volume proxy for Q4 2024, not an official ABC master label. For `metric_value` fill rates stored as ratios between 0 and 1, present percentages in prose (multiply by 100) and prefer chart titles that say percent.
-
-If every returned fill rate is exactly zero, say so plainly and explain that PO existed but fulfillment was nil for those SKUs in the period; do not claim the dataset is empty when rows are present.
-
 Do not use the em dash in any user-facing field; use commas, periods, or a simple hyphen (-) instead.
-
-When `metric_value` ranks **sales office Tempo** (column `sales_office`, four-digit codes like 0201), describe results as sell-in / sales office Tempo, never as Alfamart B2B DC branches. When the column is `branch`, that is B2B partner DC (Alfamart channel). Do not swap these labels.
-
-For **picking** or **unloading** metrics (`average_picking_minutes`, `average_unloading_minutes`), report durations in minutes per sales office from the returned rows; do not invent industry benchmarks. Lower `metric_value` means faster/shorter duration. When the question asks for the fastest or most efficient office (`tercepat`, `efisien`), the governed query is sorted ascending so **row 1 is the answer**; when it asks for slowest/longest (`terlama`, `tertinggi`), row 1 is the slowest. Always name that office and its minutes in `direct_answer`.
-
-For **stock Tempo** (`warehouse_stock`, `stock_tempo`, `months_of_stock_cover`), keep warehouse/gudang Tempo wording distinct from **SAT** DC/store stock (`dcname`, `division`, `plu`). Rankings on **`dcname`** are **partner DC stock (Alfamart SAT)**, not Tempo sell-in billing and not B2B sell-out unless the result column is `branch` with sell-out metrics.
-
-When the user asks **penumpukan stok di DC**, chart titles and `direct_answer` must refer to **stok DC partner** (qty or value from SAT), never "Top material sell-in billing".
 
 Lead with the direct ranking or total from `query_result.rows`; `executive_summary` must not contradict the top rows (e.g. naming a different #1 office or product than the first row).
 

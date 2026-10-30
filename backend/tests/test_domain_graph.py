@@ -19,7 +19,7 @@ def test_domain_graph_loads() -> None:
 
 
 def test_cabang_defaults_to_sales_office_without_sell_out() -> None:
-    q = "Top 10 cabang dengan penjualan terbesar di tempo"
+    q = "Top 10 cabang dengan penjualan terbesar di reference"
     assert classify_cabang_grain(q) == "sales_office"
 
 
@@ -46,14 +46,14 @@ def test_journey_sales_to_b2b() -> None:
 
 def test_resolve_top_cabang_uses_sales_office_metric() -> None:
     ctx = SemanticContextService()
-    resolution = ctx.resolve("Top 10 cabang/ sales office dengan penjualan terbesar di tempo")
+    resolution = ctx.resolve("Top 10 cabang/ sales office dengan penjualan terbesar di reference")
     assert resolution["status"] == "resolved"
     assert resolution["metric"] == "sales_office_sell_in_value"
 
 
 def test_inquiry_brief_includes_business_context() -> None:
     brief = build_inquiry_brief(
-        "Hitung service level di cabang tempo",
+        "Hitung service level di cabang reference",
         semantic_resolution={"status": "resolved", "metric": "sales_office_service_fill_rate"},
     )
     ctx = brief.get("business_context") or {}
@@ -61,13 +61,13 @@ def test_inquiry_brief_includes_business_context() -> None:
 
 
 def test_detect_multi_domain_stock_and_sales() -> None:
-    domains = detect_domain_ids("stok gudang tempo vs penjualan sell-in per material")
-    assert "stock_tempo" in domains
+    domains = detect_domain_ids("stok gudang reference vs penjualan sell-in per material")
+    assert "stock_warehouse" in domains
     assert "sales" in domains
 
 
-def test_alfamart_penjualan_detects_b2b_and_partner_scope() -> None:
-    q = "Top 10 total penjualan berdasarkan cabang di Alfamart"
+def test_acme_penjualan_detects_b2b_and_partner_scope() -> None:
+    q = "Top 10 total penjualan berdasarkan cabang di Acme"
     domains = detect_domain_ids(q)
     assert "b2b" in domains
     ctx = build_business_context(q)
@@ -77,14 +77,14 @@ def test_alfamart_penjualan_detects_b2b_and_partner_scope() -> None:
 
 
 def test_governed_intent_top_products_q01() -> None:
-    hit = try_governed_intent_route("Top 10 produk dengan penjualan terbesar di Tempo")
+    hit = try_governed_intent_route("Top 10 produk dengan penjualan terbesar di Reference")
     assert hit is not None
     assert hit["metric"] == "material_sell_in_value"
     assert hit["dimensions"] == ["material"]
 
 
 def test_governed_intent_top_dc_q05() -> None:
-    hit = try_governed_intent_route("Top 10 DC Alfamart dengan penjualan tertinggi")
+    hit = try_governed_intent_route("Top 10 DC Acme dengan penjualan tertinggi")
     assert hit is not None
     assert hit["metric"] == "b2b_branch_sell_out_value"
 
@@ -113,8 +113,8 @@ def test_q09_picking_unloading_clarification() -> None:
 def test_b3_questions_resolve_via_context() -> None:
     ctx = SemanticContextService()
     for question, metric in (
-        ("Top 10 produk dengan penjualan terbesar di Tempo", "material_sell_in_value"),
-        ("Top 10 DC Alfamart dengan penjualan tertinggi", "b2b_branch_sell_out_value"),
+        ("Top 10 produk dengan penjualan terbesar di Reference", "material_sell_in_value"),
+        ("Top 10 DC Acme dengan penjualan tertinggi", "b2b_branch_sell_out_value"),
         ("Bantu jelaskan pareto penjualan", "material_sell_in_value"),
     ):
         resolution = ctx.resolve(question)

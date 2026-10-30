@@ -68,8 +68,8 @@ _METRIC_DOMAIN_GRAIN: dict[str, tuple[str, str]] = {
     "average_picking": ("picking", "sales_off"),
     "average_unloading": ("unloading", "sales_off"),
     "promo_": ("promo", "material"),
-    "warehouse_stock": ("stock_tempo", "material"),
-    "stock_tempo": ("stock_tempo", "material"),
+    "warehouse_stock": ("stock_warehouse", "material"),
+    "stock_warehouse": ("stock_warehouse", "material"),
 }
 
 
@@ -262,7 +262,7 @@ def _entity_supports_time_series(
             if "branch" in dims:
                 return "b2b_branch_material_sell_out_value", time_dim
             return "material_sell_out_value", time_dim
-        if "stock_tempo" in m or "warehouse" in m:
+        if "stock_warehouse" in m or "warehouse" in m:
             return "material_warehouse_stock_quantity", time_dim
         if "promo" in m or "uplift" in m:
             return "promo_material_revenue_uplift", time_dim
@@ -296,7 +296,7 @@ def _entity_supports_time_series(
         return "sat_dc_stock_quantity", time_dim
 
     if ed == "plant":
-        return "stock_tempo_total_qty", time_dim
+        return "stock_warehouse_total_qty", time_dim
 
     if ed == "plu":
         return "sat_store_stock_quantity", time_dim
@@ -586,7 +586,7 @@ def _wants_b2b_material_crosscheck(question: str) -> bool:
     lowered = _normalize(question)
     mentions_b2b = any(
         t in lowered
-        for t in ("b2b", "sell-out", "sell out", "sellout", "alfamart", "partner", "penjualan b2b")
+        for t in ("b2b", "sell-out", "sell out", "sellout", "acme", "partner", "penjualan b2b")
     )
     if not mentions_b2b:
         return False
@@ -613,7 +613,7 @@ def _wants_sell_in_crosscheck(question: str) -> bool:
     lowered = _normalize(question)
     return any(
         t in lowered
-        for t in ("sell-in", "sell in", "sell in q4", "penjualan tempo", "billing", "sell-in q4")
+        for t in ("sell-in", "sell in", "sell in q4", "penjualan reference", "billing", "sell-in q4")
     )
 
 
@@ -633,7 +633,7 @@ def _wants_unfulfilled_material_drill(question: str) -> bool:
 
 
 _DC_CITY_STOP = frozenset({
-    "mana", "yang", "dengan", "partner", "alfamart", "tertinggi", "terbesar", "terbanyak",
+    "mana", "yang", "dengan", "partner", "acme", "tertinggi", "terbesar", "terbanyak",
     "stok", "stock", "sat", "di", "ke", "dan", "atau", "untuk", "pada",
 })
 
@@ -1088,7 +1088,7 @@ def plan_follow_up(question: str, ctx: dict[str, Any]) -> FollowUpPlan | None:
         metric_override = None
         if _wants_sell_in_crosscheck(question):
             metric_override = "material_sell_in_value"
-        elif domain_id == "stock_tempo" or "stock" in last_metric.casefold() or "warehouse" in last_metric.casefold():
+        elif domain_id == "stock_warehouse" or "stock" in last_metric.casefold() or "warehouse" in last_metric.casefold():
             metric_override = "material_warehouse_stock_quantity"
         return FollowUpPlan(
             intent="filter_entity",
@@ -1333,7 +1333,7 @@ def plan_follow_up(question: str, ctx: dict[str, Any]) -> FollowUpPlan | None:
             metric_override="b2b_branch_sell_out_value",
         )
 
-    if filter_entity and _wants_sell_in_crosscheck(question) and domain_id == "stock_tempo":
+    if filter_entity and _wants_sell_in_crosscheck(question) and domain_id == "stock_warehouse":
         return FollowUpPlan(
             intent="filter_entity",
             filter_entity=filter_entity,
@@ -1352,7 +1352,7 @@ def plan_follow_up(question: str, ctx: dict[str, Any]) -> FollowUpPlan | None:
             "seluruh perusahaan",
             "companywide",
             "nasional",
-            "seluruh tempo",
+            "seluruh reference",
         )
     ) or (
         "rata-rata" in lowered
@@ -1489,8 +1489,8 @@ def _drill_metric_and_dimensions(plan: FollowUpPlan, ctx: dict[str, Any]) -> tup
         pred = _entities_in_predicate(plan.filter_entities, default_grain=grain)
         if pred:
             predicates.append(pred)
-        if domain == "stock_tempo" or "stock_tempo" in last_metric.casefold():
-            return "stock_tempo_total_qty", ["plant", "material"], predicates
+        if domain == "stock_warehouse" or "stock_warehouse" in last_metric.casefold():
+            return "stock_warehouse_total_qty", ["plant", "material"], predicates
         return last_metric, ["plant", grain], predicates
 
     if entity:
@@ -1517,8 +1517,8 @@ def _drill_metric_and_dimensions(plan: FollowUpPlan, ctx: dict[str, Any]) -> tup
         return "sat_dc_stock_quantity", ["dcname"], preds
 
     if plan.to_grain == "plant" and entity:
-        if domain == "stock_tempo" or "stock" in last_metric.casefold():
-            return "stock_tempo_total_qty", ["plant"], predicates
+        if domain == "stock_warehouse" or "stock" in last_metric.casefold():
+            return "stock_warehouse_total_qty", ["plant"], predicates
 
     if plan.to_grain == "sales_off":
         band_entity = entity or plan.filter_entity
@@ -1546,10 +1546,10 @@ def _drill_metric_and_dimensions(plan: FollowUpPlan, ctx: dict[str, Any]) -> tup
                         col = "sales_off"
                     preds.append(f"d.{col} = {_sql_string_literal(off)}")
             return "sales_office_service_unfulfilled_quantity", dims, preds
-        if domain == "stock_tempo" or "stock_tempo" in last_metric.casefold() or "warehouse" in last_metric.casefold():
+        if domain == "stock_warehouse" or "stock_warehouse" in last_metric.casefold() or "warehouse" in last_metric.casefold():
             ent_type = str((entity or {}).get("entity_type") or (entity or {}).get("dimension") or "")
             if ent_type == "plant" or default_grain == "plant":
-                return "stock_tempo_total_qty", ["material"], predicates
+                return "stock_warehouse_total_qty", ["material"], predicates
         if domain == "service_level" or "service" in last_metric.casefold() or "fill_rate" in last_metric.casefold():
             off_dim = "sales_off"
             if entity:
@@ -1671,9 +1671,9 @@ def build_follow_up_rewrite(question: str, ctx: dict[str, Any], plan: FollowUpPl
         )
     cabang = classify_cabang_grain(question, session_last_metric=str(ctx.get("last_metric") or ""))
     if cabang == "branch":
-        parts.append("Interpret cabang as B2B partner branch (sell-out), not Tempo sales office sell-in.")
+        parts.append("Interpret cabang as B2B partner branch (sell-out), not Reference sales office sell-in.")
     elif cabang == "sales_office":
-        parts.append("Interpret cabang as Tempo sales office (sell-in).")
+        parts.append("Interpret cabang as Reference sales office (sell-in).")
     parts.append(f"Original user question: {question.strip()}")
     return " ".join(parts)
 

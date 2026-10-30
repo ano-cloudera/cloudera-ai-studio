@@ -12,12 +12,12 @@ ambiguities:
   - name: sales_stage
     trigger_terms: [sales, penjualan, revenue, pendapatan, nilai penjualan]
     question: >-
-      Apakah Anda ingin melihat Sell-In (penjualan Tempo ke customer) atau
+      Apakah Anda ingin melihat Sell-In (penjualan Reference ke customer) atau
       Sell-Out (penjualan partner ke konsumen akhir)?
     options:
       - metric: gross_billing_value
         label: Sell-In Gross Billing Value
-        discriminators: [sell-in, sell in, sellin, tempo ke customer, gross sales, gross billing, general trade]
+        discriminators: [sell-in, sell in, sellin, reference ke customer, gross sales, gross billing, general trade]
       - metric: material_sell_out_value
         label: Sell-Out Billing Value
         discriminators: [sell-out, sell out, sellout, partner ke konsumen, retail sales, b2b]
@@ -30,32 +30,32 @@ ambiguities:
     options:
       - metric: sell_out_to_sell_in_value_ratio
         label: Sell-Out / Sell-In
-        discriminators: [sell-out terhadap sell-in, sell-out dibagi sell-in, penjualan partner terhadap penjualan tempo]
+        discriminators: [sell-out terhadap sell-in, sell-out dibagi sell-in, penjualan partner terhadap penjualan reference]
       - metric: sell_in_to_sell_out_value_ratio
         label: Sell-In / Sell-Out
-        discriminators: [sell-in terhadap sell-out, sell-in dibagi sell-out, penjualan tempo terhadap penjualan partner]
+        discriminators: [sell-in terhadap sell-out, sell-in dibagi sell-out, penjualan reference terhadap penjualan partner]
 
   - name: stock_scope
     trigger_terms: [stock, stok, inventory, persediaan]
     question: >-
-      Apakah Anda ingin melihat stok gudang Tempo, stok DC partner, atau stok
+      Apakah Anda ingin melihat stok gudang Reference, stok DC partner, atau stok
       store retail?
     options:
       - metric: material_warehouse_stock_quantity
-        label: Tempo Warehouse Stock
-        discriminators: [gudang tempo, stok gudang, stock tempo, stok tempo, stock value tempo, warehouse, dc tempo, plant]
+        label: Reference Warehouse Stock
+        discriminators: [gudang reference, stok gudang, stock reference, stok reference, stock value reference, warehouse, dc reference, plant]
       - metric: months_of_stock_cover
-        label: Tempo Warehouse Stock Coverage (months of cover)
+        label: Reference Warehouse Stock Coverage (months of cover)
         discriminators: [berapa bulan stok, bulan stok cukup, months of cover, stock cover, stok bertahan]
       - metric: sat_dc_stock_value
-        label: Alfamart Partner DC Stock (IDR value)
-        discriminators: [nilai stok dc, penumpukan, penumpukkan, dcstock value, dc stock value, nilai dcstock, nilai stok dc alfamart, stok dc partner nilai]
+        label: Acme Partner DC Stock (IDR value)
+        discriminators: [nilai stok dc, penumpukan, penumpukkan, dcstock value, dc stock value, nilai dcstock, nilai stok dc acme, stok dc partner nilai]
       - metric: sat_dc_stock_quantity
-        label: Alfamart Partner Distribution Center Stock (quantity)
-        discriminators: [stok dc partner, stok dc alfamart, dc stock, dcstock, idm stock, stock idm, distribution center stock, qty stok dc, kuantitas stok dc]
+        label: Acme Partner Distribution Center Stock (quantity)
+        discriminators: [stok dc partner, stok dc acme, dc stock, dcstock, idm stock, stock idm, distribution center stock, qty stok dc, kuantitas stok dc]
       - metric: sat_store_stock_quantity
-        label: Alfamart Partner Retail Store Stock
-        discriminators: [stok store, stok retail, stok toko retail, stok toko alfamart, nilai stok store, store stock, storestock, nilai storestock, retail stock]
+        label: Acme Partner Retail Store Stock
+        discriminators: [stok store, stok retail, stok toko retail, stok toko acme, nilai stok store, store stock, storestock, nilai storestock, retail stock]
 
 unknown_metric_question: >-
   Saya belum menemukan KPI yang sesuai pada Semantic Contract Q4 2024.
@@ -88,7 +88,7 @@ policy:
     program_status:
       dataset: sat_promo_material_december
       observed_codes: [Y, X, T]
-      interpretation: pending_tempo_confirmation
+      interpretation: pending_reference_confirmation
       allowed_behavior: report_raw_distribution_with_caveat
       prohibited_behavior: infer_active_inactive_success_or_failure
 

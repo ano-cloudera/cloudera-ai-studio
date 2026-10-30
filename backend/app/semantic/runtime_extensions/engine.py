@@ -380,7 +380,7 @@ def apply_runtime_extensions(
                 },
                 "custom_extensions": [
                     {
-                        "vendor_name": "TEMPO",
+                        "vendor_name": "REFERENCE",
                         "data": json.dumps(
                             {
                                 "base_dataset": spec["base_dataset"],

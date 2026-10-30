@@ -60,7 +60,7 @@ def write_deployment_artifact(
     from app.semantic_runtime.publish_governance import build_publish_governance
 
     artifact = OssieRuntimeAdapter().generate_artifact(session, version_id, write_file=False)
-    core_path = ossie_dir / "tempo_core.ossie.yaml"
+    core_path = ossie_dir / "reference_core.ossie.yaml"
     core_path.write_text(artifact.content, encoding="utf-8")
     checksum = hashlib.sha256(core_path.read_bytes()).hexdigest()
 
@@ -84,7 +84,7 @@ def write_deployment_artifact(
             "scope": {},
         }
     )
-    (ossie_dir / "tempo_governance.yaml").write_text(
+    (ossie_dir / "reference_governance.yaml").write_text(
         yaml.safe_dump(governance_doc, sort_keys=False, allow_unicode=True),
         encoding="utf-8",
     )

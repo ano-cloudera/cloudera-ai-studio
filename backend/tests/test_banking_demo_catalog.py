@@ -3,14 +3,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.semantic.registry import TempoOssieRegistry
+from app.semantic.registry import OssieRegistry
 
 
-def _auto_banking_ossie(tmp_path: Path) -> TempoOssieRegistry:
+def _auto_banking_ossie(tmp_path: Path) -> OssieRegistry:
     root = tmp_path / "runtime"
     ossie = root / "ossie"
     ossie.mkdir(parents=True)
-    (ossie / "tempo_core.ossie.yaml").write_text(
+    (ossie / "reference_core.ossie.yaml").write_text(
         """
 version: "0.2.0.dev0"
 name: banking_analytics
@@ -51,7 +51,7 @@ metrics:
         - dialect: ANSI_SQL
           expression: SUM(customer_id)
     custom_extensions:
-      - vendor_name: TEMPO
+      - vendor_name: REFERENCE
         data: '{"base_dataset": "customers", "allowed_dimensions": ["customers_join_date", "customers_segment"]}'
   - name: transactions_transaction_id_total
     description: Suggested metric transactions_transaction_id_total
@@ -60,7 +60,7 @@ metrics:
         - dialect: ANSI_SQL
           expression: SUM(transaction_id)
     custom_extensions:
-      - vendor_name: TEMPO
+      - vendor_name: REFERENCE
         data: '{"base_dataset": "transactions", "allowed_dimensions": ["transactions_transaction_date"]}'
   - name: transactions_amount_total
     description: Suggested metric transactions_amount_total
@@ -69,14 +69,14 @@ metrics:
         - dialect: ANSI_SQL
           expression: SUM(amount)
     custom_extensions:
-      - vendor_name: TEMPO
+      - vendor_name: REFERENCE
         data: '{"base_dataset": "transactions", "allowed_dimensions": ["transactions_transaction_date", "transactions_channel"]}'
 """,
         encoding="utf-8",
     )
-    (ossie / "tempo_governance.yaml").write_text("{}", encoding="utf-8")
+    (ossie / "reference_governance.yaml").write_text("{}", encoding="utf-8")
     (ossie / "golden_questions.yaml").write_text("questions: []\n", encoding="utf-8")
-    return TempoOssieRegistry(root, validate_profile=False)
+    return OssieRegistry(root, validate_profile=False)
 
 
 def test_banking_enrichment_uses_count_distinct_for_customers(tmp_path: Path) -> None:
@@ -149,18 +149,18 @@ def test_configured_starters_override_capability_lines(tmp_path: Path) -> None:
     )
     assert len(lines) == 1
     assert "total customer" in lines[0].casefold()
-    assert "TEMPO" not in lines[0]
+    assert "REFERENCE" not in lines[0]
     assert "Sell-In" not in lines[0]
 
 
-def test_banking_capability_insights_not_tempo_catalog(tmp_path: Path) -> None:
+def test_banking_capability_insights_not_reference_catalog(tmp_path: Path) -> None:
     from app.semantic.context import SemanticContextService
 
     _auto_banking_ossie(tmp_path)
     ctx = SemanticContextService(tmp_path / "runtime", validate_profile=False)
     lines = ctx.domain_capability_insight_lines()
     assert lines
-    assert not any("Sell-In" in line or "Stock Tempo" in line or "Alfamart" in line for line in lines)
+    assert not any("Sell-In" in line or "Stock Reference" in line or "Acme" in line for line in lines)
     assert any("customer" in line.casefold() or "Customer" in line for line in lines)
     assert all("Example:" in line for line in lines)
     assert all("Contoh:" in line for line in ctx.domain_capability_insight_lines(language="id"))

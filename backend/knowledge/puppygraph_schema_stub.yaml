@@ -2,7 +2,7 @@
 # Enable with PUPPYGRAPH_ENABLED=true and PUPPYGRAPH_BASE_URL when infra is ready.
 
 version: 0.1
-scope: TEMPO Q4 2024
+scope: REFERENCE Q4 2024
 notes:
   - Read-only traversals; entity scope feeds OSSIE IN (...) filters only.
   - Edges must match audited Gold keys (journey views / dimension tables).

@@ -1,4 +1,4 @@
-"""Load TEMPO domain business graph (YAML) for disambiguation and inquiry context."""
+"""Load REFERENCE domain business graph (YAML) for disambiguation and inquiry context."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import yaml
 
 CabangGrain = Literal["sales_office", "branch", "ambiguous"]
 
-_GRAPH_PATH = Path(__file__).resolve().parents[2] / "knowledge" / "tempo_domain_graph.yaml"
+_GRAPH_PATH = Path(__file__).resolve().parents[2] / "knowledge" / "business_graph.yaml"
 _OFFICE_CODE_RE = re.compile(r"\b(0\d{3})\b")
 
 
@@ -44,10 +44,10 @@ def detect_domain_ids(question: str) -> list[str]:
         elif label and label in lowered:
             found.append(domain_id)
     keyword_map = {
-        "sales": ("sell-in", "sell in", "penjualan tempo", "gross billing", "gross sales"),
-        "b2b": ("sell-out", "sell out", "b2b", "partner ke konsumen", "alfamart", "penjualan alfamart"),
-        "stock_tempo": ("stok tempo", "stock tempo", "gudang tempo"),
-        "stock_sat": ("stok dc", "stok store", "stok alfamart", "sat-idm", "sat idm"),
+        "sales": ("sell-in", "sell in", "penjualan reference", "gross billing", "gross sales"),
+        "b2b": ("sell-out", "sell out", "b2b", "partner ke konsumen", "acme", "penjualan acme"),
+        "stock_warehouse": ("stok reference", "stock reference", "gudang reference"),
+        "stock_sat": ("stok dc", "stok store", "stok acme", "sat-idm", "sat idm"),
         "sat_oos": ("oos", "out of stock", "kehabisan"),
         "service_level": ("fill rate", "service level", "services level", "fillrate", "tingkat layanan"),
         "picking": ("picking",),
@@ -234,8 +234,8 @@ def build_business_context(
     partner_scope = None
     lowered = _normalized_terms(question)
     scope_block = graph.get("partner_scope") if isinstance(graph.get("partner_scope"), dict) else {}
-    if "b2b" in domains or "alfamart" in lowered or any(t in lowered for t in ("sell-out", "sell out", "b2b")):
-        alf = scope_block.get("alfamart")
+    if "b2b" in domains or "acme" in lowered or any(t in lowered for t in ("sell-out", "sell out", "b2b")):
+        alf = scope_block.get("acme")
         if isinstance(alf, dict):
             partner_scope = alf
     return {

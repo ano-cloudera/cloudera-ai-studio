@@ -51,7 +51,7 @@ class FakeContext:
     def guidance_context(self, question: str, **kwargs):
         return {
             "scope": "October-December 2024",
-            "domains": ["Sales / Sell-In", "Stock Tempo", "Stock SAT (Alfamart)"],
+            "domains": ["Sales / Sell-In", "Stock Reference", "Stock SAT (Acme)"],
             "focus": "stock" if "stok" in question.casefold() else None,
             "metrics": [{"name": "sat_store_stock_quantity", "dimensions": ["division", "plu"]}],
             "examples": ["Berapa stok retail per division?"],
@@ -373,7 +373,7 @@ async def test_resolver_sell_in_clarification_does_not_skip_to_local_agent() -> 
     })
 
     state = await build_workflow(dependencies).ainvoke(
-        AskDataRequest(session_id="s", question="Top 10 produk penjualan di Tempo", provider="qwen", model="m").model_dump()
+        AskDataRequest(session_id="s", question="Top 10 produk penjualan di Reference", provider="qwen", model="m").model_dump()
     )
 
     assert state["status"] == "CLARIFICATION"
@@ -384,7 +384,7 @@ async def test_resolver_sell_in_clarification_does_not_skip_to_local_agent() -> 
 async def test_uat_branch_sl_question_uses_governed_sales_office_path() -> None:
     from app.semantic.context import SemanticContextService
 
-    question = "Hitung service level/ fill rate di cabang tempo dan urutkan SL terjelek"
+    question = "Hitung service level/ fill rate di cabang reference dan urutkan SL terjelek"
     provider = FakeProvider([analysis()])
     dependencies = deps(SemanticContextService(), provider, [{"sales_off": "0201", "metric_value": 0.42}])
 
@@ -471,10 +471,10 @@ async def test_empty_result_is_no_data_and_invalid_chart_is_removed() -> None:
 async def test_greeting_is_written_by_selected_llm_without_querying_impala() -> None:
     provider = FakeProvider([analysis() | {
         "direct_answer": "Halo! Senang bisa bantu 👋",
-        "executive_summary": "Saya bisa bantu membaca data komersial TEMPO Q4 2024.",
+        "executive_summary": "Saya bisa bantu membaca data komersial REFERENCE Q4 2024.",
         "insights": ["Coba tanyakan Gross Sales atau Sell-Out."],
         "business_implications": [],
-        "data_reference": "TEMPO governed capability catalog.",
+        "data_reference": "REFERENCE governed capability catalog.",
     }])
     dependencies = deps(FakeContext({"status": "unsupported"}), provider, [])
 
@@ -509,10 +509,10 @@ async def test_greeting_is_written_by_selected_llm_without_querying_impala() -> 
 async def test_capability_conversation_is_guided_by_selected_llm_without_sql(question: str) -> None:
     provider = FakeProvider([analysis() | {
         "direct_answer": "Bisa. Untuk stok, saya bisa bantu beberapa arah analisis.",
-        "executive_summary": "Pilih stok Tempo, DC partner, atau retail store.",
+        "executive_summary": "Pilih stok Reference, DC partner, atau retail store.",
         "insights": ["Contoh: berapa stok retail per division?"],
         "business_implications": [],
-        "data_reference": "TEMPO governed capability catalog.",
+        "data_reference": "REFERENCE governed capability catalog.",
     }])
     dependencies = deps(FakeContext({"status": "unsupported"}), provider, [])
     attach_catalog = "stok" not in question.casefold()

@@ -1,12 +1,12 @@
 version: 1
-scope: TEMPO Q4 2024
+scope: REFERENCE Q4 2024
 description: >-
   Candidate management questions for semantic regression. These questions are
   technical acceptance assets, not evidence of business approval.
 
 questions:
   - id: exec_gross_sales_q4
-    question: Berapa Gross Sales Tempo selama Q4 2024?
+    question: Berapa Gross Sales Reference selama Q4 2024?
     expected_status: supported
     metric: gross_billing_value
     dataset: monthly_executive
@@ -75,7 +75,7 @@ questions:
 
   - id: sales_office_top_sell_in_material
     # sales_office is a working PoC assumption here ("a branch in a given
-    # region"), not yet Tempo-confirmed - same caveat as SI-13-Q4.
+    # region"), not yet Reference-confirmed - same caveat as SI-13-Q4.
     question: Sales office mana dengan nilai Sell-In terbesar per material pada Q4?
     expected_status: supported
     metric: sales_office_material_sell_in_value
@@ -256,7 +256,7 @@ questions:
     suggested_question: Bagaimana tren Gross Sales Oktober sampai Desember 2024?
 
   - id: margin_pending
-    question: Berapa gross margin resmi Tempo?
+    question: Berapa gross margin resmi Reference?
     expected_status: unsupported
     reason: Official gross margin formula has not been business-approved.
     suggested_question: Berapa Gross Billing Value selama Q4?
@@ -289,7 +289,7 @@ questions:
     catalog_question_id: S01
     chart_primary: KPI
     domain_agent: sales
-    question: Berapa total gross revenue Sell-In Tempo Q4 2024 nasional?
+    question: Berapa total gross revenue Sell-In Reference Q4 2024 nasional?
     expected_status: supported
     metric: gross_billing_value
     dataset: monthly_executive
@@ -400,12 +400,12 @@ questions:
     reason: Causal and multi-source OOS narrative is not governed in v1.
     suggested_question: Customer mana dengan gap Sell-In dan Sell-Out terbesar?
 
-  # --- Stock Tempo domain ---
+  # --- Stock Reference domain ---
   - id: catalog_t02_top_stock_des
     catalog_question_id: T02
     chart_primary: PARETO
-    domain_agent: stock_tempo
-    question: Top material by stok gudang Tempo Desember 2024.
+    domain_agent: stock_warehouse
+    question: Top material by stok gudang Reference Desember 2024.
     expected_status: supported
     metric: material_warehouse_stock_quantity
     dataset: material_360
@@ -415,8 +415,8 @@ questions:
   - id: catalog_t14_promo_stock_cover
     catalog_question_id: T14
     chart_primary: COMBO
-    domain_agent: stock_tempo
-    question: Apakah stok Tempo cukup untuk SKU promo Desember?
+    domain_agent: stock_warehouse
+    question: Apakah stok Reference cukup untuk SKU promo Desember?
     expected_status: unsupported
     reason: Promo × stock join is exploratory only (December promo scope).
     suggested_question: Material mana dengan stok gudang terbesar pada Desember?
@@ -517,7 +517,7 @@ questions:
     metric: promo_observation_count
     dataset: sat_promo_material_december
     dimensions: [program_status]
-    caveat: Y, X, and T are raw source codes whose business meanings are pending TEMPO confirmation.
+    caveat: Y, X, and T are raw source codes whose business meanings are pending REFERENCE confirmation.
 
   - id: catalog_p03_promo_material_ranking
     catalog_question_id: P03
@@ -622,7 +622,7 @@ questions:
   - id: catalog_stock_velocity
     catalog_question_id: T07
     chart_primary: SCATTER
-    domain_agent: stock_tempo
+    domain_agent: stock_warehouse
     question: Material dengan stok tinggi vs sell-in rendah?
     expected_status: supported_with_caveat
     metric: sell_in_quantity_per_stock_unit
@@ -696,7 +696,7 @@ questions:
     catalog_question_id: B17
     chart_primary: HBAR
     domain_agent: b2b
-    question: Sales office Tempo mana dengan BILL_QTY B2B tertinggi?
+    question: Sales office Reference mana dengan BILL_QTY B2B tertinggi?
     expected_status: supported
     metric: b2b_branch_sell_out_quantity
     dataset: b2b_branch_estore
@@ -706,7 +706,7 @@ questions:
     catalog_question_id: I08
     chart_primary: HBAR
     domain_agent: stock_sat_idm
-    question: Berapa nilai stok DC Alfamart (SAT) per DC selama Q4 2024?
+    question: Berapa nilai stok DC Acme (SAT) per DC selama Q4 2024?
     expected_status: supported
     metric: sat_dc_stock_value
     dataset: sat_dc_month
@@ -716,7 +716,7 @@ questions:
     catalog_question_id: I08
     chart_primary: HBAR
     domain_agent: stock_sat_idm
-    question: Berapa nilai stok store Alfamart (SAT) per DC selama Q4 2024?
+    question: Berapa nilai stok store Acme (SAT) per DC selama Q4 2024?
     expected_status: supported
     metric: sat_store_stock_value
     dataset: sat_dc_month

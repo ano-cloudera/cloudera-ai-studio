@@ -439,7 +439,7 @@ class SemanticRuntimeService:
         )
 
     def _verify_checksum(self, deployment: SemanticRuntimeDeploymentRow, project_dir: Path) -> bool:
-        core = project_dir / "ossie" / "tempo_core.ossie.yaml"
+        core = project_dir / "ossie" / "reference_core.ossie.yaml"
         if not core.is_file():
             return False
         checksum = hashlib.sha256(core.read_bytes()).hexdigest()
@@ -447,9 +447,9 @@ class SemanticRuntimeService:
 
     def _validate_staged_files(self, deployment: SemanticRuntimeDeploymentRow) -> tuple[bool, str]:
         project_dir = self._deployment_project_dir(deployment)
-        core = project_dir / "ossie" / "tempo_core.ossie.yaml"
+        core = project_dir / "ossie" / "reference_core.ossie.yaml"
         if not core.is_file():
-            return False, "Missing tempo_core.ossie.yaml in staged deployment"
+            return False, "Missing reference_core.ossie.yaml in staged deployment"
         if not self._verify_checksum(deployment, project_dir):
             return False, "Artifact checksum mismatch"
         try:

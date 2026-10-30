@@ -28,8 +28,8 @@ describe('streamProgress', () => {
     expect(mergeProgressStep(1, 'query', 'Menjalankan')).toBe(3)
   })
 
-  it('hides tempo-agent-v3 from governance chip', () => {
-    expect(governanceDisplayLabel([], 'Governed · tempo-agent-v3 + Impala')).toBe('Governed · Impala')
+  it('hides local-agent-v3 from governance chip', () => {
+    expect(governanceDisplayLabel([], 'Governed · local-agent-v3 + Impala')).toBe('Governed · Impala')
     expect(governanceDisplayLabel([], undefined)).toBe('Governed · Impala')
   })
 })

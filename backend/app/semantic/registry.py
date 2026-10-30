@@ -57,13 +57,13 @@ def _is_semantic_registry_catalog(metrics: dict[str, Any]) -> bool:
     return True
 
 
-class TempoOssieRegistry:
+class OssieRegistry:
     """Read-only registry for the official-root Apache Ossie model."""
 
     def __init__(self, project_dir: Path, *, validate_profile: bool = True):
         self.project_dir = project_dir.resolve()
-        self.model_path = self.project_dir / "ossie" / "tempo_core.ossie.yaml"
-        self.governance_path = self.project_dir / "ossie" / "tempo_governance.yaml"
+        self.model_path = self.project_dir / "ossie" / "reference_core.ossie.yaml"
+        self.governance_path = self.project_dir / "ossie" / "reference_governance.yaml"
         self.golden_path = self.project_dir / "ossie" / "golden_questions.yaml"
 
         self.model = self._load(self.model_path)
@@ -76,7 +76,7 @@ class TempoOssieRegistry:
             for name, dataset in self.datasets.items()
         }
         self.metric_configs = {
-            name: self.tempo_extension(metric) for name, metric in self.metrics.items()
+            name: self.reference_extension(metric) for name, metric in self.metrics.items()
         }
         from app.semantic.runtime_extensions import (
             apply_runtime_extensions,
@@ -95,7 +95,7 @@ class TempoOssieRegistry:
             self.runtime_extensions = None
         for name, metric in self.metrics.items():
             if name not in self.metric_configs:
-                self.metric_configs[name] = self.tempo_extension(metric)
+                self.metric_configs[name] = self.reference_extension(metric)
         if validate_profile:
             self.validate()
         else:
@@ -120,9 +120,9 @@ class TempoOssieRegistry:
         return value
 
     @staticmethod
-    def tempo_extension(item: dict[str, Any]) -> dict[str, Any]:
+    def reference_extension(item: dict[str, Any]) -> dict[str, Any]:
         for extension in item.get("custom_extensions", []):
-            if extension.get("vendor_name") != "TEMPO":
+            if extension.get("vendor_name") != "REFERENCE":
                 continue
             data = extension.get("data", {})
             return json.loads(data) if isinstance(data, str) else dict(data)
@@ -143,17 +143,17 @@ class TempoOssieRegistry:
         if not self.model.get("name"):
             errors.append("Ossie model has no name")
         # Size floors belong to the legacy domain profile only; other models just need valid structure.
-        domain_profile = self.model.get("name") == "tempo_q4_governed"
+        domain_profile = self.model.get("name") == "reference_q4_governed"
         # Minimums, not exact counts: the original Semantic Contract v1 (5
         # datasets / 28 metrics) is the floor. The 24 Sep 2026 journey
-        # expansion (Stock Tempo -> Sales -> B2B -> SAT-IDM -> OOS, see
-        # TEMPO_DATAMART_PLAN.md §8.1) added 9 more datasets and 13 more
+        # expansion (Stock Reference -> Sales -> B2B -> SAT-IDM -> OOS, see
+        # REFERENCE_DATAMART_PLAN.md §8.1) added 9 more datasets and 13 more
         # metrics on top of that floor - an exact-count check would reject
         # any further intentional growth of the governed model.
         if domain_profile and len(self.datasets) < 5:
-            errors.append("TEMPO Impala profile expects at least five datasets")
+            errors.append("REFERENCE Impala profile expects at least five datasets")
         if domain_profile and len(self.metrics) < 28:
-            errors.append("TEMPO Impala profile expects at least 28 metrics")
+            errors.append("REFERENCE Impala profile expects at least 28 metrics")
         if self.model.get("relationships"):
             errors.append("Runtime joins are disabled for Semantic Contract v1")
 
@@ -186,7 +186,7 @@ class TempoOssieRegistry:
                 errors.append(f"{metric_name} has unknown dimensions {sorted(unknown)}")
 
         if errors:
-            raise ValueError("Invalid TEMPO Ossie registry:\n- " + "\n- ".join(errors))
+            raise ValueError("Invalid REFERENCE Ossie registry:\n- " + "\n- ".join(errors))
 
     def metric_aliases(self, metric_name: str) -> list[str]:
         from app.semantic.runtime_extensions import display_name_for_metric
@@ -385,7 +385,7 @@ class TempoOssieRegistry:
         # Stop those requests before generic Sales ambiguity can redirect a
         # promo ROI/revenue question to Sell-In.
         #
-        # Tempo confirmed on 28 Sep 2026 (Pak Hieronimus Gunawan, WhatsApp,
+        # Reference confirmed on 28 Sep 2026 (Pak Hieronimus Gunawan, WhatsApp,
         # replying to "Y = active kah?" with "abaikan saja pak, di list
         # tersebut, artinya aktif") that every row in this data represents
         # an active promo observation - program_status codes Y/X/T do not
@@ -423,7 +423,7 @@ class TempoOssieRegistry:
                 "question": (
                     "SAT Promo hanya mendukung observasi audit Desember 2024. "
                     "Seluruh data ini adalah observasi promo aktif (dikonfirmasi "
-                    "Tempo); kode status Y/X/T tidak membedakan aktif/tidak aktif, "
+                    "Reference); kode status Y/X/T tidak membedakan aktif/tidak aktif, "
                     "jadi tidak bisa memilah subset yang tidak aktif."
                 ),
                 "suggested_questions": [
@@ -432,7 +432,7 @@ class TempoOssieRegistry:
                     "Bagaimana distribusi kode program status Y/X/T?",
                 ],
             }
-        # No direct ROI metric exists: SAT Promo (the Alfamart/B2B promo
+        # No direct ROI metric exists: SAT Promo (the Acme/B2B promo
         # program) has no promo-cost column beyond a free-text "mekanisme"
         # field, and SAT Promo only covers December 2024 with no prior-month
         # baseline in the same channel. The only measurable proxy is General
@@ -454,7 +454,7 @@ class TempoOssieRegistry:
                 "uplift sell-out",
                 "uplift sellout",
                 "uplift b2b",
-                "uplift alfamart",
+                "uplift acme",
                 "penjualan sell-out",
                 "sell-out uplift",
                 "sellout uplift",
@@ -493,7 +493,7 @@ class TempoOssieRegistry:
             and "generaltrade" in normalized
             and "november" in normalized
             and "desember" in normalized
-            and ("promo" in normalized or "alfamart" in normalized or "roi" in normalized)
+            and ("promo" in normalized or "acme" in normalized or "roi" in normalized)
         ):
             roi_proxy_selected = ["promo_material_revenue_uplift"]
         if len(roi_proxy_selected) == 1:
@@ -547,7 +547,7 @@ class TempoOssieRegistry:
             }
         mentions_partner_sellout = any(
             term in normalized
-            for term in ("sellout", "b2b", "alfamart", "partnersellout", "channelpartner")
+            for term in ("sellout", "b2b", "acme", "partnersellout", "channelpartner")
         )
         if (
             mentions_promo
@@ -575,12 +575,12 @@ class TempoOssieRegistry:
                 "status": "needs_clarification",
                 "reason": "promo_roi_proxy_choice",
                 "question": (
-                    "TEMPO tidak memiliki data biaya promo atau ROI langsung untuk "
-                    "SAT Promo (Alfamart) - data yang tersedia hanya deskripsi "
+                    "REFERENCE tidak memiliki data biaya promo atau ROI langsung untuk "
+                    "SAT Promo (Acme) - data yang tersedia hanya deskripsi "
                     "mekanisme promo (teks bebas), bukan nilai biaya terstruktur, dan "
                     "SAT Promo hanya mencakup Desember 2024 tanpa baseline bulan "
                     "sebelumnya di channel yang sama. Proxy yang bisa dihitung: (1) uplift "
-                    "sell-out B2B/Alfamart Nov vs Des untuk material promo yang sama, atau "
+                    "sell-out B2B/Acme Nov vs Des untuk material promo yang sama, atau "
                     "(2) dampak penjualan General Trade untuk material yang sama. Metrik "
                     "mana yang Anda mau?"
                 ),
@@ -608,7 +608,7 @@ class TempoOssieRegistry:
                 ],
             }
 
-        # Tempo explicitly confirmed on 28 Sep 2026 that DC Stock and Store
+        # Reference explicitly confirmed on 28 Sep 2026 that DC Stock and Store
         # Stock are positions at different analysis levels and must not be
         # added into a synthetic "total pipeline". Catch that request before
         # the generic stock-scope ambiguity (or alias scoring) can silently
@@ -676,7 +676,7 @@ class TempoOssieRegistry:
             }
         # "Bandingkan"/"vs" is a different, valid request from "jumlahkan" -
         # the user wants to SEE both levels side by side, not sum them into
-        # one number (which Tempo explicitly prohibited, see above). No
+        # one number (which Reference explicitly prohibited, see above). No
         # single compile_governed() call can return two stock-level columns
         # at once, so route this to two explicit metric choices instead of
         # the generic 4-way stock_scope ambiguity below, which doesn't make
@@ -725,7 +725,7 @@ class TempoOssieRegistry:
             ):
                 continue
             # "Stok konsinyasi" has its own published metric
-            # (stock_tempo_consignment_qty) that already implies the Tempo
+            # (stock_warehouse_consignment_qty) that already implies the Reference
             # warehouse scope - it does not need the generic
             # warehouse/DC/store clarification.
             if ambiguity.get("name") == "stock_scope" and any(
@@ -746,16 +746,16 @@ class TempoOssieRegistry:
             # (monthly_executive, material_360) have no outlet/e_store field
             # at all, so there is nothing to disambiguate UNLESS the
             # question also explicitly asks to compare/combine with
-            # Sell-In/Tempo/general trade.
+            # Sell-In/Reference/general trade.
             if ambiguity.get("name") == "sales_stage" and any(
                 term in normalized for term in ("toko", "outlet", "gerai", "estore", "e-store")
             ) and not any(
                 _normalize(term) in normalized
-                for term in ("sell-in", "sell in", "tempo ke customer", "general trade", "gross billing")
+                for term in ("sell-in", "sell in", "reference ke customer", "general trade", "gross billing")
             ):
                 continue
             # A question asking for the RATIO/variance BETWEEN Sell-In and
-            # Sell-Out ("rasio penjualan partner terhadap penjualan tempo")
+            # Sell-Out ("rasio penjualan partner terhadap penjualan reference")
             # mentions "penjualan" twice but is not choosing one stage over
             # the other - it wants the reconciliation metric that relates
             # both. Let ratio_direction (below, more specific) handle it
@@ -841,12 +841,12 @@ class TempoOssieRegistry:
         dimension_terms = {
             "material": ("material", "sku", "produk", "product", "products", "barang", "item"),
             "customer": ("customer", "pelanggan"),
-            # TEMPO confirmed that partner/B2B branch and TEMPO sales office
+            # REFERENCE confirmed that partner/B2B branch and REFERENCE sales office
             # are genuinely different dimensions. Keep their routing hints
             # separate so a branch-qualified B2B question cannot receive the
             # generic company-month bonus and fall through to Gross Sales.
             # "cabang" is listed under both - it is the common Indonesian word
-            # for either a B2B partner branch or a Tempo sales office, and
+            # for either a B2B partner branch or a Reference sales office, and
             # which one a question means is decided by the sales_stage
             # ambiguity (Sell-In vs B2B/Sell-Out) resolving first, not by
             # this dimension hint alone; resolve_metric's per-metric alias
@@ -863,13 +863,13 @@ class TempoOssieRegistry:
             if any(_normalize(term) in normalized for term in terms)
         }
         # "sales office" folds to salesoffice, which falsely contains the
-        # sales_off hint "salesoff" - prefer sales_office for Tempo office metrics.
+        # sales_off hint "salesoff" - prefer sales_office for Reference office metrics.
         if "salesoffice" in normalized or "kantorpenjualan" in normalized:
             hinted_dimensions.discard("sales_off")
             hinted_dimensions.add("sales_office")
         company_scope = any(
             _normalize(term) in normalized
-            for term in ("company", "perusahaan", "tempo total", "total tempo")
+            for term in ("company", "perusahaan", "reference total", "total reference")
         )
         # A question with no dimension hint beyond calmonth ("Fill Rate per
         # bulan?", no mention of "material"/"sku"/"produk"/"cabang"/etc.) is
@@ -953,10 +953,10 @@ class TempoOssieRegistry:
         #
         # "cabang" ambiguously hints branch/sales_off/sales_office all at
         # once (see the dimension_terms comment above) - it is the one
-        # Indonesian word for a B2B partner branch, a Tempo sales office,
+        # Indonesian word for a B2B partner branch, a Reference sales office,
         # and two differently-named physical columns for the latter
         # concept across gold views. The winning metric's own alias scoring
-        # already picked the correct domain (B2B vs Tempo sales); once ANY
+        # already picked the correct domain (B2B vs Reference sales); once ANY
         # member of this synonym group is actually covered by that metric's
         # allowed_dimensions, the other members must not be reported as
         # unmet - they were never separate, unanswered requests, just
@@ -982,7 +982,7 @@ class TempoOssieRegistry:
         doesn't cover a dimension the question hinted at). allowed_dimensions
         is included specifically for the second case: two metrics can have
         near-identical descriptions (e.g. gross_billing_value "Official
-        TEMPO revenue" vs material_sell_in_value "Sell-In Gross Billing
+        REFERENCE revenue" vs material_sell_in_value "Sell-In Gross Billing
         Value by material and month") and be indistinguishable by text
         alone - the classifier needs to see which one actually supports a
         material/product breakdown to pick correctly. Kept separate from

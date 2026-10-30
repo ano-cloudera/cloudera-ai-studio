@@ -72,7 +72,7 @@ export function governanceDisplayLabel(
   const trimmed = envChip?.trim()
   if (trimmed) {
     const lower = trimmed.toLowerCase()
-    if (lower.includes('tempo-agent-v3') || lower.includes('ossie')) return 'Governed · Impala'
+    if (lower.includes('local-agent-v3') || lower.includes('ossie')) return 'Governed · Impala'
     if (lower.includes('duckdb') || lower.includes('exploratory')) return 'Exploratory · Local'
     return trimmed
   }

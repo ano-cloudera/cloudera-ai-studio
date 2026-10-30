@@ -111,7 +111,7 @@ views:
     - row_count
     ossie_source: gold.corr_service_sales_office_material_month
     from_ddl: true
-  gold.corr_stock_tempo_month_seta:
+  gold.corr_stock_warehouse_month_seta:
     columns:
     - calmonth
     - material
@@ -120,9 +120,9 @@ views:
     - stock_value
     - consignment_stock_qty
     - row_count
-    ossie_source: gold.corr_stock_tempo_month_seta
+    ossie_source: gold.corr_stock_warehouse_month_seta
     from_ddl: true
-  gold.corr_stock_tempo_sales_material_month:
+  gold.corr_stock_warehouse_sales_material_month:
     columns:
     - calmonth
     - material
@@ -131,7 +131,7 @@ views:
     - sell_in_bill_val
     - sell_in_bill_qty
     - stock_to_sell_in_ratio
-    ossie_source: gold.corr_stock_tempo_sales_material_month
+    ossie_source: gold.corr_stock_warehouse_sales_material_month
     from_ddl: true
   gold.rpt_sales_office_performance_semantic:
     columns:

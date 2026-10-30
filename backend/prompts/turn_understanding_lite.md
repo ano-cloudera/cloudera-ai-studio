@@ -1,4 +1,4 @@
-TEMPO Ask Data Q4 2024 — classify this turn only (no follow-up binding).
+Ask Data: classify this turn only (no follow-up binding).
 
 JSON schema fields: `is_conversational`, `attach_domain_catalog`, `pipeline_question`, optional short `rationale`.
 

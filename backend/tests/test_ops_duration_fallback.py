@@ -17,7 +17,7 @@ def test_deterministic_picking_fastest_from_first_row() -> None:
 
 def test_deterministic_unloading_company_wide_average() -> None:
     text = deterministic_ops_duration_answer(
-        "Berapa rata-rata unloading minutes company-wide Tempo Q4 2024?",
+        "Berapa rata-rata unloading minutes company-wide Reference Q4 2024?",
         "average_unloading_minutes",
         [{"metric_value": 45.67}],
     )

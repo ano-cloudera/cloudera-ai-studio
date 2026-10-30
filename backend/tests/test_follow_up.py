@@ -162,11 +162,11 @@ def test_contextualize_keeps_user_wording_for_governed_follow_up() -> None:
 
     history = [
         {
-            "question": "Top 10 cabang Alfamart",
+            "question": "Top 10 cabang Acme",
             "status": "SUCCESS",
             "strategy": "governed",
             "session_frame": build_session_frame(
-                question="Top 10 cabang Alfamart",
+                question="Top 10 cabang Acme",
                 status="SUCCESS",
                 strategy="governed",
                 rows=[{"branch": "DC Palembang", "metric_value": 1}],

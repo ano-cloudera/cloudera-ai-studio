@@ -94,11 +94,11 @@ describe('V2 Ask Data page', () => {
       questions: [
         { id: 'sales-1', question: 'Berapa total Gross Billing Value?', domain: 'sales', domains: ['sales'], difficulty: 'simple', analysis_type: 'metric', expected_visualization: 'kpi' },
         { id: 'sales-2', question: 'Produk apa yang paling laku Q4 2024?', domain: 'sales', domains: ['sales'], difficulty: 'simple', analysis_type: 'ranking', expected_visualization: 'bar' },
-        { id: 'stock-1', question: 'Berapa stok gudang Tempo bulan Desember?', domain: 'stock', domains: ['stock'], difficulty: 'simple', analysis_type: 'metric', expected_visualization: 'kpi' },
+        { id: 'stock-1', question: 'Berapa stok gudang Reference bulan Desember?', domain: 'stock', domains: ['stock'], difficulty: 'simple', analysis_type: 'metric', expected_visualization: 'kpi' },
       ],
     })
     vi.mocked(api.chatStream).mockImplementation((async function* () {
-      yield { type: 'progress', stage: 'querying_data', label: 'Querying TEMPO data' }
+      yield { type: 'progress', stage: 'querying_data', label: 'Querying REFERENCE data' }
       yield { type: 'done', response: {
         request_id: 'r1', session_id: 's1', status: 'SUCCESS', provider: 'qwen', model: 'qwen-model', strategy: 'governed',
         answer: { direct_answer: 'Rp10', executive_summary: 'Total Rp10', insights: [], business_implications: [], caveats: [], data_reference: 'result', chart_spec: { type: 'kpi', title: 'Total Sales', y: 'value' } },
@@ -137,7 +137,7 @@ describe('V2 Ask Data page', () => {
       }],
     })
     vi.mocked(api.chatStream).mockImplementation((async function* () {
-      yield { type: 'progress', stage: 'querying_data', label: 'Querying TEMPO data' }
+      yield { type: 'progress', stage: 'querying_data', label: 'Querying REFERENCE data' }
       yield { type: 'done', response: {
         request_id: 'r2', session_id: 's2', status: 'SUCCESS', provider: 'qwen', model: 'qwen-model', strategy: 'governed', route: 'ask_data',
         answer: { direct_answer: 'Gross Sales Q4 sebesar Rp10 miliar.', executive_summary: 'Nilai ini merupakan akumulasi Oktober–Desember.', insights: ['Desember tertinggi.'], business_implications: ['Prioritaskan ketersediaan stok Desember.'], caveats: ['Data hanya Q4 2024.'], data_reference: 'gold.rpt_sap_monthly_executive_semantic', chart_spec: null },
@@ -181,7 +181,7 @@ describe('V2 Ask Data page', () => {
   it('lets the user stop a request that is still loading', async () => {
     vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
     vi.mocked(api.chatStream).mockImplementation((async function* (_question, _session, _selection, signal?: AbortSignal) {
-      yield { type: 'progress', stage: 'querying_data', label: 'Querying TEMPO data' }
+      yield { type: 'progress', stage: 'querying_data', label: 'Querying REFERENCE data' }
       await new Promise<void>((_resolve, reject) => signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true }))
     }) as never)
     renderWithProviders(<AskDataPage />)
@@ -196,7 +196,7 @@ describe('V2 Ask Data page', () => {
   it('downloads the visible conversation as PDF after a completed answer', async () => {
     vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
     vi.mocked(api.chatStream).mockImplementation((async function* () {
-      yield { type: 'progress', stage: 'querying_data', label: 'Querying TEMPO data' }
+      yield { type: 'progress', stage: 'querying_data', label: 'Querying REFERENCE data' }
       yield { type: 'done', response: {
         request_id: 'r-dl', session_id: 's-dl', status: 'SUCCESS', provider: 'qwen', model: 'qwen-model', strategy: 'governed', route: 'ask_data',
         answer: { direct_answer: 'Done.', executive_summary: 'Done.', insights: [], business_implications: [], caveats: [], data_reference: 'gold.table', chart_spec: null },
@@ -224,7 +224,7 @@ describe('V2 Ask Data page', () => {
   it('does not auto-submit a second request after the stream completes', async () => {
     vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
     vi.mocked(api.chatStream).mockImplementation((async function* () {
-      yield { type: 'progress', stage: 'querying_data', label: 'Querying TEMPO data' }
+      yield { type: 'progress', stage: 'querying_data', label: 'Querying REFERENCE data' }
       yield { type: 'done', response: {
         request_id: 'r-once', session_id: 's-once', status: 'SUCCESS', provider: 'qwen', model: 'qwen-model', strategy: 'governed', route: 'ask_data',
         answer: { direct_answer: 'Once.', executive_summary: 'Once.', insights: [], business_implications: [], caveats: [], data_reference: 't', chart_spec: null },
@@ -249,7 +249,7 @@ describe('V2 Ask Data page', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
     vi.mocked(api.chatStream).mockImplementation((async function* (_question, _session, _selection, signal?: AbortSignal) {
-      yield { type: 'progress', stage: 'querying_data', label: 'Querying TEMPO data' }
+      yield { type: 'progress', stage: 'querying_data', label: 'Querying REFERENCE data' }
       await new Promise<void>((_resolve, reject) => signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true }))
     }) as never)
     renderWithProviders(<AskDataPage />)

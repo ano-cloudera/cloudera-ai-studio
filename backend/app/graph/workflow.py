@@ -160,13 +160,13 @@ def _partner_scope_caveats(question: str, resolution: dict[str, Any]) -> list[st
     metric = str(resolution.get("metric") or "")
     b2b_metric = metric.startswith("b2b_") or "sell_out" in metric or "branch_sell_out" in metric
     b2b_wording = any(
-        term in lowered for term in ("alfamart", "b2b", "sell-out", "sell out", "partner", "dc alfamart")
+        term in lowered for term in ("acme", "b2b", "sell-out", "sell out", "partner", "dc acme")
     )
     if not b2b_metric and not b2b_wording:
         return []
     return [
-        "Domain note: Alfamart/B2B in Q4 2024 means partner-network sell-out; "
-        "branch/DC is the value of the branch column (for example DC Palembang), not a branch='Alfamart' filter."
+        "Domain note: Acme/B2B in Q4 2024 means partner-network sell-out; "
+        "branch/DC is the value of the branch column (for example DC Palembang), not a branch='Acme' filter."
     ]
 
 
@@ -196,7 +196,7 @@ def _should_try_local_agent_second(state: AskDataState, deps: WorkflowDependenci
 
 
 async def _try_local_agent_fallback(state: AskDataState, deps: WorkflowDependencies) -> dict[str, Any] | None:
-    """Second-option consult to TEMPO Local Agent after our primary path
+    """Second-option consult to REFERENCE Local Agent after our primary path
     could not produce a direct answer (unsupported, or selected clarifications).
 
     Returns an
@@ -224,7 +224,7 @@ async def _try_local_agent_fallback(state: AskDataState, deps: WorkflowDependenc
     if not text:
         return None
     query_ids = payload.get("resolved_query_ids") or []
-    reference = f"TEMPO Local Agent (separate governed catalog) - query: {', '.join(query_ids)}" if query_ids else "TEMPO Local Agent (separate governed catalog)."
+    reference = f"REFERENCE Local Agent (separate governed catalog) - query: {', '.join(query_ids)}" if query_ids else "REFERENCE Local Agent (separate governed catalog)."
     return AnalysisOutput(
         direct_answer=text,
         executive_summary=text,
@@ -937,12 +937,12 @@ def build_workflow(deps: WorkflowDependencies):
                 update["query_result"] = result
         if not rows:
             metric_name = str(resolution.get("metric") or "")
-            if "stock_tempo_to_sell_in" in metric_name:
+            if "stock_warehouse_to_sell_in" in metric_name:
                 update.update(
                     status="CLARIFICATION",
                     strategy="clarification",
                     answer=_safe_answer(
-                        "Data perbandingan stok Tempo vs sell-in untuk material tersebut tidak lengkap "
+                        "Data perbandingan stok Reference vs sell-in untuk material tersebut tidak lengkap "
                         "pada periode Q4 2024. Anda bisa minta rincian sell-in per bulan untuk material yang sama."
                     ),
                     chart_spec=None,

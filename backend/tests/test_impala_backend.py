@@ -9,7 +9,7 @@ def test_ldap_profile_requires_both_user_and_password() -> None:
     settings = Settings(
         impala_host="impala.example",
         impala_auth_mechanism="LDAP",
-        impala_user="tempo-user",
+        impala_user="reference-user",
         impala_password="",
     )
 

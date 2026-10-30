@@ -10,7 +10,7 @@ def test_rank_one_b2b_branch_filter_without_llm_understanding() -> None:
             {"rank": 1, "dimension": "branch", "id": "DC Palembang", "metric_value": 1e10},
             {"rank": 2, "dimension": "branch", "id": "DC Makassar", "metric_value": 9e9},
         ],
-        last_question="top penjualan cabang Alfamart?",
+        last_question="top penjualan cabang Acme?",
     )
     q = "untuk cabang rank 1 dari hasil itu, sebutkan nilai sell-out dan nama DC-nya"
     res = try_follow_up_governed_resolution(q, ctx, understanding=None)
@@ -46,7 +46,7 @@ def test_fe001_material_follow_up_after_company_total() -> None:
         dimensions=["calmonth"],
         entity_dimension=None,
         ranked_entities=[],
-        last_question="total stok gudang Tempo company-wide Q4 2024",
+        last_question="total stok gudang Reference company-wide Q4 2024",
     )
     q = "bagaimana stok material FE001 dibanding total tadi?"
     res = try_follow_up_governed_resolution(q, ctx, understanding=None)

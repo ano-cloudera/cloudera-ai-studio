@@ -18,8 +18,8 @@ Authoring state lives in PostgreSQL (`semantic_models`, `semantic_versions`, met
 
    `{SEMANTIC_RUNTIME_STORAGE_ROOT}/{workspace_id}/{project_id}/{model_key}/deployments/{deployment_id}/`
 
-   - `ossie/tempo_core.ossie.yaml` — entities, dimensions (fields), metrics  
-   - `ossie/tempo_governance.yaml` — glossary snapshot, `runtime_extensions` (profile + phrase map from terms)  
+   - `ossie/reference_core.ossie.yaml` — entities, dimensions (fields), metrics  
+   - `ossie/reference_governance.yaml` — glossary snapshot, `runtime_extensions` (profile + phrase map from terms)  
    - `manifest.json` — checksum and version metadata  
 
 3. The model’s **active deployment** must be `ACTIVE` before `@Semantic` works.
@@ -45,7 +45,7 @@ In Ask Data, type `@` and pick one structured context (only **one** per message)
 
 ## 4. Glossary and runtime extensions
 
-- **Terms** edited in Semantic Layer are copied into `tempo_governance.yaml` → `glossary` on publish.
+- **Terms** edited in Semantic Layer are copied into `reference_governance.yaml` → `glossary` on publish.
 - Terms with **related dimension keys** become breakdown phrase hints (`runtime_extensions.breakdown.phrase_map`).
 - Optional **code profiles** under `backend/app/semantic/runtime_extensions/profiles/` (e.g. `banking_demo`) attach when dataset sources match; publish stores `profile: <name>` in governance instead of duplicating the whole profile.
 

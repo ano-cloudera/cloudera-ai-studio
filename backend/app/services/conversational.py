@@ -203,7 +203,7 @@ def _is_sell_in_vs_sell_out_concept(question: str) -> bool:
     lowered = question.casefold().replace("–", "-")
     asks_contrast = any(term in lowered for term in ("beda", "bedanya", "perbedaan", "difference", "vs "))
     mentions_sell_in = any(term in lowered for term in ("sell-in", "sell in", "sellin"))
-    mentions_sell_out = any(term in lowered for term in ("sell-out", "sell out", "sellout", "alfamart"))
+    mentions_sell_out = any(term in lowered for term in ("sell-out", "sell out", "sellout", "acme"))
     looks_analytic = any(term in lowered for term in ("top ", "berapa", "ranking", "total ", "q4 2024"))
     return asks_contrast and mentions_sell_in and mentions_sell_out and not looks_analytic
 

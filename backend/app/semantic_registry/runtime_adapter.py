@@ -115,13 +115,13 @@ class OssieRuntimeAdapter(SemanticRuntimeAdapter):
             }
             if metric.synonyms:
                 doc["ai_context"] = {"synonyms": list(metric.synonyms)}
-            tempo_payload = {
+            reference_payload = {
                 "base_dataset": metric.metadata_.get("ossie_dataset") or metric.source_entity_key,
                 "allowed_dimensions": allowed_dimension_keys,
             }
-            if metric.metadata_ and isinstance(metric.metadata_.get("tempo_extension"), dict):
-                tempo_payload.update(metric.metadata_["tempo_extension"])
-            doc["custom_extensions"] = [{"vendor_name": "TEMPO", "data": __import__("json").dumps(tempo_payload)}]
+            if metric.metadata_ and isinstance(metric.metadata_.get("reference_extension"), dict):
+                reference_payload.update(metric.metadata_["reference_extension"])
+            doc["custom_extensions"] = [{"vendor_name": "REFERENCE", "data": __import__("json").dumps(reference_payload)}]
             metric_docs.append(doc)
 
         rel_docs = []

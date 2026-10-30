@@ -7,10 +7,10 @@ from app.semantic.context import SemanticContextService
 from app.services.ask_data_routing import resolve_ask_data_route
 
 QUESTIONS = [
-    "Top 10 produk dengan penjualan terbesar di Tempo",
-    "Top 10 cabang/ sales office dengan penjualan terbesar di tempo",
-    "Top 10 DC Alfamart dengan penjualan tertinggi",
-    "Cek stok produk A di toko alfamart dan bandingkan dengan stok di DC",
+    "Top 10 produk dengan penjualan terbesar di Reference",
+    "Top 10 cabang/ sales office dengan penjualan terbesar di reference",
+    "Top 10 DC Acme dengan penjualan tertinggi",
+    "Cek stok produk A di toko acme dan bandingkan dengan stok di DC",
     "Bantu jelaskan pareto penjualan",
 ]
 
@@ -28,9 +28,9 @@ def test_management_top_and_dc_questions_route_to_v3() -> None:
         assert route in ("v3", "ossie"), q
 
 
-def test_top_penjualan_cabang_alfamart_question_mark_no_branch_filter() -> None:
+def test_top_penjualan_cabang_acme_question_mark_no_branch_filter() -> None:
     ctx = SemanticContextService()
-    question = "top penjualan cabang Alfamart?"
+    question = "top penjualan cabang Acme?"
     resolution = ctx.resolve(question)
     assert resolution.get("metric") == "b2b_branch_sell_out_value"
     sql = ctx.compile_governed(
@@ -38,14 +38,14 @@ def test_top_penjualan_cabang_alfamart_question_mark_no_branch_filter() -> None:
         question,
         resolution.get("dimensions"),
     )
-    assert "alfamart" not in sql.casefold()
+    assert "acme" not in sql.casefold()
     assert "ORDER BY metric_value DESC" in sql
     assert "LIMIT 10" in sql
 
 
-def test_alfamart_branch_ranking_sql_does_not_filter_branch_to_alfamart_label() -> None:
+def test_acme_branch_ranking_sql_does_not_filter_branch_to_acme_label() -> None:
     ctx = SemanticContextService()
-    question = "Top 10 total penjualan berdasarkan cabang di Alfamart"
+    question = "Top 10 total penjualan berdasarkan cabang di Acme"
     resolution = ctx.resolve(question)
     assert resolution.get("metric") == "b2b_branch_sell_out_value"
     sql = ctx.compile_governed(
@@ -53,15 +53,15 @@ def test_alfamart_branch_ranking_sql_does_not_filter_branch_to_alfamart_label() 
         question,
         resolution.get("dimensions"),
     )
-    assert "d.branch = 'di alfamart'" not in sql.casefold()
-    assert "d.branch = 'alfamart'" not in sql.casefold()
+    assert "d.branch = 'di acme'" not in sql.casefold()
+    assert "d.branch = 'acme'" not in sql.casefold()
     assert "GROUP BY d.branch" in sql
     assert "LIMIT 10" in sql
 
 
-def test_alfamart_branch_ranking_with_q4_period_not_branch_filter() -> None:
+def test_acme_branch_ranking_with_q4_period_not_branch_filter() -> None:
     ctx = SemanticContextService()
-    question = "Top 10 total penjualan berdasarkan cabang di Alfamart Q4 2024"
+    question = "Top 10 total penjualan berdasarkan cabang di Acme Q4 2024"
     resolution = ctx.resolve(question)
     assert resolution.get("metric") == "b2b_branch_sell_out_value"
     sql = ctx.compile_governed(
@@ -69,7 +69,7 @@ def test_alfamart_branch_ranking_with_q4_period_not_branch_filter() -> None:
         question,
         resolution.get("dimensions"),
     )
-    assert "alfamart" not in sql.casefold()
+    assert "acme" not in sql.casefold()
     assert "LIMIT 10" in sql
 
 
@@ -77,10 +77,10 @@ def test_b3_q01_q05_q10_resolve_sell_in_or_b2b_via_domain_graph() -> None:
     s = _settings()
     ctx = SemanticContextService(s.project_root / s.ossie_project_id)
     cases = [
-        ("Top 10 produk dengan penjualan terbesar di Tempo", "material_sell_in_value"),
-        ("Top 10 DC Alfamart dengan penjualan tertinggi", "b2b_branch_sell_out_value"),
+        ("Top 10 produk dengan penjualan terbesar di Reference", "material_sell_in_value"),
+        ("Top 10 DC Acme dengan penjualan tertinggi", "b2b_branch_sell_out_value"),
         (
-            "mau tau dong top 10 total penjualn berdasarkan cabang di alfamart",
+            "mau tau dong top 10 total penjualn berdasarkan cabang di acme",
             "b2b_branch_sell_out_value",
         ),
         ("Bantu jelaskan pareto penjualan", "material_sell_in_value"),
@@ -95,6 +95,6 @@ def test_b3_q01_q05_q10_resolve_sell_in_or_b2b_via_domain_graph() -> None:
 def test_fill_rate_question_resolves_or_clarifies_without_crash() -> None:
     s = _settings()
     ctx = SemanticContextService(s.project_root / s.ossie_project_id)
-    q = "Hitung service level/ fill rate di cabang tempo dan urutkan SL terjelek"
+    q = "Hitung service level/ fill rate di cabang reference dan urutkan SL terjelek"
     resolution = ctx.resolve(q)
     assert resolution.get("status") in ("resolved", "fallback", "needs_clarification", "unsupported")

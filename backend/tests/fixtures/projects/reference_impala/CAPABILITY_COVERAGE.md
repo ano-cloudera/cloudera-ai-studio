@@ -1,6 +1,6 @@
-# TEMPO Management Question Coverage
+# REFERENCE Management Question Coverage
 
-**Status:** Candidate regression set, not yet a TEMPO management-approved question inventory.
+**Status:** Candidate regression set, not yet a REFERENCE management-approved question inventory.
 
 ## Current regression set
 
@@ -11,7 +11,7 @@
 - Unsupported by governed scope: ~22
 - Blocked by governance: 1
 
-See `ossie/golden_questions.yaml` for authoritative counts. Run `scripts/validate_tempo_impala_contract.py` after dependency install.
+See `ossie/golden_questions.yaml` for authoritative counts. Run `scripts/validate_reference_impala_contract.py` after dependency install.
 
 The unsupported set intentionally includes scope and safety boundaries:
 
@@ -31,13 +31,13 @@ Three concrete metric gaps were identified:
 3. governed distinct shared-customer count
 
 These gaps must be added only after they are appended to the audited metric
-catalog and reviewed by TEMPO business owners.
+catalog and reviewed by REFERENCE business owners.
 
 ## Coverage target
 
 Before default cutover:
 
-1. Collect 30–50 real questions from TEMPO management.
+1. Collect 30–50 real questions from REFERENCE management.
 2. Classify each as supported, supported-with-caveat, clarification, partial, or unsupported.
 3. Achieve at least 80% supported coverage for priority in-scope questions.
 4. Preserve explicit refusal for out-of-scope, causal, forecast, and free-SQL requests.

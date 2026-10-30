@@ -79,7 +79,7 @@ def main() -> None:
     npm = bin_dir / "npm"
     node = bin_dir / "node"
     next_cli = frontend_dir / "node_modules" / "next" / "dist" / "bin" / "next"
-    marker = frontend_dir / "node_modules" / ".tempo-v2-lock-installed"
+    marker = frontend_dir / "node_modules" / ".reference-v2-lock-installed"
     lock = frontend_dir / "package-lock.json"
     if not marker.exists() or marker.stat().st_mtime < lock.stat().st_mtime:
         subprocess.check_call([str(npm), "ci"], cwd=frontend_dir, env=env)

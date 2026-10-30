@@ -29,7 +29,7 @@ def test_service_level_worst_office_material_drill() -> None:
         dimensions=["sales_off"],
         entity_dimension="sales_off",
         ranked_entities=[{"rank": 1, "dimension": "sales_off", "id": "0245", "metric_value": 0.4}],
-        last_question="Hitung service level cabang tempo urutkan SL terjelek Q4",
+        last_question="Hitung service level cabang reference urutkan SL terjelek Q4",
     )
     q = "cabang paling jelek tadi, top 5 material dengan fill rate terendah"
     res = try_follow_up_governed_resolution(q, ctx, understanding=None)
@@ -139,13 +139,13 @@ def test_service_level_po_do_gap_office_material_drill() -> None:
     assert any("0245" in p for p in res.get("follow_up_entity_filters") or [])
 
 
-def test_stock_tempo_rank1_sell_in_crosscheck_uses_sell_in_metric() -> None:
+def test_stock_warehouse_rank1_sell_in_crosscheck_uses_sell_in_metric() -> None:
     ctx = build_analysis_context(
         metric="material_warehouse_stock_quantity",
         dimensions=["material"],
         entity_dimension="material",
         ranked_entities=[{"rank": 1, "id": "RM00001881", "dimension": "material", "metric_value": -1025045}],
-        last_question="Material mana yang stok gudang Tempo-nya paling rendah Q4? Top 10",
+        last_question="Material mana yang stok gudang Reference-nya paling rendah Q4? Top 10",
     )
     q = "material rank 1 yang stok rendah itu, apakah sell-in Q4-nya juga rendah?"
     res = try_follow_up_governed_resolution(q, ctx, understanding=None)
@@ -154,18 +154,18 @@ def test_stock_tempo_rank1_sell_in_crosscheck_uses_sell_in_metric() -> None:
     assert any("RM00001881" in p for p in res.get("follow_up_entity_filters") or [])
 
 
-def test_stock_tempo_plant_top_materials_follow_up() -> None:
+def test_stock_warehouse_plant_top_materials_follow_up() -> None:
     ctx = build_analysis_context(
-        metric="stock_tempo_total_qty",
+        metric="stock_warehouse_total_qty",
         dimensions=["plant"],
         entity_dimension="plant",
         ranked_entities=[{"rank": 1, "id": "2300", "dimension": "plant", "metric_value": 1e6}],
-        last_question="Plant mana dengan total stok Tempo tertinggi Q4 2024?",
+        last_question="Plant mana dengan total stok Reference tertinggi Q4 2024?",
     )
     q = "plant teratas tadi, top 5 material by stock"
     res = try_follow_up_governed_resolution(q, ctx, understanding=None)
     assert res is not None
-    assert res["metric"] == "stock_tempo_total_qty"
+    assert res["metric"] == "stock_warehouse_total_qty"
     assert "material" in res["dimensions"]
     assert any("2300" in p for p in res.get("follow_up_entity_filters") or [])
 
@@ -284,7 +284,7 @@ def test_cross_domain_dc_sell_out_product_drill_follow_up() -> None:
         dimensions=["dcname"],
         entity_dimension="dcname",
         ranked_entities=[{"rank": 1, "id": "DC Makassar", "dimension": "dcname", "metric_value": 500_000}],
-        last_question="DC Alfamart mana stok SAT-nya paling tinggi Q4?",
+        last_question="DC Acme mana stok SAT-nya paling tinggi Q4?",
     )
     q = "DC yang muncul di jawaban tadi, top 3 produk sell-out-nya"
     res = try_follow_up_governed_resolution(q, ctx, understanding=None)
@@ -295,13 +295,13 @@ def test_cross_domain_dc_sell_out_product_drill_follow_up() -> None:
     assert "MAKASSAR" in filters.upper()
 
 
-def test_stock_tempo_fe001_follow_up_metric() -> None:
+def test_stock_warehouse_fe001_follow_up_metric() -> None:
     ctx = build_analysis_context(
         metric="material_warehouse_stock_quantity",
         dimensions=["calmonth"],
         entity_dimension=None,
         ranked_entities=[],
-        last_question="total stok gudang Tempo company-wide Q4 2024",
+        last_question="total stok gudang Reference company-wide Q4 2024",
     )
     q = "bagaimana stok material FE001 dibanding total tadi?"
     res = try_follow_up_governed_resolution(q, ctx, understanding=None)
@@ -385,7 +385,7 @@ def test_explain_rank_one_vs_peers_uses_history_not_governed_filter() -> None:
             {"rank": 1, "id": "001-00-03", "dimension": "material", "metric_value": 9_500_000},
             {"rank": 2, "id": "002-00-01", "dimension": "material", "metric_value": 7_100_000},
         ],
-        last_question="Top 10 material sell-in Tempo Q4 2024",
+        last_question="Top 10 material sell-in Reference Q4 2024",
     )
     q = "Kenapa material urutan 1 bisa paling tinggi dibanding yang lain?"
     plan = plan_follow_up(q, ctx)

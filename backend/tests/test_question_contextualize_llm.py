@@ -21,7 +21,7 @@ def _u(**kwargs) -> TurnUnderstanding:
 def test_sell_out_clarification_merge() -> None:
     history = [
         {
-            "question": "Top 10 DC Alfamart dengan penjualan tertinggi",
+            "question": "Top 10 DC Acme dengan penjualan tertinggi",
             "answer": {
                 "direct_answer": (
                     "Apakah Anda ingin melihat Sell-In atau Sell-Out (penjualan partner ke konsumen akhir)?"
@@ -45,6 +45,6 @@ def test_unrelated_question_after_clarification_unchanged() -> None:
             "answer": {"direct_answer": "Sell-In atau Sell-Out?"},
         }
     ]
-    raw = "stok gudang tempo berapa banyak"
+    raw = "stok gudang reference berapa banyak"
     out = apply_turn_understanding(raw, history, _u(pipeline_question=raw))
     assert out == raw
