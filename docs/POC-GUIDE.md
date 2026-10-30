@@ -51,7 +51,7 @@ source so earlier context does not carry over. The composer shows a tip when a q
 
 ## 5. Optional sample pack
 
-`demo/` holds a synthetic credit-risk example (two CSV tables, four policy PDFs, an approval-likelihood MCP server under `scripts/mcp/`).
+`demo/data` holds two synthetic credit-risk tables and `scripts/mcp/` an approval-likelihood MCP server. Sample policy documents are not shipped.
 Load it with `scripts/cai/load_credit_risk_demo.py` to rehearse the flow, then replace it with the PoC's own content.
 
 ## 6. Troubleshooting

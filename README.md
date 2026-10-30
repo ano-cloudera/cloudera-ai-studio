@@ -9,7 +9,7 @@ One chat workspace that answers credit-risk questions from three governed source
 | **Knowledge (RAG)** | Answers from policy PDFs with page-level citations and an *Open PDF at page* link | "When does an approval-rate gap trigger an investigation?" |
 | **MCP tools** | Calls an approval-likelihood model through the Model Context Protocol (advisory only) | "Assess an applicant with credit score 640, DTI 0.40 …" |
 
-The demo data is fully synthetic (`demo/data`, `demo/knowledge`).
+The sample data is fully synthetic (`demo/data`).
 
 ```
 Browser ─► Frontend (Next.js) ─► Backend (FastAPI) ─┬─► Trino            governed SQL
@@ -28,7 +28,6 @@ Browser ─► Frontend (Next.js) ─► Backend (FastAPI) ─┬─► Trino   
 | `scripts/cai/` | One-time Session scripts (Node, venvs, Qdrant, embedding model, demo data loader) |
 | `scripts/mcp/` | Credit-risk MCP server and its trained model |
 | `demo/data/` | Synthetic `credit_applications.csv` (12,000 rows) and `loan_quality.csv` (8,000 rows) |
-| `demo/knowledge/credit-risk/` | Four synthetic policy PDFs plus two markdown policy documents |
 | `docs/` | Design notes (API, RAG, semantic registry, UX) |
 
 ---
@@ -332,9 +331,9 @@ user, and the password as `env://TRINO_PASSWORD`. Run **Test connection**, then 
 
 ## 5. Upload the knowledge documents
 
-**Knowledge** → create a library (for example `Credit Knowledge`) and upload the PDFs from
-`demo/knowledge/credit-risk/`. Wait until each document is **Ready**. Documents are stored under
-`/home/cdsw/cai-studio-data/documents` and indexed in Qdrant; deleting a document in the UI also removes its vectors and files.
+**Knowledge** → create a library (for example `Policy Knowledge`) and upload your documents (PDF or text). Wait until each document is
+**Ready**. Documents are stored under `/home/cdsw/cai-studio-data/documents` and indexed in Qdrant; deleting a document in the UI also removes
+its vectors and files.
 
 ## 6. Register the MCP server
 
@@ -362,7 +361,7 @@ no chip → Ask Data, `@<library>` → Knowledge, `@<MCP server>` → MCP.
 2. Compare the approval rate by region and channel from June to August 2026.
 3. What is the average decision time by channel?
 
-**2. Knowledge** (attach `@Credit Knowledge`)
+**2. Knowledge** (attach your library, for example `@Policy Knowledge`)
 
 1. When does an approval-rate gap trigger an investigation?
 2. Can we say Branch is slower because of manual review?
