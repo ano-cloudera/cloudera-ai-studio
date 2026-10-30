@@ -16,7 +16,7 @@ Status terakhir diperbarui: 2026-10-30. Pembersihan repo (2.5, 2.6) selesai.
 - [x] Tip chip saat pertanyaan jelas milik model MCP atau dokumen
 - [x] Nama tabel di "Data source", "1 row", pembuka jawaban RAG lebih bervariasi
 - [x] Tes lama yang gagal dibenahi
-- [ ] Pastikan library Credit Knowledge berisi dua PDF (Credit approval policy dan Credit Channel Performance), lalu uji ulang "Can we say Branch is slower because of manual review?" *(dikerjakan di UI CAI)*
+- [x] Dokumen contoh Knowledge tidak ikut git (disimpan lokal, di-ignore); library diisi per PoC
 - [ ] Deploy hasil fase 1 ke CAI dan uji tiga jalur (Ask Data, Knowledge, MCP)
 
 ## Fase 2: Kerangka AMP
@@ -33,7 +33,7 @@ Status terakhir diperbarui: 2026-10-30. Pembersihan repo (2.5, 2.6) selesai.
 Arah baru: AMP membawa **platform**, bukan satu use case. Data, semantic model, dokumen, dan server MCP dikonfigurasi per PoC lewat UI.
 Bootstrap otomatis credit-risk **tidak lagi wajib**; jadi paket contoh opsional.
 
-- [ ] 3.1 Hapus sisa logika khusus domain lama di kode supaya platform netral. Sudah dihapus: narasi durasi operasional dan service level, penjelasan konsep sell-in/sell-out dan proxy promo, perbandingan lintas domain, bank pertanyaan lama, graf domain lama dan stub PuppyGraph, katalog kemampuan domain lama. Masih ada (tidak aktif untuk credit risk):
+- [x] 3.1 (dihentikan) Penghapusan logika domain lama: sisanya dibiarkan karena masih dipakai tes dan tidak aktif untuk credit risk. Sudah dihapus: narasi durasi operasional dan service level, penjelasan konsep sell-in/sell-out dan proxy promo, perbandingan lintas domain, bank pertanyaan lama, graf domain lama dan stub PuppyGraph, katalog kemampuan domain lama. Masih ada (tidak aktif untuk credit risk):
   - [ ] perencana follow-up drill-down domain lama di `services/follow_up.py` (sekitar 1800 baris, bercampur dengan logika follow-up umum)
   - [ ] aturan perutean dan kata kunci domain lama di `semantic/context.py` dan `semantic/registry.py`
   - [ ] integrasi agen lokal opsional (`services/local_agent_client.py`, `ask_data_routing.py`, jalur `_run_via_local_agent_v3` di `chat.py`); tidak aktif tanpa `LOCAL_AGENT_BASE_URL`
@@ -41,7 +41,7 @@ Bootstrap otomatis credit-risk **tidak lagi wajib**; jadi paket contoh opsional.
 - [x] 3.2a vLLM opsional (`ENABLE_VLLM`, runtime GPU `AMP_VLLM_RUNTIME_ID`, unduh model); perlu diuji di CAI dengan GPU
 - [x] 3.2 Variabel env AMP tidak terikat Trino saja: Trino, Impala, PostgreSQL, dan kunci LLM; cara menambah variabel baru per PoC didokumentasikan
 - [x] 3.3 Panduan "membawa AMP ke PoC baru": daftar yang diganti per PoC (sumber data, semantic model, dokumen, MCP, branding, pertanyaan awal)
-- [ ] 3.4 Paket contoh opsional (credit-risk): data, PDF, server MCP; task opsional yang berhenti sendiri kalau tidak dipakai
+- [ ] 3.4 Paket contoh opsional (credit-risk): data dan server MCP saja; PDF contoh tidak dikirim. Putuskan apakah data dan server MCP ikut di repo akselerator
 - [ ] 3.5 Pertanyaan awal dan teks contoh di UI dapat diatur lewat Settings, bukan terikat ke satu domain
 
 ## Fase 6: Rilis sebagai akselerator untuk Cloudera Sales Engineer
