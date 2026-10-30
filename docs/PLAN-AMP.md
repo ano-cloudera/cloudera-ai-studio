@@ -21,10 +21,10 @@ Status terakhir diperbarui: 2026-10-30. Pembersihan repo (2.5, 2.6) selesai.
 
 ## Fase 2: Kerangka AMP
 
-- [ ] 2.1 `.project-metadata.yaml` di root: variabel env (`TRINO_*`, kunci LLM; pakai `required` dan `default`), runtime Python 3.10 JupyterLab
-- [ ] 2.2 `scripts/amp/` untuk task `run_session`: Node, venv backend, Qdrant dan UI, model embedding, folder data, build Frontend
-- [ ] 2.3 Tiga task `start_application` (Qdrant, Backend, Frontend) dengan `static_subdomain`
-- [ ] 2.4 Launcher menurunkan URL antar-aplikasi dari `CDSW_DOMAIN` dan subdomain; `STUDIO_REPO_ROOT=/home/cdsw`
+- [x] 2.1 `.project-metadata.yaml` di root: variabel env (`TRINO_*`, kunci LLM; pakai `required` dan `default`), runtime Python 3.10 JupyterLab
+- [x] 2.2 `scripts/amp/` untuk task `run_session`: Node, venv backend, Qdrant dan UI, model embedding, folder data, build Frontend
+- [x] 2.3 Tiga task `start_application` (Qdrant, Backend, Frontend) dengan `static_subdomain`
+- [x] 2.4 Launcher menurunkan URL antar-aplikasi dari `CDSW_DOMAIN` dan subdomain; `STUDIO_REPO_ROOT=/home/cdsw`
 - [x] 2.5 Bersihkan repo: `testing/evidence`, sisa banking, `PROJECT_STATE.md`, `frontend/.next-dev.pid`, file `.zip` *(perlu persetujuan; satu commit yang bisa dibatalkan)*
 - [x] 2.6 Perbarui `.gitignore` agar state lokal tidak ikut
 

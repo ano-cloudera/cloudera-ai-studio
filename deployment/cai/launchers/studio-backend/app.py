@@ -11,11 +11,12 @@ except NameError:  # CAI runs an Application script in a kernel, where __file__ 
 _CAI = _REPO / "deployment" / "cai"
 sys.path.insert(0, str(_CAI))
 
+from amp_defaults import with_amp_defaults  # noqa: E402
 from common import http_ready, resolve_cai_port, log_cai_endpoint, run_supervised  # noqa: E402
 
 
 def main() -> int:
-    env = dict(os.environ)
+    env = with_amp_defaults(dict(os.environ), "backend")
     log_cai_endpoint()
     port = resolve_cai_port(env)
     py = env.get("PYTHON_EXECUTABLE", str(_REPO / ".venv/bin/python"))

@@ -1,0 +1,135 @@
+name: Anywhere AI Studio
+description: >-
+  Governed credit risk intelligence: ask questions of Trino data through a governed semantic layer,
+  answer from policy documents with page-level citations, and call an approval-likelihood model through MCP.
+author: Cloudera
+date: "2026-10-30"
+specification_version: 1.0
+prototype_version: 1.0
+
+runtimes:
+  - editor: JupyterLab
+    kernel: Python 3.10
+    edition: Standard
+
+environment_variables:
+  GEMINI_API_KEY:
+    default: ""
+    description: Gemini API key (set at least one LLM key; the provider and model are chosen later in Settings -> AI Models).
+    required: false
+  OPENAI_API_KEY:
+    default: ""
+    description: OpenAI (or OpenAI-compatible) API key. Optional.
+    required: false
+  ANTHROPIC_API_KEY:
+    default: ""
+    description: Anthropic API key. Optional.
+    required: false
+  TRINO_HOST:
+    default: ""
+    description: Trino host (for example a Cloudera Data Warehouse Trino Virtual Warehouse).
+    required: false
+  TRINO_USER:
+    default: ""
+    description: Trino user.
+    required: false
+  TRINO_PASSWORD:
+    default: ""
+    description: Trino password. The Data Source references it as env://TRINO_PASSWORD.
+    required: false
+  TRINO_CATALOG:
+    default: hive
+    description: Trino catalog that holds the demo tables.
+    required: false
+  TRINO_SCHEMA:
+    default: default
+    description: Trino schema that holds the demo tables.
+    required: false
+  STUDIO_REPO_ROOT:
+    default: /home/cdsw
+    description: Where the project files live. Leave as is for an AMP.
+    required: true
+  AMP_SUBDOMAIN_PREFIX:
+    default: anywhere
+    description: Prefix of the Application subdomains (<prefix>-qdrant, -backend, -frontend). Change it together with the subdomains below if they collide in your workspace.
+    required: true
+
+tasks:
+  - type: run_session
+    name: Install tools and dependencies
+    short_summary: Node.js, Backend virtualenv, Qdrant, embedding model, data folders and Frontend packages
+    long_summary: >-
+      Installs everything an Application cannot download. Safe to run again; finished steps are skipped.
+      Takes several minutes (the embedding model is about 2.3 GB).
+    script: scripts/amp/setup.py
+    kernel: python3
+    cpu: 2
+    memory: 8
+
+  - type: start_application
+    name: Anywhere Qdrant
+    short_summary: Vector database for document search
+    subdomain: anywhere-qdrant
+    static_subdomain: true
+    script: deployment/cai/launchers/studio-qdrant/app.py
+    kernel: python3
+    cpu: 4
+    memory: 16
+    environment_variables:
+      STUDIO_REPO_ROOT: /home/cdsw
+      QDRANT_BINARY: /home/cdsw/tools/qdrant/qdrant
+      QDRANT_STORAGE_PATH: /home/cdsw/cai-studio-data/qdrant/storage
+      QDRANT_STATIC_DIR: /home/cdsw/tools/qdrant/static
+      APP_STARTUP_TIMEOUT_MINUTES: "5"
+
+  - type: start_application
+    name: Anywhere Backend
+    short_summary: FastAPI backend (Ask Data, Knowledge, MCP, settings)
+    subdomain: anywhere-backend
+    static_subdomain: true
+    script: deployment/cai/launchers/studio-backend/app.py
+    kernel: python3
+    cpu: 4
+    memory: 16
+    environment_variables:
+      STUDIO_REPO_ROOT: /home/cdsw
+      PYTHON_EXECUTABLE: /home/cdsw/.venvs/studio-backend/bin/python
+      DEPLOYMENT_PROFILE: cai
+      STATE_STORE: sqlite
+      UVICORN_WORKERS: "1"
+      CAI_DATA_DIR: /home/cdsw/cai-studio-data
+      DATABASE_URL: sqlite+pysqlite:////home/cdsw/cai-studio-data/metadata/studio.db
+      DOCUMENT_STORAGE_ROOT: /home/cdsw/cai-studio-data/documents
+      SEMANTIC_RUNTIME_STORAGE_ROOT: /home/cdsw/cai-studio-data/var/semantic-runtime
+      QDRANT_COLLECTION: accelerator_chunks
+      EMBEDDING_PROVIDER: bge_m3
+      EMBEDDING_MODEL: /home/cdsw/models/bge-m3
+      HF_HUB_OFFLINE: "1"
+      APP_STARTUP_TIMEOUT_MINUTES: "10"
+
+  - type: start_application
+    name: Anywhere Frontend
+    short_summary: Next.js web UI
+    long_summary: >-
+      The first start builds the UI (several minutes). BACKEND_API_URL is derived from the workspace domain.
+    subdomain: anywhere-frontend
+    static_subdomain: true
+    script: deployment/cai/launchers/studio-frontend/app.py
+    kernel: python3
+    cpu: 2
+    memory: 4
+    environment_variables:
+      STUDIO_REPO_ROOT: /home/cdsw
+      NODE_HOME: /home/cdsw/tools/node
+      CAI_SKIP_FRONTEND_BUILD: "0"
+      APP_STARTUP_TIMEOUT_MINUTES: "20"
+      NEXT_PUBLIC_PRODUCT_NAME: Anywhere AI Studio
+      NEXT_PUBLIC_PRODUCT_SHORT_NAME: Anywhere AI Studio
+      NEXT_PUBLIC_APP_NAME: Anywhere AI Studio
+      NEXT_PUBLIC_APP_SUBTITLE: Anywhere AI Studio
+      NEXT_PUBLIC_APP_TAGLINE: Anywhere AI Studio
+      NEXT_PUBLIC_SIDEBAR_FOOTER_CAPTION: Anywhere AI Studio
+      NEXT_PUBLIC_SIDEBAR_POWERED_BY: Powered by Anywhere Cloud
+      NEXT_PUBLIC_PRODUCT_LOGO: /branding/anywhere-ai-logo.png
+      NEXT_PUBLIC_APP_LOGO: /branding/anywhere-ai-logo.png
+      NEXT_PUBLIC_EMPTY_STATE_LOGO: /branding/anywhere-ai-logo.png
