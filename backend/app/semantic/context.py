@@ -9,12 +9,6 @@ import re
 
 from app.core.config import get_settings
 from app.core.language import detect_language
-from app.semantic.domain_graph import (
-    build_business_context,
-    classify_cabang_grain,
-    try_clarification_intent,
-    try_governed_intent_route,
-)
 from app.semantic.registry import OssieRegistry
 
 
@@ -618,12 +612,6 @@ def _question_requests_branch_sales_ranking(question: str) -> bool:
 
 
 def _branch_ranking_metric(question: str, session_last_metric: str | None = None) -> tuple[str, list[str]]:
-    if get_settings().business_graph_enabled:
-        grain = classify_cabang_grain(question, session_last_metric=session_last_metric)
-        if grain == "branch":
-            return "b2b_branch_sell_out_value", ["branch"]
-        if grain == "sales_office":
-            return "sales_office_sell_in_value", ["sales_office"]
     if _question_prefers_sell_out(question):
         return "b2b_branch_sell_out_value", ["branch"]
     return "sales_office_sell_in_value", ["sales_office"]
@@ -1038,11 +1026,6 @@ class SemanticContextService:
                 "dimension_mismatch": [],
             }
 
-        if get_settings().business_graph_enabled:
-            clarify = try_clarification_intent(question)
-            if clarify:
-                return clarify
-
         if session_analysis_context:
             from app.services.conversational import TurnUnderstanding
             from app.services.follow_up import try_follow_up_governed_resolution
@@ -1124,15 +1107,6 @@ class SemanticContextService:
         ):
             if any(term in lowered for term in ("rata-rata", "rata rata", "average", "berapa")):
                 return resolved("average_unloading_minutes", [], matched_alias="unloading_company_avg")
-
-        if get_settings().business_graph_enabled:
-            graph_intent = try_governed_intent_route(question, session_last_metric=session_last_metric)
-            if graph_intent:
-                return resolved(
-                    str(graph_intent["metric"]),
-                    list(graph_intent.get("dimensions") or []),
-                    matched_alias=str(graph_intent.get("matched_alias") or "domain_graph_intent"),
-                )
 
         if re.search(r"\bFE\d+\b", question, flags=re.IGNORECASE) and any(
             term in lowered for term in ("sell-in", "sell in", "sellin")
@@ -1811,16 +1785,6 @@ class SemanticContextService:
             "join_policy": "No runtime joins; use only published cross-domain views.",
         }
         return payload
-
-    def business_graph_snippet(
-        self,
-        question: str,
-        *,
-        session_last_metric: str | None = None,
-    ) -> dict[str, Any] | None:
-        if not get_settings().business_graph_enabled:
-            return None
-        return build_business_context(question, session_last_metric=session_last_metric)
 
     def greeting_context(self) -> dict[str, Any]:
         from app.ask_data.capability_catalog import (

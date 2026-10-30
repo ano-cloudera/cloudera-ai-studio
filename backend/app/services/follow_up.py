@@ -6,7 +6,6 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from app.semantic.domain_graph import classify_cabang_grain
 from app.services.session_context import (
     _last_governed_chart_turn,
     _last_governed_success_turn,
@@ -1648,11 +1647,6 @@ def build_follow_up_rewrite(question: str, ctx: dict[str, Any], plan: FollowUpPl
         parts.append(
             f"Show top {plan.limit} materials/products by sales value consistent with prior measure family, grouped by material."
         )
-    cabang = classify_cabang_grain(question, session_last_metric=str(ctx.get("last_metric") or ""))
-    if cabang == "branch":
-        parts.append("Interpret cabang as B2B partner branch (sell-out), not Reference sales office sell-in.")
-    elif cabang == "sales_office":
-        parts.append("Interpret cabang as Reference sales office (sell-in).")
     parts.append(f"Original user question: {question.strip()}")
     return " ".join(parts)
 

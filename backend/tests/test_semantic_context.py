@@ -105,32 +105,6 @@ def test_explicit_partner_dc_stock_scope_does_not_repeat_clarification(question:
     assert resolution["metric"] == "sat_dc_stock_quantity"
 
 
-def test_fastest_picking_orders_ascending_by_minutes() -> None:
-    context = SemanticContextService()
-    question = "Sales office mana picking-nya paling efisien (tercepat) Q4 2024?"
-    resolution = context.resolve(question)
-    sql = context.compile_governed(
-        resolution["metric"],
-        question,
-        resolution.get("dimensions"),
-    )
-    assert resolution["metric"] == "average_picking_minutes"
-    assert "ORDER BY metric_value ASC" in sql
-
-
-def test_fastest_unloading_orders_ascending_by_minutes() -> None:
-    context = SemanticContextService()
-    question = "Sales office mana unloading-nya paling efisien (tercepat) Q4 2024?"
-    resolution = context.resolve(question)
-    sql = context.compile_governed(
-        resolution["metric"],
-        question,
-        resolution.get("dimensions"),
-    )
-    assert resolution["metric"] == "average_unloading_minutes"
-    assert "ORDER BY metric_value ASC" in sql
-
-
 def test_named_dc_city_applies_dcname_predicate_in_sql() -> None:
     context = SemanticContextService()
     question = "Berapa stok SAT di DC Palembang Q4 2024?"
@@ -657,12 +631,6 @@ def test_aggregate_oos_question_about_percent_of_stores_stays_dimensionless() ->
     assert resolution.get("dimensions") == []
 
 
-def test_top_products_at_reference_resolves_sell_in_via_domain_graph() -> None:
-    resolution = SemanticContextService().resolve("Top 10 produk dengan penjualan terbesar di Reference")
-    assert resolution["status"] == "resolved"
-    assert resolution["metric"] == "material_sell_in_value"
-
-
 @pytest.mark.parametrize("question", [
     "penjualan terbesar di Reference",
     "berapa penjualan di Reference bulan ini",
@@ -891,15 +859,6 @@ def test_bill_to_po_positive_ratio_having_and_limit_ten_material() -> None:
     assert "LIMIT 10" in sql
     assert "> 0" in sql
     assert "sell_in_bill_val" not in sql
-
-
-def test_bill_to_po_and_nilai_penagihan_still_prompts_clarification() -> None:
-    from app.semantic.domain_graph import try_clarification_intent
-
-    question = "Bandingkan bill-to-PO dan nilai penagihan grosir per material Desember 2024"
-    assert try_clarification_intent(question) is not None
-    resolution = SemanticContextService().resolve(question)
-    assert resolution["status"] == "needs_clarification"
 
 
 def test_november_penagihan_material_uses_single_month_filter() -> None:

@@ -15,70 +15,11 @@ PYTHONPATH=. .venv/bin/pytest -q tests
 
 `GET /health` is deliberately lightweight. `GET /health/ready` reports safe LLM, semantic, and Impala configuration readiness. `GET /models` reports configured availability. `GET /random-queries` supports `domain`, `difficulty`, and `limit`. `POST /chat` and `POST /chat/stream` accept `session_id`, `question`, `provider`, and the exact configured `model` returned by `/models`.
 
-### Governed stack with local_agent_v3 (judge loop)
-
-From repo root, one command starts agent v3 (`:9766`), backend v2 (`:8000`, routes Ask Data via `ASK_DATA_ROUTING=auto|ossie|v3`), and frontend (`:3000`):
-
-```bash
-./scripts/run-local-stack-governed.sh
-```
-
-Requires repo-root `.env` (Impala AWS profile + `GEMINI_API_KEY` for v3). Smoke without Impala: `REFERENCE_MOCK_MODE=1 ./scripts/run-local-stack-governed.sh`.
-
-Default engine is **`langgraph`** (KPI graph + judge + Impala). Set `REFERENCE_AGENT_V3_ENGINE=deep` only for coordinator demos.
-
 ### Conversation memory (CAI)
 
 Chat history is stored in **`backend/runtime/conversation_history.sqlite`** inside the application (no separate LightMemory service). For CAI, keep this path on persistent app storage; optional Postgres can replace SQLite later via the same `ConversationStore` interface.
 
 Each turn stores the question, answer JSON, **query rows**, `status`/`strategy`, and a compact **`session_frame`** (`last_metric`, `last_dimensions`, `ranked_entities` for chart/table follow-ups). Analytic follow-ups use `session_context.py` (referential rewrite from `session_frame` + rows). Clarification-chip merging runs only when the prior turn was `CLARIFICATION` / `strategy=clarification` (or a legacy no-row choice prompt)—not via a word-count gate.
-
-### Domain business graph (Phase C6)
-
-Metadata graph in `knowledge/business_graph.yaml` (no Agent Studio, no PuppyGraph required). It powers cabang/sales-office disambiguation, journey hints (Stock→Sell-In→B2B→SAT→OOS), and `inquiry_brief.business_context`. Toggle with `BUSINESS_GRAPH_ENABLED`. Numbers still come only from OSSIE + Impala.
-
-### B3 management regression
-
-Dry-run resolver/routing:
-
-```bash
-cd backend && PYTHONPATH=. python scripts/simulate_management_questions.py
-```
-
-Live (backend must be up, OSSIE-only recommended):
-
-```bash
-bash scripts/run-b3-live.sh
-```
-
-Management-style **multi-turn** UAT (same `session_id` per scenario, follow-up drills + clarification):
-
-```bash
-# OSSIE-only stack: ./scripts/run-local-stack-ossie-only.sh  (or governed stack)
-cd backend && PYTHONPATH=. python scripts/run_uat_management_followup.py http://127.0.0.1:8000 gemini
-```
-
-Each turn is scored by **Gemini judge** (grounding, domain sell-in/sell-out, follow-up coherence) using rubrics in the YAML. Use `--skip-judge` for mechanical-only runs. Reports include `judge` per turn under `eval/uat_management_run_*.json`.
-
-**5 questions × domain** (sales, b2b, stock_warehouse, stock_sat, sat_oos, service_level, picking, unloading, promo, cross_domain):
-
-```bash
-cd backend && PYTHONPATH=. python scripts/run_uat_domain_5x5.py http://127.0.0.1:8000 gemini
-# optional: --domain=b2b --skip-judge
-```
-
-Matrix: `eval/uat_domain_5x5.yaml`; reports: `eval/uat_domain_5x5_run_*.json`.
-
-**5×5 follow-up UAT** (2 turns per scenario, shared `session_id`, referential drills):
-
-```bash
-cd backend && PYTHONPATH=. python scripts/run_uat_domain_5x5_followup.py http://127.0.0.1:8000 gemini
-# one domain: --domain=b2b ; mechanical only: --skip-judge
-bash scripts/run_uat_domain_5x5_followup_all_domains.sh http://127.0.0.1:8000 gemini
-PYTHONPATH=. python scripts/merge_uat_domain_5x5_followup_reports.py eval/uat_domain_5x5_followup_run_*.json
-```
-
-Matrix: `eval/uat_domain_5x5_followup.yaml`. Latest merged judge summary: `eval/uat_domain_5x5_followup_merged_latest.json` (per-domain `uat_domain_5x5_followup_run_*.json` are gitignored).
 
 ## Configuration
 

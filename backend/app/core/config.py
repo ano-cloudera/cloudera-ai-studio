@@ -312,12 +312,7 @@ class Settings(BaseSettings):
     judge_max_iterations: int = Field(default=2, ge=0, le=5)
     judge_enabled: bool = True
 
-    # In-process REFERENCE domain graph (knowledge/business_graph.yaml)
-    business_graph_enabled: bool = Field(default=True, validation_alias="BUSINESS_GRAPH_ENABLED")
 
-    # Phase C7 — optional PuppyGraph (off critical path; schema stub in knowledge/)
-    puppygraph_enabled: bool = Field(default=False, validation_alias="PUPPYGRAPH_ENABLED")
-    puppygraph_base_url: str = Field(default="", validation_alias="PUPPYGRAPH_BASE_URL")
 
     # MCP connectors (JSON list) — see config/examples/mcp-connectors.json
     mcp_connectors_json: str = Field(default="", validation_alias="MCP_CONNECTORS_JSON")

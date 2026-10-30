@@ -5,11 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from app.core.config import get_settings
-from app.semantic.domain_graph import build_business_context
 from app.ask_data.presentation_tier import tier_from_inquiry_brief
 from app.services.analysis_enrichment import detect_analysis_mode
-from app.services.puppygraph_client import PuppyGraphClient
 
 
 def build_inquiry_brief(
@@ -69,19 +66,6 @@ def build_inquiry_brief(
     elif plan.get("metrics"):
         expected_metric = str(plan["metrics"][0])
 
-    business_context: dict[str, Any] | None = None
-    settings = get_settings()
-    if settings.business_graph_enabled:
-        business_context = build_business_context(
-            text,
-            session_last_metric=session_last_metric,
-        )
-    puppygraph: dict[str, Any] | None = None
-    client = PuppyGraphClient(settings)
-    if client.configured:
-        puppygraph = client.schema_summary()
-    elif settings.puppygraph_enabled:
-        puppygraph = {"enabled": False, "note": "PUPPYGRAPH_BASE_URL not set"}
 
     analysis_mode = detect_analysis_mode(text, expected_metric)
 
@@ -97,8 +81,6 @@ def build_inquiry_brief(
         "wants_product_grain": wants_product_grain,
         "wants_dc_grain": wants_dc_grain,
         "resolver_status": resolution.get("status"),
-        "business_context": business_context,
-        "puppygraph": puppygraph,
     }
     min_tier = tier_from_inquiry_brief(brief)
     if min_tier is not None:

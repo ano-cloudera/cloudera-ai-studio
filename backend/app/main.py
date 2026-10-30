@@ -32,7 +32,6 @@ from app.platform.readiness import build_readiness_report
 from app.platform.accelerator import ACCELERATOR_VERSION
 from app.llm.registry import ProviderRegistry
 from app.services.chat import ChatService
-from app.services.puppygraph_client import PuppyGraphClient
 logger = logging.getLogger(__name__)
 
 
@@ -117,7 +116,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     def readiness() -> JSONResponse:
         report = build_readiness_report(configured, provider_registry=application.state.provider_registry)
         report["components"]["semantic_runtime"] = _semantic_runtime_health(configured)
-        report["components"]["puppygraph"] = PuppyGraphClient(configured).schema_summary()
         code = 200 if report.get("core_ready") else 503
         return JSONResponse(status_code=code, content=report)
 
