@@ -130,8 +130,13 @@ class RAGService:
         project_id: uuid.UUID,
         retrieval_payload: dict | None,
         started: float,
+        query: str = "",
     ) -> RagAnswerResult:
-        message = "Model jawaban tidak tersedia saat ini. Silakan coba lagi."
+        message = (
+            "Model jawaban tidak tersedia saat ini. Silakan coba lagi."
+            if detect_language(query) == "id"
+            else "The answer model is not available right now. Please try again."
+        )
         meta = (retrieval_payload or {}).get("metadata") or {}
         ctx = (retrieval_payload or {}).get("context") or {}
         elapsed = int((time.perf_counter() - started) * 1000)
@@ -269,6 +274,7 @@ class RAGService:
                 project_id=project_id,
                 retrieval_payload=retrieval_payload,
                 started=started,
+                query=query,
             )
         llm_ms = int((time.perf_counter() - llm_started) * 1000)
 

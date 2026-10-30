@@ -114,40 +114,43 @@ def _data_reference_from_sql(sql: str) -> str | None:
 
 
 _UNMET_DIMENSION_LABELS: dict[str, str] = {
-    "branch": "cabang/DC partner (B2B branch)",
-    "sales_off": "cabang Tempo (sales office)",
-    "sales_office": "sales office Tempo",
-    "customer": "customer/pelanggan",
-    "material": "material/produk/SKU",
+    "branch": "branch / partner DC",
+    "sales_off": "sales office",
+    "sales_office": "sales office",
+    "customer": "customer",
+    "material": "material / product / SKU",
     "material_code": "material code",
-    "dcname": "nama DC partner",
-    "e_store": "outlet/e-store",
+    "dcname": "partner DC name",
+    "e_store": "outlet / e-store",
     "plu": "PLU",
-    "kode_plu": "kode PLU",
+    "kode_plu": "PLU code",
     "division": "division",
-    "cust_id": "toko/outlet (customer id)",
-    "cust_code": "kode customer",
+    "cust_id": "store / outlet (customer id)",
+    "cust_code": "customer code",
 }
 
 
-def _governed_partial_caveats(resolution: dict[str, Any]) -> list[str]:
+def _governed_partial_caveats(resolution: dict[str, Any], language: str = "en") -> list[str]:
     unmet = list(resolution.get("dimension_mismatch") or [])
     if not unmet:
         return []
     metric = str(resolution.get("metric") or "")
     labels = [_UNMET_DIMENSION_LABELS.get(name, name) for name in unmet]
-    joined = " dan ".join(labels)
-    caveats = [
-        "Permintaan breakdown per "
-        f"{joined} tidak tersedia pada metrik yang dipilih ({metric}) "
-        "dalam katalog governed Q4 2024. Angka di bawah hanya mencakup grain "
-        "yang memang didukung metrik ini."
-    ]
+    if language == "id":
+        caveats = [
+            f"Permintaan breakdown per {' dan '.join(labels)} tidak tersedia pada metrik yang dipilih ({metric}) "
+            "dalam katalog governed. Angka di bawah hanya mencakup grain yang didukung metrik ini."
+        ]
+    else:
+        caveats = [
+            f"A breakdown by {' and '.join(labels)} is not available for the selected metric ({metric}) "
+            "in the governed catalog. The figures below only cover the grain this metric supports."
+        ]
     if metric == "months_of_stock_cover":
         caveats.append(
-            "Cover stok ini proxy stok gudang Tempo terhadap Sell-In per material "
-            "(satuan bulan, Oktober–Desember 2024), bukan stok DC/outlet partner "
-            "per cabang dan bukan durasi harian."
+            "This stock cover is a proxy of warehouse stock against sell-in per material "
+            "(in months, October to December 2024), not partner DC or outlet stock "
+            "per branch and not a daily duration."
         )
     return caveats
 
@@ -162,8 +165,8 @@ def _partner_scope_caveats(question: str, resolution: dict[str, Any]) -> list[st
     if not b2b_metric and not b2b_wording:
         return []
     return [
-        "Catatan domain: Alfamart/B2B pada Q4 2024 = Sell-Out jaringan partner; "
-        "cabang/DC = nilai kolom branch (contoh DC Palembang), bukan filter branch='Alfamart'."
+        "Domain note: Alfamart/B2B in Q4 2024 means partner-network sell-out; "
+        "branch/DC is the value of the branch column (for example DC Palembang), not a branch='Alfamart' filter."
     ]
 
 
@@ -228,9 +231,9 @@ async def _try_local_agent_fallback(state: AskDataState, deps: WorkflowDependenc
         insights=[],
         business_implications=[],
         caveats=[
-            "Jawaban ini berasal dari sistem governed terpisah (TEMPO Local Agent), "
-            "bukan dari katalog metric utama - dapat memiliki definisi "
-            "atau cakupan yang sedikit berbeda. Sifatnya eksploratif."
+            "This answer comes from a separate governed system (local agent), "
+            "not from the main metric catalog, so its definitions or scope may differ slightly. "
+            "Treat it as exploratory."
         ],
         data_reference=reference,
         chart_spec=None,
@@ -618,7 +621,7 @@ def build_workflow(deps: WorkflowDependencies):
                 )
             return update
         if resolution.get("status") == "resolved":
-            partial_caveats = _governed_partial_caveats(resolution) + _partner_scope_caveats(
+            partial_caveats = _governed_partial_caveats(resolution, detect_language(state["question"])) + _partner_scope_caveats(
                 state["question"], resolution
             )
             metric = str(resolution["metric"])
@@ -720,7 +723,11 @@ def build_workflow(deps: WorkflowDependencies):
                     strategy="clarification",
                     clarification_question=str(
                         resolution.get("question")
-                        or "Mohon jelaskan domain, metrik, periode, dan breakdown yang dibutuhkan."
+                        or (
+                            "Mohon jelaskan domain, metrik, periode, dan breakdown yang dibutuhkan."
+                            if detect_language(str(state.get("question") or "")) == "id"
+                            else "Please specify the metric, period and breakdown you need."
+                        )
                     ),
                 )
             else:
@@ -754,7 +761,11 @@ def build_workflow(deps: WorkflowDependencies):
                         strategy="clarification",
                         clarification_question=str(
                             resolution.get("question")
-                            or "Pertanyaan belum terpetakan ke KPI governed. Sebutkan metrik, cabang/material, dan periode secara eksplisit."
+                            or (
+                                "Pertanyaan belum terpetakan ke KPI governed. Sebutkan metrik, cabang/material, dan periode secara eksplisit."
+                                if detect_language(str(state.get("question") or "")) == "id"
+                                else "The question is not mapped to a governed KPI yet. Please name the metric, the breakdown and the period."
+                            )
                         ),
                     )
         inquiry_brief = build_inquiry_brief(
@@ -806,7 +817,11 @@ def build_workflow(deps: WorkflowDependencies):
                     query_result={"columns": [], "rows": [], "row_count": 0, "execution_ms": 0},
                 )
             else:
-                update.update(status="UNSUPPORTED", answer=_safe_answer("Data yang diminta tidak tersedia pada scope TEMPO saat ini."), chart_spec=None, query_result={"columns": [], "rows": [], "row_count": 0, "execution_ms": 0})
+                update.update(status="UNSUPPORTED", answer=_safe_answer(
+                    "Data yang diminta tidak tersedia pada cakupan governed saat ini."
+                    if detect_language(str(state.get("question") or "")) == "id"
+                    else "The requested data is not available in the current governed scope."
+                ), chart_spec=None, query_result={"columns": [], "rows": [], "row_count": 0, "execution_ms": 0})
         return update
 
     async def validate_query(state: AskDataState) -> AskDataState:

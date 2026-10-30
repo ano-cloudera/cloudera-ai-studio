@@ -62,6 +62,7 @@ import {
   expandTableBlock,
 } from '../components/chat/ChatAnalysisDetailsExpand'
 import { isExecutiveAudience, noteForExecutive } from '../lib/audienceMode'
+import { sourceHintMessage, suggestSourceHint } from '../lib/sourceHint'
 import { computePresentationTier, shouldShowChatExpand } from '../lib/presentationTier'
 import { mergePresentationTierConfig, tier1ShowNarrativeEnabled } from '../lib/presentationTierConfig'
 import {
@@ -121,6 +122,7 @@ export function AskDataPage() {
 
   const knowledgeAttached = contextSources.some(source => source.type === 'knowledge_library')
   const hasContextSources = contextSources.length > 0
+  const sourceHint = suggestSourceHint(input, hasContextSources)
   const [ragSourcesResponse, setRagSourcesResponse] = useState<ChatResponse | null>(null)
   const [saveTarget, setSaveTarget] = useState<{ id: string; name: string } | null>(null)
   const [saveFlash, setSaveFlash] = useState<string | null>(null)
@@ -639,6 +641,11 @@ export function AskDataPage() {
           ) : null}
           {!knowledgeAttached ? (
             <AskDataSemanticCatalogPanel onPickQuestion={text => submit(text, 'starter_question')} />
+          ) : null}
+          {sourceHint ? (
+            <p className="mb-2 text-xs text-slate-600" role="note">
+              {sourceHintMessage(sourceHint)}
+            </p>
           ) : null}
           <ContextAwareChatComposer
             value={input}
