@@ -1197,27 +1197,6 @@ def plan_follow_up(question: str, ctx: dict[str, Any]) -> FollowUpPlan | None:
         if time_breakdown:
             return time_breakdown
 
-    from app.services.cross_domain_compare import try_resolve_cross_domain
-
-    cross = try_resolve_cross_domain(
-        question,
-        filter_entity=filter_entity,
-        from_grain=str(from_grain) if from_grain else None,
-        allow_implicit_b2b_check=True,
-    )
-    if cross and filter_entity:
-        return FollowUpPlan(
-            intent="filter_entity",
-            filter_entity=filter_entity,
-            to_grain=None,
-            limit=None,
-            domain_id="cross_domain",
-            from_grain=str(from_grain or filter_entity.get("dimension") or "material"),
-            metric_override=cross.metric,
-            dimensions_override=list(cross.dimensions),
-            extra_predicates=list(cross.follow_up_entity_filters),
-        )
-
     if filter_entity and from_grain == "division" and (
         _wants_dc_support_drill(question) or _wants_branch_contribution_drill(question)
     ):

@@ -1062,17 +1062,6 @@ class SemanticContextService:
             if clarify:
                 return clarify
 
-        from app.services.cross_domain_compare import resolution_to_payload, try_resolve_cross_domain
-
-        # Journey compares (stok Reference vs sell-in, sell-in vs sell-out, …) must win over
-        # session follow-up, which otherwise keeps service-level grain (e.g. fill rate @ material).
-        cross_early = try_resolve_cross_domain(question)
-        if cross_early:
-            return {
-                **resolution_to_payload(cross_early),
-                "definition": self.metric_definition(cross_early.metric),
-            }
-
         if session_analysis_context:
             from app.services.conversational import TurnUnderstanding
             from app.services.follow_up import try_follow_up_governed_resolution
@@ -1468,12 +1457,6 @@ class SemanticContextService:
             metric = str(resolution["metric"])
             missing = sorted(concept for concept in concepts if not _metric_covers_concept(metric, concept))
             if len(concepts) >= 2 and missing:
-                cross = try_resolve_cross_domain(question, concepts=concepts)
-                if cross:
-                    return {
-                        **resolution_to_payload(cross),
-                        "definition": self.metric_definition(cross.metric),
-                    }
                 return {
                     "status": "fallback",
                     "reason": "multi_concept_metric_mismatch",

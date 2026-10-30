@@ -6,7 +6,6 @@ from app.services.analysis_enrichment import (
     enrich_pareto_rows,
     wants_contribution_analysis,
 )
-from app.services.cross_domain_compare import try_resolve_cross_domain
 
 
 def test_wants_contribution_detects_kumulatif_and_kontribusi() -> None:
@@ -47,7 +46,6 @@ def test_pareto_penagihan_skips_cross_domain_sell_out_ratio() -> None:
         "Top 10 produk nilai penagihan grosir November 2024, kontribusi persen "
         "dan nilai kumulatif sekaligus analisa penggerak"
     )
-    assert try_resolve_cross_domain(q) is None
     resolution = SemanticContextService().resolve(q)
     assert resolution["status"] == "resolved"
     assert resolution["metric"] == "material_sell_in_value"

@@ -23,11 +23,6 @@ from app.graph.state import AskDataState
 from app.semantic.context import is_governed_entity_lookup
 from app.llm.base import LLMProvider, ProviderError
 from app.services.conversational import TurnUnderstanding, turn_understanding_from_state
-from app.services.ops_duration_narrative import (
-    deterministic_ops_duration_answer,
-    deterministic_ops_workload_answer,
-)
-from app.services.service_level_narrative import deterministic_service_unfulfilled_material_answer
 from app.services.user_facing_error import explain_failure
 from app.sql.validator import ValidatedSQL
 
@@ -268,12 +263,7 @@ def build_workflow(deps: WorkflowDependencies):
                 configured_starters=configured_starters,
             )
             first_turn = not bool(state.get("conversation_history"))
-            if intent.rationale == "concept_sell_in_vs_sell_out":
-                convo_prompt = "conversational_sell_in_out.md"
-            elif intent.rationale == "promo_proxy_explain":
-                convo_prompt = "conversational_intent.md"
-            else:
-                convo_prompt = "greeting.md"
+            convo_prompt = "greeting.md"
             try:
                 answer = await _provider(state, deps).generate_structured(
                     [
@@ -298,13 +288,9 @@ def build_workflow(deps: WorkflowDependencies):
             except ProviderError:
                 from app.services.conversational_fallback import (
                     deterministic_capability_overview_answer,
-                    deterministic_promo_uplift_proxy_explain,
-                    deterministic_sell_in_vs_sell_out_answer,
                 )
 
-                if intent.rationale == "concept_sell_in_vs_sell_out":
-                    answer = AnalysisOutput.model_validate(deterministic_sell_in_vs_sell_out_answer())
-                elif intent.rationale in ("capability_overview", "capability_follow_up"):
+                if intent.rationale in ("capability_overview", "capability_follow_up"):
                     from app.services.conversational_fallback import (
                         deterministic_capability_follow_up_answer,
                     )
@@ -323,8 +309,6 @@ def build_workflow(deps: WorkflowDependencies):
                         answer = AnalysisOutput.model_validate(
                             deterministic_capability_overview_answer(detect_language(original_question))
                         )
-                elif intent.rationale == "promo_proxy_explain":
-                    answer = AnalysisOutput.model_validate(deterministic_promo_uplift_proxy_explain())
                 else:
                     greet_id = detect_language(original_question) == "id"
                     answer = AnalysisOutput(
@@ -1086,24 +1070,14 @@ def build_workflow(deps: WorkflowDependencies):
                     else "Automatic summary: the analysis model did not respond, "
                     "but the numbers below come from the governed query."
                 )
-                metric = resolution.get("metric") if isinstance(resolution, dict) else None
                 question_text = str(state.get("question") or "")
-                metric_text = str(metric) if metric else None
-                direct = deterministic_ops_duration_answer(question_text, metric_text, rows)
-                deterministic_narrative = direct is not None
-                if not direct:
-                    direct = deterministic_service_unfulfilled_material_answer(
-                        question_text, metric_text, rows
-                    )
-                    deterministic_narrative = direct is not None
-                if not direct:
-                    direct = deterministic_ops_workload_answer(question_text, metric_text, rows)
-                    deterministic_narrative = direct is not None
+                direct = None
+                deterministic_narrative = False
                 if not direct:
                     if detect_language(question_text) == "id":
                         direct = (
                             f"Query governed selesai dengan {row_count} baris hasil. "
-                            "Gunakan tabel di bawah untuk membandingkan cabang/material; "
+                            "Gunakan tabel di bawah untuk membandingkan hasilnya; "
                             "minta penjelasan ulang jika perlu narasi manajemen lebih rinci."
                         )
                     else:

@@ -255,29 +255,6 @@ def test_stock_sat_division_to_dc_support_follow_up() -> None:
     assert "MANA" not in filters.upper()
 
 
-def test_sell_in_top_material_b2b_sameness_follow_up() -> None:
-    ctx = build_analysis_context(
-        metric="material_sell_in_value",
-        dimensions=["material"],
-        entity_dimension="material",
-        ranked_entities=[
-            {"rank": 1, "id": "001-00-03", "dimension": "material", "metric_value": 289_450_000_000},
-            {"rank": 2, "id": "073-09-03", "dimension": "material", "metric_value": 181_320_000_000},
-        ],
-        last_question="Top produk sell-in Q4 2024 berdasarkan nilai billing",
-    )
-    q = (
-        "kenapa produk/material itu bisa lebih tinggi, dan apakah bisa di cek juga di penjualan B2b "
-        "apakah penjualannya sama atau tidak ?"
-    )
-    res = try_follow_up_governed_resolution(q, ctx, understanding=None)
-    assert res is not None
-    assert res["metric"] == "material_sell_out_to_sell_in_value_ratio"
-    assert res["dimensions"] == ["material"]
-    filters = " ".join(res.get("follow_up_entity_filters") or [])
-    assert "001-00-03" in filters
-
-
 def test_cross_domain_dc_sell_out_product_drill_follow_up() -> None:
     ctx = build_analysis_context(
         metric="sat_dc_stock_quantity",

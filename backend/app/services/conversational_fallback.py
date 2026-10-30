@@ -5,43 +5,6 @@ from __future__ import annotations
 from app.core.models import AnalysisOutput
 
 
-def deterministic_sell_in_vs_sell_out_answer() -> dict:
-    text = (
-        "Inbound (sell-in) dan outbound (sell-out) mengukur sisi berbeda dari rantai distribusi. "
-        "Sell-in biasanya shipment ke channel; sell-out pergerakan di sisi retail/partner. "
-        "Angka keduanya tidak interchangeable tanpa definisi metric yang sama."
-    )
-    return AnalysisOutput(
-        direct_answer=text,
-        executive_summary=text,
-        insights=[
-            "Contoh sell-in: total billing inbound per region atau produk.",
-            "Contoh sell-out: penjualan partner atau outlet per periode.",
-        ],
-        business_implications=[],
-        caveats=["Definisi domain; tidak ada query governed di turn ini."],
-        data_reference="Semantic capability definitions (no query executed).",
-        chart_spec=None,
-    ).model_dump()
-
-
-def deterministic_promo_uplift_proxy_explain() -> dict:
-    text = (
-        "Proxy uplift promo membandingkan performa material atau SKU pada dua periode "
-        "(misalnya bulan sebelum vs bulan promo). Ini indikator, bukan ROI promo outlet "
-        "kecuali metric dan dataset secara eksplisit mendukung causal attribution."
-    )
-    return AnalysisOutput(
-        direct_answer=text,
-        executive_summary=text,
-        insights=[
-            "Untuk angka governed, gunakan metric uplift atau revenue yang dipublish di semantic layer.",
-        ],
-        business_implications=[],
-        caveats=["Metodologi proxy; bukan causal attribution kecuali didefinisikan di model."],
-        data_reference="Semantic methodology note (no query executed).",
-        chart_spec=None,
-    ).model_dump()
 
 
 def deterministic_capability_follow_up_answer(

@@ -179,34 +179,6 @@ def _is_capability_overview(question: str) -> bool:
     return _is_capability_meta_question(question)
 
 
-def _is_promo_proxy_explain_follow_up(question: str, history: list[dict[str, Any]]) -> bool:
-    lowered = question.casefold()
-    if not any(term in lowered for term in ("jelaskan", "explain", "proxy", "nov vs", "november")):
-        return False
-    # Governed follow-ups may mention "uplift proxy" without asking for a concept essay.
-    if any(term in lowered for term in ("top ", "top", "ranking", "urutan", "material", "produk")):
-        return False
-    if "status dominan" in lowered or "dominan tadi" in lowered or "dominan dari" in lowered:
-        return False
-    if "tadi" in lowered and any(term in lowered for term in ("uplift", "material", "status")):
-        return False
-    if not history:
-        return False
-    from app.services.follow_up import analysis_context_from_history
-
-    ctx = analysis_context_from_history(history)
-    metric = str(ctx.get("last_metric") or "").casefold()
-    return "promo" in metric or "uplift" in metric
-
-
-def _is_sell_in_vs_sell_out_concept(question: str) -> bool:
-    lowered = question.casefold().replace("–", "-")
-    asks_contrast = any(term in lowered for term in ("beda", "bedanya", "perbedaan", "difference", "vs "))
-    mentions_sell_in = any(term in lowered for term in ("sell-in", "sell in", "sellin"))
-    mentions_sell_out = any(term in lowered for term in ("sell-out", "sell out", "sellout", "acme"))
-    looks_analytic = any(term in lowered for term in ("top ", "berapa", "ranking", "total ", "q4 2024"))
-    return asks_contrast and mentions_sell_in and mentions_sell_out and not looks_analytic
-
 
 def _is_analytic_escape_from_clarification(question: str) -> bool:
     """User narrows to a concrete governed ask after a clarification turn."""
@@ -286,28 +258,12 @@ async def understand_turn(
         logger.debug("turn_understanding mode=skip chars=%s", len(q))
         return _default_analytic(q, rationale="skip_session_has_no_catalog_or_clarify")
 
-    if session.get("first_turn") and _is_sell_in_vs_sell_out_concept(q):
-        return TurnUnderstanding(
-            is_conversational=True,
-            attach_domain_catalog=False,
-            pipeline_question=q,
-            rationale="concept_sell_in_vs_sell_out",
-        )
-
     if _is_capability_meta_question(q):
         return TurnUnderstanding(
             is_conversational=True,
             attach_domain_catalog=True,
             pipeline_question=q,
             rationale="capability_overview" if session.get("first_turn") else "capability_follow_up",
-        )
-
-    if _is_promo_proxy_explain_follow_up(q, history):
-        return TurnUnderstanding(
-            is_conversational=True,
-            attach_domain_catalog=False,
-            pipeline_question=q,
-            rationale="promo_proxy_explain",
         )
 
     try:
