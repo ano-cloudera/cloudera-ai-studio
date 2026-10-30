@@ -251,13 +251,17 @@ class OssieRegistry:
     def _resolve_semantic_registry_catalog_metric(self, question: str) -> dict[str, Any]:
         normalized = _normalize(question)
         question_tokens = _catalog_tokenize(question)
+        # Keyword boosts below were written for the customers/transactions demo profile; other models score by aliases only.
+        profile_boosts = bool(self.runtime_extensions)
         entity_hints: set[str] = set()
-        if any(term in normalized for term in ("customer", "customers", "nasabah", "pelanggan")):
+        if profile_boosts and any(term in normalized for term in ("customer", "customers", "nasabah", "pelanggan")):
             entity_hints.add("customers")
-        if any(term in normalized for term in ("transaction", "transactions", "transaksi", "payment", "pembayaran")):
+        if profile_boosts and any(
+            term in normalized for term in ("transaction", "transactions", "transaksi", "payment", "pembayaran")
+        ):
             entity_hints.add("transactions")
 
-        has_amount_intent = any(
+        has_amount_intent = profile_boosts and any(
             term in normalized for term in ("amount", "nominal", "nilai transaksi", "monetary", "revenue")
         )
         wants_total_tx_amount = (
@@ -268,7 +272,7 @@ class OssieRegistry:
                 and has_amount_intent
             )
         )
-        has_channel_intent = any(
+        has_channel_intent = profile_boosts and any(
             term in normalized for term in ("channel", "saluran", "kanal")
         )
         wants_channel_rank = has_channel_intent and any(
@@ -314,14 +318,16 @@ class OssieRegistry:
                     score -= 220
             if wants_channel_rank and ("amount" in mn_cf or "sum(amount" in expr_cf):
                 score += 240
-            if "amount" in normalized and "amount" in mn_cf:
+            if profile_boosts and "amount" in normalized and "amount" in mn_cf:
                 score += 60
-            if any(t in normalized for t in ("trend", "pertumbuhan", "per bulan", "bulanan", "monthly", "time series")):
+            if profile_boosts and any(
+                t in normalized for t in ("trend", "pertumbuhan", "per bulan", "bulanan", "monthly", "time series")
+            ):
                 if "transaction" in metric_name.casefold():
                     score += 90
                 if "transaction_id" in metric_name.casefold():
                     score += 40
-            if any(t in normalized for t in ("jumlah transaksi", "banyak transaksi", "count transaksi")):
+            if profile_boosts and any(t in normalized for t in ("jumlah transaksi", "banyak transaksi", "count transaksi")):
                 if "transaction_id" in metric_name.casefold():
                     score += 120
                 if "amount" in metric_name.casefold():
@@ -377,6 +383,8 @@ class OssieRegistry:
         }
 
     def resolve_ambiguity(self, question: str) -> dict[str, Any] | None:
+        if _is_semantic_registry_catalog(self.metrics):
+            return None  # the rules below only describe the legacy reference catalog
         normalized = _normalize(question)
         words = set(re.findall(r"[a-z0-9]+", question.casefold()))
 
