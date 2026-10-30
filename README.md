@@ -35,28 +35,35 @@ Browser ─► Frontend (Next.js) ─► Backend (FastAPI) ─┬─► Trino   
 
 # Deploy as an AMP (one click)
 
-`.project-metadata.yaml` turns this repository into a Cloudera AI **Applied ML Prototype**. Importing it runs four tasks in order:
+`.project-metadata.yaml` turns this repository into a Cloudera AI **Applied ML Prototype**. Importing it runs two Jobs in order
+and waits for each:
 
-| Task | What it does |
+| Job | What it does |
 |---|---|
-| Install tools and dependencies | `scripts/amp/setup.py`: Node.js, Backend virtualenv, Qdrant and its UI, the embedding model, data folders, Frontend packages. Safe to run again |
-| Anywhere Qdrant | Application `anywhere-qdrant` |
-| Anywhere Backend | Application `anywhere-backend`; `QDRANT_URL` and `CORS_ORIGINS` are derived from the workspace domain |
-| Anywhere Frontend | Application `anywhere-frontend`; `BACKEND_API_URL` is derived from the workspace domain and the UI is built on first start |
+| `install-tools` | `scripts/amp/setup.py`: Node.js, Backend virtualenv, Qdrant and its UI, the embedding model, data folders, Frontend packages. Safe to run again |
+| `deploy-applications` | `scripts/amp/deploy.py`: builds the UI, then creates (or updates and restarts) the **Qdrant, Backend and Frontend Applications** through the Cloudera AI API v2 and waits until they run. URLs between the Applications are derived from the workspace domain |
 
-**Before you import**, have ready (all optional at import time, but the app needs them to answer questions): an LLM key
-(`GEMINI_API_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`) and the Trino connection (`TRINO_HOST`, `TRINO_USER`, `TRINO_PASSWORD`,
-`TRINO_CATALOG`, `TRINO_SCHEMA`). They are project environment variables, so the Applications inherit them.
+You only enter environment variables once, at import. The deploy Job copies them to the Applications that need them
+(the list is in `deployment/cai/manifests/applications.yaml`, which is also where Application names, resources and settings live).
 
-**After the import**, follow [Configure the demo](#configure-the-demo-step-by-step) (LLM, data, Data Source, semantic layer,
-knowledge, MCP). Those steps are not automated yet.
+**Variables at import** (all optional at import time, but the app needs an LLM key and a data source to answer questions):
+`GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `TRINO_*`, `IMPALA_*`, `POSTGRES_PASSWORD`.
+For any other secret a Data Source or MCP server needs, add the variable to the project and list its name in `AMP_FORWARD_ENV`
+(comma separated); the Data Source then refers to it as `env://NAME`.
+
+**After the import**, open the Frontend and follow [Configure the demo](#configure-the-demo-step-by-step)
+(LLM, Data Source, semantic layer, knowledge, MCP).
+
+**Redeploy** after a `git pull` or after adding a variable: run the `deploy-applications` Job again.
+**Check the API access first** (read-only) from a Session: `python scripts/amp/deploy.py --check`.
 
 Known limits:
 - The Application subdomains are fixed (`anywhere-qdrant`, `anywhere-backend`, `anywhere-frontend`). If they collide in your workspace,
-  change `subdomain` for the three Applications in `.project-metadata.yaml` and set `AMP_SUBDOMAIN_PREFIX` to match.
+  set `AMP_SUBDOMAIN_PREFIX`.
 - The Applications are created with authentication on. If the Backend cannot reach Qdrant, or the Frontend cannot reach the Backend,
   check the Application authentication settings first.
-- The first Frontend start builds the UI and takes several minutes.
+- The deploy Job calls the Cloudera AI REST API with the key CAI provides to Jobs (`CDSW_APIV2_KEY`). It has been tested against a
+  fake client only; run `--check` and `--dry-run` first on a new workspace.
 
 ---
 

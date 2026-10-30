@@ -49,14 +49,39 @@ environment_variables:
     default: /home/cdsw
     description: Where the project files live. Leave as is for an AMP.
     required: true
+  AMP_FORWARD_ENV:
+    default: ""
+    description: Extra variable names (comma separated) to copy to the Backend, for example the secrets a Data Source or MCP server needs (MY_DB_PASSWORD,MY_TOOL_TOKEN). Add the variables themselves in the project settings.
+    required: false
+  AMP_RUNTIME_ID:
+    default: ""
+    description: Runtime identifier for the Applications. Leave empty to use the workspace default.
+    required: false
+  IMPALA_HOST:
+    default: ""
+    description: Impala host, if the Data Source is Impala. Optional.
+    required: false
+  IMPALA_USER:
+    default: ""
+    description: Impala user. Optional.
+    required: false
+  IMPALA_PASSWORD:
+    default: ""
+    description: Impala password. Optional.
+    required: false
+  POSTGRES_PASSWORD:
+    default: ""
+    description: PostgreSQL password, if the Data Source is PostgreSQL. Optional.
+    required: false
   AMP_SUBDOMAIN_PREFIX:
     default: anywhere
-    description: Prefix of the Application subdomains (<prefix>-qdrant, -backend, -frontend). Change it together with the subdomains below if they collide in your workspace.
+    description: Prefix of the Application subdomains (<prefix>-qdrant, -backend, -frontend). Change it if they collide with other Applications in your workspace.
     required: true
 
 tasks:
-  - type: run_session
+  - type: create_job
     name: Install tools and dependencies
+    entity_label: install-tools
     short_summary: Node.js, Backend virtualenv, Qdrant, embedding model, data folders and Frontend packages
     long_summary: >-
       Installs everything an Application cannot download. Safe to run again; finished steps are skipped.
@@ -65,71 +90,26 @@ tasks:
     kernel: python3
     cpu: 2
     memory: 8
+    timeout: 120
 
-  - type: start_application
-    name: Anywhere Qdrant
-    short_summary: Vector database for document search
-    subdomain: anywhere-qdrant
-    static_subdomain: true
-    script: deployment/cai/launchers/studio-qdrant/app.py
-    kernel: python3
-    cpu: 4
-    memory: 16
-    environment_variables:
-      STUDIO_REPO_ROOT: /home/cdsw
-      QDRANT_BINARY: /home/cdsw/tools/qdrant/qdrant
-      QDRANT_STORAGE_PATH: /home/cdsw/cai-studio-data/qdrant/storage
-      QDRANT_STATIC_DIR: /home/cdsw/tools/qdrant/static
-      APP_STARTUP_TIMEOUT_MINUTES: "5"
+  - type: run_job
+    entity_label: install-tools
+    wait_for: true
 
-  - type: start_application
-    name: Anywhere Backend
-    short_summary: FastAPI backend (Ask Data, Knowledge, MCP, settings)
-    subdomain: anywhere-backend
-    static_subdomain: true
-    script: deployment/cai/launchers/studio-backend/app.py
-    kernel: python3
-    cpu: 4
-    memory: 16
-    environment_variables:
-      STUDIO_REPO_ROOT: /home/cdsw
-      PYTHON_EXECUTABLE: /home/cdsw/.venvs/studio-backend/bin/python
-      DEPLOYMENT_PROFILE: cai
-      STATE_STORE: sqlite
-      UVICORN_WORKERS: "1"
-      CAI_DATA_DIR: /home/cdsw/cai-studio-data
-      DATABASE_URL: sqlite+pysqlite:////home/cdsw/cai-studio-data/metadata/studio.db
-      DOCUMENT_STORAGE_ROOT: /home/cdsw/cai-studio-data/documents
-      SEMANTIC_RUNTIME_STORAGE_ROOT: /home/cdsw/cai-studio-data/var/semantic-runtime
-      QDRANT_COLLECTION: accelerator_chunks
-      EMBEDDING_PROVIDER: bge_m3
-      EMBEDDING_MODEL: /home/cdsw/models/bge-m3
-      HF_HUB_OFFLINE: "1"
-      APP_STARTUP_TIMEOUT_MINUTES: "10"
-
-  - type: start_application
-    name: Anywhere Frontend
-    short_summary: Next.js web UI
+  - type: create_job
+    name: Deploy applications
+    entity_label: deploy-applications
+    short_summary: Builds the UI and creates or updates the Qdrant, Backend and Frontend Applications through the CAI API
     long_summary: >-
-      The first start builds the UI (several minutes). BACKEND_API_URL is derived from the workspace domain.
-    subdomain: anywhere-frontend
-    static_subdomain: true
-    script: deployment/cai/launchers/studio-frontend/app.py
+      Reads deployment/cai/manifests/applications.yaml, forwards this project's environment variables to each
+      Application, builds the Frontend, then creates (or updates and restarts) the Applications and waits until they run.
+      Run this job again after a git pull to redeploy, or after adding an environment variable.
+    script: scripts/amp/deploy.py
     kernel: python3
     cpu: 2
-    memory: 4
-    environment_variables:
-      STUDIO_REPO_ROOT: /home/cdsw
-      NODE_HOME: /home/cdsw/tools/node
-      CAI_SKIP_FRONTEND_BUILD: "0"
-      APP_STARTUP_TIMEOUT_MINUTES: "20"
-      NEXT_PUBLIC_PRODUCT_NAME: Anywhere AI Studio
-      NEXT_PUBLIC_PRODUCT_SHORT_NAME: Anywhere AI Studio
-      NEXT_PUBLIC_APP_NAME: Anywhere AI Studio
-      NEXT_PUBLIC_APP_SUBTITLE: Anywhere AI Studio
-      NEXT_PUBLIC_APP_TAGLINE: Anywhere AI Studio
-      NEXT_PUBLIC_SIDEBAR_FOOTER_CAPTION: Anywhere AI Studio
-      NEXT_PUBLIC_SIDEBAR_POWERED_BY: Powered by Anywhere Cloud
-      NEXT_PUBLIC_PRODUCT_LOGO: /branding/anywhere-ai-logo.png
-      NEXT_PUBLIC_APP_LOGO: /branding/anywhere-ai-logo.png
-      NEXT_PUBLIC_EMPTY_STATE_LOGO: /branding/anywhere-ai-logo.png
+    memory: 8
+    timeout: 90
+
+  - type: run_job
+    entity_label: deploy-applications
+    wait_for: true

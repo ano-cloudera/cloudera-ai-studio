@@ -23,7 +23,7 @@ Status terakhir diperbarui: 2026-10-30. Pembersihan repo (2.5, 2.6) selesai.
 
 - [x] 2.1 `.project-metadata.yaml` di root: variabel env (`TRINO_*`, kunci LLM; pakai `required` dan `default`), runtime Python 3.10 JupyterLab
 - [x] 2.2 `scripts/amp/` untuk task `run_session`: Node, venv backend, Qdrant dan UI, model embedding, folder data, build Frontend
-- [x] 2.3 Tiga task `start_application` (Qdrant, Backend, Frontend) dengan `static_subdomain`
+- [x] 2.3 Job `deploy-applications` (CAI API v2) menggantikan tiga task `start_application` (Qdrant, Backend, Frontend) dengan `static_subdomain`
 - [x] 2.4 Launcher menurunkan URL antar-aplikasi dari `CDSW_DOMAIN` dan subdomain; `STUDIO_REPO_ROOT=/home/cdsw`
 - [x] 2.5 Bersihkan repo: `testing/evidence`, sisa banking, `PROJECT_STATE.md`, `frontend/.next-dev.pid`, file `.zip` *(perlu persetujuan; satu commit yang bisa dibatalkan)*
 - [x] 2.6 Perbarui `.gitignore` agar state lokal tidak ikut
@@ -58,7 +58,7 @@ PuppyGraph asli ditunda: hanya tersedia sebagai Docker, dan image 3 GB tidak pra
 - [ ] 5.1 Import AMP di workspace CAI yang bersih
 - [ ] 5.2 Kirim log tiap task yang gagal, perbaiki, ulangi
 - [ ] 5.3 Jalankan skrip demo (3 pertanyaan Ask Data, 3 Knowledge, 1 MCP)
-- [ ] 5.4 *(Opsional)* Job `redeploy` lewat CAI API v2: pull, build Frontend, restart Application, cek `/health`
+- [x] 5.4 Job `deploy-applications` (CAI API v2) sekaligus berfungsi sebagai redeploy; perlu diuji di CAI
 
 ## Kerapian (paralel)
 

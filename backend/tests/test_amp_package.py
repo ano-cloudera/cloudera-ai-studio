@@ -41,14 +41,18 @@ def test_explicit_values_and_a_missing_domain_win() -> None:
 def test_metadata_matches_the_repository() -> None:
     assert METADATA["specification_version"] and METADATA["prototype_version"]
     tasks = METADATA["tasks"]
-    assert tasks[0]["type"] == "run_session"
-    for task in tasks:
-        assert (REPO / task["script"]).is_file(), task["script"]
-    apps = [t for t in tasks if t["type"] == "start_application"]
-    assert [t["subdomain"] for t in apps] == ["anywhere-qdrant", "anywhere-backend", "anywhere-frontend"]
-    assert all(t["static_subdomain"] is True for t in apps)
-    prefix = METADATA["environment_variables"]["AMP_SUBDOMAIN_PREFIX"]["default"]
-    assert all(t["subdomain"].startswith(prefix + "-") for t in apps)
+    assert [t["type"] for t in tasks] == ["create_job", "run_job", "create_job", "run_job"]
+    jobs = {t["entity_label"]: t for t in tasks if t["type"] == "create_job"}
+    for job in jobs.values():
+        assert (REPO / job["script"]).is_file(), job["script"]
+    for run in (t for t in tasks if t["type"] == "run_job"):
+        assert run["entity_label"] in jobs and run["wait_for"] is True
+    assert list(jobs) == ["install-tools", "deploy-applications"]
+    declared = METADATA["environment_variables"]
+    manifest = yaml.safe_load((REPO / "deployment/cai/manifests/applications.yaml").read_text(encoding="utf-8"))
+    forwarded = {n for app in manifest["applications"] for n in app.get("forward_env", [])}
+    assert {"GEMINI_API_KEY", "TRINO_PASSWORD"} <= forwarded
+    assert forwarded - {"QDRANT_API_KEY", "TRINO_PORT", "MODEL_PATH", "VLLM_API_KEY"} <= set(declared)
 
 
 def test_setup_steps_are_ordered_and_skippable() -> None:
