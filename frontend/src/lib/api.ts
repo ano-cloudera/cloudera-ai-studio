@@ -52,7 +52,6 @@ export const api = {
     }
   },
   models: () => request<{ models: ModelInfo[] }>('/models'),
-  randomQueries: (limit = 1) => request<{ questions: SuggestedQuestion[] }>(`/random-queries?limit=${limit}`),
   askDataStarters: () => request<import('../types/api').AskDataStartersResponse>('/v1/ask-data/starters'),
   askDataPresentationConfig: () =>
     request<{ workspace_slug: string; presentation: import('./presentationTierConfig').PresentationTierConfig }>(

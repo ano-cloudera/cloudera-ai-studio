@@ -16,7 +16,6 @@ from app.semantic.domain_graph import (
     try_governed_intent_route,
 )
 from app.semantic.registry import OssieRegistry
-from app.semantic.questions import CURATED_CONTRACTS, QuestionBank
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -683,10 +682,6 @@ class SemanticContextService:
                 time_columns=frozenset(time_columns),
                 description=str(dataset.get("description") or ""),
             )
-        self._curated = {
-            " ".join(item.question.casefold().split()): CURATED_CONTRACTS[item.id]
-            for item in QuestionBank().all()
-        }
 
     @property
     def table_names(self) -> frozenset[str]:
@@ -1020,20 +1015,6 @@ class SemanticContextService:
         session_analysis_context: dict[str, Any] | None = None,
         turn_understanding: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        contract = self._curated.get(" ".join(question.casefold().split()))
-        if contract:
-            if contract.get("strategy") == "sql_fallback":
-                return {"status": "fallback", "reason": "curated_multi_metric", **contract}
-            metric = str(contract["metric"])
-            return {
-                "status": "resolved",
-                "metric": metric,
-                "matched_alias": "curated_contract",
-                "definition": self.metric_definition(metric),
-                "dimensions": list(contract.get("dimensions", [])),
-                "dimension_mismatch": [],
-            }
-
         if self._registry_runtime:
             session_follow = self._resolve_registry_session_follow_up(
                 question,

@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import chat, models, random_queries, usage
+from app.api import chat, models, usage
 from app.api.v1 import documents as v1_documents
 from app.api.v1 import libraries as v1_libraries
 from app.api.v1 import rag as v1_rag
@@ -140,7 +140,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     application.include_router(models.router)
-    application.include_router(random_queries.router)
     application.include_router(chat.router)
     application.include_router(usage.router)
     application.include_router(v1_workspaces.router, prefix="/api/v1")

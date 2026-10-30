@@ -7,7 +7,6 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.ask_data.presentation_tier_config import PresentationTierOverrides
-from app.semantic.questions import Difficulty, Domain, Question, QuestionBank
 
 ASK_DATA_SETTINGS_KEY = "ask_data"
 MAX_STARTER_QUESTIONS = 6
@@ -24,8 +23,9 @@ class AskDataSettings(BaseModel):
     starter_questions: list[str] = Field(default_factory=list, max_length=MAX_STARTER_QUESTIONS)
     starter_source: StarterSource = "configured"
     question_bank_limit: int = Field(default=3, ge=1, le=20)
-    question_bank_domain: Domain | None = None
-    question_bank_difficulty: Difficulty | None = None
+    # Kept so settings saved by older versions still load; the question bank itself was removed.
+    question_bank_domain: str | None = None
+    question_bank_difficulty: str | None = None
     presentation: PresentationTierOverrides | None = None
     default_semantic_model_id: str | None = Field(
         default=None,
@@ -76,36 +76,8 @@ def write_ask_data_settings(settings_json: dict | None, settings: AskDataSetting
     return merged
 
 
-def _question_to_starter(item: Question) -> dict:
-    return {
-        "id": item.id,
-        "question": item.question,
-        "domain": item.domain,
-        "domains": item.domains,
-        "difficulty": item.difficulty,
-        "analysis_type": item.analysis_type,
-        "expected_visualization": item.expected_visualization,
-    }
-
-
-def resolve_starters(
-    settings: AskDataSettings,
-    *,
-    bank: QuestionBank | None = None,
-) -> dict:
+def resolve_starters(settings: AskDataSettings) -> dict:
     caption = settings.starter_questions_caption
-    if settings.starter_source == "question_bank":
-        bank = bank or QuestionBank()
-        rows = bank.query(
-            domain=settings.question_bank_domain,
-            difficulty=settings.question_bank_difficulty,
-            limit=settings.question_bank_limit,
-        )
-        return {
-            "caption": caption,
-            "source": "question_bank",
-            "questions": [_question_to_starter(item) for item in rows],
-        }
 
     questions = [
         {
@@ -134,7 +106,7 @@ def resolve_starters_with_runtime(
 ) -> dict:
     """Same precedence as capability insights: configured → golden → published metrics."""
     base = resolve_starters(settings)
-    if base.get("questions") or settings.starter_source == "question_bank":
+    if base.get("questions"):
         return base
     if semantic_context is None:
         return base
