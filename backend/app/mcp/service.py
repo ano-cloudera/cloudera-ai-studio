@@ -9,7 +9,7 @@ from typing import Any
 from app.core.config import Settings
 from app.llm.base import LLMProvider
 from app.mcp.client import describe_exception, invoke_mcp_server
-from app.mcp.planner import PlannedCall, missing_inputs_message, narrate_result, plan_tool_call
+from app.mcp.planner import PlannedCall, missing_inputs_message, narrate_result, readable_result, plan_tool_call
 from app.mcp.registry import connector_by_id, resolve_server_entry
 
 logger = logging.getLogger(__name__)
@@ -81,5 +81,5 @@ async def run_mcp_turn(
         narrated = await narrate_result(
             provider, question, str(result.get("tool") or ""), dict(result.get("arguments") or {}), content
         )
-    answer = narrated or f"**MCP ({connector.name})**\n\n{content}"
+    answer = narrated or f"**{connector.name}**\n\n{readable_result(content)}"
     return answer, {"connector_id": connector_id, **result}

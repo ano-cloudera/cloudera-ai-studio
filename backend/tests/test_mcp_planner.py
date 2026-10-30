@@ -13,6 +13,7 @@ from app.mcp.planner import (
     missing_inputs_message,
     narrate_result,
     plan_tool_call,
+    readable_result,
     tool_descriptors,
 )
 
@@ -90,8 +91,33 @@ def test_plan_tool_call_sends_the_schema_and_returns_a_checked_call() -> None:
 def test_narration_falls_back_to_none_when_the_model_fails() -> None:
     ok = asyncio.run(narrate_result(_Provider(McpNarration(answer="  Low likelihood.  ")), "q", "t", {}, "{}"))
     assert ok == "Low likelihood."
-    failed = asyncio.run(narrate_result(_Provider(ProviderError("X")), "q", "t", {}, "{}"))
+    failed = asyncio.run(narrate_result(_Provider(ProviderError("X"), ProviderError("X")), "q", "t", {}, "{}"))
     assert failed is None
+
+
+def test_narration_retries_once_before_giving_up() -> None:
+    calls = []
+
+    class Flaky:
+        async def generate_structured(self, *args, **kwargs):
+            calls.append(1)
+            if len(calls) == 1:
+                raise ProviderError("bad json")
+            return McpNarration(answer="Second try worked.")
+
+    assert asyncio.run(narrate_result(Flaky(), "q", "t", {}, "{}")) == "Second try worked."
+    assert len(calls) == 2
+
+
+def test_readable_result_never_shows_raw_json() -> None:
+    text = readable_result(
+        json.dumps({"approval_likelihood": 0.162, "policy_check": {"credit_score": 640.0, "ok": False}, "drivers": ["a", "b"]})
+    )
+    assert "{" not in text and '"' not in text
+    assert "- **approval likelihood**: 0.162" in text
+    assert "credit score 640" in text
+    assert "  - a" in text
+    assert readable_result("plain text") == "plain text"
 
 
 def test_missing_inputs_message_follows_the_language_of_the_question() -> None:

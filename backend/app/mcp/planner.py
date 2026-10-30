@@ -142,26 +142,61 @@ async def plan_tool_call(provider: LLMProvider, question: str, tools: list[Any])
 async def narrate_result(
     provider: LLMProvider, question: str, tool: str, arguments: dict[str, Any], content: str
 ) -> str | None:
+    messages = [
+        {"role": "system", "content": _prompt("mcp_answer.md")},
+        {
+            "role": "user",
+            "content": json.dumps(
+                {"question": question, "tool": tool, "arguments": arguments, "result": content[:6000]},
+                ensure_ascii=False,
+            ),
+        },
+    ]
+    # A malformed or timed-out completion is common enough to deserve one more try.
+    for attempt in (1, 2):
+        try:
+            out = await provider.generate_structured(
+                messages, McpNarration, temperature=0.2 if attempt == 1 else 0, max_tokens=700
+            )
+        except ProviderError:
+            logger.warning("mcp_narration_failed tool=%s attempt=%s", tool, attempt)
+            continue
+        if out.answer.strip():
+            return out.answer.strip()
+    return None
+
+
+def _scalar_text(value: Any) -> str:
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def readable_result(content: str) -> str:
+    """Plain bullets for a tool result when the model could not narrate it; never raw JSON."""
     try:
-        out = await provider.generate_structured(
-            [
-                {"role": "system", "content": _prompt("mcp_answer.md")},
-                {
-                    "role": "user",
-                    "content": json.dumps(
-                        {"question": question, "tool": tool, "arguments": arguments, "result": content[:6000]},
-                        ensure_ascii=False,
-                    ),
-                },
-            ],
-            McpNarration,
-            temperature=0.2,
-            max_tokens=700,
-        )
-    except ProviderError:
-        logger.warning("mcp_narration_failed tool=%s", tool)
-        return None
-    return out.answer.strip() or None
+        data = json.loads(content)
+    except (TypeError, ValueError):
+        return content
+    if not isinstance(data, dict):
+        return content
+    lines: list[str] = []
+    for key, value in data.items():
+        label = str(key).replace("_", " ")
+        if isinstance(value, dict):
+            parts = ", ".join(
+                f"{str(k).replace('_', ' ')} {_scalar_text(v)}" for k, v in value.items() if not isinstance(v, (dict, list))
+            )
+            if parts:
+                lines.append(f"- **{label}**: {parts}")
+        elif isinstance(value, list):
+            items = [_scalar_text(v) for v in value if not isinstance(v, (dict, list))]
+            if items:
+                lines.append(f"- **{label}**:")
+                lines.extend(f"  - {item}" for item in items)
+        else:
+            lines.append(f"- **{label}**: {_scalar_text(value)}")
+    return "\n".join(lines) or content
 
 
 def missing_inputs_message(call: PlannedCall, question: str) -> str:

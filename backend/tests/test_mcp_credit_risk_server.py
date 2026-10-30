@@ -146,7 +146,7 @@ def test_without_a_model_the_raw_result_is_still_shown(monkeypatch) -> None:
         )
     )
     # No planner: the old behavior sends the raw question text, so the tool reports the unusable input.
-    assert answer.startswith("**MCP (Credit Risk Model)**")
+    assert answer.startswith("**Credit Risk Model**")
 
 
 def test_a_missing_server_script_is_reported_plainly() -> None:
