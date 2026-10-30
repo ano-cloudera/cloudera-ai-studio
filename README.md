@@ -51,6 +51,8 @@ You only enter environment variables once, at import. The deploy Job copies them
 For any other secret a Data Source or MCP server needs, add the variable to the project and list its name in `AMP_FORWARD_ENV`
 (comma separated); the Data Source then refers to it as `env://NAME`.
 
+**For a new PoC**, follow the [PoC guide](docs/POC-GUIDE.md).
+
 **After the import**, open the Frontend and follow [Configure the demo](#configure-the-demo-step-by-step)
 (LLM, Data Source, semantic layer, knowledge, MCP).
 

@@ -39,10 +39,23 @@ Bootstrap otomatis credit-risk **tidak lagi wajib**; jadi paket contoh opsional.
   - [ ] integrasi agen lokal opsional (`services/local_agent_client.py`, `ask_data_routing.py`, jalur `_run_via_local_agent_v3` di `chat.py`); tidak aktif tanpa `LOCAL_AGENT_BASE_URL`
   - [x] tes karakterisasi jalur credit risk (`test_credit_risk_characterization.py`) dibuat lebih dulu sebagai pengaman
 - [x] 3.2a vLLM opsional (`ENABLE_VLLM`, runtime GPU `AMP_VLLM_RUNTIME_ID`, unduh model); perlu diuji di CAI dengan GPU
-- [ ] 3.2 Variabel env AMP tidak terikat Trino saja: Trino, Impala, PostgreSQL, dan kunci LLM; cara menambah variabel baru per PoC didokumentasikan
-- [ ] 3.3 Panduan "membawa AMP ke PoC baru": daftar yang diganti per PoC (sumber data, semantic model, dokumen, MCP, branding, pertanyaan awal)
+- [x] 3.2 Variabel env AMP tidak terikat Trino saja: Trino, Impala, PostgreSQL, dan kunci LLM; cara menambah variabel baru per PoC didokumentasikan
+- [x] 3.3 Panduan "membawa AMP ke PoC baru": daftar yang diganti per PoC (sumber data, semantic model, dokumen, MCP, branding, pertanyaan awal)
 - [ ] 3.4 Paket contoh opsional (credit-risk): data, PDF, server MCP; task opsional yang berhenti sendiri kalau tidak dipakai
 - [ ] 3.5 Pertanyaan awal dan teks contoh di UI dapat diatur lewat Settings, bukan terikat ke satu domain
+
+## Fase 6: Rilis sebagai akselerator untuk Cloudera Sales Engineer
+
+Dikerjakan **terakhir**, setelah semua fase di atas settle di folder ini (`cloudera-ai-studio`). Lalu dipindahkan ke folder baru
+`amp-anywhere-ai-studio` dengan riwayat git baru (satu commit awal), sehingga tidak ada jejak istilah lama di riwayat.
+
+- [ ] 6.1 Semua fase 1 sampai 5 selesai dan diuji di CAI (import AMP di workspace bersih)
+- [ ] 6.2 README dan panduan PoC dibaca ulang dari sudut pandang Sales Engineer (bukan pengembang)
+- [ ] 6.3 Pindahkan hanya file yang dilacak ke `amp-anywhere-ai-studio` (`git archive`), `git init`, satu commit awal
+- [ ] 6.4 Jalankan ulang tes backend dan frontend, build, dan pemindaian istilah lama di folder baru
+- [ ] 6.5 Buat repo GitHub yang bisa dijangkau CAI, atur remote, push (dilakukan pemilik repo)
+- [ ] 6.6 Uji import AMP dari repo baru di workspace CAI yang bersih
+- [ ] 6.7 Aturan memori diperbarui: kerja pindah ke `amp-anywhere-ai-studio`
 
 ## Fase 4: Pertanyaan kompleks
 
