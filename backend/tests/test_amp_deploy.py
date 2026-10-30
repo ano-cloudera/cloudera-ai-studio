@@ -113,3 +113,28 @@ def test_dry_run_prints_names_never_values(capsys, monkeypatch) -> None:
     assert deploy.main(["--dry-run"]) == 0
     out = capsys.readouterr().out
     assert "GEMINI_API_KEY" in out and "secret-gemini" not in out and "secret-trino" not in out
+
+
+def test_vllm_is_created_only_when_enabled_and_gets_its_gpu_runtime() -> None:
+    assert "vllm" not in [p["key"] for p in _plan()]
+    env = {**ENV, "ENABLE_VLLM": "true", "VLLM_MODEL_ID": "org/some-model", "AMP_VLLM_RUNTIME_ID": "gpu-rt", "AMP_RUNTIME_ID": "std-rt", "GPU_PROFILE": "l40s"}
+    plan = deploy.build_plan(deploy.load_manifest(), env)
+    vllm = plan[-1]
+    assert vllm["key"] == "vllm" and vllm["nvidia_gpu"] == 1
+    assert vllm["environment"]["MODEL_PATH"] == "/home/cdsw/models/some-model"
+    assert vllm["environment"]["GPU_PROFILE"] == "l40s"
+    assert deploy.payload_for(vllm, vllm["runtime_id"])["runtime_identifier"] == "gpu-rt"
+    client = FakeClient()
+    logs: list[str] = []
+    deploy.deploy(client, [vllm], env, skip_build=True, timeout=60, log=logs.append, sleep=lambda _: None)
+    created = client.calls[0][2]
+    assert created["nvidia_gpu"] == 1 and created["runtime_identifier"] == "gpu-rt"
+    assert any("OpenAI-compatible" in line for line in logs)
+
+
+def test_a_gpu_application_without_a_gpu_runtime_warns() -> None:
+    env = {**ENV, "ENABLE_VLLM": "true"}
+    plan = deploy.build_plan(deploy.load_manifest(), env, "vllm")
+    logs: list[str] = []
+    deploy.deploy(FakeClient(), plan, env, skip_build=True, timeout=60, log=logs.append, sleep=lambda _: None)
+    assert any("AMP_VLLM_RUNTIME_ID" in line for line in logs)

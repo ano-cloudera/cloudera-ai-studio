@@ -79,18 +79,29 @@ applications:
       NEXT_PUBLIC_PRODUCT_LOGO: /branding/anywhere-ai-logo.png
       NEXT_PUBLIC_APP_LOGO: /branding/anywhere-ai-logo.png
       NEXT_PUBLIC_EMPTY_STATE_LOGO: /branding/anywhere-ai-logo.png
-  # Optional: serve your own model. Not part of the default AMP run (needs a GPU runtime and a model on disk).
+  # Optional: serve your own model on a GPU. Created only when ENABLE_VLLM=true (needs GPU nodes, a GPU runtime and weights on disk).
   - key: vllm
     name: Anywhere vLLM
     description: OpenAI-compatible model server
     subdomain: vllm
     enabled: false
+    enabled_env: ENABLE_VLLM
+    runtime_env: AMP_VLLM_RUNTIME_ID
+    startup_timeout_s: 1800
     script: deployment/cai/launchers/studio-vllm/app.py
     resources: { cpu: 16, memory_gb: 64, nvidia_gpu: 1 }
     health_path: /health
     environment:
       PYTHON_EXECUTABLE: /home/cdsw/.venvs/studio-vllm/bin/python
-      GPU_PROFILE: h200
       VLLM_MODEL: studio-llm
       HF_HUB_OFFLINE: "1"
-    forward_env: [MODEL_PATH, VLLM_API_KEY]
+      APP_STARTUP_TIMEOUT_MINUTES: "30"
+    forward_env:
+      - MODEL_PATH
+      - GPU_PROFILE
+      - TENSOR_PARALLEL_SIZE
+      - MAX_MODEL_LEN
+      - GPU_MEMORY_UTILIZATION
+      - MAX_NUM_SEQS
+      - VLLM_TOOL_CALL_PARSER
+      - VLLM_API_KEY

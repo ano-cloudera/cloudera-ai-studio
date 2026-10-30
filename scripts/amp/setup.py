@@ -22,6 +22,13 @@ QDRANT_BIN = Path(os.environ.get("QDRANT_BINARY", str(HOME / "tools/qdrant/qdran
 QDRANT_UI = Path(os.environ.get("QDRANT_STATIC_DIR", str(HOME / "tools/qdrant/static")))
 EMBEDDING = Path(os.environ.get("EMBEDDING_MODEL", str(HOME / "models/bge-m3")))
 DATA = Path(os.environ.get("CAI_DATA_DIR", str(HOME / "cai-studio-data")))
+VLLM_PY = HOME / ".venvs/studio-vllm/bin/python"
+VLLM_MODEL_ID = os.environ.get("VLLM_MODEL_ID", "").strip()
+VLLM_MODEL = Path(os.environ.get("MODEL_PATH") or (HOME / "models" / VLLM_MODEL_ID.rsplit("/", 1)[-1] if VLLM_MODEL_ID else HOME / "models/vllm"))
+
+
+def vllm_enabled() -> bool:
+    return os.environ.get("ENABLE_VLLM", "").strip().lower() in ("1", "true", "yes")
 
 
 @dataclass
@@ -58,6 +65,16 @@ def build_steps() -> list[Step]:
     ]
 
 
+def vllm_steps() -> list[Step]:
+    sh = ROOT / "scripts" / "cai"
+    steps = [Step("vLLM virtualenv", VLLM_PY.is_file(), ["bash", str(sh / "prepare_venvs.sh"), "vllm"])]
+    if VLLM_MODEL_ID:
+        steps.append(Step("vLLM model weights", (VLLM_MODEL / "config.json").is_file(), ["bash", str(sh / "prepare_vllm_model.sh"), str(VLLM_MODEL)]))
+    else:
+        print("ENABLE_VLLM is on but VLLM_MODEL_ID is empty: skipping the model download (set MODEL_PATH to weights already on disk).", flush=True)
+    return steps
+
+
 def run(step: Step) -> None:
     if step.action is not None:
         step.action()
@@ -69,7 +86,7 @@ def run(step: Step) -> None:
 
 def main(argv: list[str]) -> int:
     dry = "--dry-run" in argv
-    steps = build_steps()
+    steps = build_steps() + (vllm_steps() if vllm_enabled() else [])
     for number, step in enumerate(steps, 1):
         status = "skip (already done)" if step.done else ("would run" if dry else "run")
         print(f"[{number}/{len(steps)}] {step.name}: {status}", flush=True)

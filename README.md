@@ -57,6 +57,17 @@ For any other secret a Data Source or MCP server needs, add the variable to the 
 **Redeploy** after a `git pull` or after adding a variable: run the `deploy-applications` Job again.
 **Check the API access first** (read-only) from a Session: `python scripts/amp/deploy.py --check`.
 
+**Optional: vLLM (your own model on a GPU).** Off by default. Most PoCs do not need it: register an external model endpoint or an API key
+in Settings -> AI Models instead. To serve your own model, set `ENABLE_VLLM=true` and `VLLM_MODEL_ID` at import (and `GPU_PROFILE`, plus
+`HUGGING_FACE_HUB_TOKEN` for gated models). The setup job then also builds the vLLM virtualenv and downloads the weights, and the deploy job
+creates a fourth Application, `anywhere-vllm`, with one GPU. This needs, outside the AMP:
+- GPU nodes and quota in the workspace, and a **GPU-enabled runtime**: put its identifier in `AMP_VLLM_RUNTIME_ID`
+  (the standard runtime cannot use the GPU). Ask the workspace admin if no GPU runtime is listed.
+- Enough disk on the project filesystem for the weights, and a GPU large enough for the model (adjust `GPU_PROFILE`, `MAX_MODEL_LEN`,
+  `GPU_MEMORY_UTILIZATION`; see `deployment/cai/env/studio-vllm.env.example`).
+When the Application runs, the deploy job prints the base URL to register in Settings -> AI Models (OpenAI-compatible provider, `<url>/v1`).
+If the vLLM install or start fails, the other three Applications are unaffected; fix it and run the `deploy-applications` Job again.
+
 Known limits:
 - The Application subdomains are fixed (`anywhere-qdrant`, `anywhere-backend`, `anywhere-frontend`). If they collide in your workspace,
   set `AMP_SUBDOMAIN_PREFIX`.

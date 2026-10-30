@@ -52,7 +52,7 @@ def test_metadata_matches_the_repository() -> None:
     manifest = yaml.safe_load((REPO / "deployment/cai/manifests/applications.yaml").read_text(encoding="utf-8"))
     forwarded = {n for app in manifest["applications"] for n in app.get("forward_env", [])}
     assert {"GEMINI_API_KEY", "TRINO_PASSWORD"} <= forwarded
-    assert forwarded - {"QDRANT_API_KEY", "TRINO_PORT", "MODEL_PATH", "VLLM_API_KEY"} <= set(declared)
+    assert forwarded - {"QDRANT_API_KEY", "TRINO_PORT", "MODEL_PATH", "VLLM_API_KEY", "TENSOR_PARALLEL_SIZE", "MAX_MODEL_LEN", "GPU_MEMORY_UTILIZATION", "MAX_NUM_SEQS", "VLLM_TOOL_CALL_PARSER"} <= set(declared)
 
 
 def test_setup_steps_are_ordered_and_skippable() -> None:
@@ -67,3 +67,12 @@ def test_setup_steps_are_ordered_and_skippable() -> None:
         "Frontend dependencies",
     ]
     assert amp_setup.main(["--dry-run"]) == 0
+
+
+def test_vllm_setup_steps_appear_only_when_enabled(monkeypatch) -> None:
+    monkeypatch.delenv("ENABLE_VLLM", raising=False)
+    assert amp_setup.vllm_enabled() is False
+    monkeypatch.setenv("ENABLE_VLLM", "true")
+    monkeypatch.setattr(amp_setup, "VLLM_MODEL_ID", "org/some-model")
+    assert amp_setup.vllm_enabled() is True
+    assert [s.name for s in amp_setup.vllm_steps()] == ["vLLM virtualenv", "vLLM model weights"]

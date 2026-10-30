@@ -34,6 +34,7 @@ Arah baru: AMP membawa **platform**, bukan satu use case. Data, semantic model, 
 Bootstrap otomatis credit-risk **tidak lagi wajib**; jadi paket contoh opsional.
 
 - [ ] 3.1 Hapus sisa logika khusus domain lama di kode (perutean sell-in/sell-out, DC, picking, katalog domain lama) supaya platform netral
+- [x] 3.2a vLLM opsional (`ENABLE_VLLM`, runtime GPU `AMP_VLLM_RUNTIME_ID`, unduh model); perlu diuji di CAI dengan GPU
 - [ ] 3.2 Variabel env AMP tidak terikat Trino saja: Trino, Impala, PostgreSQL, dan kunci LLM; cara menambah variabel baru per PoC didokumentasikan
 - [ ] 3.3 Panduan "membawa AMP ke PoC baru": daftar yang diganti per PoC (sumber data, semantic model, dokumen, MCP, branding, pertanyaan awal)
 - [ ] 3.4 Paket contoh opsional (credit-risk): data, PDF, server MCP; task opsional yang berhenti sendiri kalau tidak dipakai

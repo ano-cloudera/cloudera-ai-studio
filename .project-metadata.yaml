@@ -49,6 +49,22 @@ environment_variables:
     default: /home/cdsw
     description: Where the project files live. Leave as is for an AMP.
     required: true
+  ENABLE_VLLM:
+    default: "false"
+    description: Set to true to also create the vLLM Application (serves your own model). Needs GPU nodes in the workspace, a GPU-enabled runtime and model weights. Leave false to use an external model endpoint or an API key instead.
+    required: false
+  VLLM_MODEL_ID:
+    default: ""
+    description: Hugging Face model id to download for vLLM (only when ENABLE_VLLM is true). Gated models also need HUGGING_FACE_HUB_TOKEN.
+    required: false
+  AMP_VLLM_RUNTIME_ID:
+    default: ""
+    description: GPU-enabled runtime identifier for the vLLM Application (only when ENABLE_VLLM is true).
+    required: false
+  GPU_PROFILE:
+    default: h200
+    description: GPU tuning profile for vLLM (h200, l40s or a10g). Only used when ENABLE_VLLM is true.
+    required: false
   AMP_FORWARD_ENV:
     default: ""
     description: Extra variable names (comma separated) to copy to the Backend, for example the secrets a Data Source or MCP server needs (MY_DB_PASSWORD,MY_TOOL_TOKEN). Add the variables themselves in the project settings.

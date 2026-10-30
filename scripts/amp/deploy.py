@@ -104,7 +104,8 @@ def build_plan(manifest: dict, env: dict[str, str], only: str | None = None) -> 
     extra = [name.strip() for name in env.get("AMP_FORWARD_ENV", "").split(",") if name.strip()]
     plan = []
     for app in manifest["applications"]:
-        if app.get("enabled", True) is False and only != app["key"]:
+        flag = env.get(app.get("enabled_env", ""), "").strip().lower() in ("1", "true", "yes")
+        if app.get("enabled", True) is False and not flag and only != app["key"]:
             continue
         if only and app["key"] != only:
             continue
@@ -116,6 +117,8 @@ def build_plan(manifest: dict, env: dict[str, str], only: str | None = None) -> 
         for name in [*(app.get("forward_env") or []), *(extra if app["key"] == "backend" else [])]:
             if env.get(name):
                 environment[name] = env[name]
+        if app["key"] == "vllm" and not environment.get("MODEL_PATH") and env.get("VLLM_MODEL_ID"):
+            environment["MODEL_PATH"] = f"/home/cdsw/models/{env['VLLM_MODEL_ID'].rsplit('/', 1)[-1]}"
         res = app.get("resources") or {}
         plan.append(
             {
@@ -130,6 +133,8 @@ def build_plan(manifest: dict, env: dict[str, str], only: str | None = None) -> 
                 "environment": {k: str(v) for k, v in environment.items()},
                 "build": bool(app.get("build")),
                 "health_path": app.get("health_path", "/"),
+                "runtime_id": env.get(app.get("runtime_env", ""), "").strip(),
+                "startup_timeout_s": float(app.get("startup_timeout_s", 0) or 0),
             }
         )
     return plan
@@ -182,9 +187,12 @@ def wait_running(client: Cml, app_id: str, timeout: float, poll: float = 10.0, s
 
 def deploy(client: Cml, plan: list[dict], env: dict[str, str], *, skip_build: bool, timeout: float, log=print, sleep=time.sleep) -> None:
     existing = {a.get("subdomain"): a for a in client.list_applications()}
-    runtime_id = env.get("AMP_RUNTIME_ID", "")
+    default_runtime = env.get("AMP_RUNTIME_ID", "")
     for item in plan:
+        runtime_id = item.get("runtime_id") or default_runtime
         log(f"== {item['name']} ({item['subdomain']})")
+        if item["nvidia_gpu"] and not item.get("runtime_id"):
+            log("   needs a GPU: set AMP_VLLM_RUNTIME_ID to a GPU-enabled runtime if the workspace rejects this Application")
         if item["build"] and not skip_build:
             log("   building the Frontend (several minutes)")
             build_frontend(item, env)
@@ -195,8 +203,10 @@ def deploy(client: Cml, plan: list[dict], env: dict[str, str], *, skip_build: bo
             app_id, action = found["id"], "updated and restarted"
         else:
             app_id, action = client.create_application({**payload_for(item, runtime_id), "project_id": client.project_id})["id"], "created"
-        wait_running(client, app_id, timeout, sleep=sleep)
+        wait_running(client, app_id, max(timeout, item.get("startup_timeout_s", 0)), sleep=sleep)
         log(f"   {action}; running at https://{item['subdomain']}.{env['CDSW_DOMAIN']}")
+        if item["key"] == "vllm":
+            log(f"   register it in Settings -> AI Models as an OpenAI-compatible provider: base URL https://{item['subdomain']}.{env['CDSW_DOMAIN']}/v1")
 
 
 def main(argv: list[str]) -> int:
