@@ -138,3 +138,14 @@ def test_a_gpu_application_without_a_gpu_runtime_warns() -> None:
     logs: list[str] = []
     deploy.deploy(FakeClient(), plan, env, skip_build=True, timeout=60, log=logs.append, sleep=lambda _: None)
     assert any("AMP_VLLM_RUNTIME_ID" in line for line in logs)
+
+
+def test_resources_come_from_the_manifest_and_can_be_overridden_per_poc() -> None:
+    base = {p["key"]: p for p in _plan()}
+    assert (base["backend"]["cpu"], base["backend"]["memory"], base["backend"]["nvidia_gpu"]) == (4, 16, 0)
+    env = {**ENV, "AMP_BACKEND_CPU": "8", "AMP_BACKEND_MEMORY_GB": "32"}
+    big = {p["key"]: p for p in deploy.build_plan(deploy.load_manifest(), env)}
+    assert (big["backend"]["cpu"], big["backend"]["memory"]) == (8, 32)
+    assert big["qdrant"]["cpu"] == 4
+    payload = deploy.payload_for(big["backend"])
+    assert payload["cpu"] == 8 and payload["memory"] == 32

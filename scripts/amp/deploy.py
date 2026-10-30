@@ -120,6 +120,12 @@ def build_plan(manifest: dict, env: dict[str, str], only: str | None = None) -> 
         if app["key"] == "vllm" and not environment.get("MODEL_PATH") and env.get("VLLM_MODEL_ID"):
             environment["MODEL_PATH"] = f"/home/cdsw/models/{env['VLLM_MODEL_ID'].rsplit('/', 1)[-1]}"
         res = app.get("resources") or {}
+        key = app["key"].upper()
+
+        def sized(var: str, default, cast):
+            raw = env.get(f"AMP_{key}_{var}", "").strip()
+            return cast(raw) if raw else default
+
         plan.append(
             {
                 "key": app["key"],
@@ -127,9 +133,9 @@ def build_plan(manifest: dict, env: dict[str, str], only: str | None = None) -> 
                 "description": app.get("description", ""),
                 "subdomain": f"{prefix}-{app['subdomain']}",
                 "script": app["script"],
-                "cpu": res.get("cpu", 1),
-                "memory": res.get("memory_gb", 1),
-                "nvidia_gpu": res.get("nvidia_gpu", 0),
+                "cpu": sized("CPU", res.get("cpu", 1), float),
+                "memory": sized("MEMORY_GB", res.get("memory_gb", 1), float),
+                "nvidia_gpu": sized("GPU", res.get("nvidia_gpu", 0), int),
                 "environment": {k: str(v) for k, v in environment.items()},
                 "build": bool(app.get("build")),
                 "health_path": app.get("health_path", "/"),

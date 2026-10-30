@@ -57,6 +57,11 @@ For any other secret a Data Source or MCP server needs, add the variable to the 
 **Redeploy** after a `git pull` or after adding a variable: run the `deploy-applications` Job again.
 **Check the API access first** (read-only) from a Session: `python scripts/amp/deploy.py --check`.
 
+**Resources.** Each Application's CPU and memory are set in `deployment/cai/manifests/applications.yaml` (Qdrant 4 vCPU / 16 GB,
+Backend 4 vCPU / 16 GB, Frontend 2 vCPU / 4 GB, vLLM 16 vCPU / 64 GB / 1 GPU) and applied by the deploy Job. To size one PoC differently
+without editing the file, add project variables `AMP_<APP>_CPU`, `AMP_<APP>_MEMORY_GB` or `AMP_<APP>_GPU` (for example `AMP_BACKEND_MEMORY_GB=32`)
+and run the deploy Job again. The workspace still limits the maximum per Application.
+
 **Optional: vLLM (your own model on a GPU).** Off by default. Most PoCs do not need it: register an external model endpoint or an API key
 in Settings -> AI Models instead. To serve your own model, set `ENABLE_VLLM=true` and `VLLM_MODEL_ID` at import (and `GPU_PROFILE`, plus
 `HUGGING_FACE_HUB_TOKEN` for gated models). The setup job then also builds the vLLM virtualenv and downloads the weights, and the deploy job
