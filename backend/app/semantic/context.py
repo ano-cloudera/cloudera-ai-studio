@@ -539,21 +539,6 @@ def guidance_focus_from_metric(metric: str | None) -> str | None:
         return "service_level"
     return None
 
-_GUIDANCE_DOMAIN_OPTIONS = (
-    {"name": "Sales / Sell-In", "metrics": ["gross_billing_value"], "examples": ["Berapa Gross Sales REFERENCE selama Q4 2024?"]},
-    {"name": "B2B / Sell-Out", "metrics": ["b2b_branch_sell_out_value"], "examples": ["Branch mana dengan nilai Sell-Out terbesar?"]},
-    {"name": "Stock Reference", "metrics": ["stock_warehouse_total_qty"], "examples": ["Bagaimana tren stok gudang Reference per bulan?"]},
-    {
-        "name": "Stock SAT (Acme)",
-        "metrics": ["sat_dc_stock_quantity", "sat_store_stock_quantity"],
-        "examples": ["Berapa stok DC Acme atau stok retail per division?"],
-    },
-    {"name": "SAT OOS", "metrics": ["sat_oos_rate"], "examples": ["Material mana dengan SAT OOS rate tertinggi?"]},
-    {"name": "Service Level", "metrics": ["service_fill_rate"], "examples": ["Material mana dengan Fill Rate terendah?"]},
-    {"name": "Picking", "metrics": ["average_picking_minutes"], "examples": ["Sales office mana dengan rata-rata picking terlama?"]},
-    {"name": "Unloading", "metrics": ["average_unloading_minutes"], "examples": ["Sales office mana dengan rata-rata unloading terlama?"]},
-    {"name": "SAT Promo", "metrics": ["promo_observation_count"], "examples": ["Berapa observasi promo aktif pada Desember 2024?"]},
-)
 
 _DIMENSION_METRIC_OVERRIDES: dict[tuple[str, str], str | tuple[str, list[str]]] = {
     ("gross_billing_value", "material"): "material_sell_in_value",
@@ -1778,7 +1763,7 @@ class SemanticContextService:
                     "dimensions": definition["allowed_dimensions"],
                 })
         payload: dict[str, Any] = {
-            "authority": "Apache Ossie REFERENCE Q4 2024",
+            "authority": "Published semantic model",
             "datasets": datasets,
             "metrics": metrics,
             "relationships": [],
@@ -1787,41 +1772,16 @@ class SemanticContextService:
         return payload
 
     def greeting_context(self) -> dict[str, Any]:
-        from app.ask_data.capability_catalog import (
-            is_legacy_reference_catalog,
-            legacy_capability_catalog_enabled,
-            resolve_capability_insight_lines,
-            resolve_example_questions,
-            uses_published_metric_catalog,
-        )
+        from app.ask_data.capability_catalog import resolve_capability_insight_lines, resolve_example_questions
 
         summary = self.registry.capability_summary()
         settings = get_settings()
-        legacy_menu = (
-            legacy_capability_catalog_enabled(settings)
-            and is_legacy_reference_catalog(self.metrics)
-            and not uses_published_metric_catalog(self)
-        )
-        if uses_published_metric_catalog(self) or not legacy_menu:
-            return {
-                "scope": summary.get("scope") or "Published semantic model",
-                "domains": sorted({str(d) for d in self.datasets}),
-                "examples": resolve_example_questions(self, limit=4, settings=settings),
-                "domain_options": [],
-                "domain_capability_lines": resolve_capability_insight_lines(self, limit=8, settings=settings),
-                "dataset_count": len(self.datasets),
-                "metric_count": len(self.metrics),
-            }
         return {
-            "scope": summary.get("scope") or "REFERENCE Q4 2024",
-            "domains": [
-                "Sales / Sell-In", "B2B / Sell-Out", "Stock Reference",
-                "Stock SAT (Acme)", "SAT OOS", "Service Level",
-                "Picking", "Unloading", "SAT Promo",
-            ],
-            "examples": list(summary.get("examples") or [])[:4],
-            "domain_options": list(_GUIDANCE_DOMAIN_OPTIONS),
-            "domain_capability_lines": self.domain_capability_insight_lines(settings=settings, limit=9),
+            "scope": summary.get("scope") or "Published semantic model",
+            "domains": sorted({str(d) for d in self.datasets}),
+            "examples": resolve_example_questions(self, limit=4, settings=settings),
+            "domain_options": [],
+            "domain_capability_lines": resolve_capability_insight_lines(self, limit=8, settings=settings),
             "dataset_count": len(self.datasets),
             "metric_count": len(self.metrics),
         }

@@ -26,80 +26,14 @@ _REGISTRY_METRIC_EXAMPLES_EN: dict[str, str] = {
     "transactions_customer_id_total": "How many unique customers have transactions?",
 }
 
-_REFERENCE_LEGACY_METRIC_MARKERS = frozenset(
-    {
-        "gross_billing_value",
-        "stock_warehouse_total_qty",
-        "b2b_branch_sell_out_value",
-        "sat_oos_rate",
-        "average_picking_minutes",
-        "promo_observation_count",
-    }
-)
-
-_REFERENCE_LEGACY_DOMAIN_OPTIONS: tuple[dict[str, Any], ...] = (
-    {"name": "Sales / Sell-In", "metrics": ["gross_billing_value"], "examples": ["Berapa Gross Sales REFERENCE selama Q4 2024?"]},
-    {"name": "B2B / Sell-Out", "metrics": ["b2b_branch_sell_out_value"], "examples": ["Branch mana dengan nilai Sell-Out terbesar?"]},
-    {"name": "Stock Reference", "metrics": ["stock_warehouse_total_qty"], "examples": ["Bagaimana tren stok gudang Reference per bulan?"]},
-    {
-        "name": "Stock SAT (Acme)",
-        "metrics": ["sat_dc_stock_quantity", "sat_store_stock_quantity"],
-        "examples": ["Berapa stok DC Acme atau stok retail per division?"],
-    },
-    {"name": "SAT OOS", "metrics": ["sat_oos_rate"], "examples": ["Material mana dengan SAT OOS rate tertinggi?"]},
-    {"name": "Service Level", "metrics": ["service_fill_rate"], "examples": ["Material mana dengan Fill Rate terendah?"]},
-    {"name": "Picking", "metrics": ["average_picking_minutes"], "examples": ["Sales office mana dengan rata-rata picking terlama?"]},
-    {"name": "Unloading", "metrics": ["average_unloading_minutes"], "examples": ["Sales office mana dengan rata-rata unloading terlama?"]},
-    {"name": "SAT Promo", "metrics": ["promo_observation_count"], "examples": ["Berapa observasi promo aktif pada Desember 2024?"]},
-)
-
-_REFERENCE_METRIC_HELP: dict[str, str] = {
-    "gross_billing_value": "Gross Sales / Sell-In",
-    "b2b_branch_sell_out_value": "nilai Sell-Out B2B per cabang",
-    "stock_warehouse_total_qty": "stok gudang Reference",
-    "sat_dc_stock_quantity": "stok DC partner (Acme)",
-    "sat_store_stock_quantity": "stok toko retail",
-    "sat_oos_rate": "tingkat OOS di toko SAT",
-    "service_fill_rate": "service level / fill rate cabang",
-    "average_picking_minutes": "durasi picking gudang",
-    "average_unloading_minutes": "durasi unloading gudang",
-    "promo_observation_count": "observasi promo aktif",
-}
-
-_REFERENCE_DOMAIN_NAMES_BY_FOCUS: dict[str, frozenset[str]] = {
-    "sales": frozenset({"Sales / Sell-In"}),
-    "b2b": frozenset({"B2B / Sell-Out"}),
-    "stock_warehouse": frozenset({"Stock Reference"}),
-    "stock_sat": frozenset({"Stock SAT (Acme)"}),
-    "oos": frozenset({"SAT OOS"}),
-    "service_level": frozenset({"Service Level"}),
-    "picking": frozenset({"Picking"}),
-    "unloading": frozenset({"Unloading"}),
-    "promo": frozenset({"SAT Promo"}),
-    "stock": frozenset({"Stock Reference", "Stock SAT (Acme)"}),
-}
-
-
-def legacy_capability_catalog_enabled(settings: Settings | None = None) -> bool:
-    return bool(getattr(settings or get_settings(), "ask_data_legacy_capability_catalog", False))
-
-
-def is_legacy_reference_catalog(metrics: dict[str, Any]) -> bool:
-    keys = {str(k).casefold() for k in metrics}
-    markers = {m.casefold() for m in _REFERENCE_LEGACY_METRIC_MARKERS}
-    return bool(keys & markers)
-
-
 def uses_published_metric_catalog(ctx: SemanticContextService) -> bool:
-    """Prefer published metrics over legacy REFERENCE domain menu."""
+    """True when the capability menu should come from published metrics."""
     from app.semantic.banking_demo_catalog import is_banking_demo_registry
 
     if getattr(ctx, "_registry_runtime", False):
         return True
     if is_banking_demo_registry(ctx.datasets):
         return True
-    if legacy_capability_catalog_enabled() and is_legacy_reference_catalog(ctx.metrics):
-        return False
     return bool(ctx.metrics)
 
 
@@ -203,19 +137,6 @@ def resolve_example_questions(
         if auto:
             return auto
 
-    if legacy_capability_catalog_enabled(settings) and is_legacy_reference_catalog(ctx.metrics):
-        skip = _REFERENCE_DOMAIN_NAMES_BY_FOCUS.get(exclude_focus or "", frozenset())
-        reference: list[str] = []
-        for option in _REFERENCE_LEGACY_DOMAIN_OPTIONS:
-            if option["name"] in skip:
-                continue
-            example = option["examples"][0] if option.get("examples") else ""
-            if example:
-                reference.append(str(example))
-        reference = _dedupe_questions(reference, limit=limit)
-        if reference:
-            return reference
-
     if language == "id":
         return [
             "Ajukan KPI atau total dari metric yang dipublish.",
@@ -251,24 +172,6 @@ def resolve_capability_insight_lines(
         )
         if starter_lines:
             return starter_lines
-
-    if (
-        legacy_capability_catalog_enabled(settings)
-        and is_legacy_reference_catalog(ctx.metrics)
-        and not uses_published_metric_catalog(ctx)
-    ):
-        skip = _REFERENCE_DOMAIN_NAMES_BY_FOCUS.get(exclude_focus or "", frozenset())
-        lines: list[str] = []
-        for option in _REFERENCE_LEGACY_DOMAIN_OPTIONS:
-            if option["name"] in skip:
-                continue
-            helps = ", ".join(
-                _REFERENCE_METRIC_HELP.get(metric, metric.replace("_", " "))
-                for metric in option["metrics"]
-            )
-            example = option["examples"][0] if option.get("examples") else ""
-            lines.append(f"{option['name']}: {helps}. Contoh: {example}")
-        return lines
 
     if uses_published_metric_catalog(ctx):
         from app.ask_data.metric_labels import humanize_metric_label

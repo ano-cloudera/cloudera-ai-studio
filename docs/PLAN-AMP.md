@@ -33,13 +33,11 @@ Status terakhir diperbarui: 2026-10-30. Pembersihan repo (2.5, 2.6) selesai.
 Arah baru: AMP membawa **platform**, bukan satu use case. Data, semantic model, dokumen, dan server MCP dikonfigurasi per PoC lewat UI.
 Bootstrap otomatis credit-risk **tidak lagi wajib**; jadi paket contoh opsional.
 
-- [ ] 3.1 Hapus sisa logika khusus domain lama di kode supaya platform netral. Sudah dihapus: narasi durasi operasional dan service level, penjelasan konsep sell-in/sell-out dan proxy promo, perbandingan lintas domain. Masih ada (tidak aktif untuk credit risk):
+- [ ] 3.1 Hapus sisa logika khusus domain lama di kode supaya platform netral. Sudah dihapus: narasi durasi operasional dan service level, penjelasan konsep sell-in/sell-out dan proxy promo, perbandingan lintas domain, bank pertanyaan lama, graf domain lama dan stub PuppyGraph, katalog kemampuan domain lama. Masih ada (tidak aktif untuk credit risk):
   - [ ] perencana follow-up drill-down domain lama di `services/follow_up.py` (sekitar 1800 baris, bercampur dengan logika follow-up umum)
   - [ ] aturan perutean dan kata kunci domain lama di `semantic/context.py` dan `semantic/registry.py`
-  - [ ] bank pertanyaan lama (`data/random_queries.yaml`, `semantic/questions.py`, endpoint `/random-queries`, opsi starter `question_bank`)
-  - [ ] graf domain lama (`knowledge/business_graph.yaml`, `semantic/domain_graph.py`) dan stub PuppyGraph
-  - [ ] katalog kemampuan domain lama (`ask_data/capability_catalog.py`) dan integrasi agen lokal (`services/local_agent_client.py`, `ask_data_routing.py`)
-  - [ ] tes karakterisasi untuk jalur credit risk dibuat lebih dulu sebelum langkah di atas, supaya penghapusan tidak merusak jawaban yang sudah benar
+  - [ ] integrasi agen lokal opsional (`services/local_agent_client.py`, `ask_data_routing.py`, jalur `_run_via_local_agent_v3` di `chat.py`); tidak aktif tanpa `LOCAL_AGENT_BASE_URL`
+  - [x] tes karakterisasi jalur credit risk (`test_credit_risk_characterization.py`) dibuat lebih dulu sebagai pengaman
 - [x] 3.2a vLLM opsional (`ENABLE_VLLM`, runtime GPU `AMP_VLLM_RUNTIME_ID`, unduh model); perlu diuji di CAI dengan GPU
 - [ ] 3.2 Variabel env AMP tidak terikat Trino saja: Trino, Impala, PostgreSQL, dan kunci LLM; cara menambah variabel baru per PoC didokumentasikan
 - [ ] 3.3 Panduan "membawa AMP ke PoC baru": daftar yang diganti per PoC (sumber data, semantic model, dokumen, MCP, branding, pertanyaan awal)

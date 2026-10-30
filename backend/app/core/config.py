@@ -298,11 +298,6 @@ class Settings(BaseSettings):
         validation_alias="ASK_DATA_TIER1_SHOW_NARRATIVE",
         description="When true, tier-1 KPI chat shows executive summary and insights (not only the headline).",
     )
-    ask_data_legacy_capability_catalog: bool = Field(
-        default=False,
-        validation_alias="ASK_DATA_LEGACY_CAPABILITY_CATALOG",
-        description="When true, legacy 9-domain capability menu is used for local Reference OSSIE deployments.",
-    )
     local_agent_timeout_seconds: float = Field(default=180, gt=0, le=600)
     local_agent_engine: str = "langgraph"
     local_agent_max_attempts: int = Field(default=2, ge=1, le=5)

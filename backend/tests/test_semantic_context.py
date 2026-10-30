@@ -214,35 +214,6 @@ def test_domain_capability_insight_lines_lists_published_metrics_by_default() ->
     assert not any("REFERENCE selama Q4" in line for line in lines)
 
 
-def test_domain_capability_insight_lines_respects_excluded_focus(monkeypatch) -> None:
-    from app.core.config import get_settings
-
-    monkeypatch.setenv("ASK_DATA_LEGACY_CAPABILITY_CATALOG", "true")
-    get_settings.cache_clear()
-    ctx = SemanticContextService()
-    lines = ctx.domain_capability_insight_lines(exclude_focus="sales")
-    assert len(lines) == 8
-    assert not any(line.startswith("Sales / Sell-In") for line in lines)
-
-
-def test_broad_guidance_offers_cross_domain_governed_examples(monkeypatch) -> None:
-    from app.core.config import get_settings
-
-    monkeypatch.setenv("ASK_DATA_LEGACY_CAPABILITY_CATALOG", "true")
-    get_settings.cache_clear()
-    guidance = SemanticContextService().guidance_context("Halo, bisa bantu apa?")
-
-    options = {option["name"]: option for option in guidance["domain_options"]}
-    assert len(options) == 9
-    assert len(guidance["domain_capability_lines"]) == 9
-    assert options["Stock SAT (Acme)"]["metrics"] == [
-        "sat_dc_stock_quantity",
-        "sat_store_stock_quantity",
-    ]
-    assert options["Picking"]["examples"]
-    assert options["SAT Promo"]["examples"]
-
-
 def test_governed_compiler_uses_real_requested_dimensions() -> None:
     context = SemanticContextService()
     monthly = context.compile_governed("sat_dc_stock_quantity", "Berapa quantity DC Stock per bulan?")
