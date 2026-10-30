@@ -27,7 +27,7 @@ fi
 
 if [ "$target" = vllm ] || [ "$target" = all ]; then
   make_venv studio-vllm
-  # Pins follow the BNI-validated L40S profile; vllm 0.29.0 did not bring in the extras below.
+  # Pins follow the validated L40S profile; vllm 0.29.0 did not bring in the extras below.
   "$VENVS/studio-vllm/bin/python" -m pip install "${PIPFLAGS[@]}" "vllm==${VLLM_VERSION:-0.29.0}" \
     PyYAML packaging requests certifi urllib3 cachetools cloudpickle
   "$VENVS/studio-vllm/bin/python" -m pip check

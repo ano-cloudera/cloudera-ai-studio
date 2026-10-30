@@ -154,7 +154,7 @@ def test_a_missing_server_script_is_reported_plainly() -> None:
 
     entry = McpServerEntry(
         id="x", name="X", transport="stdio", command=sys.executable,
-        args=["/home/cdsw/cloudera-ai-studio/scripts/mcp/credit_risk_server."],
+        args=["/home/cdsw/anywhere-ai-studio/scripts/mcp/credit_risk_server."],
     )
     entry.args = ["/nonexistent/credit_risk_server.py"]
     assert stdio_preflight_problem(entry) == "Server script not found: /nonexistent/credit_risk_server.py"

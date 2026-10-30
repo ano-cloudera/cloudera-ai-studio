@@ -1,6 +1,6 @@
 # PostgreSQL Data Model (proposed)
 
-**Status:** M1 + M2A + **M2B** in `backend/` — migrations through `m2b_chunks_001`. See [M2_DOCUMENT_INTELLIGENCE.md](../architecture/M2_DOCUMENT_INTELLIGENCE.md).
+**Status:** M1 + M2A + **M2B** in `backend/` — migrations through `m2b_chunks_001`. See M2_DOCUMENT_INTELLIGENCE.md.
 
 ## Conventions
 

@@ -92,7 +92,6 @@ Picker: `GET /api/v1/chat/context-options` — DATA lists connector metadata tab
 ### Tests & gates
 
 - Vitest: `semanticLayerPhase2.test.tsx`, updated `SemanticLayerPage.test.tsx`.
-- Live API: `backend/scripts/sem_p2_live_gate.py` (overview + paginated lists + suggestions + model health).
 - Phase 1 live gate unchanged: `sem_p1_live_gate.py`.
 
 ## Phase 2A Advanced UX (nav-only)
@@ -123,8 +122,6 @@ Picker: `GET /api/v1/chat/context-options` — DATA lists connector metadata tab
 ### Phase 2B gates
 
 - Vitest: `semanticLayerPhase2B.test.tsx` (SEM-2B smoke subset) + full suite.
-- Live API: `backend/scripts/sem_p2b_live_gate.py` (accept route, publish, P1/P2/P2A regression slices).
-- Browser: `backend/scripts/sem_p2b_browser_smoke.py` — evidence under `testing/evidence/post-uat/SEMANTIC-LAYER-V2/PHASE2B/`.
 
 ## Known limitations (Phase 2C)
 

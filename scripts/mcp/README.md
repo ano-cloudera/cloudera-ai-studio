@@ -18,7 +18,7 @@ synthetic `demo/data/credit_applications.csv`; it is an **advisory indicator** (
 | Description | `Advisory approval-likelihood model for credit applications (synthetic data).` |
 | Transport | `stdio` |
 | Command | `/home/cdsw/.venvs/studio-backend/bin/python` (the backend's Python, where `mcp` is installed) |
-| Arguments | `/home/cdsw/cloudera-ai-studio/scripts/mcp/credit_risk_server.py` |
+| Arguments | `/home/cdsw/anywhere-ai-studio/scripts/mcp/credit_risk_server.py` |
 | Default tool | leave empty (the model reads the tool schema and fills the arguments) |
 
 Use **Test connection**; it should list `assess_application_risk`. Then pick the connector with `@` in Ask Data:

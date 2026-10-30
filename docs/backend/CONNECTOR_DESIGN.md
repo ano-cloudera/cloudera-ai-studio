@@ -69,4 +69,4 @@ Connection test returns phases, `default_catalog` / `default_schema`, and normal
 - Table → entity import APIs under `/api/v1/semantic/versions/{id}/entities/import*`
 - Credentials never copied into semantic metadata or OSSIE artifacts
 
-See [CONNECTOR_SEMANTIC_INTEGRATION.md](../architecture/CONNECTOR_SEMANTIC_INTEGRATION.md).
+See CONNECTOR_SEMANTIC_INTEGRATION.md.

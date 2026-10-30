@@ -1,6 +1,6 @@
 # Chat context model (post-UAT M9)
 
-AMP / SE reference for pin, multi-semantic, and one-family-per-request rules: [AMP_MULTI_CONTEXT_POLICY.md](../deployment/AMP_MULTI_CONTEXT_POLICY.md).
+AMP / SE reference for pin, multi-semantic, and one-family-per-request rules: AMP_MULTI_CONTEXT_POLICY.md.
 
 ## ChatContextSource
 

@@ -331,7 +331,7 @@ def _resolve_backend_relative(path: Path) -> Path:
     """Resolve paths relative to BACKEND_ROOT (standalone repo layout).
 
     Env templates copied from the monorepo often prefix ``backend/`` even though
-    BACKEND_ROOT already points at ``…/cloudera-ai-studio/backend``. Strip that
+    BACKEND_ROOT already points at ``…/anywhere-ai-studio/backend``. Strip that
     duplicate segment so storage does not land in ``backend/backend/…``.
     """
     if path.is_absolute():

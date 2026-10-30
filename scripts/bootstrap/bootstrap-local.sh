@@ -41,15 +41,6 @@ command -v "$PYTHON_BIN" >/dev/null || { echo "Python 3.10+ required (set PYTHON
 venv_needs_recreate=0
 if [ ! -d "$ROOT/.venv" ]; then
   venv_needs_recreate=1
-elif [ -f "$ROOT/.venv/pyvenv.cfg" ] && grep -q "enterprise-ai-poc" "$ROOT/.venv/pyvenv.cfg" 2>/dev/null; then
-  echo "WARN: .venv pyvenv.cfg references source monorepo; recreating local venv." >&2
-  venv_needs_recreate=1
-elif [ -x "$ROOT/.venv/bin/python3.10" ]; then
-  py_real="$(cd "$ROOT/.venv/bin" && readlink -f python3.10 2>/dev/null || true)"
-  if [[ -n "$py_real" && "$py_real" == *"enterprise-ai-poc"* ]]; then
-    echo "WARN: .venv python resolves into source monorepo; recreating local venv." >&2
-    venv_needs_recreate=1
-  fi
 fi
 if [ "$venv_needs_recreate" -eq 1 ]; then
   deactivate 2>/dev/null || true

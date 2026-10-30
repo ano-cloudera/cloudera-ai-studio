@@ -14,9 +14,7 @@ These are the only **`backend/`** and **`frontend/`** code trees. Everything und
 | Path | Purpose |
 |------|---------|
 | [`profiles/`](profiles/) | Env templates (local, CAI, sim) |
-| [`specs/`](specs/) | CAI Application specs (ports, health, NFS) — not duplicate app code |
 | [`cai/`](cai/) | Cloudera AI **Application entry scripts** + manifest |
-| [`amp/`](amp/) | Accelerator packaging pointers |
 
 ## CAI launchers (not app source)
 
@@ -31,4 +29,4 @@ Each CAI Application runs a small Python launcher that starts the real app from 
 
 Env examples: [`cai/env/`](cai/env/) · Manifest: [`cai/manifests/applications.yaml`](cai/manifests/applications.yaml)
 
-Runbook: [docs/deployment/CAI_4_APP_DEPLOY_RUNBOOK.md](../docs/deployment/CAI_4_APP_DEPLOY_RUNBOOK.md)
+Step-by-step install: see the root [README](../README.md).

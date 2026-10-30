@@ -70,4 +70,4 @@ See [SEMANTIC_RUNTIME_ACTIVATION.md](./SEMANTIC_RUNTIME_ACTIVATION.md).
 - `ConnectorMetadataResolver` — source validation via connector when `connection_id` is set
 - Legacy entities (`connection_id` null) unchanged
 
-See [CONNECTOR_SEMANTIC_INTEGRATION.md](../architecture/CONNECTOR_SEMANTIC_INTEGRATION.md).
+See CONNECTOR_SEMANTIC_INTEGRATION.md.

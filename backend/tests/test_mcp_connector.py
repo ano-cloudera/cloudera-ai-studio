@@ -71,8 +71,14 @@ def test_mcp_test_connection_api(monkeypatch: pytest.MonkeyPatch) -> None:
     assert data["tools"] == ["search"]
 
 
-def test_mcp_settings_api_roundtrip() -> None:
-    app = create_app(Settings(mcp_connectors_json=""))
+def test_mcp_settings_api_roundtrip(tmp_path) -> None:
+    app = create_app(
+        Settings(
+            mcp_connectors_json="",
+            state_store="sqlite",
+            database_url=f"sqlite+pysqlite:///{(tmp_path / 'mcp.db').resolve()}",
+        )
+    )
     client = TestClient(app)
     body = {
         "servers": [

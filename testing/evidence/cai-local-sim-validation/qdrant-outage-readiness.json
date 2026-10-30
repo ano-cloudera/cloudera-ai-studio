@@ -1,6 +1,0 @@
-{
-  "core_ready": true,
-  "feature_gaps": [
-    "rag_needs_qdrant"
-  ]
-}

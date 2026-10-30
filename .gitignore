@@ -22,3 +22,9 @@ frontend/.tsbuildinfo
 # Browser-exported conversation PDFs saved into the frontend folder
 frontend/*.pdf
 backend/backend/
+
+# Local test and evidence output
+/testing/
+frontend/tsconfig.tsbuildinfo
+frontend/.next-dev.pid
+*.zip

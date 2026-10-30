@@ -10,7 +10,7 @@ from pathlib import Path
 try:
     _REPO = Path(__file__).resolve().parents[4]
 except NameError:  # CAI runs an Application script in a kernel, where __file__ is not defined
-    _REPO = Path(os.environ.get("STUDIO_REPO_ROOT", "/home/cdsw/cloudera-ai-studio"))
+    _REPO = Path(os.environ.get("STUDIO_REPO_ROOT", "/home/cdsw/anywhere-ai-studio"))
 _CAI = _REPO / "deployment" / "cai"
 sys.path.insert(0, str(_CAI))
 

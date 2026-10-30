@@ -1,6 +1,6 @@
 # CAI deployment environment contract
 
-**Related audit:** [CAI_3_APP_PERSISTENCE_ARCHITECTURE_AUDIT.md](./CAI_3_APP_PERSISTENCE_ARCHITECTURE_AUDIT.md)
+**Related audit:** CAI_3_APP_PERSISTENCE_ARCHITECTURE_AUDIT.md
 
 This document maps **existing** configuration names traced from `backend/app/core/config.py`, `frontend/next.config.mjs`, and `config/examples/accelerator.env.example`. Proposed unified `CAI_DATA_DIR` is **future** (CONFIG-001) — not implemented in this milestone.
 

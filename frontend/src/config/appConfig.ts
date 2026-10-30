@@ -1,6 +1,6 @@
 /**
  * Canonical product branding (override via NEXT_PUBLIC_* for white-label / hackathon layers).
- * Repository and backend identity remain Cloudera AI Studio — see docs/deployment/HACKATHON_TEMP_BRANDING.md.
+ * The Anywhere AI Studio values live in config/examples/anywhere-branding.frontend.env.
  */
 export const PRODUCT_NAME = 'Cloudera AI Studio'
 export const PRODUCT_SHORT_NAME = 'AI Studio'

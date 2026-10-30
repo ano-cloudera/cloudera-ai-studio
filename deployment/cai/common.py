@@ -1,4 +1,4 @@
-"""Shared helpers for Cloudera AI Application launchers (adapted from BNI CAI training kit)."""
+"""Shared helpers for Cloudera AI Application launchers."""
 from __future__ import annotations
 
 import os
