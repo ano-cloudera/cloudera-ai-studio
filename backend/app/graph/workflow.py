@@ -510,6 +510,7 @@ def build_workflow(deps: WorkflowDependencies):
         resolution = state["semantic_resolution"]
         partial_caveats: list[str] = []
         entity_lookup = False
+        drill_state: dict[str, Any] | None = None
         runtime_join_patch: dict[str, Any] = {}
         if resolution.get("status") == "raw_table":
             raw = resolution.get("raw_table") if isinstance(resolution.get("raw_table"), dict) else {}
@@ -659,6 +660,44 @@ def build_workflow(deps: WorkflowDependencies):
                         if detect_language(state["question"]) == "id"
                         else f"Filtered to: {scope}.",
                     ]
+            if (
+                ds_ctx
+                and ds_ctx.qualified_sources
+                and getattr(deps.semantic_context, "_registry_runtime", False)
+                and resolution.get("matched_alias") != "follow_up_context"
+            ):
+                from app.ask_data.drill_across import plan_queries
+
+                drilled = await plan_queries(
+                    question=state["question"],
+                    primary_metric=metric,
+                    semantic_context=deps.semantic_context,
+                    qualified_sources=dict(ds_ctx.qualified_sources),
+                    executor=deps.query_executor,
+                    state=state,
+                )
+                if drilled:
+                    queries, scope_notes = drilled
+                    drill_state = {
+                        "queries": [
+                            {"metric": q.metric, "sql": q.sql, "resolution": q.resolution, "dimensions": q.dimensions}
+                            for q in queries
+                        ],
+                        "columns": {("metric_value" if i == 0 else q.metric): q.metric for i, q in enumerate(queries)},
+                    }
+                    partial_caveats = [
+                        *[c for c in partial_caveats if not c.startswith(("Filtered to:", "Difilter ke:"))],
+                        (
+                            "Setiap metrik dihitung terpisah dari definisi governed-nya lalu digabung pada nilai dimensi yang sama."
+                            if detect_language(state["question"]) == "id"
+                            else "Each metric is computed separately from its governed definition and joined on the shared dimension values."
+                        ),
+                    ]
+                    if scope_notes:
+                        scope = "; ".join(scope_notes)
+                        partial_caveats.append(
+                            f"Difilter ke: {scope}." if detect_language(state["question"]) == "id" else f"Filtered to: {scope}."
+                        )
             governed_sql = (
                 deps.semantic_context.compile_governed(
                     metric,
@@ -677,9 +716,11 @@ def build_workflow(deps: WorkflowDependencies):
             )
             plan = QueryPlan(
                 strategy="governed",
-                domains=[dataset_name],
-                metrics=[metric],
-                sql=governed_sql,
+                domains=sorted({definition.get("base_dataset") or dataset_name, *(
+                    q["resolution"]["definition"].get("base_dataset") for q in (drill_state or {}).get("queries", [])
+                )}),
+                metrics=[q["metric"] for q in drill_state["queries"]] if drill_state else [metric],
+                sql=drill_state["queries"][0]["sql"] if drill_state else governed_sql,
             )
             from app.semantic.runtime_extensions import governed_join_state_patch
 
@@ -788,6 +829,7 @@ def build_workflow(deps: WorkflowDependencies):
             "sql": plan.sql or "",
             "governed_partial_caveats": partial_caveats,
             "governed_entity_lookup": entity_lookup,
+            "drill_across": drill_state or {},
             "semantic_context": deps.semantic_context.planner_context(plan.domains),
             "inquiry_brief": inquiry_brief,
             "judge_iteration": state.get("judge_iteration", 0),
@@ -860,6 +902,23 @@ def build_workflow(deps: WorkflowDependencies):
             if repair is not None:
                 result = deps.sql_validator(repair.sql or "", state)
                 state = {**state, "query_plan": repair.model_dump(), "sql": repair.sql or ""}
+        drill = state.get("drill_across") or {}
+        if result.valid and drill.get("queries"):
+            checked = []
+            for extra in drill["queries"][1:]:
+                check = deps.sql_validator(extra["sql"], {**state, "semantic_resolution": extra["resolution"]})
+                if not check.valid:
+                    logger.warning(
+                        "drill_across_sql_invalid request_id=%s metric=%s error=%s",
+                        state.get("request_id"),
+                        extra.get("metric"),
+                        check.error,
+                    )
+                    result = check
+                    break
+                checked.append({**extra, "sql": check.sql or extra["sql"]})
+            else:
+                state = {**state, "drill_across": {**drill, "queries": [drill["queries"][0], *checked]}}
         update: AskDataState = {
             **state,
             "retry_count": retry_count,
@@ -893,6 +952,17 @@ def build_workflow(deps: WorkflowDependencies):
             result = deps.query_executor.execute(state["validated_sql"], state)
             if inspect.isawaitable(result):
                 result = await result
+            drill = state.get("drill_across") or {}
+            if drill.get("queries") and len(drill["queries"]) > 1:
+                from app.ask_data.drill_across import merge_results
+
+                results = [result]
+                for extra in drill["queries"][1:]:
+                    more = deps.query_executor.execute(extra["sql"], state)
+                    if inspect.isawaitable(more):
+                        more = await more
+                    results.append(more)
+                result = merge_results(results, [q["metric"] for q in drill["queries"]])
         except Exception as exc:
             from app.connectors.errors import ConnectorError
 
@@ -1048,6 +1118,8 @@ def build_workflow(deps: WorkflowDependencies):
             "governed_metric": resolution.get("metric"),
             "governed_partial_caveats": state.get("governed_partial_caveats") or [],
         }
+        if (state.get("drill_across") or {}).get("columns"):
+            user_payload["result_columns_are_metrics"] = state["drill_across"]["columns"]
         if state.get("judge_synthesis_hint"):
             user_payload["reviewer_hint"] = state["judge_synthesis_hint"]
         if state.get("ask_data_space_instructions"):
