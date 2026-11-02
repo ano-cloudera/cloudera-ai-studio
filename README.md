@@ -111,15 +111,11 @@ Starting a new PoC? Follow the [PoC guide](docs/POC-GUIDE.md).
 
 ## If something goes wrong
 
-| What you see | Cause | What to do |
-|---|---|---|
-| `install-tools` is marked failed although the log ends with `Setup complete.` | Older versions of the script ended with `SystemExit`, which the Cloudera AI job runner reports as failure | `git pull`, then **Resume** the AMP (or run the Job again; finished steps are skipped) |
-| Deploy log: `runtime image must be specified in a project using runtimes` | The workspace needs a runtime image for each Application | The Job reads it from the project's jobs. If it logs `Runtime: not detected`, add `AMP_RUNTIME_ID` with the runtime image name |
-| Deploy log: `project environment is not a valid environment JSON` or `variables that are not plain text` | The import form saved an edited value as `[object Object]` | Run `python scripts/amp/set_env.py` in a Session, then run the Job again |
-| Project Settings: "The key and value are required" and Submit does nothing | A variable with an empty value is in the list | Delete that row with `-` (it was optional) or fill it in |
-| Frontend shows **Platform Unavailable**, Backend `/health/ready` shows Qdrant `UnexpectedResponse` | The Backend and Qdrant still require a Cloudera AI login (HTTP 302 for server to server calls) | Ask the admin to enable unauthenticated Applications (see "Before you start"), then run the deploy Job again |
-| Deploy log mentions creating an Application without a login | The admin setting is off | Same as above |
-| `Warning: no LLM key is set` | No `GEMINI_API_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` yet | Add one in Project Settings and run the deploy Job again |
+| What you see | What to do |
+|---|---|
+| Deploy log: `runtime image must be specified in a project using runtimes` | The Job reads the runtime from the project's jobs. If it logs `Runtime: not detected`, add `AMP_RUNTIME_ID` with the runtime image name shown on your Jobs, then run the Job again |
+| Deploy log: `project environment is not a valid environment JSON` or `variables that are not plain text` | The import form saved a value as `[object Object]`. In a Session run `python scripts/amp/set_env.py`, then run the Job again |
+| Frontend shows **Platform Unavailable** (Backend `/health/ready` shows Qdrant `UnexpectedResponse`) | The Backend and Qdrant still require a Cloudera AI login. Ask the admin to enable unauthenticated Applications (see "Before you start"), then run the Job again |
 
 ## Known limits
 
