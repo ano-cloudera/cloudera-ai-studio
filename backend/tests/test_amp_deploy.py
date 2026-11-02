@@ -182,3 +182,18 @@ def test_client_detects_the_runtime_from_the_jobs_list() -> None:
 
     client = deploy.Cml("d.example", "p1", "tok", opener=lambda req, timeout: Resp())
     assert client.detect_runtime() == "img:1"
+
+
+def test_non_string_project_variables_are_reported_by_name_only() -> None:
+    class Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps({"environment": json.dumps({"OK": "x", "BAD": {"a": 1}, "ALSO": 3})}).encode()
+
+    client = deploy.Cml("d.example", "p1", "tok", opener=lambda req, timeout: Resp())
+    assert client.non_string_project_variables() == ["ALSO", "BAD"]

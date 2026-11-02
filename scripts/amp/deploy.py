@@ -80,6 +80,12 @@ class Cml:
             if not token:
                 return apps
 
+    def non_string_project_variables(self) -> list[str]:
+        """Names (never values) of project variables that are not plain strings; the API rejects those on Applications."""
+        raw = self.request("GET", f"/projects/{self.project_id}").get("environment") or "{}"
+        variables = json.loads(raw) if isinstance(raw, str) else raw
+        return sorted(name for name, value in variables.items() if not isinstance(value, str))
+
     def detect_runtime(self) -> str:
         """Runtime image of this project's jobs: the AMP's own jobs run on the runtime the workspace chose."""
         jobs = self.request("GET", f"/projects/{self.project_id}/jobs?page_size=100").get("jobs") or []
@@ -252,6 +258,13 @@ def main(argv: list[str]) -> int:
         deploy(client, plan, env, skip_build=args.skip_build, timeout=args.timeout)
     except (ApiError, subprocess.CalledProcessError) as exc:
         print(f"FAILED: {exc}", file=sys.stderr)
+        if "environment" in str(exc):
+            try:
+                bad = client.non_string_project_variables()
+            except Exception as lookup:  # noqa: BLE001 - diagnosis only
+                print(f"Could not inspect the project variables: {type(lookup).__name__}", file=sys.stderr)
+            else:
+                print(f"Project variables that are not plain strings: {', '.join(bad) or 'none found'}", file=sys.stderr)
         return 1
     print("All Applications are running.")
     return 0
