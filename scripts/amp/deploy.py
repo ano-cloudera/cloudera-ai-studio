@@ -265,6 +265,8 @@ def main(argv: list[str]) -> int:
                 print(f"Could not inspect the project variables: {type(lookup).__name__}", file=sys.stderr)
             else:
                 print(f"Project variables that are not plain strings: {', '.join(bad) or 'none found'}", file=sys.stderr)
+                if bad:
+                    print("Fix: Project Settings -> Advanced, clear and retype those values, save, then run this job again.", file=sys.stderr)
         return 1
     print("All Applications are running.")
     return 0
