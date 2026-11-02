@@ -67,6 +67,7 @@ Dikerjakan **terakhir**, setelah semua fase di atas settle di folder ini (`cloud
 - [ ] 4.5 Langkah 3: rencana bertingkat dan penanda "bagian ini butuh chip dokumen atau model" untuk pertanyaan multi-sumber
 - [ ] 4.6 Delinquency (loan_quality) harus berada di model yang sama dengan credit_applications supaya drill-across bisa menggabungkannya (saran: satu model, dua entitas). Dibuat di UI Semantic Layer oleh pemilik PoC
 - [x] 4.8 Resolver umum: aturan katalog lama dan boost kata kunci demo tidak lagi memengaruhi model lain (`tests/test_generic_models.py`)
+- [x] 4.9 Prompts hanya global (pilihan scope dihapus dari UI, butuh Postgres metadata); Skills disembunyikan secara default (`NEXT_PUBLIC_FEATURE_SKILLS=false`), kode tetap ada karena tidak ada jalur dari chat ke skill
 - [ ] 4.7 Jalankan ulang 10 pertanyaan uji di CAI setelah tiap langkah dan catat skornya
 
 PuppyGraph asli ditunda: hanya tersedia sebagai Docker, dan image 3 GB tidak praktis dipindah ke CAI. Infisical self-host dibatalkan (tidak praktis di CAI), kodenya sudah dihapus.
