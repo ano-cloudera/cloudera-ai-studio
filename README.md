@@ -72,19 +72,31 @@ Expect about **30 minutes plus the deploy Job** before the first screen (measure
 **Variables to add in Project Settings** (button **+**: name and value, then **Submit**). Add only the ones you fill in: the page refuses
 to save a variable with an empty value.
 
-| Variable | Needed? | Example value (replace with yours) |
-|---|---|---|
-| `GEMINI_API_KEY` | **Required**: one LLM key (or `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`) | `AIzaSy...` |
-| `TRINO_HOST` | **Required** for Ask Data on Trino. Host only, no `https://` and no trailing `/` | `my-trino.dw-env.a1b2-c3d4.cloudera.site` |
-| `TRINO_USER` | **Required** with Trino | `workload-user` |
-| `TRINO_PASSWORD` | **Required** with Trino | `your-password` |
-| `IMPALA_HOST`, `IMPALA_USER`, `IMPALA_PASSWORD` | Instead of Trino, when the data is in Impala | `my-impala.dw-env.a1b2-c3d4.cloudera.site`, `workload-user`, `your-password` |
-| `POSTGRES_PASSWORD` | Only if a Data Source is PostgreSQL | `your-password` |
-| `AMP_FORWARD_ENV` | Only for other secrets a Data Source or MCP server needs (also add each as its own variable; the Data Source then uses `env://NAME`) | `MY_DB_PASSWORD,MY_TOOL_TOKEN` |
-| `AMP_RUNTIME_ID` | Only if the deploy log says `Runtime: not detected` | the runtime image name shown on your Jobs |
-| `ENABLE_VLLM`, `VLLM_MODEL_ID`, `AMP_VLLM_RUNTIME_ID`, `GPU_PROFILE` | Only to serve your own model, see the [PoC guide](docs/POC-GUIDE.md#optional-vllm-your-own-model-on-a-gpu) | `true`, `Qwen/Qwen3.5-9B`, a GPU runtime image, `l40s` |
+**Required for a first demo** (one LLM key plus Trino):
 
-Minimum for a first working demo: one LLM key plus the three `TRINO_*` values. Then run the **Deploy applications** Job again.
+| Variable | Example value |
+|---|---|
+| `GEMINI_API_KEY` | `AIzaSy...` |
+| `TRINO_HOST` | `my-trino.dw-env.a1b2-c3d4.cloudera.site` |
+| `TRINO_USER` | `workload-user` |
+| `TRINO_PASSWORD` | `your-password` |
+
+- Use `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` instead of Gemini if you prefer.
+- `TRINO_HOST` is the host only: no `https://`, no trailing `/`.
+- Data in Impala instead of Trino: use `IMPALA_HOST`, `IMPALA_USER`, `IMPALA_PASSWORD`.
+
+**Optional**
+
+| Variable | Add it when | Example value |
+|---|---|---|
+| `POSTGRES_PASSWORD` | A Data Source is PostgreSQL | `your-password` |
+| `AMP_FORWARD_ENV` | A Data Source or MCP server needs other secrets | `MY_DB_PASSWORD,MY_TOOL_TOKEN` |
+| `AMP_RUNTIME_ID` | The deploy log says `Runtime: not detected` | the runtime image name on your Jobs |
+| `ENABLE_VLLM` | You serve your own model ([PoC guide](docs/POC-GUIDE.md#optional-vllm-your-own-model-on-a-gpu)) | `true` |
+
+For `AMP_FORWARD_ENV`, also add each listed name as its own variable; the Data Source then refers to it as `env://NAME`.
+
+After adding variables, run the **Deploy applications** Job again.
 
 **Day-2 operations**
 
