@@ -68,6 +68,7 @@ Dikerjakan **terakhir**, setelah semua fase di atas settle di folder ini (`cloud
 - [ ] 4.6 Delinquency (loan_quality) harus berada di model yang sama dengan credit_applications supaya drill-across bisa menggabungkannya (saran: satu model, dua entitas). Dibuat di UI Semantic Layer oleh pemilik PoC
 - [x] 4.8 Resolver umum: aturan katalog lama dan boost kata kunci demo tidak lagi memengaruhi model lain (`tests/test_generic_models.py`)
 - [x] 4.9 Prompts hanya global (pilihan scope dihapus dari UI, butuh Postgres metadata); Skills disembunyikan secara default (`NEXT_PUBLIC_FEATURE_SKILLS=false`), kode tetap ada karena tidak ada jalur dari chat ke skill
+- [x] 4.10 Hasil uji CAI pertama: Backend dan Qdrant dibuat tanpa login (admin harus mengizinkan), default resource Qdrant 4/8, Backend 4/8, Frontend 2/4; empat perbaikan job (SystemExit, argumen IPython, runtime, nilai objek) dan `set_env.py`
 - [ ] 4.7 Jalankan ulang 10 pertanyaan uji di CAI setelah tiap langkah dan catat skornya
 
 PuppyGraph asli ditunda: hanya tersedia sebagai Docker, dan image 3 GB tidak praktis dipindah ke CAI. Infisical self-host dibatalkan (tidak praktis di CAI), kodenya sudah dihapus.

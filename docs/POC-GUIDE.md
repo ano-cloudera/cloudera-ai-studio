@@ -44,7 +44,7 @@ source so earlier context does not carry over. The composer shows a tip when a q
 ## 4. Sizing and limits
 
 - Application sizes are in `deployment/cai/manifests/applications.yaml`; override per PoC with `AMP_<APP>_CPU`, `AMP_<APP>_MEMORY_GB`
-  (for example `AMP_BACKEND_MEMORY_GB=32`) and run the deploy Job again.
+  (for example `AMP_BACKEND_MEMORY_GB=16` for large PDFs) and run the deploy Job again.
 - The Backend runs as one replica with SQLite on the project filesystem. Do not open the database file from a Session while it runs.
 - Qdrant on NFS is not officially supported by Qdrant. Keep the source documents; re-ingest if the index is damaged.
 - A new secret is read when the Backend starts, so restart it (re-run the deploy Job) after adding one.

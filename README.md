@@ -64,9 +64,9 @@ echoed; Enter keeps the default). Then run the **Deploy applications** Job again
 **Redeploy** after a `git pull` or after adding a variable: run the `deploy-applications` Job again.
 **Check the API access first** (read-only) from a Session: `python scripts/amp/deploy.py --check`.
 
-**Resources.** Each Application's CPU and memory are set in `deployment/cai/manifests/applications.yaml` (Qdrant 4 vCPU / 16 GB,
-Backend 4 vCPU / 16 GB, Frontend 2 vCPU / 4 GB, vLLM 16 vCPU / 64 GB / 1 GPU) and applied by the deploy Job. To size one PoC differently
-without editing the file, add project variables `AMP_<APP>_CPU`, `AMP_<APP>_MEMORY_GB` or `AMP_<APP>_GPU` (for example `AMP_BACKEND_MEMORY_GB=32`)
+**Resources.** Each Application's CPU and memory are set in `deployment/cai/manifests/applications.yaml` (Qdrant 4 vCPU / 8 GB,
+Backend 4 vCPU / 8 GB, Frontend 2 vCPU / 4 GB, vLLM 16 vCPU / 64 GB / 1 GPU) and applied by the deploy Job. To size one PoC differently
+without editing the file, add project variables `AMP_<APP>_CPU`, `AMP_<APP>_MEMORY_GB` or `AMP_<APP>_GPU` (for example `AMP_BACKEND_MEMORY_GB=16`; raise the Backend memory if you load large PDFs, which Docling parses in memory)
 and run the deploy Job again. The workspace still limits the maximum per Application.
 
 **Optional: vLLM (your own model on a GPU).** Off by default. Most PoCs do not need it: register an external model endpoint or an API key
@@ -175,7 +175,7 @@ Replace `<...-app-domain>` with the domain CAI assigns to each Application after
 |---|---|
 | Name / Subdomain | `cai-studio-qdrant` |
 | Script | `deployment/cai/launchers/studio-qdrant/app.py` |
-| Resources | 4 vCPU, 16 GB, 0 GPU |
+| Resources | 4 vCPU, 8 GB, 0 GPU |
 
 | Environment variable | Value | Change it? |
 |---|---|---|
@@ -195,7 +195,7 @@ Do **not** set `CDSW_APP_PORT`, `CDSW_PUBLIC_PORT` or `CDSW_READONLY_PORT`; CAI 
 |---|---|
 | Name / Subdomain | `cai-studio-backend` |
 | Script | `deployment/cai/launchers/studio-backend/app.py` |
-| Resources | 4 vCPU, 16 GB, 0 GPU, **1 replica** |
+| Resources | 4 vCPU, 8 GB, 0 GPU, **1 replica** |
 
 | Environment variable | Value | Change it? |
 |---|---|---|

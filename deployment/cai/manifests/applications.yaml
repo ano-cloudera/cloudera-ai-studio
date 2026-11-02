@@ -17,7 +17,7 @@ applications:
     subdomain: qdrant
     script: deployment/cai/launchers/studio-qdrant/app.py
     bypass_authentication: true
-    resources: { cpu: 4, memory_gb: 16, nvidia_gpu: 0 }
+    resources: { cpu: 4, memory_gb: 8, nvidia_gpu: 0 }
     health_path: /readyz
     environment:
       QDRANT_BINARY: /home/cdsw/tools/qdrant/qdrant
@@ -31,7 +31,7 @@ applications:
     subdomain: backend
     script: deployment/cai/launchers/studio-backend/app.py
     bypass_authentication: true
-    resources: { cpu: 4, memory_gb: 16, nvidia_gpu: 0 }
+    resources: { cpu: 4, memory_gb: 8, nvidia_gpu: 0 }
     health_path: /health
     environment:
       PYTHON_EXECUTABLE: /home/cdsw/.venvs/studio-backend/bin/python
