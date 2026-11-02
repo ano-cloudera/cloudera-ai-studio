@@ -81,14 +81,16 @@ Expect about **30 minutes plus the deploy Job** before the first screen (measure
 | `AMP_RUNTIME_ID` | Only to force a runtime image; by default the runtime of the project's jobs is used |
 | `ENABLE_VLLM=true`, `VLLM_MODEL_ID`, `AMP_VLLM_RUNTIME_ID`, `GPU_PROFILE` | Serving your own model, see the [PoC guide](docs/POC-GUIDE.md#optional-vllm-your-own-model-on-a-gpu) |
 
-After adding or changing a variable, run the **Deploy applications** Job again: it copies the variables to the Applications and restarts them.
-If a variable already shows `[object Object]`, or the Job reports variables that are not plain text, open a **Session** and run
-`python scripts/amp/set_env.py` (add names to change specific ones, for example `python scripts/amp/set_env.py TRINO_HOST`). It asks
-for the values again and stores them through the API; secrets are not echoed.
+**Day-2 operations**
 
-**Redeploy** after a `git pull` (open a Session, `cd /home/cdsw && git pull`) or after adding a variable: run the `deploy-applications` Job again.
-**Check the API access first** (read-only) from a Session: `python scripts/amp/deploy.py --check`.
-For a new PoC, follow the [PoC guide](docs/POC-GUIDE.md).
+| When | Do this |
+|---|---|
+| You added or changed a variable | Run the **Deploy applications** Job again (it copies the variables to the Applications and restarts them) |
+| You pulled new code | In a Session: `cd /home/cdsw && git pull`, then run the **Deploy applications** Job again |
+| A variable shows `[object Object]` | In a Session: `python scripts/amp/set_env.py` (or `python scripts/amp/set_env.py NAME` for one variable); secrets are not echoed |
+| You want to test the API access first | In a Session: `python scripts/amp/deploy.py --check` (read-only) |
+
+Starting a new PoC? Follow the [PoC guide](docs/POC-GUIDE.md).
 
 ## If something goes wrong
 
