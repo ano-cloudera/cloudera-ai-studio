@@ -222,7 +222,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--only")
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument("--timeout", type=float, default=900.0)
-    args = parser.parse_args(argv)
+    args, _ = parser.parse_known_args(argv)  # the IPython kernel that runs CAI jobs adds '-f <kernel.json>' to argv
     env = dict(os.environ)
     plan = build_plan(load_manifest(), env, args.only)
     if args.dry_run:

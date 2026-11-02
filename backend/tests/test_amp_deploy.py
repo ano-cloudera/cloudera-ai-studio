@@ -149,3 +149,7 @@ def test_resources_come_from_the_manifest_and_can_be_overridden_per_poc() -> Non
     assert big["qdrant"]["cpu"] == 4
     payload = deploy.payload_for(big["backend"])
     assert payload["cpu"] == 8 and payload["memory"] == 32
+
+
+def test_main_ignores_the_arguments_an_ipython_kernel_adds() -> None:
+    assert deploy.main(["-f", "/tmp/jupyter/runtime/kernel-1.json", "--dry-run"]) == 0
