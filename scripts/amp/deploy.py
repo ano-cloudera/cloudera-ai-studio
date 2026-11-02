@@ -271,7 +271,7 @@ def main(argv: list[str]) -> int:
             else:
                 print(f"Project variables that are not plain strings: {', '.join(bad) or 'none found'}", file=sys.stderr)
                 if bad:
-                    print("Fix: in a Session run "python scripts/amp/set_env.py" to re-enter them, then run this job again.", file=sys.stderr)
+                    print("Fix: in a Session run: python scripts/amp/set_env.py (it asks for them again), then run this job again.", file=sys.stderr)
         return 1
     print("All Applications are running.")
     return 0
