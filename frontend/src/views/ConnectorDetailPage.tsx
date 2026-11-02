@@ -154,6 +154,8 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
   const [form, setForm] = useState<ConnectorFormState>(defaultFormState('postgres'))
   const [savingConfig, setSavingConfig] = useState(false)
   const [pendingRetest, setPendingRetest] = useState(false)
+  const [savedNotice, setSavedNotice] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
 
   const [catalogs, setCatalogs] = useState<string[]>([])
   const [schemas, setSchemas] = useState<string[]>([])
@@ -396,10 +398,35 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
       setConnector(updated.connector)
       setPendingRetest(true)
       setForm(f => ({ ...f, secretRef: '' }))
+      setSavedNotice('Changes saved. Testing the connection…')
+      setTab('overview')
+      await runTest()
+      setSavedNotice('Changes saved.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed')
     } finally {
       setSavingConfig(false)
+    }
+  }
+
+  /** Reload catalogs, schemas, tables and the open table one after the other, so a double click cannot pile up calls. */
+  async function refreshAll() {
+    if (refreshing || !connector?.enabled) return
+    setRefreshing(true)
+    try {
+      if (supportsCatalogs) await refreshCatalogs(true)
+      await refreshSchemas(true)
+      await refreshTables(true)
+      if (selectedTable) {
+        try {
+          const res = await api.describeConnectorTable(connectorId, { catalog: selectedCatalog, schema: selectedSchema, table: selectedTable })
+          setTableDetail(res.table)
+        } catch (err) {
+          setBrowseError(err instanceof Error ? err.message : 'Describe failed')
+        }
+      }
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -473,6 +500,11 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
       {error ? (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
       ) : null}
+      {savedNotice && tab === 'overview' && !error ? (
+        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">
+          {savedNotice}
+        </div>
+      ) : null}
 
       <div className="mt-6 flex gap-4 border-b border-slate-200" role="tablist">
         {(['overview', 'browse', 'config'] as Tab[]).map(t => (
@@ -481,7 +513,10 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
             type="button"
             role="tab"
             aria-selected={tab === t}
-            onClick={() => setTab(t)}
+            onClick={() => {
+              setSavedNotice('')
+              setTab(t)
+            }}
             className={`border-b-2 px-1 pb-2 text-sm font-medium capitalize ${
               tab === t ? 'border-[#FF5500] text-slate-900' : 'border-transparent text-slate-500'
             }`}
@@ -584,15 +619,13 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
                 ))}
                 <button
                   type="button"
-                  className="ml-auto inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs"
-                  onClick={() => {
-                    if (supportsCatalogs) refreshCatalogs(true)
-                    refreshSchemas(true)
-                    refreshTables(true)
-                  }}
+                  className="ml-auto inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={refreshing || metaLoading}
+                  aria-busy={refreshing}
+                  onClick={refreshAll}
                 >
-                  <RefreshCw className="h-3 w-3" />
-                  Refresh
+                  <RefreshCw className={`h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
+                  {refreshing ? 'Refreshing…' : 'Refresh'}
                 </button>
               </div>
               {browseError ? (

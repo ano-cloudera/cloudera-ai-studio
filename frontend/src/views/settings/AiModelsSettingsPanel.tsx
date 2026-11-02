@@ -40,6 +40,7 @@ import type {
   ModelAssignmentRecord,
 } from '../../types/api'
 import { RuntimeAssignmentsSection } from './RuntimeAssignmentsSection'
+import { EnvRefSelect } from '../../components/EnvRefSelect'
 
 type ProviderDraft = {
   name: string
@@ -81,7 +82,6 @@ export function AiModelsSettingsPanel() {
   const [savingProvider, setSavingProvider] = useState(false)
   const [providerModalError, setProviderModalError] = useState('')
   const [showProviderKey, setShowProviderKey] = useState(false)
-  const [showSecretRef, setShowSecretRef] = useState(false)
 
   const [modelModalOpen, setModelModalOpen] = useState(false)
   const [modelDraft, setModelDraft] = useState({
@@ -301,7 +301,6 @@ export function AiModelsSettingsPanel() {
     })
     setProviderModalError('')
     setShowProviderKey(false)
-    setShowSecretRef(false)
     setProviderModal('form')
   }
 
@@ -835,7 +834,6 @@ export function AiModelsSettingsPanel() {
                         setProviderDraft(emptyProviderDraft(opt.type))
                         setProviderModalError('')
                         setShowProviderKey(false)
-                        setShowSecretRef(false)
                         setProviderModal('form')
                       }}
                     >
@@ -872,69 +870,16 @@ export function AiModelsSettingsPanel() {
                   </label>
                   <label className="block">
                     <span className="text-slate-600">Key</span>
-                    <div className="relative mt-1">
-                      <input
-                        className="input w-full pr-10 font-mono text-xs"
-                        type={showProviderKey ? 'text' : 'password'}
-                        autoComplete="off"
-                        placeholder="gemini"
-                        value={providerDraft.key}
-                        onChange={e => setProviderDraft(d => ({ ...d, key: e.target.value }))}
-                        onBlur={() => {
-                          if (editingProviderId) return
-                          const next = normalizeProviderKey(providerDraft.key)
-                          if (next) setProviderDraft(d => ({ ...d, key: next }))
-                        }}
-                        disabled={Boolean(editingProviderId)}
-                      />
-                      <button
-                        type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-cloudera-navy disabled:opacity-40"
-                        aria-label={showProviderKey ? 'Hide key' : 'Show key'}
-                        disabled={Boolean(editingProviderId)}
-                        onClick={() => setShowProviderKey(v => !v)}
-                      >
-                        {showProviderKey ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
-                      </button>
-                    </div>
-                    <span className="type-chat-meta mt-1 block text-slate-500">
-                      Lowercase id (a–z, 0–9, underscore). Not your API key.
-                    </span>
-                  </label>
-                  {providerDraft.provider_type === 'OPENAI_COMPATIBLE' ? (
-                    <label className="block">
-                      <span className="text-slate-600">Base URL</span>
-                      <input className="input mt-1 w-full font-mono text-xs" placeholder="https://host/v1" value={providerDraft.base_url} onChange={e => setProviderDraft(d => ({ ...d, base_url: e.target.value }))} />
-                    </label>
-                  ) : providerDraft.provider_type === 'OPENAI' || providerDraft.provider_type === 'ANTHROPIC' ? (
-                    <label className="block">
-                      <span className="text-slate-600">Base URL (optional)</span>
-                      <input className="input mt-1 w-full font-mono text-xs" value={providerDraft.base_url} onChange={e => setProviderDraft(d => ({ ...d, base_url: e.target.value }))} />
-                    </label>
-                  ) : null}
-                  <label className="block">
-                    <span className="text-slate-600">Secret reference</span>
-                    <div className="relative mt-1">
-                      <input
-                        className="input w-full pr-10 font-mono text-xs"
-                        type={showSecretRef ? 'text' : 'password'}
-                        autoComplete="off"
-                        placeholder="env://GEMINI_API_KEY"
+                    <div className="mt-1">
+                      <EnvRefSelect
                         value={providerDraft.secret_ref}
-                        onChange={e => setProviderDraft(d => ({ ...d, secret_ref: e.target.value }))}
+                        onChange={value => setProviderDraft(d => ({ ...d, secret_ref: value }))}
+                        placeholder="env://GEMINI_API_KEY"
                       />
-                      <button
-                        type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-cloudera-navy"
-                        aria-label={showSecretRef ? 'Hide secret reference' : 'Show secret reference'}
-                        onClick={() => setShowSecretRef(v => !v)}
-                      >
-                        {showSecretRef ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
-                      </button>
                     </div>
                     <span className="type-chat-meta mt-1 block text-slate-500">
-                      Pointer to an environment variable on the backend (e.g. env://GEMINI_API_KEY). Set the real key in .env,
-                      not here.
+                      Pick the environment variable that holds the key. Add the variable in Project Settings and run the Deploy
+                      applications Job; the key itself is never typed here.
                     </span>
                   </label>
                   {providerDraft.provider_type === 'OPENAI_COMPATIBLE' ? (

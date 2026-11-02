@@ -519,6 +519,8 @@ export const api = {
       `/v1/semantic/versions/${encodeURIComponent(versionId)}/entities/import`,
       { method: 'POST', body: JSON.stringify(body) },
     ),
+  listEnvironmentReferences: () =>
+    request<{ references: { name: string; ref: string; kind: string }[] }>('/v1/environment/references'),
   getConnectorReferences: (connectorId: string) =>
     request<{ references: import('../types/api').ConnectorReferences }>(
       `/v1/connectors/${encodeURIComponent(connectorId)}/references`,

@@ -6,7 +6,7 @@ Open the Frontend Application. Everything below is done in the UI except step 2.
 
 ## 1. Choose the LLM
 
-**Settings → AI Models** → add a provider (for example Gemini) with the key reference `env://GEMINI_API_KEY`,
+**Settings → AI Models** → add a provider (for example Gemini) and pick the key variable (for example `GEMINI_API_KEY`) from the **Secret reference** list,
 add a model, and assign it to the capabilities (Ask Data, Knowledge, MCP). The UI text and answers are English;
 an answer follows the language of the question.
 
@@ -26,7 +26,7 @@ This creates `credit_applications` (12,000 rows) and `loan_quality` (8,000 rows)
 ## 3. Add the Data Source
 
 **Data Sources → New connection** → Trino: host, port `443`, HTTPS, catalog `hive`, schema `default`,
-user, and the password as `env://TRINO_PASSWORD`. Run **Test connection**, then browse the tables.
+user, and pick `TRINO_PASSWORD` from the **Secret reference** list (it shows the variables the Backend can read; values are never shown). Run **Test connection**, then browse the tables.
 
 ## 4. Build the semantic layer
 

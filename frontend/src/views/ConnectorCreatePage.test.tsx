@@ -15,6 +15,7 @@ vi.mock('../lib/api', () => ({
       connector: { id: 'new-id', enabled: true },
     }),
     testConnector: vi.fn(),
+    listEnvironmentReferences: vi.fn().mockResolvedValue({ references: [] }),
   },
 }))
 

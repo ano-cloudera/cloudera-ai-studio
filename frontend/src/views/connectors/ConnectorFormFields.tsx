@@ -3,6 +3,7 @@
 import type { Dispatch, ReactNode, SetStateAction } from 'react'
 import type { ConnectorType } from '../../types/api'
 import { DATA_SOURCE_NAME_LABEL } from './dataSourceUx'
+import { EnvRefSelect } from '../../components/EnvRefSelect'
 
 export type ConnectorFormState = {
   name: string
@@ -311,10 +312,10 @@ export function ConnectorTypeForm({
           label="Secret reference"
           hint="Credentials are resolved by the backend. Values are never shown in the UI."
         >
-          <input
+          <EnvRefSelect
             className={inputClass}
             value={form.secretRef}
-            onChange={e => set({ secretRef: e.target.value })}
+            onChange={value => set({ secretRef: value })}
             placeholder="env://CONNECTOR_SECRET"
           />
         </Field>

@@ -11,7 +11,10 @@ behavior, and do not count them as failures.
 | P2 | Platform | Open `<backend-url>/version` without the secret | 404 (the Backend is not open) | |
 | P3 | Platform | Open `<qdrant-url>/collections` without a key | 401 or 403 | |
 | P4 | Platform | Settings -> AI Models: add Gemini (`env://GEMINI_API_KEY`), assign it to Ask Data, Knowledge and MCP | Model listed as available | |
-| P5 | Platform | Data Sources -> add Trino (password `env://TRINO_PASSWORD`), **Test connection**, browse the tables | Connection OK; `fulfillment_orders`, `delivery_shipments`, `v_fulfillment_delivery` visible | |
+| P5 | Platform | Data Sources -> add Trino (pick `TRINO_PASSWORD` in the **Secret reference** list), **Test connection**, browse the tables | Connection OK; `fulfillment_orders`, `delivery_shipments`, `v_fulfillment_delivery` visible | |
+| P5b | Platform | Edit the Data Source (Config), change a field, **Save changes** | Goes back to the Overview, shows "Changes saved" and runs the connection test by itself | |
+| P5c | Platform | Browse Data -> **Refresh** (click it twice quickly) | The button says "Refreshing…" and is disabled until done; the open table's columns are reloaded; no duplicate calls | |
+| P5d | Platform | Settings -> AI Models -> add a provider; open **Secret reference** | A list of the key variables the Backend can read (for example `GEMINI_API_KEY`); "Other" lets you type a name | |
 | P6 | Platform | Run the **Deploy applications** Job again with no change | Finishes, all Applications Running (about 3 min, plus about 30 s per Application update) | |
 | S1 | Semantic | Create one model with the 3 entities from [SEMANTIC-MODEL.md](../samples/fulfillment/SEMANTIC-MODEL.md), **Publish** | Published; the metrics appear under "Browse published metrics" | |
 | A1 | Ask Data | How many orders per month? | Jan 1014, Feb 904, Mar 1002, Apr 963, May 969, Jun 1074, Jul 1035, Aug 1039. Tabs Summary, Table, Query filled | |
