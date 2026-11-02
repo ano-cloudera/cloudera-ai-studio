@@ -5,12 +5,17 @@ import { api } from '../../lib/api'
 import { mergePresentationTierConfig, type PresentationTierConfig } from '../../lib/presentationTierConfig'
 import { safeErrorMessage, toAppApiError, type AppApiError } from '../../lib/apiError'
 import type { AskDataSettingsPayload, PresentationTierOverridesPayload } from '../../types/api'
-
-const PANEL_MODES = [
-  { value: 'heuristic', label: 'Heuristic (tier 3 only)' },
-  { value: 'always', label: 'Always open workspace' },
-  { value: 'never', label: 'Never auto-open' },
-] as const
+import {
+  DEFAULT_PRESENTATION,
+  PREVIEW_SAMPLES,
+  PRESETS,
+  SENSITIVITY,
+  applyPreset,
+  applySensitivity,
+  presetOf,
+  previewOutcome,
+  sensitivityOf,
+} from '../../lib/presentationPresets'
 
 function overridesFromConfig(cfg: PresentationTierConfig): PresentationTierOverridesPayload {
   return {
@@ -33,26 +38,6 @@ function overridesFromConfig(cfg: PresentationTierConfig): PresentationTierOverr
 export const DEFAULT_ASK_DATA_GOVERNED_SCOPE = {
   default_semantic_model_id: null as string | null,
   auto_attach_semantic_model: true,
-}
-
-const DEFAULT_PRESENTATION: PresentationTierConfig = {
-  enabled: true,
-  audience_mode: 'executive',
-  panel_auto_open: 'heuristic',
-  tier3_min_rows: 13,
-  tier3_min_insights: 3,
-  tier3_min_implications: 2,
-  rank_tier3_above_n: 5,
-  rank_min_tier: 2,
-  tier1_max_rows: 1,
-  tier1_max_columns: 2,
-  force_tier3_on_pareto: true,
-  force_tier3_on_operational_analysis: true,
-  force_tier3_on_visual_chart: true,
-  chat_expand_tier1: true,
-  chat_expand_tier2: true,
-  chat_details_default_open: false,
-  tier1_show_narrative: false,
 }
 
 export function AskDataPresentationSettingsPanel() {
@@ -128,118 +113,189 @@ export function AskDataPresentationSettingsPanel() {
     )
   }
 
+  const preset = presetOf(draft)
+  const sensitivity = sensitivityOf(draft)
+  const atDefaults = JSON.stringify(overridesFromConfig(draft)) === JSON.stringify(overridesFromConfig(DEFAULT_PRESENTATION))
+
   return (
-    <div className="space-y-4 border-t border-slate-100 pt-6">
+    <div className="space-y-6 border-t border-slate-100 pt-6">
       <div>
-        <h2 className="text-[15px] font-semibold text-cloudera-navy">Ask Data — presentation tier</h2>
+        <h2 className="text-[15px] font-semibold text-cloudera-navy">How answers are shown</h2>
         <p className="type-chat-meta mt-1 text-slate-500">
-          Workspace overrides for chat vs Analysis Workspace (AMP). Deployment env remains the default baseline.
+          Chooses how much of an Ask Data answer appears in the chat and when the full analysis panel opens. It applies to everyone in this
+          workspace.
         </p>
       </div>
 
-      <label className="block text-sm font-medium text-slate-700">
-        Audience
-        <select
-          className="app-select mt-1 w-full max-w-md"
-          value={draft.audience_mode}
-          onChange={e =>
-            setDraft(d => ({
-              ...d,
-              audience_mode: e.target.value as PresentationTierConfig['audience_mode'],
-            }))
-          }
-        >
-          <option value="executive">Executive — minimal technical chrome</option>
-          <option value="analyst">Analyst — full metadata, SQL, workspace links</option>
-        </select>
-      </label>
+      <section aria-labelledby="presentation-presets" className="space-y-2">
+        <h3 id="presentation-presets" className="text-sm font-semibold text-slate-800">
+          Start from a preset
+        </h3>
+        <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-labelledby="presentation-presets">
+          {PRESETS.map(item => {
+            const active = preset === item.id
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setDraft(d => applyPreset(d, item.id))}
+                className={`rounded-xl border px-4 py-3 text-left transition-colors ${
+                  active ? 'border-cloudera-orange bg-orange-50/60' : 'border-slate-200 bg-white hover:border-slate-300'
+                }`}
+              >
+                <span className="block text-sm font-semibold text-cloudera-navy">{item.title}</span>
+                <span className="mt-1 block text-xs text-slate-600">{item.description}</span>
+              </button>
+            )
+          })}
+        </div>
+        {preset === 'custom' ? <p className="type-chat-meta text-slate-500">Your choices below do not match a preset, so they are shown as custom.</p> : null}
+      </section>
 
-      <label className="block text-sm font-medium text-slate-700">
-        Auto-open panel
-        <select
-          className="app-select mt-1 w-full max-w-md"
-          value={draft.panel_auto_open}
-          onChange={e =>
-            setDraft(d => ({
-              ...d,
-              panel_auto_open: e.target.value as PresentationTierConfig['panel_auto_open'],
-            }))
-          }
-        >
-          {PANEL_MODES.map(mode => (
-            <option key={mode.value} value={mode.value}>
-              {mode.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-3">
         <label className="block text-sm font-medium text-slate-700">
-          Tier 3 min rows
-          <input
-            type="number"
-            min={1}
-            max={1000}
-            className="input mt-1"
-            value={draft.tier3_min_rows}
-            onChange={e => setDraft(d => ({ ...d, tier3_min_rows: Number(e.target.value) || 1 }))}
-          />
-        </label>
-        <label className="block text-sm font-medium text-slate-700">
-          Rank → tier 3 above N
-          <input
-            type="number"
-            min={0}
-            max={500}
-            className="input mt-1"
-            value={draft.rank_tier3_above_n}
-            onChange={e => setDraft(d => ({ ...d, rank_tier3_above_n: Number(e.target.value) || 0 }))}
-          />
-        </label>
-        <label className="block text-sm font-medium text-slate-700">
-          Rank min tier
+          Who reads the answers?
           <select
             className="app-select mt-1 w-full"
-            value={draft.rank_min_tier}
-            onChange={e =>
-              setDraft(d => ({
-                ...d,
-                rank_min_tier: Number(e.target.value) as 1 | 2 | 3,
-              }))
-            }
+            value={draft.audience_mode}
+            onChange={e => setDraft(d => ({ ...d, audience_mode: e.target.value as PresentationTierConfig['audience_mode'] }))}
           >
-            <option value={1}>1</option>
-            <option value={2}>2</option>
-            <option value={3}>3</option>
+            <option value="executive">Executives</option>
+            <option value="analyst">Analysts</option>
           </select>
+          <span className="mt-1 block text-xs font-normal text-slate-500">
+            {draft.audience_mode === 'executive'
+              ? 'Plain wording; technical details stay out of the way.'
+              : 'Shows the metadata, the SQL and links to the workspace.'}
+          </span>
         </label>
-      </div>
 
-      <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-        <input
-          type="checkbox"
-          checked={draft.chat_details_default_open}
-          onChange={e => setDraft(d => ({ ...d, chat_details_default_open: e.target.checked }))}
-        />
-        Expand data/query footer by default (tier 1–2)
-      </label>
+        <label className="block text-sm font-medium text-slate-700">
+          When does the analysis panel open?
+          <select
+            className="app-select mt-1 w-full"
+            value={draft.panel_auto_open}
+            onChange={e => setDraft(d => ({ ...d, panel_auto_open: e.target.value as PresentationTierConfig['panel_auto_open'] }))}
+          >
+            <option value="heuristic">Automatically, for bigger answers (recommended)</option>
+            <option value="always">Always</option>
+            <option value="never">Never (open it yourself)</option>
+          </select>
+          <span className="mt-1 block text-xs font-normal text-slate-500">The panel holds the chart, the table and the SQL.</span>
+        </label>
 
-      <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
-        <input
-          type="checkbox"
-          checked={draft.tier1_show_narrative}
-          onChange={e => setDraft(d => ({ ...d, tier1_show_narrative: e.target.checked }))}
-        />
-        Show narrative on simple KPI answers (tier 1) — executive summary &amp; insights below the headline
-      </label>
+        <label className="block text-sm font-medium text-slate-700">
+          What counts as a bigger answer?
+          <select
+            className="app-select mt-1 w-full"
+            value={sensitivity}
+            disabled={draft.panel_auto_open !== 'heuristic'}
+            onChange={e => {
+              if (e.target.value !== 'custom') setDraft(d => applySensitivity(d, e.target.value as (typeof SENSITIVITY)[number]['id']))
+            }}
+          >
+            {SENSITIVITY.map(option => (
+              <option key={option.id} value={option.id}>
+                {option.title}
+              </option>
+            ))}
+            {sensitivity === 'custom' ? <option value="custom">Custom (see advanced)</option> : null}
+          </select>
+          <span className="mt-1 block text-xs font-normal text-slate-500">
+            {draft.panel_auto_open !== 'heuristic'
+              ? 'Only used when the panel opens automatically.'
+              : (SENSITIVITY.find(option => option.id === sensitivity)?.hint ?? 'Uses the values under advanced settings.') + '. An answer with a chart always counts.'}
+          </span>
+        </label>
+      </section>
+
+      <section className="space-y-2">
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={draft.chat_details_default_open}
+            onChange={e => setDraft(d => ({ ...d, chat_details_default_open: e.target.checked }))}
+          />
+          <span>Show the table and SQL under each answer, without clicking</span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={draft.tier1_show_narrative}
+            onChange={e => setDraft(d => ({ ...d, tier1_show_narrative: e.target.checked }))}
+          />
+          <span>Add a short explanation under answers that are a single number</span>
+        </label>
+      </section>
+
+      <section aria-labelledby="presentation-preview" className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+        <h3 id="presentation-preview" className="text-sm font-semibold text-slate-800">
+          What you will see
+        </h3>
+        <p className="type-chat-meta mt-0.5 text-slate-500">Updates as you change the settings above, before you save.</p>
+        <ul className="mt-3 space-y-2 text-sm">
+          {PREVIEW_SAMPLES.map(item => (
+            <li key={item.title} className="grid gap-1 sm:grid-cols-[14rem_minmax(0,1fr)]">
+              <span className="font-medium text-slate-800">{item.title}</span>
+              <span className="text-slate-600">{previewOutcome(item.response, draft)}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <details className="rounded-xl border border-slate-200 px-4 py-3">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-800">Advanced settings</summary>
+        <div className="mt-3 grid gap-4 sm:grid-cols-3">
+          <label className="block text-sm font-medium text-slate-700">
+            Open the panel when a result has at least this many rows
+            <input
+              type="number"
+              min={1}
+              max={1000}
+              className="input mt-1"
+              value={draft.tier3_min_rows}
+              onChange={e => setDraft(d => ({ ...d, tier3_min_rows: Number(e.target.value) || 1 }))}
+            />
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            Open the panel for a ranking with more than this many items
+            <input
+              type="number"
+              min={0}
+              max={500}
+              className="input mt-1"
+              value={draft.rank_tier3_above_n}
+              onChange={e => setDraft(d => ({ ...d, rank_tier3_above_n: Number(e.target.value) || 0 }))}
+            />
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            Least detail a ranking gets
+            <select
+              className="app-select mt-1 w-full"
+              value={draft.rank_min_tier}
+              onChange={e => setDraft(d => ({ ...d, rank_min_tier: Number(e.target.value) as 1 | 2 | 3 }))}
+            >
+              <option value={1}>The answer only</option>
+              <option value={2}>The answer with highlights</option>
+              <option value={3}>The full analysis panel</option>
+            </select>
+          </label>
+        </div>
+      </details>
 
       {banner ? <p className="type-chat-meta text-emerald-700">{banner}</p> : null}
       {error ? <p className="type-chat-meta text-rose-700">{safeErrorMessage(error)}</p> : null}
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className="btn-primary px-4 py-2 text-sm" disabled={!dirty || saving} onClick={() => void save()}>
-          {saving ? 'Saving…' : 'Save presentation settings'}
+          {saving ? 'Saving…' : 'Save for this workspace'}
+        </button>
+        <button type="button" className="btn-secondary px-4 py-2 text-sm" disabled={atDefaults} onClick={() => setDraft(d => ({ ...d, ...overridesFromConfig(DEFAULT_PRESENTATION) }) as PresentationTierConfig)}>
+          Reset to defaults
         </button>
         {dirty ? <p className="type-chat-meta text-slate-500">Unsaved changes</p> : null}
       </div>

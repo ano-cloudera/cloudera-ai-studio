@@ -60,17 +60,25 @@ function tierFromPayload(response: ChatResponse, cfg: PresentationTierConfig): P
  * Tier 3 — full Analysis Workspace (panel + viz).
  */
 export function computePresentationTier(response: ChatResponse): PresentationTier {
+  return computePresentationTierFor(response, getPresentationTierConfig())
+}
+
+/** The same decision under a given configuration (the settings preview uses it before anything is saved). */
+export function computePresentationTierFor(response: ChatResponse, cfg: PresentationTierConfig): PresentationTier {
   const override = backendTierOverride(response)
   if (override != null) return override
-  return tierFromPayload(response, getPresentationTierConfig())
+  return tierFromPayload(response, cfg)
 }
 
 export function shouldAutoOpenAnalysisPanel(response: ChatResponse): boolean {
-  const cfg = getPresentationTierConfig()
+  return shouldAutoOpenPanelFor(response, getPresentationTierConfig())
+}
+
+export function shouldAutoOpenPanelFor(response: ChatResponse, cfg: PresentationTierConfig): boolean {
   if (response.status !== 'SUCCESS' || !responseHasReportEvidence(response)) return false
   if (cfg.panel_auto_open === 'never') return false
   if (cfg.panel_auto_open === 'always') return true
-  return computePresentationTier(response) === 3
+  return computePresentationTierFor(response, cfg) === 3
 }
 
 export function qualifiesForAnalysisWorkspaceCard(response: ChatResponse): boolean {
