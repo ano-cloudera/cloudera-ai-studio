@@ -11,14 +11,13 @@ vi.mock('next/navigation', () => ({ usePathname: () => '/' }))
 describe('V2 application shell', () => {
   afterEach(cleanup)
 
-  it('exposes accelerator navigation including Prompts and Skills', () => {
+  it('exposes accelerator navigation including Prompts, without Skills', () => {
     const nav = buildPrimaryNavigation()
     expect(nav.map(item => item.label)).toEqual([
       'Ask Data',
       'Knowledge',
       'Semantic Layer',
       'Prompts',
-      'Skills',
       'Data Sources',
       'Usage',
       'Settings',
@@ -37,7 +36,7 @@ describe('V2 application shell', () => {
       .getAllByRole('link')
       .map(link => link.textContent?.trim())
       .filter(Boolean)
-    expect(labels).toEqual(['Ask Data', 'Knowledge', 'Semantic Layer', 'Prompts', 'Skills', 'Data Sources', 'Usage', 'Settings'])
+    expect(labels).toEqual(['Ask Data', 'Knowledge', 'Semantic Layer', 'Prompts', 'Data Sources', 'Usage', 'Settings'])
 
     expect(screen.queryByText('Dashboard')).toBeNull()
     expect(screen.queryByText('AI Monitoring')).toBeNull()

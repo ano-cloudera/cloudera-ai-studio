@@ -350,7 +350,7 @@ export function PromptsPage() {
   const drawerTitle = drawerMode === 'create' ? 'Create prompt' : editorPrompt?.name ?? 'Edit prompt'
   const drawerSubtitle =
     drawerMode === 'create'
-      ? 'Save to register this prompt in the workspace.'
+      ? 'Overrides the built-in prompt for every project. Needs the platform metadata database.'
       : editorPrompt
         ? `Key: ${editorPrompt.key}${dirty ? ' · Unsaved changes' : ''}`
         : undefined
@@ -360,7 +360,7 @@ export function PromptsPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="type-app-title text-xl">Prompts</h1>
-          <p className="text-sm text-slate-600">Reusable instructions for AI behavior across your workspace.</p>
+          <p className="text-sm text-slate-600">Edit the instructions behind Ask Data and Knowledge answers. Changes apply to the whole app.</p>
         </div>
         <button type="button" className="btn-primary inline-flex h-10 items-center gap-2 px-4 text-sm" onClick={openCreateDrawer}>
           <Plus className="h-4 w-4" />
@@ -381,12 +381,6 @@ export function PromptsPage() {
             aria-label="Search prompts"
           />
         </div>
-        <select className="app-select-filter" value={scopeFilter} onChange={e => setScopeFilter(e.target.value)}>
-          <option value="">All scopes</option>
-          <option value="global">Global</option>
-          <option value="workspace">Workspace</option>
-          <option value="project">Project</option>
-        </select>
         <select className="app-select-filter" value={statusFilter} onChange={e => setStatusFilter(e.target.value as StatusFilter)}>
           <option value="">All statuses</option>
           <option value="published">Published</option>
@@ -422,7 +416,6 @@ export function PromptsPage() {
                     Name {sortKey === 'name' ? (sortDesc ? '↓' : '↑') : ''}
                   </button>
                 </th>
-                <th>Scope</th>
                 <th>Key</th>
                 <th>Status</th>
                 <th>Version</th>
@@ -460,7 +453,6 @@ export function PromptsPage() {
                           {p.name}
                         </button>
                       </td>
-                      <td className="text-slate-600">{formatScope(p.scope)}</td>
                       <td className="font-mono text-slate-500">{p.key}</td>
                       <td>{meta?.label ?? '…'}</td>
                       <td>{meta?.version != null ? `v${meta.version}` : '—'}</td>
@@ -555,19 +547,6 @@ export function PromptsPage() {
               ) : (
                 <input className="input mt-1 w-full font-mono text-xs" value={editKey} readOnly />
               )}
-            </label>
-            <label className="block">
-              <span className="text-xs font-semibold text-slate-600">Scope</span>
-              <select
-                className="input mt-1 w-full"
-                value={editScope}
-                disabled={drawerMode === 'edit'}
-                onChange={e => setEditScope(e.target.value as typeof editScope)}
-              >
-                <option value="global">Global</option>
-                <option value="workspace">Workspace</option>
-                <option value="project">Project</option>
-              </select>
             </label>
             <label className="block">
               <span className="text-xs font-semibold text-slate-600">Prompt content</span>

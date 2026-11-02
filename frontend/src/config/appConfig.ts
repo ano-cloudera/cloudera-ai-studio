@@ -49,7 +49,7 @@ export const appConfig = {
     documents: envBool('NEXT_PUBLIC_FEATURE_DOCUMENTS', true),
     connectors: envBool('NEXT_PUBLIC_FEATURE_CONNECTORS', true),
     prompts: envBool('NEXT_PUBLIC_FEATURE_PROMPTS', true),
-    skills: envBool('NEXT_PUBLIC_FEATURE_SKILLS', true),
+    skills: envBool('NEXT_PUBLIC_FEATURE_SKILLS', false),
     semanticLayer: envBool('NEXT_PUBLIC_FEATURE_SEMANTIC_LAYER', true),
     aiModelRegistry: envBool('NEXT_PUBLIC_FEATURE_AI_MODEL_REGISTRY', true),
   },
