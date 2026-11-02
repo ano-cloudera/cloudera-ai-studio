@@ -42,26 +42,14 @@ and waits for each:
 | `install-tools` | `scripts/amp/setup.py`: Node.js, Backend virtualenv, Qdrant and its UI, the embedding model, data folders, Frontend packages. Safe to run again |
 | `deploy-applications` | `scripts/amp/deploy.py`: builds the UI, then creates (or updates and restarts) the **Qdrant, Backend and Frontend Applications** through the Cloudera AI API v2 and waits until they run. URLs between the Applications are derived from the workspace domain |
 
-## Before you start (once per workspace)
+## Before you start
 
-1. **Ask the workspace admin to allow unauthenticated Applications.** The Backend and Qdrant are called by the other Applications
-   (server to server, without a Cloudera AI login cookie). Without this setting the deploy Job cannot create them, or the UI shows
-   **Platform Unavailable**. The admin enables it in **Site Administration -> Security -> Allow applications to be configured with
-   unauthenticated access**. Message you can send:
-
-   > Hi, I am setting up the Anywhere AI Studio demo (an AMP) in our Cloudera AI workspace. Please enable **Site Administration ->
-   > Security -> "Allow applications to be configured with unauthenticated access"**. The demo's Backend and Qdrant Applications are
-   > called by the Frontend and each other without a login. Only these two are created without a login; the Frontend keeps the Cloudera
-   > AI login. This is meant for demos and PoCs in an internal workspace, not for production data. Thank you.
-
-   **Security note:** with this setting, anyone who knows the Backend or Qdrant URL can call it without logging in. Use it for demos and
-   PoCs with synthetic or non-sensitive data. To keep the login on an Application anyway, add the project variable `AMP_REQUIRE_LOGIN`
-   (comma separated Application keys, for example `backend,qdrant`); then those Applications cannot be called by the others, so the
-   UI will not connect.
-2. **Check the quota**: the three Applications request 10 vCPU and 20 GB in total (Qdrant 4/8, Backend 4/8, Frontend 2/4; how to change them is in the
-   [PoC guide](docs/POC-GUIDE.md#sizing-the-applications)). vLLM is optional and needs a GPU.
-3. **Have the values at hand**: one LLM key (Gemini, OpenAI or Anthropic) and, for Ask Data on your own data, the Trino (or Impala) host,
-   user and password.
+1. **Allow unauthenticated Applications.** Ask the workspace admin to enable **Site Administration -> Security -> Allow applications
+   to be configured with unauthenticated access**. The Backend and Qdrant are called by the other Applications without a login (the
+   Frontend keeps the login), so use this for demos and PoCs, not for sensitive data.
+2. **Check the quota.** By default the three Applications request **10 vCPU and 20 GB** in total: Qdrant 4 vCPU / 8 GB, Backend
+   4 vCPU / 8 GB, Frontend 2 vCPU / 4 GB ([change them](docs/POC-GUIDE.md#sizing-the-applications)).
+3. **Have your values ready:** a Gemini, OpenAI or Anthropic API key, and the Trino or Impala host, user and password.
 
 ## Step by step
 
@@ -111,7 +99,7 @@ For a new PoC, follow the [PoC guide](docs/POC-GUIDE.md).
 | Deploy log: `runtime image must be specified in a project using runtimes` | The workspace needs a runtime image for each Application | The Job reads it from the project's jobs. If it logs `Runtime: not detected`, add `AMP_RUNTIME_ID` with the runtime image name |
 | Deploy log: `project environment is not a valid environment JSON` or `variables that are not plain text` | The import form saved an edited value as `[object Object]` | Run `python scripts/amp/set_env.py` in a Session, then run the Job again |
 | Project Settings: "The key and value are required" and Submit does nothing | A variable with an empty value is in the list | Delete that row with `-` (it was optional) or fill it in |
-| Frontend shows **Platform Unavailable**, Backend `/health/ready` shows Qdrant `UnexpectedResponse` | The Backend and Qdrant still require a Cloudera AI login (HTTP 302 for server to server calls) | Ask the admin to enable unauthenticated Applications (above), then run the deploy Job again |
+| Frontend shows **Platform Unavailable**, Backend `/health/ready` shows Qdrant `UnexpectedResponse` | The Backend and Qdrant still require a Cloudera AI login (HTTP 302 for server to server calls) | Ask the admin to enable unauthenticated Applications (see "Before you start"), then run the deploy Job again |
 | Deploy log mentions creating an Application without a login | The admin setting is off | Same as above |
 | `Warning: no LLM key is set` | No `GEMINI_API_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` yet | Add one in Project Settings and run the deploy Job again |
 
