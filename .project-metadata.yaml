@@ -12,34 +12,10 @@ runtimes:
     kernel: Python 3.10
     edition: Standard
 
-# Only variables with a real default are declared. The Cloudera AI import form can save an edited value as "[object Object]",
-# and Project Settings refuses to save while a variable is empty. Add API keys, Trino or Impala credentials and the other
-# optional variables in Project Settings -> Advanced after the import (see README), then run the Deploy applications job.
-environment_variables:
-  TRINO_CATALOG:
-    default: hive
-    description: Trino catalog that holds the demo tables.
-    required: false
-  TRINO_SCHEMA:
-    default: default
-    description: Trino schema that holds the demo tables.
-    required: false
-  STUDIO_REPO_ROOT:
-    default: /home/cdsw
-    description: Where the project files live. Leave as is for an AMP.
-    required: true
-  ENABLE_VLLM:
-    default: "false"
-    description: Set to true to also create the vLLM Application (serves your own model). Needs GPU nodes in the workspace, a GPU-enabled runtime and model weights. Leave false to use an external model endpoint or an API key instead.
-    required: false
-  GPU_PROFILE:
-    default: h200
-    description: GPU tuning profile for vLLM (h200, l40s or a10g). Only used when ENABLE_VLLM is true.
-    required: false
-  AMP_SUBDOMAIN_PREFIX:
-    default: anywhere
-    description: Prefix of the Application subdomains (<prefix>-qdrant, -backend, -frontend). Change it if they collide with other Applications in your workspace.
-    required: true
+# No variables are declared on purpose. The Cloudera AI import form can save a value you edit as "[object Object]", which
+# makes the deploy job fail. Everything the AMP needs has a default in code (STUDIO_REPO_ROOT is set on each Application by
+# deployment/cai/manifests/applications.yaml). Add API keys, Trino credentials and options in Project Settings -> Advanced
+# after the import (see README), then run the Deploy applications job.
 
 tasks:
   - type: create_job

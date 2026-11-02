@@ -48,14 +48,13 @@ def test_metadata_matches_the_repository() -> None:
     for run in (t for t in tasks if t["type"] == "run_job"):
         assert run["entity_label"] in jobs and run["wait_for"] is True
     assert list(jobs) == ["install-tools", "deploy-applications"]
-    declared = METADATA["environment_variables"]
+    declared = METADATA.get("environment_variables") or {}
     manifest = yaml.safe_load((REPO / "deployment/cai/manifests/applications.yaml").read_text(encoding="utf-8"))
     forwarded = {n for app in manifest["applications"] for n in app.get("forward_env", [])}
     assert {"GEMINI_API_KEY", "TRINO_PASSWORD"} <= forwarded
-    # The import form can store an edited value as "[object Object]" and Project Settings refuses empty rows,
-    # so only variables with a real default are declared; keys and credentials are added after the import.
-    assert all(str(spec.get("default", "")).strip() for spec in declared.values())
-    assert not {n for n in declared if any(w in n for w in ("KEY", "PASSWORD", "SECRET", "TOKEN"))}
+    # The import form can store an edited value as "[object Object]", so the form has nothing to edit:
+    # keys, credentials and options are added in Project Settings after the import.
+    assert declared == {}
 
 
 def test_setup_steps_are_ordered_and_skippable() -> None:

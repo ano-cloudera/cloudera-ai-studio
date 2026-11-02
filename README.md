@@ -59,10 +59,9 @@ and waits for each:
   `https://github.com/ano-cloudera/cloudera-ai-studio.git` (leave the branch empty).
 - **Configure Project**, then **Launch**.
 
-> [!WARNING]
-> **Do not edit the variables form. Just click Launch.**
-> A Cloudera AI form bug can save a typed value as `[object Object]`, and the deploy Job then fails. Add your keys and credentials in
-> **Project Settings -> Advanced** after the import (step 3).
+> [!NOTE]
+> The import has no variables to fill in. Just click **Launch**: a Cloudera AI form bug can save an edited value as `[object Object]`,
+> which is why keys and credentials are added in **Project Settings -> Advanced** after the import (step 3).
 
 **2. Wait for `install-tools`** (about 21 min)
 - Follow it in **AMP Status**, or in the job log (markers `[1/7]` to `[7/7]`). The embedding model alone is about 2.3 GB.
@@ -108,6 +107,8 @@ to save a variable with an empty value.
 | `AMP_FORWARD_ENV` | A Data Source or MCP server needs other secrets | `MY_DB_PASSWORD,MY_TOOL_TOKEN` |
 | `AMP_RUNTIME_ID` | The deploy log says `Runtime: not detected` | the runtime image name on your Jobs |
 | `ENABLE_VLLM` | You serve your own model ([PoC guide](docs/POC-GUIDE.md#optional-vllm-your-own-model-on-a-gpu)) | `true` |
+| `TRINO_CATALOG`, `TRINO_SCHEMA` | Your tables are not in `hive` / `default` | `hive`, `default` |
+| `AMP_SUBDOMAIN_PREFIX` | Another `anywhere-*` Application already exists in the workspace (set before the first deploy) | `anywhere2` |
 
 For `AMP_FORWARD_ENV`, also add each listed name as its own variable; the Data Source then refers to it as `env://NAME`.
 
@@ -129,7 +130,7 @@ Starting a new PoC? Follow the [PoC guide](docs/POC-GUIDE.md).
 | What you see | What to do |
 |---|---|
 | Deploy log: `runtime image must be specified in a project using runtimes` | The Job reads the runtime from the project's jobs. If it logs `Runtime: not detected`, add `AMP_RUNTIME_ID` with the runtime image name shown on your Jobs, then run the Job again |
-| Deploy log: `project environment is not a valid environment JSON` or `variables that are not plain text` | The import form saved a value as `[object Object]`. In a Session run `python scripts/amp/set_env.py`, then run the Job again |
+| Deploy log: `project environment is not a valid environment JSON` or `variables that are not plain text` | A value was saved as `[object Object]` (a Cloudera AI form bug). In a Session run `python scripts/amp/set_env.py`, then run the Job again |
 | Frontend shows **Platform Unavailable** | The Backend and Qdrant still require a Cloudera AI login. Ask the admin to enable unauthenticated Applications (see "Before you start"), then run the Job again |
 
 ## Known limits
