@@ -32,7 +32,7 @@ Browser ─► Frontend (Next.js) ─► Backend (FastAPI) ─┬─► Trino   
 
 ---
 
-# Deploy as an AMP (one click)
+# Deploy as an AMP
 
 `.project-metadata.yaml` turns this repository into a Cloudera AI **Applied ML Prototype**. Importing it runs two Jobs in order
 and waits for each:
@@ -42,38 +42,78 @@ and waits for each:
 | `install-tools` | `scripts/amp/setup.py`: Node.js, Backend virtualenv, Qdrant and its UI, the embedding model, data folders, Frontend packages. Safe to run again |
 | `deploy-applications` | `scripts/amp/deploy.py`: builds the UI, then creates (or updates and restarts) the **Qdrant, Backend and Frontend Applications** through the Cloudera AI API v2 and waits until they run. URLs between the Applications are derived from the workspace domain |
 
-You enter environment variables once, in Project Settings. The deploy Job copies them to the Applications that need them
-(the list is in `deployment/cai/manifests/applications.yaml`, which is also where Application names, resources and settings live).
+## Before you start (once per workspace)
 
-**Import without editing the form.** The form only lists variables that have a safe default (`STUDIO_REPO_ROOT`, `AMP_SUBDOMAIN_PREFIX`,
-`ENABLE_VLLM=false`, `GPU_PROFILE`, `TRINO_CATALOG`, `TRINO_SCHEMA`). Click **Launch** and do not change them: on some Cloudera AI
-versions a value typed in the form is saved as `[object Object]`, and the deploy Job then stops with
-`project environment is not a valid environment JSON`.
+1. **Ask the workspace admin to allow unauthenticated Applications.** The Backend and Qdrant are called by the other Applications
+   (server to server, without a Cloudera AI login cookie). Without this setting the deploy Job cannot create them, or the UI shows
+   **Platform Unavailable**. The admin enables it in **Site Administration -> Security -> Allow applications to be configured with
+   unauthenticated access**. Message you can send:
 
-**Then add what your PoC needs** in **Project Settings -> Advanced** (button **+**: name and value, then **Submit**), and run the
-**Deploy applications** Job again. The first run, before any key exists, starts the Applications and warns that no LLM key is set.
+   > Hi, I am setting up the Anywhere AI Studio demo (an AMP) in our Cloudera AI workspace. Please enable **Site Administration ->
+   > Security -> "Allow applications to be configured with unauthenticated access"**. The demo's Backend and Qdrant Applications are
+   > called by the Frontend and each other without a login. Only these two are created without a login; the Frontend keeps the Cloudera
+   > AI login. This is meant for demos and PoCs in an internal workspace, not for production data. Thank you.
+
+   **Security note:** with this setting, anyone who knows the Backend or Qdrant URL can call it without logging in. Use it for demos and
+   PoCs with synthetic or non-sensitive data. To keep the login on an Application anyway, add the project variable `AMP_REQUIRE_LOGIN`
+   (comma separated Application keys, for example `backend,qdrant`); then those Applications cannot be called by the others, so the
+   UI will not connect.
+2. **Check the quota**: the three Applications request 10 vCPU and 20 GB in total (Qdrant 4/8, Backend 4/8, Frontend 2/4). Ask for more
+   if the project is limited. vLLM is optional and needs a GPU (see below).
+3. **Have the values at hand**: one LLM key (Gemini, OpenAI or Anthropic) and, for Ask Data on your own data, the Trino (or Impala) host,
+   user and password.
+
+## Step by step
+
+| # | Step | What you do | Time (measured once, AWS workspace) |
+|---|---|---|---|
+| 1 | **Import** | **AMPs** (left menu) -> **Deploy External** (top right) -> the *Configure & Deploy AMP* form: project name, visibility **Private**, *Provide the Git URL* with **HTTPS**, Git URL `https://github.com/ano-cloudera/cloudera-ai-studio.git`, leave the branch empty -> **Configure Project**. **Do not edit the variables form**, click **Launch** (see the warning below). | about 4 min until the first job starts |
+| 2 | **Wait for `install-tools`** | Watch **AMP Status** (or the job log, markers `[1/7]` to `[7/7]`). The embedding model is about 2.3 GB. | about 21 min |
+| 3 | **Add your variables** | **Project Settings -> Advanced**, button **+**: name and value for each variable in the table below, then **Submit**. | a few minutes |
+| 4 | **Deploy** | **Jobs -> Deploy applications -> Run**. It builds the UI and creates the three Applications. The AMP also runs it once at the end of the import; without keys that run only warns that no LLM key is set. | build and start: not timed yet |
+| 5 | **Verify** | **Applications**: three Applications **Running**. Backend `/health/ready` must show `"core_ready": true`. Open **Anywhere Frontend**: the badge must read **Platform Ready**. | 1 min |
+| 6 | **Configure the demo** | In the Frontend: [Configure the demo](#configure-the-demo-step-by-step) (LLM, Data Source, semantic layer, knowledge, MCP). | per PoC |
+
+Plan for **about 30 minutes plus the deploy Job** before the first screen. These timings come from one import; yours will differ with the
+workspace and network.
+
+**Warning: do not edit the import form.** On some Cloudera AI versions a value typed in the AMP form is saved as `[object Object]`
+instead of text, and the deploy Job then stops with `project environment is not a valid environment JSON`. This is a Workbench form bug,
+not specific to this AMP. The form therefore lists only variables that have a safe default (`STUDIO_REPO_ROOT`, `AMP_SUBDOMAIN_PREFIX`,
+`ENABLE_VLLM=false`, `GPU_PROFILE`, `TRINO_CATALOG`, `TRINO_SCHEMA`). Everything else is added in Project Settings after the import.
+
+**Variables to add in Project Settings** (add only what you fill in: the page refuses to save a variable with an empty value):
 
 | Variable | When |
 |---|---|
 | `GEMINI_API_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` | At least one LLM key |
-| `TRINO_HOST`, `TRINO_USER`, `TRINO_PASSWORD` | Data in Trino (host only, no `https://`) |
+| `TRINO_HOST`, `TRINO_USER`, `TRINO_PASSWORD` | Data in Trino (host only, without `https://`) |
 | `IMPALA_HOST`, `IMPALA_USER`, `IMPALA_PASSWORD` | Data in Impala |
 | `POSTGRES_PASSWORD` | Data Source is PostgreSQL |
 | `AMP_FORWARD_ENV` | Names (comma separated) of other secrets a Data Source or MCP server needs, which you also add as variables; the Data Source refers to them as `env://NAME` |
 | `AMP_RUNTIME_ID` | Only to force a runtime image; by default the runtime of the project's jobs is used |
 | `ENABLE_VLLM=true`, `VLLM_MODEL_ID`, `AMP_VLLM_RUNTIME_ID`, `GPU_PROFILE` | Serving your own model, see below |
 
-Project Settings refuses to save while a variable has an empty value, so add only variables you fill in. If a variable already shows
-`[object Object]`, or the Job reports variables that are not plain text, open a Session and run `python scripts/amp/set_env.py`
-(add the variable names to change them, for example `python scripts/amp/set_env.py TRINO_HOST`). Secrets are not echoed.
+After adding or changing a variable, run the **Deploy applications** Job again: it copies the variables to the Applications and restarts them.
+If a variable already shows `[object Object]`, or the Job reports variables that are not plain text, open a **Session** and run
+`python scripts/amp/set_env.py` (add names to change specific ones, for example `python scripts/amp/set_env.py TRINO_HOST`). It asks
+for the values again and stores them through the API; secrets are not echoed.
 
-**For a new PoC**, follow the [PoC guide](docs/POC-GUIDE.md).
-
-**After the import**, open the Frontend and follow [Configure the demo](#configure-the-demo-step-by-step)
-(LLM, Data Source, semantic layer, knowledge, MCP).
-
-**Redeploy** after a `git pull` or after adding a variable: run the `deploy-applications` Job again.
+**Redeploy** after a `git pull` (open a Session, `cd /home/cdsw && git pull`) or after adding a variable: run the `deploy-applications` Job again.
 **Check the API access first** (read-only) from a Session: `python scripts/amp/deploy.py --check`.
+For a new PoC, follow the [PoC guide](docs/POC-GUIDE.md).
+
+## If something goes wrong
+
+| What you see | Cause | What to do |
+|---|---|---|
+| `install-tools` is marked failed although the log ends with `Setup complete.` | Older versions of the script ended with `SystemExit`, which the Cloudera AI job runner reports as failure | `git pull`, then **Resume** the AMP (or run the Job again; finished steps are skipped) |
+| Deploy log: `runtime image must be specified in a project using runtimes` | The workspace needs a runtime image for each Application | The Job reads it from the project's jobs. If it logs `Runtime: not detected`, add `AMP_RUNTIME_ID` with the runtime image name |
+| Deploy log: `project environment is not a valid environment JSON` or `variables that are not plain text` | The import form saved an edited value as `[object Object]` | Run `python scripts/amp/set_env.py` in a Session, then run the Job again |
+| Project Settings: "The key and value are required" and Submit does nothing | A variable with an empty value is in the list | Delete that row with `-` (it was optional) or fill it in |
+| Frontend shows **Platform Unavailable**, Backend `/health/ready` shows Qdrant `UnexpectedResponse` | The Backend and Qdrant still require a Cloudera AI login (HTTP 302 for server to server calls) | Ask the admin to enable unauthenticated Applications (above), then run the deploy Job again |
+| Deploy log mentions creating an Application without a login | The admin setting is off | Same as above |
+| `Warning: no LLM key is set` | No `GEMINI_API_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` yet | Add one in Project Settings and run the deploy Job again |
 
 **Resources.** Each Application's CPU and memory are set in `deployment/cai/manifests/applications.yaml` (Qdrant 4 vCPU / 8 GB,
 Backend 4 vCPU / 8 GB, Frontend 2 vCPU / 4 GB, vLLM 16 vCPU / 64 GB / 1 GPU) and applied by the deploy Job. To size one PoC differently
@@ -93,14 +133,10 @@ If the vLLM install or start fails, the other three Applications are unaffected;
 
 Known limits:
 - The Application subdomains are fixed (`anywhere-qdrant`, `anywhere-backend`, `anywhere-frontend`). If they collide in your workspace,
-  set `AMP_SUBDOMAIN_PREFIX`.
-- **Login:** the Frontend keeps the Cloudera AI login. The Backend and Qdrant are created **without a login**, because they are called
-  server to server (a call without a login cookie is redirected with HTTP 302, which shows as "Platform Unavailable" and a Qdrant
-  `UnexpectedResponse`). Anyone who knows their URLs can call them, so use this only for PoCs in an internal workspace. The workspace
-  admin must allow it first: **Site Administration -> Security -> Allow applications to be configured with unauthenticated access**.
-  `AMP_REQUIRE_LOGIN` (comma separated Application keys, for example `backend`) keeps the login on for the named Applications.
-- The deploy Job calls the Cloudera AI REST API with the key CAI provides to Jobs (`CDSW_APIV2_KEY`). It has been tested against a
-  fake client only; run `--check` and `--dry-run` first on a new workspace.
+  add the project variable `AMP_SUBDOMAIN_PREFIX` before the first deploy.
+- The Backend and Qdrant run without a login (see "Before you start"). Do not load sensitive data into a demo workspace that others can reach.
+- The deploy Job calls the Cloudera AI REST API with the key Cloudera AI provides to Jobs (`CDSW_APIV2_KEY`). It has been run end to end
+  in one workspace only; report failures with the Job log.
 
 ---
 
