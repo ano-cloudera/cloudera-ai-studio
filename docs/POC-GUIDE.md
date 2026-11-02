@@ -22,7 +22,7 @@ the platform stays the same. This guide lists what to change and where. Use it a
    PoC needs as a variable with its name listed in `AMP_FORWARD_ENV` (comma separated). Run the `deploy-applications` Job again after
    adding variables. Details and the repair command are in the README.
 2. **LLM.** Settings -> AI Models: add a provider with a key reference `env://YOUR_KEY_NAME`, add a model, assign it to the capabilities
-   (Ask Data, Knowledge, MCP). No GPU is needed for hosted models. To serve your own model, see "Optional: vLLM" in the README.
+   (Ask Data, Knowledge, MCP). No GPU is needed for hosted models. To serve your own model, see "Optional: vLLM" at the end of this guide.
 3. **Data Source.** Data Sources -> new connection (Trino, Impala or PostgreSQL). Passwords are entered as `env://VARIABLE`, never as text.
    Test the connection, then browse the tables.
 4. **Semantic layer.** Semantic Layer -> create a model, add each table as an entity, import columns as dimensions, define metrics with a
@@ -65,3 +65,23 @@ Load it with `scripts/cai/load_credit_risk_demo.py` to rehearse the flow, then r
 | Data question cannot be answered | The metric is not published, or the dimension is not on the entity |
 | Backend cannot reach Qdrant | Application authentication settings, then `QDRANT_URL` on the Backend |
 | Secret not found | The variable exists in the project, is listed in `AMP_FORWARD_ENV`, and the deploy Job ran again |
+
+## Sizing the Applications
+
+Each Application's CPU and memory are set in `deployment/cai/manifests/applications.yaml` (Qdrant 4 vCPU / 8 GB,
+Backend 4 vCPU / 8 GB, Frontend 2 vCPU / 4 GB, vLLM 16 vCPU / 64 GB / 1 GPU) and applied by the deploy Job. To size one PoC differently
+without editing the file, add project variables `AMP_<APP>_CPU`, `AMP_<APP>_MEMORY_GB` or `AMP_<APP>_GPU` (for example `AMP_BACKEND_MEMORY_GB=16`; raise the Backend memory if you load large PDFs, which Docling parses in memory)
+and run the deploy Job again. The workspace still limits the maximum per Application.
+
+## Optional: vLLM (your own model on a GPU)
+
+Off by default. Most PoCs do not need it: register an external model endpoint or an API key
+in Settings -> AI Models instead. To serve your own model, add `ENABLE_VLLM=true` and `VLLM_MODEL_ID` in Project Settings (and set `GPU_PROFILE`, plus
+`HUGGING_FACE_HUB_TOKEN` for gated models). The setup job then also builds the vLLM virtualenv and downloads the weights, and the deploy job
+creates a fourth Application, `anywhere-vllm`, with one GPU. This needs, outside the AMP:
+- GPU nodes and quota in the workspace, and a **GPU-enabled runtime**: put its identifier in `AMP_VLLM_RUNTIME_ID`
+  (the standard runtime cannot use the GPU). Ask the workspace admin if no GPU runtime is listed.
+- Enough disk on the project filesystem for the weights, and a GPU large enough for the model (adjust `GPU_PROFILE`, `MAX_MODEL_LEN`,
+  `GPU_MEMORY_UTILIZATION`; see `deployment/cai/env/studio-vllm.env.example`).
+When the Application runs, the deploy job prints the base URL to register in Settings -> AI Models (OpenAI-compatible provider, `<url>/v1`).
+If the vLLM install or start fails, the other three Applications are unaffected; fix it and run the `deploy-applications` Job again.
