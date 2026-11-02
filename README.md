@@ -69,17 +69,22 @@ Expect about **30 minutes plus the deploy Job** before the first screen (measure
 > A Cloudera AI form bug can save a typed value as `[object Object]`, and the deploy Job then fails. Add your keys and credentials in
 > **Project Settings -> Advanced** after the import (next table).
 
-**Variables to add in Project Settings** (add only what you fill in: the page refuses to save a variable with an empty value):
+**Variables to add in Project Settings** (button **+**: name and value, then **Submit**). Add only the ones you fill in: the page refuses
+to save a variable with an empty value.
 
-| Variable | When |
-|---|---|
-| `GEMINI_API_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` | At least one LLM key |
-| `TRINO_HOST`, `TRINO_USER`, `TRINO_PASSWORD` | Data in Trino (host only, without `https://`) |
-| `IMPALA_HOST`, `IMPALA_USER`, `IMPALA_PASSWORD` | Data in Impala |
-| `POSTGRES_PASSWORD` | Data Source is PostgreSQL |
-| `AMP_FORWARD_ENV` | Names (comma separated) of other secrets a Data Source or MCP server needs, which you also add as variables; the Data Source refers to them as `env://NAME` |
-| `AMP_RUNTIME_ID` | Only to force a runtime image; by default the runtime of the project's jobs is used |
-| `ENABLE_VLLM=true`, `VLLM_MODEL_ID`, `AMP_VLLM_RUNTIME_ID`, `GPU_PROFILE` | Serving your own model, see the [PoC guide](docs/POC-GUIDE.md#optional-vllm-your-own-model-on-a-gpu) |
+| Variable | Needed? | Example value (replace with yours) |
+|---|---|---|
+| `GEMINI_API_KEY` | **Required**: one LLM key (or `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`) | `AIzaSy...` |
+| `TRINO_HOST` | **Required** for Ask Data on Trino. Host only, no `https://` and no trailing `/` | `my-trino.dw-env.a1b2-c3d4.cloudera.site` |
+| `TRINO_USER` | **Required** with Trino | `workload-user` |
+| `TRINO_PASSWORD` | **Required** with Trino | `your-password` |
+| `IMPALA_HOST`, `IMPALA_USER`, `IMPALA_PASSWORD` | Instead of Trino, when the data is in Impala | `my-impala.dw-env.a1b2-c3d4.cloudera.site`, `workload-user`, `your-password` |
+| `POSTGRES_PASSWORD` | Only if a Data Source is PostgreSQL | `your-password` |
+| `AMP_FORWARD_ENV` | Only for other secrets a Data Source or MCP server needs (also add each as its own variable; the Data Source then uses `env://NAME`) | `MY_DB_PASSWORD,MY_TOOL_TOKEN` |
+| `AMP_RUNTIME_ID` | Only if the deploy log says `Runtime: not detected` | the runtime image name shown on your Jobs |
+| `ENABLE_VLLM`, `VLLM_MODEL_ID`, `AMP_VLLM_RUNTIME_ID`, `GPU_PROFILE` | Only to serve your own model, see the [PoC guide](docs/POC-GUIDE.md#optional-vllm-your-own-model-on-a-gpu) | `true`, `Qwen/Qwen3.5-9B`, a GPU runtime image, `l40s` |
+
+Minimum for a first working demo: one LLM key plus the three `TRINO_*` values. Then run the **Deploy applications** Job again.
 
 **Day-2 operations**
 
