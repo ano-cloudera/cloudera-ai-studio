@@ -57,7 +57,8 @@ and waits for each:
 - **AMPs** (left menu) -> **Deploy External** (top right).
 - Project name, visibility **Private**, **Provide the Git URL** with **HTTPS**:
   `https://github.com/ano-cloudera/cloudera-ai-studio.git` (leave the branch empty).
-- **Configure Project**, then **Launch**.
+- **Configure Project**. The form has no variables to fill in. Keep the runtime as shown (JupyterLab, Python 3.10, Standard), turn
+  **Enable Spark** off (the app does not use it), and keep **Execute AMP setup steps** checked, then **Launch**.
 
 > [!NOTE]
 > The import has no variables to fill in. Just click **Launch**: a Cloudera AI form bug can save an edited value as `[object Object]`,
