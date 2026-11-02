@@ -2,6 +2,9 @@
 # `subdomain` is prefixed with AMP_SUBDOMAIN_PREFIX (default "anywhere"): <prefix>-<subdomain>.
 # `environment` is set on the Application as written; `forward_env` copies the named variables from the
 # project (or from AMP_FORWARD_ENV, a comma separated list of extra names) so secrets are entered once.
+# `bypass_authentication: true` lets the other Applications call this one without a Cloudera AI login (the Backend and
+# Qdrant are called server to server). The workspace admin must allow it (Site Administration -> Security).
+# AMP_REQUIRE_LOGIN (comma separated keys) keeps the login on for the named Applications.
 schema_version: 2
 description: Anywhere AI Studio - Cloudera AI Applications (launchers only; app source in backend/ and frontend/)
 subdomain_prefix: anywhere
@@ -13,6 +16,7 @@ applications:
     description: Vector database for document search
     subdomain: qdrant
     script: deployment/cai/launchers/studio-qdrant/app.py
+    bypass_authentication: true
     resources: { cpu: 4, memory_gb: 16, nvidia_gpu: 0 }
     health_path: /readyz
     environment:
@@ -26,6 +30,7 @@ applications:
     description: FastAPI backend (Ask Data, Knowledge, MCP, settings)
     subdomain: backend
     script: deployment/cai/launchers/studio-backend/app.py
+    bypass_authentication: true
     resources: { cpu: 4, memory_gb: 16, nvidia_gpu: 0 }
     health_path: /health
     environment:

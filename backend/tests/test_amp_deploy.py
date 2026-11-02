@@ -72,7 +72,8 @@ def test_new_applications_are_created_and_existing_ones_updated_and_restarted() 
     deploy.deploy(client, _plan(), ENV, skip_build=True, timeout=60, log=logs.append, sleep=lambda _: None)
     kinds = [c[0] for c in client.calls]
     assert kinds == ["create", "update", "restart", "create"]
-    assert client.calls[0][2]["bypass_authentication"] is False
+    assert client.calls[0][2]["bypass_authentication"] is True  # Qdrant is called server to server
+    assert client.calls[2][2]["bypass_authentication"] is False  # the Frontend keeps the login
     assert any("running at https://anywhere-backend.ml-1.example.site" in line for line in logs)
 
 
@@ -223,3 +224,11 @@ def test_set_env_stores_the_broken_variables_as_plain_text() -> None:
     assert done == ["ENABLE_VLLM", "GEMINI_API_KEY"]
     assert client.saved == {"OK": "x", "GEMINI_API_KEY": "key-1", "ENABLE_VLLM": "false"}
     assert all(isinstance(v, str) for v in client.saved.values())
+
+
+def test_backend_and_qdrant_skip_the_login_and_the_frontend_keeps_it() -> None:
+    bypass = {item["key"]: item["bypass_authentication"] for item in _plan()}
+    assert bypass == {"qdrant": True, "backend": True, "frontend": False}
+    assert deploy.payload_for(_plan("backend")[0])["bypass_authentication"] is True
+    kept = {item["key"]: item["bypass_authentication"] for item in deploy.build_plan(deploy.load_manifest(), {**ENV, "AMP_REQUIRE_LOGIN": "backend"})}
+    assert kept["backend"] is False and kept["qdrant"] is True

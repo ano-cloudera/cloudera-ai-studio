@@ -118,6 +118,7 @@ def build_plan(manifest: dict, env: dict[str, str], only: str | None = None) -> 
     prefix = env.get("AMP_SUBDOMAIN_PREFIX", "").strip() or manifest.get("subdomain_prefix", "anywhere")
     derive_env = {**env, "AMP_SUBDOMAIN_PREFIX": prefix}
     extra = [name.strip() for name in env.get("AMP_FORWARD_ENV", "").split(",") if name.strip()]
+    require_login = {name.strip() for name in env.get("AMP_REQUIRE_LOGIN", "").split(",") if name.strip()}
     plan = []
     for app in manifest["applications"]:
         flag = env.get(app.get("enabled_env", ""), "").strip().lower() in ("1", "true", "yes")
@@ -155,6 +156,7 @@ def build_plan(manifest: dict, env: dict[str, str], only: str | None = None) -> 
                 "environment": {k: str(v) for k, v in environment.items()},
                 "build": bool(app.get("build")),
                 "health_path": app.get("health_path", "/"),
+                "bypass_authentication": bool(app.get("bypass_authentication")) and app["key"] not in require_login,
                 "runtime_id": env.get(app.get("runtime_env", ""), "").strip(),
                 "startup_timeout_s": float(app.get("startup_timeout_s", 0) or 0),
             }
@@ -172,7 +174,7 @@ def payload_for(item: dict, runtime_id: str = "") -> dict:
         "memory": item["memory"],
         "nvidia_gpu": item["nvidia_gpu"],
         "environment": item["environment"],
-        "bypass_authentication": False,
+        "bypass_authentication": bool(item.get("bypass_authentication")),
     }
     if runtime_id:
         payload["runtime_identifier"] = runtime_id
@@ -222,12 +224,18 @@ def deploy(client: Cml, plan: list[dict], env: dict[str, str], *, skip_build: bo
             log("   building the Frontend (several minutes)")
             build_frontend(item, env)
         found = existing.get(item["subdomain"])
-        if found:
-            client.update_application(found["id"], payload_for(item, runtime_id))
-            client.restart_application(found["id"])
-            app_id, action = found["id"], "updated and restarted"
-        else:
-            app_id, action = client.create_application({**payload_for(item, runtime_id), "project_id": client.project_id})["id"], "created"
+        try:
+            if found:
+                client.update_application(found["id"], payload_for(item, runtime_id))
+                client.restart_application(found["id"])
+                app_id, action = found["id"], "updated and restarted"
+            else:
+                app_id, action = client.create_application({**payload_for(item, runtime_id), "project_id": client.project_id})["id"], "created"
+        except ApiError:
+            if item.get("bypass_authentication"):
+                log("   this Application is created without a login: an admin must allow it in Site Administration -> Security "
+                    "(Allow applications to be configured with unauthenticated access), or set AMP_REQUIRE_LOGIN to keep the login")
+            raise
         wait_running(client, app_id, max(timeout, item.get("startup_timeout_s", 0)), sleep=sleep)
         log(f"   {action}; running at https://{item['subdomain']}.{env['CDSW_DOMAIN']}")
         if item["key"] == "vllm":

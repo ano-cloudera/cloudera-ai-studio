@@ -83,8 +83,11 @@ If the vLLM install or start fails, the other three Applications are unaffected;
 Known limits:
 - The Application subdomains are fixed (`anywhere-qdrant`, `anywhere-backend`, `anywhere-frontend`). If they collide in your workspace,
   set `AMP_SUBDOMAIN_PREFIX`.
-- The Applications are created with authentication on. If the Backend cannot reach Qdrant, or the Frontend cannot reach the Backend,
-  check the Application authentication settings first.
+- **Login:** the Frontend keeps the Cloudera AI login. The Backend and Qdrant are created **without a login**, because they are called
+  server to server (a call without a login cookie is redirected with HTTP 302, which shows as "Platform Unavailable" and a Qdrant
+  `UnexpectedResponse`). Anyone who knows their URLs can call them, so use this only for PoCs in an internal workspace. The workspace
+  admin must allow it first: **Site Administration -> Security -> Allow applications to be configured with unauthenticated access**.
+  `AMP_REQUIRE_LOGIN` (comma separated Application keys, for example `backend`) keeps the login on for the named Applications.
 - The deploy Job calls the Cloudera AI REST API with the key CAI provides to Jobs (`CDSW_APIV2_KEY`). It has been tested against a
   fake client only; run `--check` and `--dry-run` first on a new workspace.
 
