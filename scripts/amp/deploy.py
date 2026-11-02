@@ -261,6 +261,20 @@ def wait_running(client: Cml, app_id: str, timeout: float, poll: float = 10.0, s
     raise ApiError(f"Application {app.get('name')} was not running after {int(timeout)} s (status {app.get('status')}).")
 
 
+def apply_update(client: Cml, app_id: str, payload: dict, *, sleep=time.sleep, window: float = 30.0, poll: float = 3.0) -> None:
+    """Update an Application, then restart it only if Cloudera AI did not already do so.
+
+    An update may restart the Application by itself; a second restart on top of it can make the new instance fail
+    (Qdrant locks its storage). So watch the status for a short while: if it leaves RUNNING the platform is restarting it.
+    """
+    client.update_application(app_id, payload)
+    for _ in range(int(window / poll)):
+        if not is_running(client.get_application(app_id)):
+            return
+        sleep(poll)
+    client.restart_application(app_id)
+
+
 def deploy(client: Cml, plan: list[dict], env: dict[str, str], *, skip_build: bool, timeout: float, log=print, sleep=time.sleep) -> None:
     existing = {a.get("subdomain"): a for a in client.list_applications()}
     default_runtime = env.get("AMP_RUNTIME_ID", "")
@@ -278,8 +292,7 @@ def deploy(client: Cml, plan: list[dict], env: dict[str, str], *, skip_build: bo
         found = existing.get(item["subdomain"])
         try:
             if found:
-                client.update_application(found["id"], payload_for(item, runtime_id))
-                client.restart_application(found["id"])
+                apply_update(client, found["id"], payload_for(item, runtime_id), sleep=sleep)
                 app_id, action = found["id"], "updated and restarted"
             else:
                 app_id, action = client.create_application({**payload_for(item, runtime_id), "project_id": client.project_id})["id"], "created"
@@ -288,7 +301,15 @@ def deploy(client: Cml, plan: list[dict], env: dict[str, str], *, skip_build: bo
                 log("   this Application is created without a login: an admin must allow it in Site Administration -> Security "
                     "(Allow applications to be configured with unauthenticated access), or set AMP_REQUIRE_LOGIN to keep the login")
             raise
-        wait_running(client, app_id, max(timeout, item.get("startup_timeout_s", 0)), sleep=sleep)
+        limit = max(timeout, item.get("startup_timeout_s", 0))
+        try:
+            wait_running(client, app_id, limit, sleep=sleep)
+        except ApiError as exc:
+            if not found or "FAIL" not in str(exc).upper():
+                raise
+            log("   failed after the update; restarting it once")
+            client.restart_application(app_id)
+            wait_running(client, app_id, limit, sleep=sleep)
         log(f"   {action}; running at https://{item['subdomain']}.{env['CDSW_DOMAIN']}")
         if item["key"] == "vllm":
             log(f"   register it in Settings -> AI Models as an OpenAI-compatible provider: base URL https://{item['subdomain']}.{env['CDSW_DOMAIN']}/v1")

@@ -71,7 +71,7 @@ def test_new_applications_are_created_and_existing_ones_updated_and_restarted() 
     logs: list[str] = []
     deploy.deploy(client, _plan(), ENV, skip_build=True, timeout=60, log=logs.append, sleep=lambda _: None)
     kinds = [c[0] for c in client.calls]
-    assert kinds == ["create", "update", "restart", "create"]
+    assert kinds == ["create", "update", "restart", "create"]  # the fake stays RUNNING after the update, so we restart it
     assert client.calls[0][2]["bypass_authentication"] is True  # Qdrant is called server to server
     assert client.calls[3][2]["bypass_authentication"] is False  # the Frontend keeps the login
     assert any("running at https://anywhere-backend.ml-1.example.site" in line for line in logs)
@@ -292,3 +292,20 @@ def test_update_sends_the_environment_as_json_text_and_falls_back_to_a_map() -> 
     client.request = reject_text
     client.update_application("a1", {"name": "x", "environment": {"K": "v"}})
     assert isinstance(sent[0]["environment"], str) and sent[1]["environment"] == {"K": "v"}
+
+
+def test_a_second_restart_is_sent_only_when_the_platform_did_not_restart_the_application() -> None:
+    quiet = FakeClient(statuses=("APPLICATION_RUNNING",))  # stays running after the update
+    deploy.apply_update(quiet, "a1", {"name": "x"}, sleep=lambda _: None)
+    assert [c[0] for c in quiet.calls] == ["update", "restart"]
+    restarting = FakeClient(statuses=("APPLICATION_STOPPING", "APPLICATION_RUNNING"))
+    deploy.apply_update(restarting, "a1", {"name": "x"}, sleep=lambda _: None)
+    assert [c[0] for c in restarting.calls] == ["update"]
+
+
+def test_an_updated_application_that_fails_is_restarted_once() -> None:
+    client = FakeClient(existing=[{"id": "b1", "subdomain": "anywhere-backend"}], statuses=("APPLICATION_STOPPING", "APPLICATION_FAILED", "APPLICATION_RUNNING"))
+    logs: list[str] = []
+    deploy.deploy(client, _plan("backend"), ENV, skip_build=True, timeout=60, log=logs.append, sleep=lambda _: None)
+    assert [c[0] for c in client.calls].count("restart") == 1
+    assert any("restarting it once" in line for line in logs)
