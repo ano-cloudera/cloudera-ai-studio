@@ -42,19 +42,30 @@ and waits for each:
 | `install-tools` | `scripts/amp/setup.py`: Node.js, Backend virtualenv, Qdrant and its UI, the embedding model, data folders, Frontend packages. Safe to run again |
 | `deploy-applications` | `scripts/amp/deploy.py`: builds the UI, then creates (or updates and restarts) the **Qdrant, Backend and Frontend Applications** through the Cloudera AI API v2 and waits until they run. URLs between the Applications are derived from the workspace domain |
 
-You only enter environment variables once, at import. The deploy Job copies them to the Applications that need them
+You enter environment variables once, in Project Settings. The deploy Job copies them to the Applications that need them
 (the list is in `deployment/cai/manifests/applications.yaml`, which is also where Application names, resources and settings live).
 
-**Variables at import** (all optional at import time, but the app needs an LLM key and a data source to answer questions):
-`GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `TRINO_*`, `IMPALA_*`, `POSTGRES_PASSWORD`.
-For any other secret a Data Source or MCP server needs, add the variable to the project and list its name in `AMP_FORWARD_ENV`
-(comma separated); the Data Source then refers to it as `env://NAME`.
+**Import without editing the form.** The form only lists variables that have a safe default (`STUDIO_REPO_ROOT`, `AMP_SUBDOMAIN_PREFIX`,
+`ENABLE_VLLM=false`, `GPU_PROFILE`, `TRINO_CATALOG`, `TRINO_SCHEMA`). Click **Launch** and do not change them: on some Cloudera AI
+versions a value typed in the form is saved as `[object Object]`, and the deploy Job then stops with
+`project environment is not a valid environment JSON`.
 
-**Known issue with the import form:** on some Cloudera AI versions a value you type in the form is saved as `[object Object]`
-instead of text, and the deploy Job then stops with `project environment is not a valid environment JSON`. Right after the import,
-open **Project Settings -> Advanced**. If a variable shows `[object Object]`, retyping it in that page can fail the same way, so
-repair it through the API instead: open a Session, run `python scripts/amp/set_env.py`, and answer the prompts (secrets are not
-echoed; Enter keeps the default). Then run the **Deploy applications** Job again. The Job names the affected variables in its log.
+**Then add what your PoC needs** in **Project Settings -> Advanced** (button **+**: name and value, then **Submit**), and run the
+**Deploy applications** Job again. The first run, before any key exists, starts the Applications and warns that no LLM key is set.
+
+| Variable | When |
+|---|---|
+| `GEMINI_API_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` | At least one LLM key |
+| `TRINO_HOST`, `TRINO_USER`, `TRINO_PASSWORD` | Data in Trino (host only, no `https://`) |
+| `IMPALA_HOST`, `IMPALA_USER`, `IMPALA_PASSWORD` | Data in Impala |
+| `POSTGRES_PASSWORD` | Data Source is PostgreSQL |
+| `AMP_FORWARD_ENV` | Names (comma separated) of other secrets a Data Source or MCP server needs, which you also add as variables; the Data Source refers to them as `env://NAME` |
+| `AMP_RUNTIME_ID` | Only to force a runtime image; by default the runtime of the project's jobs is used |
+| `ENABLE_VLLM=true`, `VLLM_MODEL_ID`, `AMP_VLLM_RUNTIME_ID`, `GPU_PROFILE` | Serving your own model, see below |
+
+Project Settings refuses to save while a variable has an empty value, so add only variables you fill in. If a variable already shows
+`[object Object]`, or the Job reports variables that are not plain text, open a Session and run `python scripts/amp/set_env.py`
+(add the variable names to change them, for example `python scripts/amp/set_env.py TRINO_HOST`). Secrets are not echoed.
 
 **For a new PoC**, follow the [PoC guide](docs/POC-GUIDE.md).
 
@@ -70,7 +81,7 @@ without editing the file, add project variables `AMP_<APP>_CPU`, `AMP_<APP>_MEMO
 and run the deploy Job again. The workspace still limits the maximum per Application.
 
 **Optional: vLLM (your own model on a GPU).** Off by default. Most PoCs do not need it: register an external model endpoint or an API key
-in Settings -> AI Models instead. To serve your own model, set `ENABLE_VLLM=true` and `VLLM_MODEL_ID` at import (and `GPU_PROFILE`, plus
+in Settings -> AI Models instead. To serve your own model, add `ENABLE_VLLM=true` and `VLLM_MODEL_ID` in Project Settings (and set `GPU_PROFILE`, plus
 `HUGGING_FACE_HUB_TOKEN` for gated models). The setup job then also builds the vLLM virtualenv and downloads the weights, and the deploy job
 creates a fourth Application, `anywhere-vllm`, with one GPU. This needs, outside the AMP:
 - GPU nodes and quota in the workspace, and a **GPU-enabled runtime**: put its identifier in `AMP_VLLM_RUNTIME_ID`

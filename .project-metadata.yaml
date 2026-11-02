@@ -12,31 +12,10 @@ runtimes:
     kernel: Python 3.10
     edition: Standard
 
+# Only variables with a real default are declared. The Cloudera AI import form can save an edited value as "[object Object]",
+# and Project Settings refuses to save while a variable is empty. Add API keys, Trino or Impala credentials and the other
+# optional variables in Project Settings -> Advanced after the import (see README), then run the Deploy applications job.
 environment_variables:
-  GEMINI_API_KEY:
-    default: ""
-    description: Gemini API key (set at least one LLM key; the provider and model are chosen later in Settings -> AI Models).
-    required: false
-  OPENAI_API_KEY:
-    default: ""
-    description: OpenAI (or OpenAI-compatible) API key. Optional.
-    required: false
-  ANTHROPIC_API_KEY:
-    default: ""
-    description: Anthropic API key. Optional.
-    required: false
-  TRINO_HOST:
-    default: ""
-    description: Trino host (for example a Cloudera Data Warehouse Trino Virtual Warehouse).
-    required: false
-  TRINO_USER:
-    default: ""
-    description: Trino user.
-    required: false
-  TRINO_PASSWORD:
-    default: ""
-    description: Trino password. The Data Source references it as env://TRINO_PASSWORD.
-    required: false
   TRINO_CATALOG:
     default: hive
     description: Trino catalog that holds the demo tables.
@@ -53,41 +32,9 @@ environment_variables:
     default: "false"
     description: Set to true to also create the vLLM Application (serves your own model). Needs GPU nodes in the workspace, a GPU-enabled runtime and model weights. Leave false to use an external model endpoint or an API key instead.
     required: false
-  VLLM_MODEL_ID:
-    default: ""
-    description: Hugging Face model id to download for vLLM (only when ENABLE_VLLM is true). Gated models also need HUGGING_FACE_HUB_TOKEN.
-    required: false
-  AMP_VLLM_RUNTIME_ID:
-    default: ""
-    description: GPU-enabled runtime identifier for the vLLM Application (only when ENABLE_VLLM is true).
-    required: false
   GPU_PROFILE:
     default: h200
     description: GPU tuning profile for vLLM (h200, l40s or a10g). Only used when ENABLE_VLLM is true.
-    required: false
-  AMP_FORWARD_ENV:
-    default: ""
-    description: Extra variable names (comma separated) to copy to the Backend, for example the secrets a Data Source or MCP server needs (MY_DB_PASSWORD,MY_TOOL_TOKEN). Add the variables themselves in the project settings.
-    required: false
-  AMP_RUNTIME_ID:
-    default: ""
-    description: Runtime identifier for the Applications. Leave empty to use the workspace default.
-    required: false
-  IMPALA_HOST:
-    default: ""
-    description: Impala host, if the Data Source is Impala. Optional.
-    required: false
-  IMPALA_USER:
-    default: ""
-    description: Impala user. Optional.
-    required: false
-  IMPALA_PASSWORD:
-    default: ""
-    description: Impala password. Optional.
-    required: false
-  POSTGRES_PASSWORD:
-    default: ""
-    description: PostgreSQL password, if the Data Source is PostgreSQL. Optional.
     required: false
   AMP_SUBDOMAIN_PREFIX:
     default: anywhere

@@ -17,8 +17,10 @@ the platform stays the same. This guide lists what to change and where. Use it a
 
 ## 2. Checklist (about one hour with data in hand)
 
-1. **Import the AMP** with the LLM key and the data source variables. Add any other secret the PoC needs as a project
-   variable and list its name in `AMP_FORWARD_ENV` (comma separated). Run the `deploy-applications` Job again after adding variables.
+1. **Import the AMP** and click Launch without editing the form (an edited value can be saved as `[object Object]`). Then, in
+   Project Settings -> Advanced, add the LLM key and the data source variables (button **+**, then **Submit**), and any other secret the
+   PoC needs as a variable with its name listed in `AMP_FORWARD_ENV` (comma separated). Run the `deploy-applications` Job again after
+   adding variables. Details and the repair command are in the README.
 2. **LLM.** Settings -> AI Models: add a provider with a key reference `env://YOUR_KEY_NAME`, add a model, assign it to the capabilities
    (Ask Data, Knowledge, MCP). No GPU is needed for hosted models. To serve your own model, see "Optional: vLLM" in the README.
 3. **Data Source.** Data Sources -> new connection (Trino, Impala or PostgreSQL). Passwords are entered as `env://VARIABLE`, never as text.

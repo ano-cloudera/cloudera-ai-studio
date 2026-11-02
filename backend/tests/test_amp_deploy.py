@@ -232,3 +232,17 @@ def test_backend_and_qdrant_skip_the_login_and_the_frontend_keeps_it() -> None:
     assert deploy.payload_for(_plan("backend")[0])["bypass_authentication"] is True
     kept = {item["key"]: item["bypass_authentication"] for item in deploy.build_plan(deploy.load_manifest(), {**ENV, "AMP_REQUIRE_LOGIN": "backend"})}
     assert kept["backend"] is False and kept["qdrant"] is True
+
+
+def test_deploy_stops_before_building_when_a_project_variable_is_not_text(monkeypatch, capsys) -> None:
+    class Client(FakeClient):
+        def non_string_project_variables(self):
+            return ["GEMINI_API_KEY"]
+
+    monkeypatch.setattr(deploy, "Cml", lambda *a, **k: Client())
+    monkeypatch.setattr(deploy, "build_frontend", lambda *a, **k: pytest.fail("must not build"))
+    for name, value in {**ENV, "CDSW_DOMAIN": "d.example", "CDSW_PROJECT_ID": "p1", "CDSW_APIV2_KEY": "tok"}.items():
+        monkeypatch.setenv(name, value)
+    assert deploy.main([]) == 1
+    err = capsys.readouterr().err
+    assert "GEMINI_API_KEY" in err and "set_env.py" in err

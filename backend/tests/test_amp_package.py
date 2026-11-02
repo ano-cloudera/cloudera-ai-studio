@@ -52,7 +52,10 @@ def test_metadata_matches_the_repository() -> None:
     manifest = yaml.safe_load((REPO / "deployment/cai/manifests/applications.yaml").read_text(encoding="utf-8"))
     forwarded = {n for app in manifest["applications"] for n in app.get("forward_env", [])}
     assert {"GEMINI_API_KEY", "TRINO_PASSWORD"} <= forwarded
-    assert forwarded - {"QDRANT_API_KEY", "TRINO_PORT", "MODEL_PATH", "VLLM_API_KEY", "TENSOR_PARALLEL_SIZE", "MAX_MODEL_LEN", "GPU_MEMORY_UTILIZATION", "MAX_NUM_SEQS", "VLLM_TOOL_CALL_PARSER"} <= set(declared)
+    # The import form can store an edited value as "[object Object]" and Project Settings refuses empty rows,
+    # so only variables with a real default are declared; keys and credentials are added after the import.
+    assert all(str(spec.get("default", "")).strip() for spec in declared.values())
+    assert not {n for n in declared if any(w in n for w in ("KEY", "PASSWORD", "SECRET", "TOKEN"))}
 
 
 def test_setup_steps_are_ordered_and_skippable() -> None:

@@ -39,6 +39,9 @@ def _load_amp_defaults():
     return module
 
 
+LLM_KEYS = ("GEMINI_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY")
+
+
 class ApiError(RuntimeError):
     pass
 
@@ -264,6 +267,14 @@ def main(argv: list[str]) -> int:
         return 2
     client = Cml(env["CDSW_DOMAIN"], env["CDSW_PROJECT_ID"], token)
     try:
+        bad = client.non_string_project_variables()
+        if bad:
+            print(f"Stopped before building anything: these project variables are not plain text: {', '.join(bad)}.", file=sys.stderr)
+            print("Fix: in a Session run: python scripts/amp/set_env.py (it asks for them again), then run this job again.", file=sys.stderr)
+            return 1
+        if not args.check and not any(env.get(n) for n in LLM_KEYS):
+            print(f"Warning: no LLM key is set ({', '.join(LLM_KEYS)}). The Applications start, but Ask Data cannot answer yet: "
+                  "add one in Project Settings -> Advanced and run this job again.")
         if args.check:
             apps = client.list_applications()
             print(f"API reachable; {len(apps)} Application(s) in the project: {', '.join(sorted(a.get('subdomain', '?') for a in apps)) or 'none'}")
