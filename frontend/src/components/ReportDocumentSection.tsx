@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { BarChart3, Briefcase, FileText, Lightbulb } from 'lucide-react'
 import {
   InsightListItem,
@@ -12,11 +12,13 @@ import { AnswerChart } from './AnswerChart'
 import { AnswerProse } from './AnswerProse'
 import { WorkspaceDataTable } from './analysis/WorkspaceDataTable'
 import { WorkspaceQueryView } from './analysis/WorkspaceQueryView'
+import { ResultMap } from './analysis/ResultMap'
 import { KpiCard } from './KpiCard'
+import { detectGeo } from '../lib/geo'
 import { formatCitationLabel, isRagResponse } from '../lib/ragReport'
 import type { ChatResponse } from '../types/api'
 
-type WorkspaceTab = 'summary' | 'table' | 'query' | 'sources'
+type WorkspaceTab = 'summary' | 'map' | 'table' | 'query' | 'sources'
 
 type Props = {
   response: ChatResponse
@@ -26,9 +28,11 @@ function workspaceTabs(
   hasTable: boolean,
   hasQuery: boolean,
   hasSources: boolean,
+  hasMap = false,
 ): { id: WorkspaceTab; label: string; disabled?: boolean }[] {
   const tabs: { id: WorkspaceTab; label: string; disabled?: boolean }[] = [{ id: 'summary', label: 'Summary' }]
   if (hasSources) tabs.push({ id: 'sources', label: 'Sources' })
+  if (hasMap) tabs.push({ id: 'map', label: 'Map' })
   tabs.push({ id: 'table', label: 'Table', disabled: !hasTable })
   tabs.push({ id: 'query', label: 'Query', disabled: !hasQuery })
   return tabs
@@ -86,7 +90,8 @@ export function ReportDocumentSection({ response }: Props) {
   const hasQuery = Boolean(sql || response.data.governed_metric || response.answer.data_reference.trim())
   const citations = response.citations ?? []
   const hasSources = rag && citations.length > 0
-  const tabs = workspaceTabs(hasTable, hasQuery, hasSources)
+  const geo = useMemo(() => (rag ? null : detectGeo(response.data.columns, response.data.rows)), [rag, response.data.columns, response.data.rows])
+  const tabs = workspaceTabs(hasTable, hasQuery, hasSources, Boolean(geo))
   const summarySame =
     response.answer.executive_summary.trim() === response.answer.direct_answer.trim()
   const chartTitle = response.chart_spec?.title || 'Visualization'
@@ -157,6 +162,15 @@ export function ReportDocumentSection({ response }: Props) {
             </WorkspaceSection>
           )}
 
+          {geo && (
+            <p className="mt-4 text-xs text-slate-500 sm:ml-[calc(3rem+1rem)]">
+              This result has provinces.{' '}
+              <button type="button" onClick={() => setTab('map')} className="font-semibold text-cloudera-orange hover:underline">
+                View it on the map →
+              </button>
+            </p>
+          )}
+
           {!hasVisualChart && response.chart_spec?.type !== 'kpi' && hasTable && (
             <p className="mt-4 text-xs text-slate-500 sm:ml-[calc(3rem+1rem)]">
               No chart for this turn. Open the <strong className="font-semibold">Table</strong> tab for the full
@@ -179,6 +193,18 @@ export function ReportDocumentSection({ response }: Props) {
               </WorkspaceSectionContent>
             </WorkspaceSection>
           )}
+        </div>
+      )}
+
+      {tab === 'map' && geo && (
+        <div className="mt-6" role="tabpanel">
+          <ResultMap
+            columns={response.data.columns}
+            rows={response.data.rows}
+            detection={geo}
+            metric={response.data.governed_metric ?? undefined}
+            unitFormat={response.data.unit_format ?? undefined}
+          />
         </div>
       )}
 

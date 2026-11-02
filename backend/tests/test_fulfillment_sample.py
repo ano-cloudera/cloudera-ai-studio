@@ -40,15 +40,15 @@ def test_the_tables_share_keys_and_the_patterns_are_planted() -> None:
         return sum(r["is_late"] == "true" for r in rows) / len(rows)
 
     overall = late(shipments)
-    kalimantan_nusa = [s for s in shipments if s["region_name"] == "Kalimantan" and s["carrier"] == "NusaCargo"]
+    kalimantan_nusa = [s for s in shipments if s["region_name"] == "Kalimantan Timur" and s["carrier"] == "NusaCargo"]
     assert late(kalimantan_nusa) > 0.25 > overall
 
 
 def test_the_mcp_tool_matches_the_policy_and_rejects_bad_input() -> None:
     server = _load("late_delivery_server")
-    risky = json.loads(server.assess_delivery_risk("Kalimantan", "NusaCargo", "Regular", "Home & Living", 7))
+    risky = json.loads(server.assess_delivery_risk("Kalimantan Timur", "NusaCargo", "Regular", "Home & Living", 7))
     assert risky["band"] == "High" and "above 25%" in risky["policy_check"]
-    calm = json.loads(server.assess_delivery_risk("Jabodetabek", "FastExpress", "Regular", "Fashion"))
+    calm = json.loads(server.assess_delivery_risk("DKI Jakarta", "FastExpress", "Regular", "Fashion"))
     assert calm["band"] == "Low" and calm["policy_check"] == "no action"
     assert "region_name must be one of" in json.loads(server.assess_delivery_risk("Mars", "FastExpress"))["error"]
 

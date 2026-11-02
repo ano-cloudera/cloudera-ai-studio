@@ -2,8 +2,8 @@
 """Generate the synthetic fulfillment and delivery data (two tables that share `order_id` and `region_name`).
 
 Deterministic (fixed seed): running it again writes identical CSVs. Planted patterns, so test answers are checkable:
-  * Kalimantan x NusaCargo is late far more often than the rest (carrier review territory).
-  * Sumatera x KilatKirim is late far more often from June to August.
+  * Kalimantan Timur x NusaCargo is late far more often than the rest (carrier review territory).
+  * Sumatera Utara x KilatKirim is late far more often from June to August.
   * Home & Living (bulky goods) is late more often; Jawa Timur is mildly worse than average; Electronics fails delivery more; Fashion is returned more.
   * Marketplace orders take longer to fulfil.
 
@@ -22,9 +22,9 @@ ORDERS = 8000
 START, END = date(2026, 1, 1), date(2026, 8, 31)
 
 REGIONS = {  # region -> (warehouse, weight)
-    "Jabodetabek": ("WH-Jakarta", 24), "Jawa Barat": ("WH-Jakarta", 16), "Jawa Tengah": ("WH-Surabaya", 12),
-    "Jawa Timur": ("WH-Surabaya", 14), "Sumatera": ("WH-Medan", 14), "Kalimantan": ("WH-Surabaya", 8),
-    "Sulawesi": ("WH-Surabaya", 7), "Bali-Nusa Tenggara": ("WH-Surabaya", 5),
+    "DKI Jakarta": ("WH-Jakarta", 24), "Jawa Barat": ("WH-Jakarta", 16), "Jawa Tengah": ("WH-Surabaya", 12),
+    "Jawa Timur": ("WH-Surabaya", 14), "Sumatera Utara": ("WH-Medan", 14), "Kalimantan Timur": ("WH-Surabaya", 8),
+    "Sulawesi Selatan": ("WH-Surabaya", 7), "Bali": ("WH-Surabaya", 5),
 }
 CHANNELS = {"Website": 30, "Mobile App": 45, "Marketplace": 25}
 CATEGORIES = {"Electronics": 22, "Fashion": 30, "Home & Living": 18, "Beauty": 15, "Grocery": 15}
@@ -38,7 +38,7 @@ def pick(rng: random.Random, weights: dict):
 
 def carrier_for(rng: random.Random, region: str) -> str:
     weights = {"FastExpress": 40, "KilatKirim": 35, "NusaCargo": 25}
-    if region == "Kalimantan":
+    if region == "Kalimantan Timur":
         weights = {"FastExpress": 20, "KilatKirim": 20, "NusaCargo": 60}
     return pick(rng, weights)
 
@@ -47,9 +47,9 @@ def late_probability(region: str, carrier: str, service: str, month: int, catego
     p = 0.07
     if region == "Jawa Timur":
         p = 0.13
-    if region == "Kalimantan" and carrier == "NusaCargo":
+    if region == "Kalimantan Timur" and carrier == "NusaCargo":
         p = 0.30
-    if region == "Sumatera" and carrier == "KilatKirim" and month in (6, 7, 8):
+    if region == "Sumatera Utara" and carrier == "KilatKirim" and month in (6, 7, 8):
         p = 0.28
     if category == "Home & Living":  # bulky goods
         p += 0.05

@@ -15,19 +15,24 @@ behavior, and do not count them as failures.
 | P6 | Platform | Run the **Deploy applications** Job again with no change | Finishes, all Applications Running (about 3 min, plus about 30 s per Application update) | |
 | S1 | Semantic | Create one model with the 3 entities from [SEMANTIC-MODEL.md](../samples/fulfillment/SEMANTIC-MODEL.md), **Publish** | Published; the metrics appear under "Browse published metrics" | |
 | A1 | Ask Data | How many orders per month? | Jan 1014, Feb 904, Mar 1002, Apr 963, May 969, Jun 1074, Jul 1035, Aug 1039. Tabs Summary, Table, Query filled | |
-| A2 | Ask Data | Which region has the highest late delivery rate? | **Kalimantan, 23.1%** (Jawa Timur is next at 16.3%) | |
+| A2 | Ask Data | Which region has the highest late delivery rate? | **Kalimantan Timur, 23.1%** (Jawa Timur is next at 16.3%) | |
 | A3 | Ask Data | Late delivery rate by carrier | NusaCargo 13.2%, KilatKirim 11.3%, FastExpress 9.8% | |
 | A4 | Ask Data | Late delivery rate in Jawa Timur (a value in the question) | **16.3%**, with a note that it is filtered to Jawa Timur | |
-| A5 | Ask Data | Late delivery rate by region and carrier | Table of region x carrier; Kalimantan x NusaCargo **32.2%** is the highest | |
-| A6 | Drill-across | Late delivery rate and average fulfillment time by region | One table, two metric columns. Late rate as in A2; hours: Bali-Nusa Tenggara 15.8, Jabodetabek 15.5, Jawa Barat 15.5, Jawa Tengah 15.1, Jawa Timur 15.4, Kalimantan 15.7, Sulawesi 15.5, Sumatera 15.3. The answer says each metric was computed separately | |
+| A5 | Ask Data | Late delivery rate by region and carrier | Table of region x carrier; Kalimantan Timur x NusaCargo **32.2%** is the highest | |
+| A6 | Drill-across | Late delivery rate and average fulfillment time by region | One table, two metric columns. Late rate as in A2; hours: Bali 15.8, DKI Jakarta 15.5, Jawa Barat 15.5, Jawa Tengah 15.1, Jawa Timur 15.4, Kalimantan Timur 15.7, Sulawesi Selatan 15.5, Sumatera Utara 15.3. The answer says each metric was computed separately | |
 | A7 | Published view | Late rate by product category | Home & Living **16.3%**, Grocery 11.3, Electronics 10.1, Fashion 10.1, Beauty 9.2 (answered from the view) | |
 | A8 | Published view | Late rate by channel | Marketplace 12.4%, Mobile App 10.9, Website 10.9 | |
 | A9 | Ask Data | Average fulfillment time by channel | Marketplace 20.1 h, Website 14.1, Mobile App 13.9 | |
 | A10 | Ask Data | What is the cancellation rate? | **3.8%** | |
 | A11 | No join | Return rate by product category | Not answered with a number: no published model has both the return rate and the category. It must say so or ask, never invent a join | |
+| G1 | Map | Late delivery rate by region, then open the **Map** tab (it appears only when a result has provinces) | The map of Indonesia with the 8 provinces coloured pale to deep orange; Kalimantan Timur (23.1%) is the deepest, then Jawa Timur (16.3%). The list on the right is ordered the same way | |
+| G2 | Map | On the Map tab, switch **Areas** to **Bubbles** | Circles at each province; Kalimantan Timur has the largest | |
+| G3 | Map | Hover a province; drag the map; use the zoom buttons and Reset | A tooltip with the province and value; the map pans and zooms; Reset returns to the full view | |
+| G4 | Map | Ask something with no province (late rate by carrier) | No **Map** tab | |
+| G5 | Map | Ask late rate by region and carrier, then open the Map tab (if present) | Provinces repeat across carriers; the map sums them per province or the tab is absent. Record which | |
 | A12 | Out of scope | What is our net profit? | Says it is not in the published metrics | |
-| A13 | Known limit | Compare the late rate of Sumatera from March-May with June-August | Truth: 6.0% vs 15.6% (+9.6 points). Record what happens (two-period comparison is not implemented) | |
-| A14 | Known limit | Which regions are above the overall late rate? | Truth: Jawa Timur and Kalimantan (overall 11.3%). Record what happens (benchmark comparison is not implemented) | |
+| A13 | Known limit | Compare the late rate of Sumatera Utara from March-May with June-August | Truth: 6.0% vs 15.6% (+9.6 points). Record what happens (two-period comparison is not implemented) | |
+| A14 | Known limit | Which regions are above the overall late rate? | Truth: Jawa Timur and Kalimantan Timur (overall 11.3%). Record what happens (benchmark comparison is not implemented) | |
 | K1 | Knowledge | Create a library, upload `Delivery_Returns_Policy.pdf`, wait for **Ready** | Ready, 5 pages indexed | |
 | K2 | Knowledge | (attach the library) What is the service level of regular delivery? | **4 days** (Express 2 days), cited to page 1 | |
 | K3 | Knowledge | When is a carrier review triggered? | Late rate above **15%** in a region in a month; above 25% new volume is held. Cited to page 2 | |
@@ -37,12 +42,12 @@ behavior, and do not count them as failures.
 | K7 | Knowledge | What is the courier insurance policy? | Says it cannot answer from the library; no invented policy | |
 | K8 | Knowledge | Click a `Page N` chip or the source file | The PDF opens at that page | |
 | M1 | MCP | Register the server (stdio, backend venv Python, `samples/fulfillment/late_delivery_server.py`), **Test connection** | Success; tool `assess_delivery_risk` listed | |
-| M2 | MCP | (attach the server) Assess a Regular Home & Living shipment to Kalimantan with NusaCargo in July | Probability **0.35**, band High, policy: volume hold above 25% | |
-| M3 | MCP | Assess a Regular Fashion shipment in Jabodetabek with FastExpress | Probability **0.07**, band Low, no action | |
+| M2 | MCP | (attach the server) Assess a Regular Home & Living shipment to Kalimantan Timur with NusaCargo in July | Probability **0.35**, band High, policy: volume hold above 25% | |
+| M3 | MCP | Assess a Regular Fashion shipment in DKI Jakarta with FastExpress | Probability **0.07**, band Low, no action | |
 | M4 | MCP | Assess a shipment to "Mars" | A message listing the valid regions; no crash | |
 | R1 | Routing | A data question with the library chip attached | Answered from the library (the chip decides), or says it is not there | |
 | R2 | Routing | A policy question with no chip | Answered by Ask Data (no chip is Ask Data), not from the documents | |
-| X1 | Known limit | Which region and carrier pairs are above the policy review threshold? | Data side: Kalimantan x NusaCargo 32.2, Jawa Timur x FastExpress 17.8, Sumatera x KilatKirim 16.4, Jawa Timur x NusaCargo 15.9, Jawa Timur x KilatKirim 15.1. The 15% threshold lives in the policy: record whether the two sources are combined | |
+| X1 | Known limit | Which region and carrier pairs are above the policy review threshold? | Data side: Kalimantan Timur x NusaCargo 32.2, Jawa Timur x FastExpress 17.8, Sumatera Utara x KilatKirim 16.4, Jawa Timur x NusaCargo 15.9, Jawa Timur x KilatKirim 15.1. The 15% threshold lives in the policy: record whether the two sources are combined | |
 | PR1 | Prompts | Open Prompts, Create prompt | Internal keys offered: `ask_data.system`, `rag.system`, `rag.insufficient_evidence`; no scope choice | |
 | PR2 | Prompts | Create and **Publish** `ask_data.system`: "Answer in at most two sentences and end with: Governed answer." Re-ask A2 | The answer follows the new instruction | |
 | PR3 | Prompts | Create version 2, publish it, then **Rollback** to version 1 | A2 answers in the style of the published version each time | |

@@ -41,3 +41,10 @@ Runtime joins are disabled on purpose: the model never writes a join. There are 
 2. **Published view**: the data owner creates `v_fulfillment_delivery` in Trino (order columns joined to shipment columns) and publishes it
    as an entity. Questions that need columns from both tables (late rate by product category) are answered from the view.
 3. **No join available**: a question that needs a join nobody published is answered with "not supported", not guessed.
+
+## Maps
+
+The 8 regions are real Indonesian provinces (DKI Jakarta, Jawa Barat, Jawa Tengah, Jawa Timur, Sumatera Utara, Kalimantan Timur,
+Sulawesi Selatan, Bali). Any Ask Data result that has a province column and a numeric column gets a **Map** tab: provinces coloured by
+the value (Areas) or sized circles (Bubbles). The boundaries are bundled in the Frontend (`public/geo/indonesia-provinces.json`,
+Natural Earth, public domain), so the map works offline and sends no data anywhere.

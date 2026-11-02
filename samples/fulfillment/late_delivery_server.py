@@ -38,7 +38,7 @@ def assess_delivery_risk(
 ) -> str:
     """Estimate how likely a shipment is to arrive after its SLA and check it against the delivery policy.
 
-    region_name: Jabodetabek, Jawa Barat, Jawa Tengah, Jawa Timur, Sumatera, Kalimantan, Sulawesi or Bali-Nusa Tenggara.
+    region_name: DKI Jakarta, Jawa Barat, Jawa Tengah, Jawa Timur, Sumatera Utara, Kalimantan Timur, Sulawesi Selatan or Bali.
     carrier: FastExpress, KilatKirim or NusaCargo. service_level: Regular (SLA 4 days) or Express (SLA 2 days).
     product_category: Electronics, Fashion, Home & Living, Beauty or Grocery. ship_month: 1-12 (optional).
     Returns the late probability, its band, the policy check and the main drivers.
@@ -57,10 +57,10 @@ def assess_delivery_risk(
         return json.dumps({"error": "; ".join(problems)})
     p = late_probability(region_name, carrier, service_level, ship_month or 1, product_category)
     drivers = []
-    if region_name == "Kalimantan" and carrier == "NusaCargo":
-        drivers.append("Kalimantan with NusaCargo has the highest late rate in the data")
-    if region_name == "Sumatera" and carrier == "KilatKirim" and ship_month in (6, 7, 8):
-        drivers.append("Sumatera with KilatKirim is late far more often from June to August")
+    if region_name == "Kalimantan Timur" and carrier == "NusaCargo":
+        drivers.append("Kalimantan Timur with NusaCargo has the highest late rate in the data")
+    if region_name == "Sumatera Utara" and carrier == "KilatKirim" and ship_month in (6, 7, 8):
+        drivers.append("Sumatera Utara with KilatKirim is late far more often from June to August")
     if product_category == "Home & Living":
         drivers.append("bulky goods (Home & Living) arrive late more often")
     if service_level == "Express":

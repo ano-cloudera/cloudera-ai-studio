@@ -46,10 +46,10 @@ def main() -> None:
     show("late rate % by carrier", {k: late_rate(v) for k, v in by(shipments, lambda r: r["carrier"]).items()})
     show("late rate % Mar-May by region", {k: late_rate(v) for k, v in by([r for r in shipments if r["ship_date"][5:7] in MAR_MAY], lambda r: r["region_name"]).items()})
     show("late rate % Jun-Aug by region", {k: late_rate(v) for k, v in by([r for r in shipments if r["ship_date"][5:7] in JUN_AUG], lambda r: r["region_name"]).items()})
-    kn = [r for r in shipments if r["region_name"] == "Kalimantan" and r["carrier"] == "NusaCargo"]
-    print("late rate % Kalimantan x NusaCargo:", late_rate(kn), f"(n={len(kn)})")
-    sk = [r for r in shipments if r["region_name"] == "Sumatera" and r["carrier"] == "KilatKirim"]
-    print("late rate % Sumatera x KilatKirim Jun-Aug:", late_rate([r for r in sk if r["ship_date"][5:7] in JUN_AUG]), "| Jan-May:", late_rate([r for r in sk if r["ship_date"][5:7] not in JUN_AUG]))
+    kn = [r for r in shipments if r["region_name"] == "Kalimantan Timur" and r["carrier"] == "NusaCargo"]
+    print("late rate % Kalimantan Timur x NusaCargo:", late_rate(kn), f"(n={len(kn)})")
+    sk = [r for r in shipments if r["region_name"] == "Sumatera Utara" and r["carrier"] == "KilatKirim"]
+    print("late rate % Sumatera Utara x KilatKirim Jun-Aug:", late_rate([r for r in sk if r["ship_date"][5:7] in JUN_AUG]), "| Jan-May:", late_rate([r for r in sk if r["ship_date"][5:7] not in JUN_AUG]))
     show("late rate % by product category (needs the order table: published view)", {k: late_rate(v) for k, v in by(shipments, lambda r: order_of[r["order_id"]]["product_category"]).items()})
     show("late rate % by channel (needs the order table: published view)", {k: late_rate(v) for k, v in by(shipments, lambda r: order_of[r["order_id"]]["channel"]).items()})
     show("average fulfillment hours by channel", {k: round(sum(float(o["fulfillment_hours"]) for o in v) / len(v), 1) for k, v in by(orders, lambda o: o["channel"]).items()})
