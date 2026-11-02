@@ -15,9 +15,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
 import importlib.util
 import json
 import os
+import secrets
 import subprocess
 import sys
 import time
@@ -116,6 +119,37 @@ def load_manifest(path: Path = MANIFEST) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
+def studio_secret(env: dict[str, str]) -> str:
+    """Random secret kept on the project filesystem, so every deploy reuses it. The Backend and Qdrant (created without a
+    platform login) accept calls only with values derived from it."""
+    data = Path(env.get("CAI_DATA_DIR") or Path(env.get("HOME") or "/home/cdsw") / "anywhere-studio-data")
+    path = data / "secrets" / "studio_api_secret"
+    if path.is_file() and path.read_text(encoding="utf-8").strip():
+        return path.read_text(encoding="utf-8").strip()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    value = secrets.token_urlsafe(32)
+    path.write_text(value, encoding="utf-8")
+    path.chmod(0o600)
+    return value
+
+
+def derive(secret: str, purpose: str) -> str:
+    return hmac.new(secret.encode(), purpose.encode(), hashlib.sha256).hexdigest()[:48]
+
+
+def with_studio_secrets(env: dict[str, str]) -> dict[str, str]:
+    """Add STUDIO_API_TOKEN (Backend path secret) and QDRANT_API_KEY unless the project sets them."""
+    out = dict(env)
+    if out.get("STUDIO_API_TOKEN") and out.get("QDRANT_API_KEY"):
+        return out
+    secret = studio_secret(out)
+    if not out.get("STUDIO_API_TOKEN"):
+        out["STUDIO_API_TOKEN"] = derive(secret, "backend")
+    if not out.get("QDRANT_API_KEY"):
+        out["QDRANT_API_KEY"] = derive(secret, "qdrant")
+    return out
+
+
 def build_plan(manifest: dict, env: dict[str, str], only: str | None = None) -> list[dict]:
     amp = _load_amp_defaults()
     prefix = env.get("AMP_SUBDOMAIN_PREFIX", "").strip() or manifest.get("subdomain_prefix", "anywhere")
@@ -134,6 +168,8 @@ def build_plan(manifest: dict, env: dict[str, str], only: str | None = None) -> 
         for name in ("QDRANT_URL", "CORS_ORIGINS", "BACKEND_API_URL"):
             if app["key"] in ("backend", "frontend") and derived.get(name):
                 environment[name] = derived[name]  # an explicit project value wins inside with_amp_defaults
+        if app["key"] == "frontend" and env.get("STUDIO_API_TOKEN") and environment.get("BACKEND_API_URL"):
+            environment["BACKEND_API_URL"] = f"{environment['BACKEND_API_URL'].rstrip('/')}/{env['STUDIO_API_TOKEN']}"
         for name in [*(app.get("forward_env") or []), *(extra if app["key"] == "backend" else [])]:
             if env.get(name):
                 environment[name] = env[name]
@@ -254,6 +290,8 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--timeout", type=float, default=900.0)
     args, _ = parser.parse_known_args(argv)  # the IPython kernel that runs CAI jobs adds '-f <kernel.json>' to argv
     env = dict(os.environ)
+    if not args.dry_run:
+        env = with_studio_secrets(env)
     plan = build_plan(load_manifest(), env, args.only)
     if args.dry_run:
         for item in plan:

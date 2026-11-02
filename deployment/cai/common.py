@@ -5,6 +5,7 @@ import os
 import signal
 import subprocess
 import time
+import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
@@ -119,6 +120,8 @@ def http_ready(url: str, timeout: float = 2.0) -> bool:
     try:
         with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310
             return 200 <= response.status < 500
+    except urllib.error.HTTPError as exc:  # a 401 or 404 still proves the server is up (an API key may protect it)
+        return exc.code < 500
     except OSError:
         return False
 

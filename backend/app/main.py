@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.security.path_token import PathTokenMiddleware
 from app.api import chat, models, usage
 from app.api.v1 import documents as v1_documents
 from app.api.v1 import libraries as v1_libraries
@@ -100,6 +101,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         history=conversation_store,
         usage_store=usage_store,
     )
+    studio_token = configured.studio_api_token.get_secret_value().strip()
+    if studio_token:
+        application.add_middleware(PathTokenMiddleware, token=studio_token)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=configured.cors_origin_list,

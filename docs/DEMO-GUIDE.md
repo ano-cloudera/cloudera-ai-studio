@@ -49,7 +49,7 @@ user, and the password as `env://TRINO_PASSWORD`. Run **Test connection**, then 
 ## 5. Upload the knowledge documents
 
 **Knowledge** → create a library (for example `Policy Knowledge`) and upload your documents (PDF or text). Wait until each document is
-**Ready**. Documents are stored under `/home/cdsw/cai-studio-data/documents` and indexed in Qdrant; deleting a document in the UI also removes
+**Ready**. Documents are stored under `/home/cdsw/anywhere-studio-data/documents` and indexed in Qdrant; deleting a document in the UI also removes
 its vectors and files.
 
 ## 6. Register the MCP server

@@ -184,6 +184,7 @@ class Settings(BaseSettings):
     embedding_batch_size: int = Field(default=16, ge=1, le=128, validation_alias="EMBEDDING_BATCH_SIZE")
     qdrant_url: str = Field(default="", validation_alias="QDRANT_URL")
     qdrant_api_key: SecretStr = Field(default=SecretStr(""), validation_alias="QDRANT_API_KEY")
+    studio_api_token: SecretStr = Field(default=SecretStr(""), validation_alias="STUDIO_API_TOKEN")
     qdrant_collection: str = Field(default="accelerator_chunks", validation_alias="QDRANT_COLLECTION")
     qdrant_timeout_seconds: int = Field(default=30, ge=1, le=120, validation_alias="QDRANT_TIMEOUT_SECONDS")
     document_auto_process: bool = Field(default=True, validation_alias="DOCUMENT_AUTO_PROCESS")

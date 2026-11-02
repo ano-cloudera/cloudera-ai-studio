@@ -46,7 +46,7 @@ bash scripts/cai/prepare_qdrant_ui.sh /home/cdsw/tools/qdrant/static
 bash scripts/cai/prepare_embedding_model.sh /home/cdsw/models/bge-m3
 
 # Persistent data root shared by Session and Applications
-mkdir -p /home/cdsw/cai-studio-data/{metadata,documents,var,qdrant/storage}
+mkdir -p /home/cdsw/anywhere-studio-data/{metadata,documents,var,qdrant/storage}
 ```
 
 > `npm: command not found` in a new terminal means `/home/cdsw/tools/node/bin` is not on `PATH`. Re-run the `export` line.
@@ -87,7 +87,7 @@ Replace `<...-app-domain>` with the domain CAI assigns to each Application after
 | Environment variable | Value | Change it? |
 |---|---|---|
 | `QDRANT_BINARY` | `/home/cdsw/tools/qdrant/qdrant` | Only if you installed the binary elsewhere in step 2 |
-| `QDRANT_STORAGE_PATH` | `/home/cdsw/cai-studio-data/qdrant/storage` | Only if you changed the data root |
+| `QDRANT_STORAGE_PATH` | `/home/cdsw/anywhere-studio-data/qdrant/storage` | Only if you changed the data root |
 | `QDRANT_STATIC_DIR` | `/home/cdsw/tools/qdrant/static` | Only if you installed the UI elsewhere |
 | `STUDIO_REPO_ROOT` | `/home/cdsw/anywhere-ai-studio` | **Yes**, if the repo path differs |
 | `APP_STARTUP_TIMEOUT_MINUTES` | `5` | No |
@@ -109,10 +109,10 @@ Do **not** set `CDSW_APP_PORT`, `CDSW_PUBLIC_PORT` or `CDSW_READONLY_PORT`; CAI 
 | `DEPLOYMENT_PROFILE` | `cai` | No |
 | `STATE_STORE` | `sqlite` | No |
 | `UVICORN_WORKERS` | `1` | No (SQLite on the project filesystem needs one worker) |
-| `CAI_DATA_DIR` | `/home/cdsw/cai-studio-data` | Only if you changed the data root |
-| `DATABASE_URL` | `sqlite+pysqlite:////home/cdsw/cai-studio-data/metadata/studio.db` | Only if you changed the data root |
-| `DOCUMENT_STORAGE_ROOT` | `/home/cdsw/cai-studio-data/documents` | Only if you changed the data root |
-| `SEMANTIC_RUNTIME_STORAGE_ROOT` | `/home/cdsw/cai-studio-data/var/semantic-runtime` | Only if you changed the data root |
+| `CAI_DATA_DIR` | `/home/cdsw/anywhere-studio-data` | Only if you changed the data root |
+| `DATABASE_URL` | `sqlite+pysqlite:////home/cdsw/anywhere-studio-data/metadata/studio.db` | Only if you changed the data root |
+| `DOCUMENT_STORAGE_ROOT` | `/home/cdsw/anywhere-studio-data/documents` | Only if you changed the data root |
+| `SEMANTIC_RUNTIME_STORAGE_ROOT` | `/home/cdsw/anywhere-studio-data/var/semantic-runtime` | Only if you changed the data root |
 | `QDRANT_URL` | `https://<qdrant-app-domain>:443` | **Yes**. Keep `:443`; never use a pod IP |
 | `QDRANT_COLLECTION` | `accelerator_chunks` | No |
 | `CORS_ORIGINS` | `https://<frontend-app-domain>` | **Yes** (comma-separate more than one origin, no wildcard) |

@@ -45,8 +45,8 @@ and waits for each:
 ## Before you start
 
 1. **Allow unauthenticated Applications.** Ask the workspace admin to enable **Site Administration -> Security -> Allow applications
-   to be configured with unauthenticated access**. The Backend and Qdrant are called by the other Applications without a login (the
-   Frontend keeps the login), so use this for demos and PoCs, not for sensitive data.
+   to be configured with unauthenticated access**. The Backend and Qdrant are called by the other Applications without a Cloudera AI
+   login (the Frontend keeps the login). The deploy Job protects them with a generated secret instead (see "Known limits").
 2. **Check the quota.** By default the three Applications request **10 vCPU and 20 GB** in total: Qdrant 4 vCPU / 8 GB, Backend
    4 vCPU / 8 GB, Frontend 2 vCPU / 4 GB ([change them](docs/POC-GUIDE.md#sizing-the-applications)).
 3. **Have your values ready:** a Gemini, OpenAI or Anthropic API key, and the Trino or Impala host, user and password.
@@ -121,7 +121,12 @@ Starting a new PoC? Follow the [PoC guide](docs/POC-GUIDE.md).
 
 - The Application subdomains are fixed (`anywhere-qdrant`, `anywhere-backend`, `anywhere-frontend`). If they collide in your workspace,
   add the project variable `AMP_SUBDOMAIN_PREFIX` before the first deploy.
-- The Backend and Qdrant run without a login (see "Before you start"). Do not load sensitive data into a demo workspace that others can reach.
+- **Backend and Qdrant have no Cloudera AI login.** The deploy Job generates a secret (kept in `/home/cdsw/anywhere-studio-data/secrets/`,
+  readable by project collaborators only). The Backend answers only under `<backend-url>/<secret>/...` (everything else is 404 except
+  `/health`), and Qdrant requires an API key; the Frontend adds both for you, and the browser never sees them. Open the Backend API
+  docs at `<backend-url>/<secret>/docs`. To use the Qdrant dashboard, set the project variable `QDRANT_API_KEY` to a value you choose
+  and run the deploy Job again, then enter it in the dashboard. This is enough for demos and PoCs; it is not a replacement for real
+  authentication, so do not load sensitive data.
 - The deploy Job calls the Cloudera AI REST API with the key Cloudera AI provides to Jobs (`CDSW_APIV2_KEY`). It has been run end to end
   in one workspace only; report failures with the Job log.
 

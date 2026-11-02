@@ -21,7 +21,7 @@ applications:
     health_path: /readyz
     environment:
       QDRANT_BINARY: /home/cdsw/tools/qdrant/qdrant
-      QDRANT_STORAGE_PATH: /home/cdsw/cai-studio-data/qdrant/storage
+      QDRANT_STORAGE_PATH: /home/cdsw/anywhere-studio-data/qdrant/storage
       QDRANT_STATIC_DIR: /home/cdsw/tools/qdrant/static
       APP_STARTUP_TIMEOUT_MINUTES: "5"
     forward_env: [QDRANT_API_KEY]
@@ -38,16 +38,17 @@ applications:
       DEPLOYMENT_PROFILE: cai
       STATE_STORE: sqlite
       UVICORN_WORKERS: "1"
-      CAI_DATA_DIR: /home/cdsw/cai-studio-data
-      DATABASE_URL: sqlite+pysqlite:////home/cdsw/cai-studio-data/metadata/studio.db
-      DOCUMENT_STORAGE_ROOT: /home/cdsw/cai-studio-data/documents
-      SEMANTIC_RUNTIME_STORAGE_ROOT: /home/cdsw/cai-studio-data/var/semantic-runtime
+      CAI_DATA_DIR: /home/cdsw/anywhere-studio-data
+      DATABASE_URL: sqlite+pysqlite:////home/cdsw/anywhere-studio-data/metadata/studio.db
+      DOCUMENT_STORAGE_ROOT: /home/cdsw/anywhere-studio-data/documents
+      SEMANTIC_RUNTIME_STORAGE_ROOT: /home/cdsw/anywhere-studio-data/var/semantic-runtime
       QDRANT_COLLECTION: accelerator_chunks
       EMBEDDING_PROVIDER: bge_m3
       EMBEDDING_MODEL: /home/cdsw/models/bge-m3
       HF_HUB_OFFLINE: "1"
       APP_STARTUP_TIMEOUT_MINUTES: "10"
     forward_env:
+      - STUDIO_API_TOKEN
       - GEMINI_API_KEY
       - OPENAI_API_KEY
       - ANTHROPIC_API_KEY

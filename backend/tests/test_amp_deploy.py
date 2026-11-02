@@ -246,3 +246,24 @@ def test_deploy_stops_before_building_when_a_project_variable_is_not_text(monkey
     assert deploy.main([]) == 1
     err = capsys.readouterr().err
     assert "GEMINI_API_KEY" in err and "set_env.py" in err
+
+
+def test_the_frontend_reaches_the_backend_under_a_secret_and_qdrant_gets_a_key() -> None:
+    env = {**ENV, "STUDIO_API_TOKEN": "tok123", "QDRANT_API_KEY": "qkey"}
+    plan = {item["key"]: item for item in deploy.build_plan(deploy.load_manifest(), env)}
+    assert plan["frontend"]["environment"]["BACKEND_API_URL"] == "https://anywhere-backend.ml-1.example.site/tok123"
+    assert plan["backend"]["environment"]["STUDIO_API_TOKEN"] == "tok123"
+    assert plan["backend"]["environment"]["QDRANT_API_KEY"] == "qkey"
+    assert plan["qdrant"]["environment"]["QDRANT_API_KEY"] == "qkey"
+    assert "STUDIO_API_TOKEN" not in plan["frontend"]["environment"] and "STUDIO_API_TOKEN" not in plan["qdrant"]["environment"]
+
+
+def test_the_secrets_are_created_once_and_reused(tmp_path) -> None:
+    env = {"CAI_DATA_DIR": str(tmp_path)}
+    first = deploy.with_studio_secrets(env)
+    second = deploy.with_studio_secrets(env)
+    assert first["STUDIO_API_TOKEN"] == second["STUDIO_API_TOKEN"] and first["QDRANT_API_KEY"] == second["QDRANT_API_KEY"]
+    assert first["STUDIO_API_TOKEN"] != first["QDRANT_API_KEY"]
+    assert (tmp_path / "secrets" / "studio_api_secret").stat().st_mode & 0o777 == 0o600
+    explicit = deploy.with_studio_secrets({**env, "STUDIO_API_TOKEN": "mine"})
+    assert explicit["STUDIO_API_TOKEN"] == "mine"
