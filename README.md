@@ -73,7 +73,7 @@ and waits for each:
 **4. Deploy**
 - **Jobs -> Deploy applications -> Run.** It builds the UI and creates the three Applications.
 - The AMP already runs it once at the end of the import. Without keys that run only warns that no LLM key is set, so run it again now.
-- Time: not measured yet.
+- Time: about 3 min (it builds the UI and starts the three Applications).
 
 **5. Verify** (1 min)
 - **Applications**: Qdrant, Backend and Frontend are **Running**.
@@ -82,7 +82,7 @@ and waits for each:
 **6. Configure the demo** (per PoC)
 - In the Frontend: [Configure the demo](docs/DEMO-GUIDE.md) (LLM, Data Source, semantic layer, knowledge, MCP).
 
-Expect about **30 minutes plus the deploy Job** before the first screen (measured once; yours will differ).
+Expect about **30 minutes in total** from Launch to the first screen (measured twice on one workspace; yours will differ).
 
 **Variables to add in Project Settings** (button **+**: name and value, then **Submit**). Add only the ones you fill in: the page refuses
 to save a variable with an empty value.
