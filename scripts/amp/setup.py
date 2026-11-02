@@ -14,7 +14,11 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-ROOT = Path(os.environ.get("STUDIO_REPO_ROOT") or Path(__file__).resolve().parents[2])
+try:
+    _HERE_ROOT = Path(__file__).resolve().parents[2]
+except NameError:  # CAI runs job scripts in an IPython kernel, where __file__ is not defined; a job starts in the project root
+    _HERE_ROOT = Path.cwd()
+ROOT = Path(os.environ.get("STUDIO_REPO_ROOT") or _HERE_ROOT)
 HOME = Path(os.environ.get("STUDIO_HOME", "/home/cdsw"))
 NODE_HOME = Path(os.environ.get("NODE_HOME", str(HOME / "tools/node")))
 VENV_PY = Path(os.environ.get("PYTHON_EXECUTABLE", str(HOME / ".venvs/studio-backend/bin/python")))

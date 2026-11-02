@@ -30,7 +30,11 @@ from pathlib import Path
 
 import yaml
 
-ROOT = Path(os.environ.get("STUDIO_REPO_ROOT") or Path(__file__).resolve().parents[2])
+try:
+    _HERE_ROOT = Path(__file__).resolve().parents[2]
+except NameError:  # CAI runs job scripts in an IPython kernel, where __file__ is not defined; a job starts in the project root
+    _HERE_ROOT = Path.cwd()
+ROOT = Path(os.environ.get("STUDIO_REPO_ROOT") or _HERE_ROOT)
 MANIFEST = ROOT / "deployment" / "cai" / "manifests" / "applications.yaml"
 
 

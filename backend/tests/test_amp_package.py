@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import sys
+import types
 from pathlib import Path
 
 import yaml
@@ -85,3 +86,15 @@ def test_job_scripts_do_not_raise_system_exit_on_success() -> None:
     for name in ("setup.py", "deploy.py"):
         source = (REPO / "scripts" / "amp" / name).read_text()
         assert "raise SystemExit(main(" not in source, name
+
+
+def test_job_scripts_load_in_a_kernel_without___file__(tmp_path, monkeypatch) -> None:
+    # CAI runs job scripts through IPython, where __file__ is not defined and STUDIO_REPO_ROOT may not be set.
+    monkeypatch.delenv("STUDIO_REPO_ROOT", raising=False)
+    monkeypatch.chdir(tmp_path)
+    for name in ("setup.py", "deploy.py"):
+        source = (REPO / "scripts" / "amp" / name).read_text()
+        module = types.ModuleType(f"amp_nofile_{name[:-3]}")  # a module without __file__, like the IPython kernel's namespace
+        sys.modules[module.__name__] = module
+        exec(compile(source, name, "exec"), module.__dict__)  # noqa: S102 - the repository's own script
+        assert module.ROOT == tmp_path, name
