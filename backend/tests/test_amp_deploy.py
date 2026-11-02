@@ -267,3 +267,28 @@ def test_the_secrets_are_created_once_and_reused(tmp_path) -> None:
     assert (tmp_path / "secrets" / "studio_api_secret").stat().st_mode & 0o777 == 0o600
     explicit = deploy.with_studio_secrets({**env, "STUDIO_API_TOKEN": "mine"})
     assert explicit["STUDIO_API_TOKEN"] == "mine"
+
+
+def test_update_sends_the_environment_as_json_text_and_falls_back_to_a_map() -> None:
+    client = deploy.Cml("d.example", "p1", "tok")
+    sent = []
+
+    def accept(method, path, body=None):
+        sent.append(body)
+        return {}
+
+    client.request = accept
+    client.update_application("a1", {"name": "x", "environment": {"K": "v"}})
+    assert sent[0]["environment"] == json.dumps({"K": "v"})
+
+    sent.clear()
+
+    def reject_text(method, path, body=None):
+        sent.append(body)
+        if isinstance(body["environment"], str):
+            raise deploy.ApiError("PATCH /x returned HTTP 400: cannot unmarshal string into Go value of type map")
+        return {}
+
+    client.request = reject_text
+    client.update_application("a1", {"name": "x", "environment": {"K": "v"}})
+    assert isinstance(sent[0]["environment"], str) and sent[1]["environment"] == {"K": "v"}

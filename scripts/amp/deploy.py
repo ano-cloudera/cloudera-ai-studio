@@ -110,7 +110,16 @@ class Cml:
         return self.request("POST", f"/projects/{self.project_id}/applications", payload)
 
     def update_application(self, app_id: str, payload: dict) -> dict:
-        return self.request("PATCH", f"/projects/{self.project_id}/applications/{app_id}", payload)
+        """The update call takes `environment` as JSON text (the create call takes a map). If a workspace rejects the text
+        form, retry once with the map."""
+        path = f"/projects/{self.project_id}/applications/{app_id}"
+        as_text = {**payload, "environment": json.dumps(payload.get("environment") or {})}
+        try:
+            return self.request("PATCH", path, as_text)
+        except ApiError as exc:
+            if "HTTP 400" in str(exc) and "unmarshal" in str(exc):
+                return self.request("PATCH", path, payload)
+            raise
 
     def restart_application(self, app_id: str) -> dict:
         return self.request("POST", f"/projects/{self.project_id}/applications/{app_id}:restart", {})
@@ -274,8 +283,8 @@ def deploy(client: Cml, plan: list[dict], env: dict[str, str], *, skip_build: bo
                 app_id, action = found["id"], "updated and restarted"
             else:
                 app_id, action = client.create_application({**payload_for(item, runtime_id), "project_id": client.project_id})["id"], "created"
-        except ApiError:
-            if item.get("bypass_authentication"):
+        except ApiError as exc:
+            if item.get("bypass_authentication") and "auth" in str(exc).lower():
                 log("   this Application is created without a login: an admin must allow it in Site Administration -> Security "
                     "(Allow applications to be configured with unauthenticated access), or set AMP_REQUIRE_LOGIN to keep the login")
             raise
