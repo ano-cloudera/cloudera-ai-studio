@@ -76,3 +76,10 @@ def test_vllm_setup_steps_appear_only_when_enabled(monkeypatch) -> None:
     monkeypatch.setattr(amp_setup, "VLLM_MODEL_ID", "org/some-model")
     assert amp_setup.vllm_enabled() is True
     assert [s.name for s in amp_setup.vllm_steps()] == ["vLLM virtualenv", "vLLM model weights"]
+
+
+def test_job_scripts_do_not_raise_system_exit_on_success() -> None:
+    # CAI runs job scripts through IPython, which marks a job failed when SystemExit(0) is raised.
+    for name in ("setup.py", "deploy.py"):
+        source = (REPO / "scripts" / "amp" / name).read_text()
+        assert "raise SystemExit(main(" not in source, name

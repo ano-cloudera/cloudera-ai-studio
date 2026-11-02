@@ -250,4 +250,7 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    # CAI runs job scripts through IPython, which reports even SystemExit(0) as a failed job: exit only on failure.
+    code = main(sys.argv[1:])
+    if code:
+        sys.exit(code)
