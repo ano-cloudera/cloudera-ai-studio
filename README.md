@@ -53,21 +53,36 @@ and waits for each:
 
 ## Step by step
 
-| # | Step | What you do | Time (measured once, AWS workspace) |
-|---|---|---|---|
-| 1 | **Import** | **AMPs** (left menu) -> **Deploy External** (top right) -> the *Configure & Deploy AMP* form: project name, visibility **Private**, *Provide the Git URL* with **HTTPS**, Git URL `https://github.com/ano-cloudera/cloudera-ai-studio.git`, leave the branch empty -> **Configure Project**. **Do not edit the variables form**, click **Launch** (see the warning below). | about 4 min until the first job starts |
-| 2 | **Wait for `install-tools`** | Watch **AMP Status** (or the job log, markers `[1/7]` to `[7/7]`). The embedding model is about 2.3 GB. | about 21 min |
-| 3 | **Add your variables** | **Project Settings -> Advanced**, button **+**: name and value for each variable in the table below, then **Submit**. | a few minutes |
-| 4 | **Deploy** | **Jobs -> Deploy applications -> Run**. It builds the UI and creates the three Applications. The AMP also runs it once at the end of the import; without keys that run only warns that no LLM key is set. | build and start: not timed yet |
-| 5 | **Verify** | **Applications**: three Applications **Running**. Backend `/health/ready` must show `"core_ready": true`. Open **Anywhere Frontend**: the badge must read **Platform Ready**. | 1 min |
-| 6 | **Configure the demo** | In the Frontend: [Configure the demo](docs/DEMO-GUIDE.md) (LLM, Data Source, semantic layer, knowledge, MCP). | per PoC |
-
-Expect about **30 minutes plus the deploy Job** before the first screen (measured once; yours will differ).
+**1. Import** (about 4 min until the first job starts)
+- **AMPs** (left menu) -> **Deploy External** (top right).
+- Project name, visibility **Private**, **Provide the Git URL** with **HTTPS**:
+  `https://github.com/ano-cloudera/cloudera-ai-studio.git` (leave the branch empty).
+- **Configure Project**, then **Launch**.
 
 > [!WARNING]
-> **Do not edit the variables form at import. Just click Launch.**
+> **Do not edit the variables form. Just click Launch.**
 > A Cloudera AI form bug can save a typed value as `[object Object]`, and the deploy Job then fails. Add your keys and credentials in
-> **Project Settings -> Advanced** after the import (next table).
+> **Project Settings -> Advanced** after the import (step 3).
+
+**2. Wait for `install-tools`** (about 21 min)
+- Follow it in **AMP Status**, or in the job log (markers `[1/7]` to `[7/7]`). The embedding model alone is about 2.3 GB.
+
+**3. Add your variables** (a few minutes)
+- **Project Settings -> Advanced**, button **+**: name and value, then **Submit**. Which variables: see the tables below.
+
+**4. Deploy**
+- **Jobs -> Deploy applications -> Run.** It builds the UI and creates the three Applications.
+- The AMP already runs it once at the end of the import. Without keys that run only warns that no LLM key is set, so run it again now.
+- Time: not measured yet.
+
+**5. Verify** (1 min)
+- **Applications**: Qdrant, Backend and Frontend are **Running**.
+- Open **Anywhere Frontend**: the badge at the top right reads **Platform Ready**.
+
+**6. Configure the demo** (per PoC)
+- In the Frontend: [Configure the demo](docs/DEMO-GUIDE.md) (LLM, Data Source, semantic layer, knowledge, MCP).
+
+Expect about **30 minutes plus the deploy Job** before the first screen (measured once; yours will differ).
 
 **Variables to add in Project Settings** (button **+**: name and value, then **Submit**). Add only the ones you fill in: the page refuses
 to save a variable with an empty value.
@@ -115,7 +130,7 @@ Starting a new PoC? Follow the [PoC guide](docs/POC-GUIDE.md).
 |---|---|
 | Deploy log: `runtime image must be specified in a project using runtimes` | The Job reads the runtime from the project's jobs. If it logs `Runtime: not detected`, add `AMP_RUNTIME_ID` with the runtime image name shown on your Jobs, then run the Job again |
 | Deploy log: `project environment is not a valid environment JSON` or `variables that are not plain text` | The import form saved a value as `[object Object]`. In a Session run `python scripts/amp/set_env.py`, then run the Job again |
-| Frontend shows **Platform Unavailable** (Backend `/health/ready` shows Qdrant `UnexpectedResponse`) | The Backend and Qdrant still require a Cloudera AI login. Ask the admin to enable unauthenticated Applications (see "Before you start"), then run the Job again |
+| Frontend shows **Platform Unavailable** | The Backend and Qdrant still require a Cloudera AI login. Ask the admin to enable unauthenticated Applications (see "Before you start"), then run the Job again |
 
 ## Known limits
 
