@@ -676,6 +676,40 @@ def build_workflow(deps: WorkflowDependencies):
                     executor=deps.query_executor,
                     state=state,
                 )
+                compared = None
+                if not drilled:
+                    from app.ask_data.comparisons import plan_comparison
+
+                    compared = await plan_comparison(
+                        question=state["question"],
+                        primary_metric=metric,
+                        semantic_context=deps.semantic_context,
+                        qualified_sources=dict(ds_ctx.qualified_sources),
+                        executor=deps.query_executor,
+                        state=state,
+                    )
+                if compared:
+                    drill_state, scope_notes = compared
+                    meta = drill_state["meta"]
+                    is_id = detect_language(state["question"]) == "id"
+                    if drill_state["kind"] == "periods":
+                        explanation = (
+                            f"Dua periode dibandingkan ({meta['previous']} dan {meta['current']}); tiap periode dihitung terpisah dari definisi governed-nya, perubahan = periode kemudian dikurangi periode awal."
+                            if is_id
+                            else f"Two periods are compared ({meta['previous']} and {meta['current']}); each is computed separately from the governed definition and the change is later minus earlier."
+                        )
+                    else:
+                        side = ("di atas" if meta["direction"] == "above" else "di bawah") if is_id else meta["direction"]
+                        by = f" lebih dari {meta['margin']:g} poin" if is_id and meta["margin"] else (f" by more than {meta['margin']:g} points" if meta["margin"] else "")
+                        explanation = (
+                            f"Dibandingkan dengan nilai keseluruhan metrik (dihitung dari seluruh data, bukan rata-rata kelompok); hanya kelompok {side} nilai itu{by}."
+                            if is_id
+                            else f"Compared with the overall value of the metric (computed over all records, not the average of the groups); only groups {side} it{by} are shown."
+                        )
+                    partial_caveats = [*[c for c in partial_caveats if not c.startswith(("Filtered to:", "Difilter ke:"))], explanation]
+                    if scope_notes:
+                        scope = "; ".join(scope_notes)
+                        partial_caveats.append(f"Difilter ke: {scope}." if is_id else f"Filtered to: {scope}.")
                 if drilled:
                     queries, scope_notes = drilled
                     drill_state = {
@@ -954,7 +988,7 @@ def build_workflow(deps: WorkflowDependencies):
                 result = await result
             drill = state.get("drill_across") or {}
             if drill.get("queries") and len(drill["queries"]) > 1:
-                from app.ask_data.drill_across import merge_results
+                from app.ask_data.comparisons import merge_drill_results
 
                 results = [result]
                 for extra in drill["queries"][1:]:
@@ -962,7 +996,7 @@ def build_workflow(deps: WorkflowDependencies):
                     if inspect.isawaitable(more):
                         more = await more
                     results.append(more)
-                result = merge_results(results, [q["metric"] for q in drill["queries"]])
+                result = merge_drill_results(drill, results)
         except Exception as exc:
             from app.connectors.errors import ConnectorError
 
@@ -1120,6 +1154,9 @@ def build_workflow(deps: WorkflowDependencies):
         }
         if (state.get("drill_across") or {}).get("columns"):
             user_payload["result_columns_are_metrics"] = state["drill_across"]["columns"]
+        if (state.get("drill_across") or {}).get("kind"):
+            drill_info = state["drill_across"]
+            user_payload["comparison"] = {"kind": drill_info["kind"], **(drill_info.get("meta") or {})}
         if state.get("judge_synthesis_hint"):
             user_payload["reviewer_hint"] = state["judge_synthesis_hint"]
         if state.get("ask_data_space_instructions"):

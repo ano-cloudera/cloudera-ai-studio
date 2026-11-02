@@ -4,6 +4,11 @@ const WORKSPACE_COLUMN_LABELS: Record<string, string> = {
   metric_value: 'Value',
   contribution_pct: 'Contribution',
   cumulative_pct: 'Cumulative Contribution',
+  previous_value: 'Earlier period',
+  change: 'Change',
+  change_pct: 'Change (%)',
+  overall_value: 'Overall',
+  difference: 'Difference vs overall',
 }
 
 export function workspaceColumnLabel(column: string, metric?: string): string {

@@ -13,4 +13,10 @@ describe('workspaceColumnLabel', () => {
   it('keeps humanized labels for other columns', () => {
     expect(workspaceColumnLabel('region_name', 'total_applications')).toBe('Region Name')
   })
+
+  it('labels the comparison columns', () => {
+    expect(workspaceColumnLabel('previous_value')).toBe('Earlier period')
+    expect(workspaceColumnLabel('change_pct')).toBe('Change (%)')
+    expect(workspaceColumnLabel('difference')).toBe('Difference vs overall')
+  })
 })

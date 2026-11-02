@@ -31,8 +31,11 @@ behavior, and do not count them as failures.
 | G4 | Map | Ask something with no province (late rate by carrier) | No **Map** tab | |
 | G5 | Map | Ask late rate by region and carrier, then open the Map tab (if present) | Provinces repeat across carriers; the map sums them per province or the tab is absent. Record which | |
 | A12 | Out of scope | What is our net profit? | Says it is not in the published metrics | |
-| A13 | Known limit | Compare the late rate of Sumatera Utara from March-May with June-August | Truth: 6.0% vs 15.6% (+9.6 points). Record what happens (two-period comparison is not implemented) | |
-| A14 | Known limit | Which regions are above the overall late rate? | Truth: Jawa Timur and Kalimantan Timur (overall 11.3%). Record what happens (benchmark comparison is not implemented) | |
+| A13 | Comparison | Compare the late delivery rate of Sumatera Utara from March to May with June to August 2026 | Two periods in one row: earlier **6.0%**, later **15.6%**, change **+9.6 points**. The answer names both periods and says the rate rose | |
+| A14 | Comparison | Compare the late delivery rate by region from March to May with June to August 2026 | One row per province with earlier, later and change. Sumatera Utara +9.6, Kalimantan Timur -3.4 (23.8 to 20.4), DKI Jakarta -2.0 (9.7 to 7.7) | |
+| A15 | Benchmark | Which regions are above the overall late delivery rate? | **Jawa Timur (16.3%) and Kalimantan Timur (23.1%)**, with the overall rate **11.3%** and the difference for each. The answer says the overall rate is computed over all shipments, not the average of the regions | |
+| A16 | Benchmark | Which regions are more than 4 points above the overall late delivery rate? | Both Jawa Timur (+5.0) and Kalimantan Timur (+11.8) pass; the same question with 8 points keeps only Kalimantan Timur | |
+| A17 | Benchmark | Which regions are below the overall late delivery rate? | The other six provinces (all under 11.3%), listed lowest first | |
 | K1 | Knowledge | Create a library, upload `Delivery_Returns_Policy.pdf`, wait for **Ready** | Ready, 5 pages indexed | |
 | K2 | Knowledge | (attach the library) What is the service level of regular delivery? | **4 days** (Express 2 days), cited to page 1 | |
 | K3 | Knowledge | When is a carrier review triggered? | Late rate above **15%** in a region in a month; above 25% new volume is held. Cited to page 2 | |

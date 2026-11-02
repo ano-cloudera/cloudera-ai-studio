@@ -63,7 +63,7 @@ Dikerjakan **terakhir**, setelah semua fase di atas settle di folder ini (`cloud
 - [x] 4.2 Langkah 0: ringkasan cadangan deterministik (angka, kelompok tertinggi dan terendah, singular) dan log penyebab kegagalan model analisis (`analyze_result_failed`)
 - [x] 4.3 Langkah 1: filter nilai dimensi dari data (`ask_data/value_filters.py`): nilai diambil lewat `SELECT DISTINCT` yang di-cache, kolom id, kolom rumus metrik, dan kolom kardinalitas tinggi tidak pernah difilter; filter dicantumkan di jawaban
 - [x] 4.4a Langkah 2a: drill-across multi-metrik (`ask_data/drill_across.py`): metrik dikenali dari nama dan sinonim, satu query governed per metrik pada pengelompokan yang sama, digabung di Python; filter nilai ikut ke semua dataset
-- [ ] 4.4b Langkah 2b: perbandingan dua periode (dua query, selisih) dan rata-rata keseluruhan sebagai pembanding (ambang "lebih dari 15 poin di bawah")
+- [x] 4.4b Langkah 2b: perbandingan dua periode (dua query per periode, selisih) dan nilai keseluruhan sebagai pembanding dengan margin (`ask_data/comparisons.py`); belum diuji di CAI
 - [ ] 4.5 Langkah 3: rencana bertingkat dan penanda "bagian ini butuh chip dokumen atau model" untuk pertanyaan multi-sumber
 - [ ] 4.6 Delinquency (loan_quality) harus berada di model yang sama dengan credit_applications supaya drill-across bisa menggabungkannya (saran: satu model, dua entitas). Dibuat di UI Semantic Layer oleh pemilik PoC
 - [x] 4.8 Resolver umum: aturan katalog lama dan boost kata kunci demo tidak lagi memengaruhi model lain (`tests/test_generic_models.py`)

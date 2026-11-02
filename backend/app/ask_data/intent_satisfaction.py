@@ -259,7 +259,7 @@ def infer_dimensions_from_question(
         candidates = {w for word in words for w in (word, *_DIMENSION_WORD_SYNONYMS.get(word, ()))}
         for phrase in phrases:
             lowered = phrase.casefold()
-            hits = [m.start() for w in candidates for m in re.finditer(rf"\b{re.escape(w)}\b", lowered)]
+            hits = [m.start() for w in candidates for m in re.finditer(rf"\b{re.escape(w)}(?:s|es)?\b", lowered)]
             if hits:
                 found.append((min(hits), key))
                 break
@@ -347,6 +347,11 @@ def registry_period_sql_predicate(
     period = parse_period_range(question)
     if not period:
         return None
+    return period_sql_predicate(period, dataset_name=dataset_name, registry=registry)
+
+
+def period_sql_predicate(period: PeriodRange, *, dataset_name: str, registry: Any) -> str | None:
+    """WHERE predicate that limits a dataset to a period, on its first time dimension (None when it has none)."""
     time_keys = _time_dimension_keys(dataset_name, registry)
     if not time_keys:
         return None
