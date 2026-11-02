@@ -155,6 +155,7 @@ Starting a new PoC? Follow the [PoC guide](docs/POC-GUIDE.md).
 | Bring this to a new PoC, size the Applications, serve my own model with vLLM | [docs/POC-GUIDE.md](docs/POC-GUIDE.md) |
 | Understand or repeat the installation by hand | [docs/MANUAL-INSTALL.md](docs/MANUAL-INSTALL.md) |
 | Run it on my laptop | [docs/LOCAL-DEVELOPMENT.md](docs/LOCAL-DEVELOPMENT.md) |
+| Try a second use case (fulfillment and delivery) and run its test plan | [samples/fulfillment](samples/fulfillment/README.md), [docs/TEST-PLAN.md](docs/TEST-PLAN.md) |
 
 ## Security notes
 

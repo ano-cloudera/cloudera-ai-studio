@@ -31,3 +31,4 @@ frontend/.next-dev.pid
 
 # Sample knowledge documents are kept out of git for now
 /demo/knowledge/
+/samples/fulfillment/knowledge/
