@@ -80,6 +80,11 @@ class Cml:
             if not token:
                 return apps
 
+    def detect_runtime(self) -> str:
+        """Runtime image of this project's jobs: the AMP's own jobs run on the runtime the workspace chose."""
+        jobs = self.request("GET", f"/projects/{self.project_id}/jobs?page_size=100").get("jobs") or []
+        return next((str(j["runtime_identifier"]) for j in jobs if j.get("runtime_identifier")), "")
+
     def create_application(self, payload: dict) -> dict:
         return self.request("POST", f"/projects/{self.project_id}/applications", payload)
 
@@ -194,6 +199,9 @@ def wait_running(client: Cml, app_id: str, timeout: float, poll: float = 10.0, s
 def deploy(client: Cml, plan: list[dict], env: dict[str, str], *, skip_build: bool, timeout: float, log=print, sleep=time.sleep) -> None:
     existing = {a.get("subdomain"): a for a in client.list_applications()}
     default_runtime = env.get("AMP_RUNTIME_ID", "")
+    if not default_runtime:
+        default_runtime = client.detect_runtime()
+        log(f"Runtime: {default_runtime or 'not detected (set AMP_RUNTIME_ID if the workspace asks for a runtime image)'}")
     for item in plan:
         runtime_id = item.get("runtime_id") or default_runtime
         log(f"== {item['name']} ({item['subdomain']})")

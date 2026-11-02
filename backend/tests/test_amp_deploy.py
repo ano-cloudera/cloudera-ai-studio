@@ -33,6 +33,9 @@ class FakeClient:
     def list_applications(self):
         return self.existing
 
+    def detect_runtime(self):
+        return getattr(self, "runtime", "")
+
     def create_application(self, payload):
         self.calls.append(("create", payload["subdomain"], payload))
         return {"id": f"id-{payload['subdomain']}"}
@@ -153,3 +156,29 @@ def test_resources_come_from_the_manifest_and_can_be_overridden_per_poc() -> Non
 
 def test_main_ignores_the_arguments_an_ipython_kernel_adds() -> None:
     assert deploy.main(["-f", "/tmp/jupyter/runtime/kernel-1.json", "--dry-run"]) == 0
+
+
+def test_the_runtime_of_the_projects_jobs_is_used_when_none_is_configured() -> None:
+    client = FakeClient()
+    client.runtime = "detected-rt"
+    deploy.deploy(client, _plan("qdrant"), ENV, skip_build=True, timeout=60, log=lambda _: None, sleep=lambda _: None)
+    assert client.calls[0][2]["runtime_identifier"] == "detected-rt"
+    explicit = FakeClient()
+    explicit.runtime = "detected-rt"
+    deploy.deploy(explicit, _plan("qdrant"), {**ENV, "AMP_RUNTIME_ID": "chosen-rt"}, skip_build=True, timeout=60, log=lambda _: None, sleep=lambda _: None)
+    assert explicit.calls[0][2]["runtime_identifier"] == "chosen-rt"
+
+
+def test_client_detects_the_runtime_from_the_jobs_list() -> None:
+    class Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps({"jobs": [{"name": "a"}, {"name": "b", "runtime_identifier": "img:1"}]}).encode()
+
+    client = deploy.Cml("d.example", "p1", "tok", opener=lambda req, timeout: Resp())
+    assert client.detect_runtime() == "img:1"
