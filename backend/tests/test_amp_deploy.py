@@ -73,7 +73,7 @@ def test_new_applications_are_created_and_existing_ones_updated_and_restarted() 
     kinds = [c[0] for c in client.calls]
     assert kinds == ["create", "update", "restart", "create"]
     assert client.calls[0][2]["bypass_authentication"] is True  # Qdrant is called server to server
-    assert client.calls[2][2]["bypass_authentication"] is False  # the Frontend keeps the login
+    assert client.calls[3][2]["bypass_authentication"] is False  # the Frontend keeps the login
     assert any("running at https://anywhere-backend.ml-1.example.site" in line for line in logs)
 
 
