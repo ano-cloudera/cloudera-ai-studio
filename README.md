@@ -62,13 +62,12 @@ and waits for each:
 | 5 | **Verify** | **Applications**: three Applications **Running**. Backend `/health/ready` must show `"core_ready": true`. Open **Anywhere Frontend**: the badge must read **Platform Ready**. | 1 min |
 | 6 | **Configure the demo** | In the Frontend: [Configure the demo](docs/DEMO-GUIDE.md) (LLM, Data Source, semantic layer, knowledge, MCP). | per PoC |
 
-Plan for **about 30 minutes plus the deploy Job** before the first screen. These timings come from one import; yours will differ with the
-workspace and network.
+Expect about **30 minutes plus the deploy Job** before the first screen (measured once; yours will differ).
 
-**Warning: do not edit the import form.** On some Cloudera AI versions a value typed in the AMP form is saved as `[object Object]`
-instead of text, and the deploy Job then stops with `project environment is not a valid environment JSON`. This is a Workbench form bug,
-not specific to this AMP. The form therefore lists only variables that have a safe default (`STUDIO_REPO_ROOT`, `AMP_SUBDOMAIN_PREFIX`,
-`ENABLE_VLLM=false`, `GPU_PROFILE`, `TRINO_CATALOG`, `TRINO_SCHEMA`). Everything else is added in Project Settings after the import.
+> [!WARNING]
+> **Do not edit the variables form at import. Just click Launch.**
+> A Cloudera AI form bug can save a typed value as `[object Object]`, and the deploy Job then fails. Add your keys and credentials in
+> **Project Settings -> Advanced** after the import (next table).
 
 **Variables to add in Project Settings** (add only what you fill in: the page refuses to save a variable with an empty value):
 
