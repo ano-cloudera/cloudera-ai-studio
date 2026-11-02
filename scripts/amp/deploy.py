@@ -80,11 +80,16 @@ class Cml:
             if not token:
                 return apps
 
+    def project_variables(self) -> dict:
+        raw = self.request("GET", f"/projects/{self.project_id}").get("environment") or "{}"
+        return json.loads(raw) if isinstance(raw, str) else raw
+
+    def set_project_variables(self, variables: dict[str, str]) -> dict:
+        return self.request("PATCH", f"/projects/{self.project_id}", {"environment": json.dumps(variables)})
+
     def non_string_project_variables(self) -> list[str]:
         """Names (never values) of project variables that are not plain strings; the API rejects those on Applications."""
-        raw = self.request("GET", f"/projects/{self.project_id}").get("environment") or "{}"
-        variables = json.loads(raw) if isinstance(raw, str) else raw
-        return sorted(name for name, value in variables.items() if not isinstance(value, str))
+        return sorted(name for name, value in self.project_variables().items() if not isinstance(value, str))
 
     def detect_runtime(self) -> str:
         """Runtime image of this project's jobs: the AMP's own jobs run on the runtime the workspace chose."""
@@ -266,7 +271,7 @@ def main(argv: list[str]) -> int:
             else:
                 print(f"Project variables that are not plain strings: {', '.join(bad) or 'none found'}", file=sys.stderr)
                 if bad:
-                    print("Fix: Project Settings -> Advanced, clear and retype those values, save, then run this job again.", file=sys.stderr)
+                    print("Fix: in a Session run "python scripts/amp/set_env.py" to re-enter them, then run this job again.", file=sys.stderr)
         return 1
     print("All Applications are running.")
     return 0

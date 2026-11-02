@@ -52,8 +52,9 @@ For any other secret a Data Source or MCP server needs, add the variable to the 
 
 **Known issue with the import form:** on some Cloudera AI versions a value you type in the form is saved as `[object Object]`
 instead of text, and the deploy Job then stops with `project environment is not a valid environment JSON`. Right after the import,
-open **Project Settings -> Advanced**, and for every variable that shows `[object Object]` clear the value, type it again and save.
-The deploy Job names the affected variables in its log.
+open **Project Settings -> Advanced**. If a variable shows `[object Object]`, retyping it in that page can fail the same way, so
+repair it through the API instead: open a Session, run `python scripts/amp/set_env.py`, and answer the prompts (secrets are not
+echoed; Enter keeps the default). Then run the **Deploy applications** Job again. The Job names the affected variables in its log.
 
 **For a new PoC**, follow the [PoC guide](docs/POC-GUIDE.md).
 

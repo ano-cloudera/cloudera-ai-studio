@@ -197,3 +197,29 @@ def test_non_string_project_variables_are_reported_by_name_only() -> None:
 
     client = deploy.Cml("d.example", "p1", "tok", opener=lambda req, timeout: Resp())
     assert client.non_string_project_variables() == ["ALSO", "BAD"]
+
+
+def test_set_env_stores_the_broken_variables_as_plain_text() -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("amp_set_env", REPO / "scripts" / "amp" / "set_env.py")
+    set_env = importlib.util.module_from_spec(spec)
+    sys.modules["amp_set_env"] = set_env
+    spec.loader.exec_module(set_env)
+
+    class Client:
+        def __init__(self):
+            self.saved = None
+
+        def project_variables(self):
+            return {"OK": "x", "GEMINI_API_KEY": {"a": 1}, "ENABLE_VLLM": {"a": 1}}
+
+        def set_project_variables(self, variables):
+            self.saved = variables
+
+    client = Client()
+    answers = {"GEMINI_API_KEY": "key-1", "ENABLE_VLLM": "false"}
+    done = set_env.repair(client, [], lambda name, default: answers[name], {})
+    assert done == ["ENABLE_VLLM", "GEMINI_API_KEY"]
+    assert client.saved == {"OK": "x", "GEMINI_API_KEY": "key-1", "ENABLE_VLLM": "false"}
+    assert all(isinstance(v, str) for v in client.saved.values())
