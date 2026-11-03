@@ -1149,6 +1149,25 @@ def build_workflow(deps: WorkflowDependencies):
     async def analyze_result(state: AskDataState) -> AskDataState:
         started = perf_counter()
         resolution = state.get("semantic_resolution") if isinstance(state.get("semantic_resolution"), dict) else {}
+        if state.get("strategy") in ("governed", "sql_fallback") and isinstance(state.get("query_result"), dict):
+            from app.ask_data.verification import verify_answer, warning_messages
+
+            result_for_check = state["query_result"]
+            checks = verify_answer(
+                question=str(state.get("question") or ""),
+                sql=str(state.get("validated_sql") or state.get("sql") or ""),
+                columns=list(result_for_check.get("columns") or []),
+                rows=list(result_for_check.get("rows") or []),
+                definition=resolution.get("definition") if isinstance(resolution.get("definition"), dict) else None,
+                drill=state.get("drill_across") if isinstance(state.get("drill_across"), dict) else None,
+                truncated=bool(result_for_check.get("truncated")),
+            )
+            known = list(state.get("governed_partial_caveats") or [])
+            state = {
+                **state,
+                "verification_checks": [check.model_dump() for check in checks],
+                "governed_partial_caveats": [*known, *[m for m in warning_messages(checks) if m not in known]],
+            }
         user_payload: dict[str, Any] = {
             "question": state["question"],
             "query_plan": state.get("query_plan"),

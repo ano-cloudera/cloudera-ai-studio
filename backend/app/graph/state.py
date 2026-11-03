@@ -17,6 +17,7 @@ class AskDataState(TypedDict, total=False):
     semantic_resolution: dict[str, Any]
     governed_partial_caveats: list[str]
     drill_across: dict[str, Any]
+    verification_checks: list[dict[str, Any]]
     governed_entity_lookup: bool
     semantic_context: dict[str, Any]
     strategy: str

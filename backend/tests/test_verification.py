@@ -1,0 +1,36 @@
+from __future__ import annotations
+
+from app.ask_data.verification import verify_answer, warning_messages
+
+PCT = {"expression": "COUNT(x) * 100.0 / COUNT(y)", "unit_format": "percent"}
+SQL_DATE = "SELECT 1 FROM t d WHERE d.ship_date >= DATE '2026-03-01' AND d.ship_date < DATE '2026-06-01'"
+
+
+def _checks(question: str, sql: str = "SELECT 1 FROM t d", rows=None, drill=None, definition=None, truncated=False):
+    return verify_answer(question=question, sql=sql, columns=["metric_value"], rows=rows if rows is not None else [{"metric_value": 5}], definition=definition, drill=drill, truncated=truncated)
+
+
+def test_a_named_period_without_a_date_filter_is_flagged() -> None:
+    bad = _checks("late rate from March to May 2026")
+    assert [c.status for c in bad if c.name == "period"] == ["warning"]
+    good = _checks("late rate from March to May 2026", SQL_DATE)
+    assert [c.status for c in good if c.name == "period"] == ["ok"]
+
+
+def test_a_monthly_question_needs_a_month_split() -> None:
+    assert warning_messages(_checks("orders per month")) and "monthly" in warning_messages(_checks("orders per month"))[0]
+    assert not warning_messages(_checks("orders per month", "SELECT DATE_TRUNC('month', CAST(d.x AS TIMESTAMP)) FROM t d"))
+
+
+def test_percentages_outside_zero_to_hundred_are_flagged() -> None:
+    assert warning_messages(_checks("late rate", rows=[{"metric_value": 140}], definition=PCT))
+    ok = _checks("late rate", rows=[{"metric_value": 23.1}], definition=PCT)
+    assert [c.status for c in ok if c.name == "range"] == ["ok"]
+    assert not _checks("orders", rows=[{"metric_value": 8000}], definition={"expression": "COUNT(x)"})
+
+
+def test_an_ordinary_question_has_no_checks_and_truncation_is_flagged() -> None:
+    assert _checks("which region is highest") == []
+    assert warning_messages(_checks("which region is highest", truncated=True))
+    periods = _checks("compare march to may with june to august", drill={"kind": "periods"})
+    assert [c.name for c in periods] == ["period"] and periods[0].status == "ok"
