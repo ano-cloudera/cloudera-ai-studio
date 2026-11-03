@@ -10,7 +10,7 @@ policy, and an MCP tool that estimates late-delivery risk. All data is synthetic
 | `generate_data.py` | Regenerates the CSVs (identical every time) |
 | `expected_answers.py` | Prints the correct answer for the test questions, computed from the CSVs |
 | `load_fulfillment_demo.py` | Loads both tables into Trino and creates the joined view `v_fulfillment_delivery` |
-| `make_policy_pdf.py` | Writes the 5-page sample policy PDF (kept out of git) |
+| `make_policy_pdf.py` | Writes the two 5-page sample PDFs, policy and carrier guide (kept out of git) |
 | `late_delivery_server.py` | MCP server (stdio) with the advisory tool `assess_delivery_risk` |
 | `SEMANTIC-MODEL.md` | The entities, dimensions and metrics to create in the Semantic Layer |
 
@@ -27,7 +27,7 @@ $PY samples/fulfillment/make_policy_pdf.py                                      
 ```
 
 Then in the Frontend: add the Trino **Data Source**, build the model from [SEMANTIC-MODEL.md](SEMANTIC-MODEL.md) and **Publish** it,
-create a Knowledge library and upload `Delivery_Returns_Policy.pdf`, and register the MCP server
+create a Knowledge library and upload `Delivery_Returns_Policy.pdf` and `Carrier_Operations_Guide.pdf`, and register the MCP server
 (command: the backend venv Python, argument: `samples/fulfillment/late_delivery_server.py`). The test table is in
 [docs/TEST-PLAN.md](../../docs/TEST-PLAN.md).
 

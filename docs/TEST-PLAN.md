@@ -48,7 +48,7 @@ behavior, and do not count them as failures.
 | A15 | Benchmark | Which regions are above the overall late delivery rate? | **Jawa Timur (16.3%) and Kalimantan Timur (23.1%)**, with the overall rate **11.3%** and the difference for each. The answer says the overall rate is computed over all shipments, not the average of the regions | |
 | A16 | Benchmark | Which regions are more than 4 points above the overall late delivery rate? | Both Jawa Timur (+5.0) and Kalimantan Timur (+11.8) pass; the same question with 8 points keeps only Kalimantan Timur | |
 | A17 | Benchmark | Which regions are below the overall late delivery rate? | The other six provinces (all under 11.3%), listed lowest first | |
-| K1 | Knowledge | Create a library, upload `Delivery_Returns_Policy.pdf`, wait for **Ready** | Ready, 5 pages indexed | |
+| K1 | Knowledge | Create a library, upload `Delivery_Returns_Policy.pdf` and `Carrier_Operations_Guide.pdf`, wait for **Ready** | Ready, 5 pages indexed per file | |
 | K2 | Knowledge | (attach the library) What is the service level of regular delivery? | **4 days** (Express 2 days), cited to page 1 | |
 | K3 | Knowledge | When is a carrier review triggered? | Late rate above **15%** in a region in a month; above 25% new volume is held. Cited to page 2 | |
 | K4 | Knowledge | What compensation does a customer get for a very late delivery? | More than 2 days after the service level: voucher of **10% of the order value, up to IDR 50,000**. Page 3 | |
