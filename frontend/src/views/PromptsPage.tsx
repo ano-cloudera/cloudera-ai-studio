@@ -32,6 +32,15 @@ type DrawerTab = 'editor' | 'versions' | 'preview'
 type SortKey = 'modified' | 'name'
 type StatusFilter = '' | 'published' | 'draft'
 
+const STATUS_TONE: Record<string, string> = {
+  Published: 'bg-emerald-50 text-emerald-800',
+  Draft: 'bg-violet-50 text-violet-800',
+}
+
+function StatusBadge({ label }: { label: string }) {
+  return <span className={`rounded-full px-2.5 py-0.5 text-sm font-medium ${STATUS_TONE[label] ?? 'bg-slate-100 text-slate-600'}`}>{label}</span>
+}
+
 type VersionSummary = { label: string; version: number | null; versions: PromptVersionRecord[] }
 
 function RowMenu({
@@ -237,10 +246,12 @@ export function PromptsPage() {
     api.resolvePrompt(editorPrompt.key).then(setPreview).catch(err => setError(err instanceof Error ? err.message : 'Preview failed'))
   }, [drawerOpen, drawerTab, editorPrompt])
 
-  async function handleSaveDraft() {
+  /** Saves what is in the editor (a new prompt or a new version) and closes the drawer; `publish` also makes it live. */
+  async function handleSave(publish: boolean) {
     setSaving(true)
     setError('')
     try {
+      let promptId = editorId
       if (drawerMode === 'create') {
         if (!editName.trim()) {
           setError('Name is required')
@@ -253,22 +264,22 @@ export function PromptsPage() {
           description: editDescription.trim() || undefined,
           initial_content: draftContent.trim() || `# ${editName.trim()}\n`,
         })
-        setDrawerMode('edit')
-        setEditorId(prompt.id)
-        setDirty(false)
-        await refreshList()
-        await loadVersionMeta(prompt.id)
-        const { versions: rows } = await api.listPromptVersions(prompt.id)
-        setVersions(rows)
-      } else if (editorId) {
+        promptId = prompt.id
+      } else if (editorId && dirty) {
         await api.createPromptVersion(editorId, { content: draftContent })
-        setDirty(false)
-        const rows = await loadVersionMeta(editorId)
-        setVersions(rows)
-        await refreshList()
       }
+      if (!promptId) return
+      if (publish) {
+        const { versions: rows } = await api.listPromptVersions(promptId)
+        const newestDraft = rows.filter(v => v.status === 'DRAFT').sort((x, y) => y.version_number - x.version_number)[0]
+        const target = newestDraft ?? (rows.some(v => v.status === 'ACTIVE') ? undefined : rows[0])
+        if (target) await api.publishPromptVersion(promptId, target.id)
+      }
+      await refreshList()
+      await loadVersionMeta(promptId)
+      closeDrawer()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(err instanceof Error ? err.message : publish ? 'Publish failed' : 'Save failed')
     } finally {
       setSaving(false)
     }
@@ -454,7 +465,7 @@ export function PromptsPage() {
                         </button>
                       </td>
                       <td className="font-mono text-slate-500">{p.key}</td>
-                      <td>{meta?.label ?? '…'}</td>
+                      <td>{meta?.label ? <StatusBadge label={meta.label} /> : '…'}</td>
                       <td>{meta?.version != null ? `v${meta.version}` : '—'}</td>
                       <td className="text-slate-600">{formatModified(p.updated_at)}</td>
                       <td>
@@ -501,18 +512,14 @@ export function PromptsPage() {
         footer={
           drawerTab === 'editor' ? (
             <div className="flex flex-wrap gap-2">
-              <button type="button" className="btn-primary h-9 px-4 text-sm" disabled={saving || (drawerMode === 'edit' && !dirty && !editName.trim())} onClick={() => void handleSaveDraft()}>
+              <button type="button" className="btn-primary h-9 px-4 text-sm" disabled={saving || (drawerMode === 'edit' && !dirty)} onClick={() => void handleSave(false)}>
                 Save draft
               </button>
               <button
                 type="button"
                 className="h-9 rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 disabled:opacity-50"
-                disabled={saving || drawerMode === 'create'}
-                onClick={() => {
-                  const draft = versions.find(v => v.status === 'DRAFT')
-                  if (draft) void handlePublish(draft.id)
-                  else if (dirty) void handleSaveDraft()
-                }}
+                disabled={saving || (drawerMode === 'edit' && !dirty && !versions.some(v => v.status === 'DRAFT'))}
+                onClick={() => void handleSave(true)}
               >
                 Publish
               </button>
@@ -577,7 +584,7 @@ export function PromptsPage() {
                 {versions.map(v => (
                   <tr key={v.id} className="border-b border-slate-50">
                     <td className="px-3 py-2">v{v.version_number}</td>
-                    <td className="px-3 py-2">{v.status === 'ACTIVE' ? 'Published' : v.status === 'DRAFT' ? 'Draft' : v.status}</td>
+                    <td className="px-3 py-2"><StatusBadge label={v.status === 'ACTIVE' ? 'Published' : v.status === 'DRAFT' ? 'Draft' : v.status} /></td>
                     <td className="text-slate-500">{formatModified(v.created_at)}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-2">
