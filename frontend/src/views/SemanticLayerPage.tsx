@@ -9,6 +9,7 @@ import { api } from '../lib/api'
 import { isAppApiError, safeErrorMessage, toAppApiError, type AppApiError } from '../lib/apiError'
 import { SemanticModelCombobox } from '../components/semantic/SemanticModelCombobox'
 import { ProductConfirmModal } from '../components/semantic/ProductConfirmModal'
+import { discardDraftMessage } from '../lib/semanticNames'
 import type {
   SemanticArtifactPreview,
   SemanticDimensionRecord,
@@ -476,16 +477,8 @@ export function SemanticLayerPage() {
     const draftNum = draftVersion.version_number
     const hasPublished = Boolean(activeVersion)
     setConfirmModal({
-      title: 'Discard draft?',
-      message: hasPublished
-        ? [
-            `Delete draft v${draftNum} and return to published v${activeVersion!.version_number}.`,
-            'Unsaved editor changes will be lost. This cannot be undone.',
-          ].join('\n')
-        : [
-            `Delete draft v${draftNum}. There is no published version yet.`,
-            'Unsaved editor changes will be lost. This cannot be undone.',
-          ].join('\n'),
+      title: hasPublished ? 'Discard draft?' : 'Discard the draft and everything in it?',
+      message: discardDraftMessage(draftNum, activeVersion ? { versionNumber: activeVersion.version_number } : null, overview?.counts ?? null),
       confirmLabel: 'Discard draft',
       tone: 'danger',
       onConfirm: async () => {

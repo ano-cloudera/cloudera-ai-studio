@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ConnectorRecord } from '../../types/api'
 import { api } from '../../lib/api'
 import { isAppApiError } from '../../lib/apiError'
+import { displayModelName } from '../../lib/semanticNames'
 
 type Props = {
   open: boolean
@@ -239,8 +240,9 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
     setBusy(true)
     setError('')
     try {
-      const key = slugKey(name)
-      const { model } = await api.createSemanticModel({ name: name.trim(), key, description: description.trim() || undefined })
+      const readable = displayModelName(name.trim())
+      const key = slugKey(readable)
+      const { model } = await api.createSemanticModel({ name: readable, key, description: description.trim() || undefined })
       const bootstrap_tables = selectedTables.map(t => {
         const parsed = parseQualified(t.qualified)
         return {
@@ -293,8 +295,14 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
                 value={name}
                 onChange={e => setName(e.target.value)}
+                onBlur={() => setName(current => displayModelName(current.trim()))}
                 placeholder="Commercial Sales"
               />
+              <span className="mt-1 block text-xs text-slate-500" data-testid="wizard-key-hint">
+                {name.trim()
+                  ? `Key: ${slugKey(displayModelName(name.trim()))} (made from the name, used internally)`
+                  : 'Use a readable name, for example “Fulfillment Delivery”. The key is made from it.'}
+              </span>
             </label>
             <label className="block text-sm">
               <span className="text-xs font-semibold text-slate-600">Description (optional)</span>

@@ -10,27 +10,13 @@ import { safeErrorMessage } from '../lib/apiError'
 import type { ConnectorRecord, SemanticModelRecord, SemanticOverviewPayload } from '../types/api'
 import { CreateSemanticModelWizard } from './semantic/CreateSemanticModelWizard'
 import { formatSemanticModifiedCompact } from './semantic/authoring/semanticFormat'
+import { displayModelName, showKey } from '../lib/semanticNames'
+
+export { displayModelName, showKey }
 
 export const SEMANTIC_MODEL_PATH = '/semantic-layer/model'
 
 type Row = { model: SemanticModelRecord; overview: SemanticOverviewPayload | null }
-
-/** "fulfillment_delivery" is shown as "Fulfillment Delivery"; a name someone already wrote with spaces is left alone. */
-export function displayModelName(name: string): string {
-  if (!/[_-]/.test(name) || /\s/.test(name)) return name
-  return name
-    .split(/[_-]+/)
-    .filter(Boolean)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
-}
-
-const letters = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, '')
-
-/** The key is shown under the name only when it says something the name does not. */
-export function showKey(model: Pick<SemanticModelRecord, 'name' | 'key'>): boolean {
-  return letters(model.key) !== letters(model.name)
-}
 
 export function modelStatus(overview: SemanticOverviewPayload | null): { label: string; tone: 'live' | 'draft' | 'empty' | 'unknown' } {
   if (!overview) return { label: '—', tone: 'unknown' }

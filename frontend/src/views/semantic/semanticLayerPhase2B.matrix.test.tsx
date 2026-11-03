@@ -658,6 +658,24 @@ describe('SEM-2B matrix', () => {
     expect(api.createSemanticVersion).not.toHaveBeenCalled() // it used the draft that exists
   })
 
+  it('SEM-2B-039c discarding the draft of a never published model says everything in it is lost', async () => {
+    api.listSemanticVersions.mockResolvedValue({ versions: [{ id: 'v-draft-1', semantic_model_id: 'm1', version_number: 1, status: 'DRAFT' }] })
+    api.getSemanticModelOverview.mockResolvedValue({
+      model: { id: 'm1', name: 'Art', key: 'art', updated_at: null },
+      state: 'Draft',
+      readiness: 'READY',
+      issue_count: 0,
+      published_version_number: null,
+      draft_version_number: 1,
+      counts: { entities: 3, metrics: 11, dimensions: 32, relationships: 0, terms: 0 },
+    })
+    await renderPageReady()
+    fireEvent.click(await screen.findByTestId('semantic-edit-discard'))
+    expect(await screen.findByText('Discard the draft and everything in it?')).toBeTruthy()
+    expect(screen.getByText(/3 data models, 11 metrics and 32 dimensions/)).toBeTruthy()
+    expect(screen.getByText(/stays in the list, but empty/)).toBeTruthy()
+  })
+
   it('SEM-2B-040 rollback product modal', async () => {
     await renderPageReady()
     await openVersionHistoryTab()
