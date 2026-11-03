@@ -28,9 +28,9 @@ def extract_value(response: AskDataResponse, match: str | None) -> float | None:
     if match:
         needle = match.casefold()
         found = next((r for r in rows if any(needle in str(v).casefold() for v in r.values() if isinstance(v, str))), None)
-        if found is None:
+        if found is None and len(rows) > 1:
             return None
-        row = found
+        row = found or rows[0]  # a single row means the question itself filtered down to the group
     if "metric_value" in row:
         return _number(row["metric_value"])
     return next((n for n in (_number(v) for v in row.values()) if n is not None), None)

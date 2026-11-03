@@ -42,6 +42,7 @@ def test_the_value_comes_from_the_row_the_example_points_at() -> None:
     assert extract_value(response, None) == 23.15
     assert extract_value(response, "jawa timur") == 16.34
     assert extract_value(response, "Bali") is None
+    assert extract_value(_response([{"metric_value": 16.34}]), "Jawa Timur") == 16.34  # filtered to one row by the question
     assert extract_value(_response([]), None) is None
 
 
