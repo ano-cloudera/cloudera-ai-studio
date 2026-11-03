@@ -123,10 +123,10 @@ export function SemanticQualityTabPanel({ modelId, published }: { modelId: strin
     }
   }
 
-  if (loading) return <p className="text-sm text-slate-600">Loading…</p>
+  if (loading) return <p className="px-4 py-5 text-sm text-slate-600">Loading…</p>
 
   return (
-    <div className="space-y-8">
+    <div className="min-h-0 flex-1 space-y-8 overflow-y-auto px-4 py-5" data-testid="semantic-quality-tab-panel">
       {error ? <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{error}</div> : null}
       {notice ? <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800" role="status">{notice}</div> : null}
 
