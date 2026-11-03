@@ -31,10 +31,13 @@ const TONE: Record<string, string> = {
   unknown: 'bg-slate-100 text-slate-500',
 }
 
+export function isPublished(row: Row): boolean {
+  return row.overview?.published_version_number != null || Boolean(row.model.active_version_id)
+}
+
 /** What the user must confirm before a model goes away: a published model also leaves Ask Data. */
 export function deletionNotice(row: Row): { message: string; needsTyping: boolean } {
-  const published = row.overview?.published_version_number != null || Boolean(row.model.active_version_id)
-  if (published) {
+  if (isPublished(row)) {
     return {
       needsTyping: true,
       message: `“${row.model.name}” is published and Ask Data answers from it. Deleting it removes it from Ask Data (and clears it as the default model), together with every version and definition. This cannot be undone.`,
@@ -56,6 +59,7 @@ export function SemanticModelsListPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [notice, setNotice] = useState('')
+  const [settingDefaultFor, setSettingDefaultFor] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setError('')
@@ -81,6 +85,22 @@ export function SemanticModelsListPage() {
     const needle = search.trim().toLowerCase()
     return (rows ?? []).filter(row => !needle || `${row.model.name} ${row.model.key}`.toLowerCase().includes(needle))
   }, [rows, search])
+
+  async function setAsDefault(row: Row) {
+    setSettingDefaultFor(row.model.id)
+    setError('')
+    setNotice('')
+    try {
+      const { settings } = await api.getAskDataSettings()
+      await api.putAskDataSettings({ ...settings, default_semantic_model_id: row.model.id, auto_attach_semantic_model: true })
+      setDefaultModelId(row.model.id)
+      setNotice(`“${row.model.name}” is now the default model: questions without an @ are answered from it.`)
+    } catch (err) {
+      setError(safeErrorMessage(err, 'Could not set the default model'))
+    } finally {
+      setSettingDefaultFor(null)
+    }
+  }
 
   async function confirmDelete() {
     if (!pendingDelete) return
@@ -193,7 +213,21 @@ export function SemanticModelsListPage() {
                     <td className="px-4 py-3 text-right tabular-nums">{counts?.metrics ?? '—'}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{counts?.dimensions ?? '—'}</td>
                     <td className="px-4 py-3 text-slate-600">{formatSemanticModifiedCompact(row.overview?.model.updated_at ?? row.model.updated_at)}</td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      {isPublished(row) && defaultModelId !== row.model.id ? (
+                        <button
+                          type="button"
+                          aria-label={`Set ${row.model.name} as the default model`}
+                          className="mr-2 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-cloudera-navy hover:bg-slate-50 disabled:opacity-50"
+                          disabled={settingDefaultFor !== null}
+                          onClick={event => {
+                            event.stopPropagation()
+                            void setAsDefault(row)
+                          }}
+                        >
+                          {settingDefaultFor === row.model.id ? 'Setting…' : 'Set as default'}
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         aria-label={`Delete ${row.model.name}`}

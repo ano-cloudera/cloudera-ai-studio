@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { SemanticModelsListPage, deletionNotice, modelStatus } from './SemanticModelsListPage'
+import { SemanticModelsListPage, deletionNotice, isPublished, modelStatus } from './SemanticModelsListPage'
 
 const push = vi.fn()
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }), usePathname: () => '/', useSearchParams: () => new URLSearchParams() }))
@@ -10,6 +10,7 @@ vi.mock('../lib/api', () => ({
     getSemanticModelOverview: vi.fn(),
     deleteSemanticModel: vi.fn(),
     getAskDataSettings: vi.fn(),
+    putAskDataSettings: vi.fn(),
     listConnectors: vi.fn(),
   },
 }))
@@ -51,7 +52,8 @@ describe('SemanticModelsListPage', () => {
     const { api } = await import('../lib/api')
     vi.mocked(api.listSemanticModels).mockResolvedValue({ models: [model('m1', 'Fulfillment', 'v1'), model('m2', 'Scratch')] } as never)
     vi.mocked(api.getSemanticModelOverview).mockImplementation((async (id: string) => (id === 'm1' ? overview(1, null) : overview(null, 1, { entities: 1, metrics: 0, dimensions: 4, relationships: 0, terms: 0 }))) as never)
-    vi.mocked(api.getAskDataSettings).mockResolvedValue({ settings: { default_semantic_model_id: 'm1' } } as never)
+    vi.mocked(api.getAskDataSettings).mockResolvedValue({ settings: { default_semantic_model_id: 'm1', auto_attach_semantic_model: true, starter_questions: ['Q'] } } as never)
+    vi.mocked(api.putAskDataSettings).mockResolvedValue({} as never)
     vi.mocked(api.listConnectors).mockResolvedValue({ connectors: [] } as never)
     vi.mocked(api.deleteSemanticModel).mockResolvedValue({ deleted: true } as never)
     push.mockClear()
@@ -126,5 +128,52 @@ describe('SemanticModelsListPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Create semantic model/ }))
     fireEvent.click(screen.getByText('wizard-finish'))
     expect(push).toHaveBeenCalledWith('/semantic-layer/model?model=new-id')
+  })
+})
+
+describe('Set as default', () => {
+  afterEach(cleanup)
+
+  async function setup(defaultId: string | null) {
+    const { api } = await import('../lib/api')
+    vi.mocked(api.listSemanticModels).mockResolvedValue({ models: [model('m1', 'Fulfillment', 'v1'), model('m2', 'Scratch'), model('m3', 'Other', 'v3')] } as never)
+    vi.mocked(api.getSemanticModelOverview).mockImplementation((async (id: string) => (id === 'm2' ? overview(null, 1) : overview(1, null))) as never)
+    vi.mocked(api.getAskDataSettings).mockResolvedValue({ settings: { default_semantic_model_id: defaultId, auto_attach_semantic_model: false, starter_questions: ['Q'] } } as never)
+    vi.mocked(api.putAskDataSettings).mockResolvedValue({} as never)
+    vi.mocked(api.listConnectors).mockResolvedValue({ connectors: [] } as never)
+    return api
+  }
+
+  it('is offered only for published models that are not already the default', async () => {
+    await setup('m1')
+    render(<SemanticModelsListPage />)
+    await screen.findAllByTestId('semantic-model-row')
+    expect(screen.queryByLabelText('Set Fulfillment as the default model')).toBeNull() // already the default
+    expect(screen.queryByLabelText('Set Scratch as the default model')).toBeNull() // not published
+    expect(screen.getByLabelText('Set Other as the default model')).toBeTruthy()
+    expect(isPublished({ model: model('x', 'X') as never, overview: overview(null, 1) as never })).toBe(false)
+  })
+
+  it('keeps the other settings, switches auto-attach on and moves the badge', async () => {
+    const api = await setup('m1')
+    render(<SemanticModelsListPage />)
+    await screen.findAllByTestId('semantic-model-row')
+    fireEvent.click(screen.getByLabelText('Set Other as the default model'))
+    await waitFor(() => expect(api.putAskDataSettings).toHaveBeenCalledWith({ default_semantic_model_id: 'm3', auto_attach_semantic_model: true, starter_questions: ['Q'] }))
+    await waitFor(() => expect(screen.getByRole('status').textContent).toContain('“Other” is now the default model'))
+    const rows = screen.getAllByTestId('semantic-model-row')
+    expect(within(rows[2]).getByText('Default for Ask Data')).toBeTruthy()
+    expect(within(rows[0]).queryByText('Default for Ask Data')).toBeNull()
+    expect(screen.getByLabelText('Set Fulfillment as the default model')).toBeTruthy() // the old default can be chosen again
+  })
+
+  it('says so when saving fails and leaves the badge where it was', async () => {
+    const api = await setup('m1')
+    vi.mocked(api.putAskDataSettings).mockRejectedValue(new Error('no write access'))
+    render(<SemanticModelsListPage />)
+    await screen.findAllByTestId('semantic-model-row')
+    fireEvent.click(screen.getByLabelText('Set Other as the default model'))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('no write access'))
+    expect(within(screen.getAllByTestId('semantic-model-row')[0]).getByText('Default for Ask Data')).toBeTruthy()
   })
 })
