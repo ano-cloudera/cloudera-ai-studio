@@ -20,6 +20,9 @@ behavior, and do not count them as failures.
 | P5g | Platform | Settings -> AI Models, bottom: **Retrieval pipeline** | A read-only card: embedding model with its dimension (bge-m3, 1024) and the reranker (Not used, or bge when enabled); no assignment lists | |
 | P6 | Platform | Run the **Deploy applications** Job again with no change | Finishes, all Applications Running (about 3 min, plus about 30 s per Application update) | |
 | S1 | Semantic | Create one model with the 3 entities from [SEMANTIC-MODEL.md](../samples/fulfillment/SEMANTIC-MODEL.md), **Publish** | Published; the metrics appear under "Browse published metrics" | |
+| S2 | Semantic | Open **Semantic Layer** | A table of the models: name and key, status (Published vN, Draft vN), data models, metrics, dimensions, last modified, and **Default for Ask Data** on the pinned one. Clicking a row opens the model; **← All semantic models** comes back | |
+| S3 | Semantic | Delete a model that is not published | One confirmation, then the row disappears and a green notice appears | |
+| S4 | Semantic | Delete a published model | The dialog says Ask Data will stop using it; **Delete and remove from Ask Data** stays disabled until you type the model key; afterwards the model is gone, it is no longer the default, and Ask Data no longer answers from it | |
 | A1 | Ask Data | How many orders per month? | Jan 1014, Feb 904, Mar 1002, Apr 963, May 969, Jun 1074, Jul 1035, Aug 1039. Tabs Summary, Table, Query filled | |
 | A2 | Ask Data | Which region has the highest late delivery rate? | **Kalimantan Timur, 23.1%** (Jawa Timur is next at 16.3%) | |
 | A3 | Ask Data | Late delivery rate by carrier | NusaCargo 13.2%, KilatKirim 11.3%, FastExpress 9.8% | |

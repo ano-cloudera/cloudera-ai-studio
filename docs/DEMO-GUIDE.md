@@ -30,7 +30,7 @@ user, and pick `TRINO_PASSWORD` from the **Secret reference** list (it shows the
 
 ## 4. Build the semantic layer
 
-**Semantic Layer** → create one model per table (`credit_applications`, `loan_quality`):
+**Semantic Layer** shows your models in a table (click a row to open it, the bin icon deletes it). Create **one model** with one entity per table (`credit_applications`, `loan_quality`), so metrics from both tables can be shown side by side:
 
 1. Add the table as an **entity** and import its columns as **dimensions**
    (for example `region_name`, `application_channel`, `customer_segment`, `application_date`).

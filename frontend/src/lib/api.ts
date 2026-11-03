@@ -320,6 +320,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  deleteSemanticModel: (modelId: string, confirmPublished = false) =>
+    request<{ deleted: boolean; model_id: string; model_key: string; model_name: string; was_published: boolean }>(
+      `/v1/semantic/models/${encodeURIComponent(modelId)}?confirm_published=${confirmPublished}`,
+      { method: 'DELETE' },
+    ),
   listSemanticVersions: (modelId: string) =>
     request<{ versions: import('../types/api').SemanticVersionRecord[] }>(
       `/v1/semantic/models/${encodeURIComponent(modelId)}/versions`,

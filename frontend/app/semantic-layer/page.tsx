@@ -1,13 +1,5 @@
-import { Suspense } from 'react'
-import { EditorDirtyProvider } from '../../src/views/semantic/authoring/EditorDirtyContext'
-import { SemanticLayerPage } from '../../src/views/SemanticLayerPage'
+import { SemanticModelsListPage } from '../../src/views/SemanticModelsListPage'
 
 export default function Page() {
-  return (
-    <EditorDirtyProvider>
-      <Suspense fallback={null}>
-        <SemanticLayerPage />
-      </Suspense>
-    </EditorDirtyProvider>
-  )
+  return <SemanticModelsListPage />
 }

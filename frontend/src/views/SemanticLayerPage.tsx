@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { PageCenter } from '../components/PageCenter'
 import { ServiceErrorState } from '../components/ServiceErrorState'
 import { appConfig } from '../config/appConfig'
@@ -69,6 +69,7 @@ const TAB_TEST_IDS: Partial<Record<Tab, string>> = {
 }
 
 export function SemanticLayerPage() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const editorDirty = useEditorDirtyRegistry()
   const [models, setModels] = useState<SemanticModelRecord[]>([])
@@ -801,6 +802,17 @@ export function SemanticLayerPage() {
     <PageCenter className="flex h-full flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
+          <button
+            type="button"
+            data-testid="semantic-back-to-list"
+            className="mb-1 text-xs font-semibold text-slate-500 hover:text-cloudera-navy"
+            onClick={() => {
+              if (hasUnsavedEdits() && !window.confirm('You have unsaved changes. Leave without saving?')) return
+              router.push('/semantic-layer')
+            }}
+          >
+            ← All semantic models
+          </button>
           <h1 className="type-app-title text-xl">Semantic Layer</h1>
           <p className="text-sm text-slate-600">Configure trusted business definitions for Ask Data.</p>
         </div>
