@@ -10,9 +10,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 FEATURE_OVERRIDES_KEY = "feature_overrides"
 
 # Names match the Frontend (appConfig.features).
-SWITCHABLE_FEATURES = frozenset({"documents", "connectors", "prompts", "skills", "semanticLayer", "usage"})
-# Always on: without them there is nothing to use, or no way to switch anything back on.
-LOCKED_FEATURES = frozenset({"askData", "settings", "aiModelRegistry"})
+SWITCHABLE_FEATURES = frozenset({"documents", "prompts", "skills"})
+# Always on: the core of the app, the places that configure it, and the page that holds these switches.
+LOCKED_FEATURES = frozenset({"askData", "settings", "aiModelRegistry", "connectors", "semanticLayer", "usage"})
 
 
 class FeatureOverrides(BaseModel):
@@ -36,7 +36,9 @@ def read_feature_overrides(settings_json: dict | None) -> FeatureOverrides:
     block = (settings_json or {}).get(FEATURE_OVERRIDES_KEY) or {}
     if not isinstance(block, dict):
         block = {}
-    return FeatureOverrides.model_validate(block)
+    stored = block.get("overrides") if isinstance(block.get("overrides"), dict) else {}
+    # A feature that used to be switchable may still be stored; it is ignored now, never an error.
+    return FeatureOverrides(overrides={key: value for key, value in stored.items() if key in SWITCHABLE_FEATURES and isinstance(value, bool)})
 
 
 def write_feature_overrides(settings_json: dict | None, value: FeatureOverrides) -> dict:

@@ -70,10 +70,10 @@ behavior, and do not count them as failures.
 | PR3 | Prompts | Create version 2, publish it, then **Rollback** to version 1 | A2 answers in the style of the published version each time | |
 | PR4 | Prompts | Publish `rag.insufficient_evidence`: "Not in the policy library." Re-ask K7 | The custom sentence is used | |
 | PR5 | Prompts | Save a draft without publishing, then re-ask A2 | The draft has no effect until published | |
-| F1 | Features | Settings -> **Features**: Ask Data and Settings show **Always on** without a switch; the other six have a switch | Six switches; Skills is off by default | |
-| F2 | Features | Switch **Usage** off | The Usage menu disappears at once, without a reload; opening `/usage` shows "Usage is turned off" with a link back to Settings; the row says "Changed from default (On)" | |
+| F1 | Features | Settings -> **Features** | Ask Data, Semantic Layer, Data Sources, Usage and Settings show **Always on** with a reason and no switch; only Knowledge, Prompts and Skills have a switch (Skills is off by default) | |
+| F2 | Features | Switch **Prompts** off | The Prompts menu disappears at once, without a reload; opening `/prompts` shows "Prompts is turned off" with a link back to Settings; the row says "Changed from default (On)" | |
 | F3 | Features | Reload the page and open it in another browser | The change is still there (it is stored for the workspace, not in the browser) | |
-| F4 | Features | Switch **Semantic Layer** off while a model is published, then ask a question | Ask Data still answers from the published model; the Semantic Layer menu and page are gone | |
+| F4 | Features | Switch **Knowledge** off | The Knowledge menu and the library choice in the chat are gone; the libraries are still there when it is switched on again | |
 | F5 | Features | **Reset to deployment defaults** | Every switch returns to its starting point | |
 | SK1 | Skills | Settings -> Features: switch **Skills** on | The **Skills** menu appears at once (it is off by default; no redeploy needed) | |
 | SK2 | Skills | New skill, handler `prompt_only`, a prompt such as "You are a delivery analyst", **Publish**, run it with a question | A text answer that follows the prompt | |

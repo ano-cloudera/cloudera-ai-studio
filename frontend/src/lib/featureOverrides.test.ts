@@ -22,18 +22,18 @@ describe('feature overrides', () => {
 
   it('keeps the deployment default unless a switchable feature is overridden', () => {
     expect(featureEnabled('skills', defaults)).toBe(false)
-    setFeatureOverrides({ skills: true, usage: false })
+    setFeatureOverrides({ skills: true, documents: false })
     expect(featureEnabled('skills', defaults)).toBe(true)
-    expect(featureEnabled('usage', defaults)).toBe(false)
+    expect(featureEnabled('documents', defaults)).toBe(false)
     expect(featureEnabled('prompts', defaults)).toBe(true)
   })
 
   it('never lets a locked feature be switched, even if the data says so', () => {
-    setFeatureOverrides({ askData: false, settings: false, aiModelRegistry: false } as never)
-    expect(getFeatureOverrides()).toEqual({})
+    setFeatureOverrides({ askData: false, settings: false, aiModelRegistry: false, connectors: false, semanticLayer: false, usage: false } as never)
+    expect(getFeatureOverrides()).toEqual({}) // also what an older visit left in the cache for a feature that is locked now
     for (const key of LOCKED_FEATURES) expect(featureEnabled(key, defaults)).toBe(true)
-    expect(SWITCHABLE_FEATURES).not.toContain('askData')
-    expect(SWITCHABLE_FEATURES).not.toContain('settings')
+    expect(SWITCHABLE_FEATURES).toEqual(['documents', 'prompts', 'skills'])
+    expect([...LOCKED_FEATURES].sort()).toEqual(['aiModelRegistry', 'askData', 'connectors', 'semanticLayer', 'settings', 'usage'])
   })
 
   it('remembers the last answer for the next visit and ignores junk in the cache', () => {

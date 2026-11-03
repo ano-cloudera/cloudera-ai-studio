@@ -12,7 +12,7 @@ describe('nextOverrides', () => {
   it('stores a real change and drops the override when it matches the default again', () => {
     expect(nextOverrides({}, 'skills', true, defaults)).toEqual({ skills: true })
     expect(nextOverrides({ skills: true }, 'skills', false, defaults)).toEqual({}) // the default of skills is off
-    expect(nextOverrides({ usage: false }, 'prompts', false, defaults)).toEqual({ usage: false, prompts: false })
+    expect(nextOverrides({ documents: false }, 'prompts', false, defaults)).toEqual({ documents: false, prompts: false })
   })
 })
 
@@ -26,15 +26,15 @@ describe('FeaturesSettingsPanel', () => {
     setFeatureOverrides({}, { cache: false })
   })
 
-  it('shows Ask Data and Settings as always on, with no switch', () => {
+  it('shows Ask Data, Settings, Semantic Layer, Data Sources and Usage as always on, with no switch', () => {
     render(<FeaturesSettingsPanel />)
     const rows = within(screen.getByTestId('feature-list')).getAllByRole('listitem')
-    for (const label of ['Ask Data', 'Settings']) {
+    for (const label of ['Ask Data', 'Settings', 'Semantic Layer', 'Data Sources', 'Usage']) {
       const row = rows.find(item => item.textContent?.includes(label))!
       expect(within(row).getByText('Always on')).toBeTruthy()
       expect(within(row).queryByRole('switch')).toBeNull()
     }
-    expect(screen.getAllByRole('switch')).toHaveLength(6)
+    expect(screen.getAllByRole('switch').map(item => item.getAttribute('aria-label'))).toEqual(['Knowledge on', 'Prompts on', 'Skills off'])
     expect(screen.getByText(/does not restrict access to the API/)).toBeTruthy()
   })
 
@@ -50,15 +50,15 @@ describe('FeaturesSettingsPanel', () => {
   it('puts the switch back and says why when the server refuses', async () => {
     put.mockRejectedValue(new Error('read-only database'))
     render(<FeaturesSettingsPanel />)
-    fireEvent.click(screen.getByRole('switch', { name: 'Usage on' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Prompts on' }))
     await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('read-only database'))
-    expect(screen.getByRole('switch', { name: 'Usage on' })).toBeTruthy()
+    expect(screen.getByRole('switch', { name: 'Prompts on' })).toBeTruthy()
     expect(getFeatureOverrides()).toEqual({})
   })
 
-  it('warns what switching off Semantic Layer does, and resets every change', async () => {
+  it('explains why a locked feature has no switch, and resets every change', async () => {
     render(<FeaturesSettingsPanel />)
-    expect(screen.getByText(/Ask Data keeps answering from published models/)).toBeTruthy()
+    expect(screen.getByText('Ask Data answers from its published models.')).toBeTruthy()
     const reset = screen.getByRole('button', { name: 'Reset to deployment defaults' }) as HTMLButtonElement
     expect(reset.disabled).toBe(true) // nothing to reset yet
     act(() => setFeatureOverrides({ prompts: false, skills: true }, { cache: false }))

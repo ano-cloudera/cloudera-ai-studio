@@ -8,6 +8,7 @@ import {
   FEATURE_LABELS,
   FEATURE_NOTES,
   LOCKED_FEATURES,
+  LOCKED_NOTES,
   SWITCHABLE_FEATURES,
   setFeatureOverrides,
   useFeatureOverrides,
@@ -15,7 +16,7 @@ import {
   type FeatureOverrides,
 } from '../../lib/featureOverrides'
 
-/** Display order: the two that cannot be switched sit at the ends, the rest follow the menu. */
+/** Display order of the menu. AI Models is also always on but has no row of its own. */
 const ORDER: FeatureKey[] = ['askData', 'documents', 'prompts', 'skills', 'semanticLayer', 'connectors', 'usage', 'settings']
 
 /** The overrides after switching one feature: a value equal to the deployment default needs no override. */
@@ -73,7 +74,7 @@ export function FeaturesSettingsPanel() {
                   </span>
                 ) : null}
                 {!locked && FEATURE_NOTES[key] ? <p className="type-chat-meta mt-0.5 text-slate-500">{FEATURE_NOTES[key]}</p> : null}
-                {locked ? <p className="type-chat-meta mt-0.5 text-slate-500">{key === 'askData' ? 'The core of the app.' : 'Needed to switch anything back on.'}</p> : null}
+                {locked && LOCKED_NOTES[key] ? <p className="type-chat-meta mt-0.5 text-slate-500">{LOCKED_NOTES[key]}</p> : null}
               </div>
               {locked ? (
                 <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">Always on</span>

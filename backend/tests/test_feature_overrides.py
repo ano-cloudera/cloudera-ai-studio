@@ -14,8 +14,8 @@ from tests.semantic_schema_helpers import ensure_s3_governance_schema
 
 
 def test_only_the_switchable_features_are_accepted() -> None:
-    assert FeatureOverrides(overrides={"skills": True, "usage": False, "semanticLayer": False}).overrides["usage"] is False
-    for locked in ("askData", "settings", "aiModelRegistry"):
+    assert FeatureOverrides(overrides={"skills": True, "documents": False, "prompts": False}).overrides["documents"] is False
+    for locked in ("askData", "settings", "aiModelRegistry", "connectors", "semanticLayer", "usage"):
         with pytest.raises(ValidationError, match="cannot be switched off"):
             FeatureOverrides(overrides={locked: False})
     with pytest.raises(ValidationError, match="Unknown features"):
@@ -29,6 +29,11 @@ def test_the_overrides_are_stored_beside_the_other_workspace_settings() -> None:
     assert stored["ask_data"] == {"keep": 1}
     assert read_feature_overrides(stored).overrides == {"skills": True}
     assert read_feature_overrides(None).overrides == {} and read_feature_overrides({"feature_overrides": "junk"}).overrides == {}
+
+
+def test_a_value_stored_for_a_feature_that_is_locked_now_is_ignored_not_an_error() -> None:
+    old = {"feature_overrides": {"overrides": {"usage": False, "semanticLayer": False, "skills": True, "prompts": "yes", "gone": True}}}
+    assert read_feature_overrides(old).overrides == {"skills": True}
 
 
 @pytest.fixture()
@@ -45,13 +50,15 @@ def client(tmp_path):
 
 def test_the_api_stores_resets_and_refuses(client) -> None:
     first = client.get("/api/v1/features/overrides").json()
-    assert first["overrides"] == {} and "skills" in first["switchable"] and "askData" in first["locked"]
-    saved = client.put("/api/v1/features/overrides", json={"overrides": {"skills": True, "usage": False}})
-    assert saved.status_code == 200 and saved.json()["overrides"] == {"skills": True, "usage": False}
-    assert client.get("/api/v1/features/overrides").json()["overrides"] == {"skills": True, "usage": False}
-    assert client.put("/api/v1/features/overrides", json={"overrides": {"settings": False}}).status_code == 422
+    assert first["overrides"] == {} and first["switchable"] == ["documents", "prompts", "skills"]
+    assert {"askData", "settings", "connectors", "semanticLayer", "usage"} <= set(first["locked"])
+    saved = client.put("/api/v1/features/overrides", json={"overrides": {"skills": True, "prompts": False}})
+    assert saved.status_code == 200 and saved.json()["overrides"] == {"skills": True, "prompts": False}
+    assert client.get("/api/v1/features/overrides").json()["overrides"] == {"skills": True, "prompts": False}
+    for locked in ("settings", "usage", "connectors", "semanticLayer"):
+        assert client.put("/api/v1/features/overrides", json={"overrides": {locked: False}}).status_code == 422
     assert client.put("/api/v1/features/overrides", json={"overrides": {"nope": True}}).status_code == 422
-    assert client.get("/api/v1/features/overrides").json()["overrides"] == {"skills": True, "usage": False}  # a refused change stores nothing
+    assert client.get("/api/v1/features/overrides").json()["overrides"] == {"skills": True, "prompts": False}  # a refused change stores nothing
     assert client.put("/api/v1/features/overrides", json={"overrides": {}}).json()["overrides"] == {}  # reset
 
 

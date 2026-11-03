@@ -13,10 +13,10 @@ export type FeatureKey =
   | 'semanticLayer'
   | 'aiModelRegistry'
 
-/** Features a workspace may switch. The rest is always on: without Ask Data there is nothing to use, and without Settings
- * (or the model registry) there would be no way to switch anything back on or pick a model. */
-export const SWITCHABLE_FEATURES: FeatureKey[] = ['documents', 'prompts', 'skills', 'semanticLayer', 'connectors', 'usage']
-export const LOCKED_FEATURES: FeatureKey[] = ['askData', 'settings', 'aiModelRegistry']
+/** Features a workspace may switch. Everything else is always on: the core of the app (Ask Data), the places that configure it
+ * (Data Sources, Semantic Layer, AI Models), Usage, and Settings itself, which holds these switches. */
+export const SWITCHABLE_FEATURES: FeatureKey[] = ['documents', 'prompts', 'skills']
+export const LOCKED_FEATURES: FeatureKey[] = ['askData', 'settings', 'aiModelRegistry', 'connectors', 'semanticLayer', 'usage']
 
 export type FeatureOverrides = Partial<Record<FeatureKey, boolean>>
 
@@ -37,9 +37,15 @@ export const FEATURE_NOTES: Partial<Record<FeatureKey, string>> = {
   documents: 'Hides Knowledge and the library choice in the chat. Libraries are kept.',
   prompts: 'Hides Prompts. Published prompts are still used by Ask Data and Knowledge.',
   skills: 'Hides Skills.',
-  usage: 'Hides Usage.',
-  semanticLayer: 'Ask Data keeps answering from published models, but definitions cannot be edited until it is switched on again.',
-  connectors: 'Ask Data keeps using the existing connections, but they cannot be edited until it is switched on again.',
+}
+
+/** Why a locked feature has no switch. */
+export const LOCKED_NOTES: Partial<Record<FeatureKey, string>> = {
+  askData: 'The core of the app.',
+  settings: 'Needed to switch anything back on.',
+  connectors: 'Ask Data answers from these data sources.',
+  semanticLayer: 'Ask Data answers from its published models.',
+  usage: 'Always available.',
 }
 
 /** Menu and page prefixes, to find which feature a page belongs to. */

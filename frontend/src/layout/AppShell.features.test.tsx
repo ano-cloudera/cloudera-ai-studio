@@ -33,13 +33,13 @@ describe('AppShell with workspace feature switches', () => {
 
   it('removes a switched off menu and adds one that was switched on, without a reload', () => {
     show()
-    expect(labels()).toContain('Usage')
+    expect(labels()).toContain('Prompts')
     expect(labels()).not.toContain('Skills')
-    act(() => setFeatureOverrides({ usage: false, skills: true }, { cache: false }))
-    expect(labels()).not.toContain('Usage')
+    act(() => setFeatureOverrides({ prompts: false, skills: true }, { cache: false }))
+    expect(labels()).not.toContain('Prompts')
     expect(labels()).toContain('Skills')
     act(() => setFeatureOverrides({}, { cache: false }))
-    expect(labels()).toContain('Usage')
+    expect(labels()).toContain('Prompts')
   })
 
   it('shows a notice instead of a page that is switched off, with the way back', () => {
@@ -52,11 +52,12 @@ describe('AppShell with workspace feature switches', () => {
     expect(screen.getByRole('link', { name: /Turn it on in Settings/ }).getAttribute('href')).toBe('/settings')
   })
 
-  it('keeps Ask Data and Settings reachable whatever is stored', () => {
+  it('keeps Ask Data, Settings, Data Sources, Semantic Layer and Usage whatever is stored', () => {
     path = '/settings'
     show(<div>Settings content</div>)
-    act(() => setFeatureOverrides({ prompts: false, skills: false, usage: false, documents: false, semanticLayer: false, connectors: false }, { cache: false }))
+    act(() => setFeatureOverrides({ prompts: false, skills: false, documents: false, usage: false, semanticLayer: false, connectors: false } as never, { cache: false }))
     expect(screen.getByText('Settings content')).toBeTruthy()
-    expect(labels()).toEqual(expect.arrayContaining(['Ask Data', 'Settings']))
+    expect(labels()).toEqual(expect.arrayContaining(['Ask Data', 'Settings', 'Data Sources', 'Semantic Layer', 'Usage']))
+    expect(labels()).not.toContain('Prompts')
   })
 })
