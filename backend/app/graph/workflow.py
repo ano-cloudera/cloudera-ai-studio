@@ -698,6 +698,12 @@ def build_workflow(deps: WorkflowDependencies):
                             if is_id
                             else f"Two periods are compared ({meta['previous']} and {meta['current']}); each is computed separately from the governed definition and the change is later minus earlier."
                         )
+                    elif meta.get("direction") == "any":
+                        explanation = (
+                            "Nilai dibandingkan dengan nilai keseluruhan metrik (dihitung dari seluruh data); selisih = nilai kelompok dikurangi nilai keseluruhan."
+                            if is_id
+                            else "Compared with the overall value of the metric (computed over all records); difference = the group's value minus the overall value."
+                        )
                     else:
                         side = ("di atas" if meta["direction"] == "above" else "di bawah") if is_id else meta["direction"]
                         by = f" lebih dari {meta['margin']:g} poin" if is_id and meta["margin"] else (f" by more than {meta['margin']:g} points" if meta["margin"] else "")

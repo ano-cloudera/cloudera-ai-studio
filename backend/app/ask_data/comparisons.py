@@ -38,12 +38,18 @@ _YEARLESS_QUARTER = re.compile(r"\bq([1-4])\b", re.I)
 # ---- two periods ---------------------------------------------------------------------------------------------
 
 
+def _recent_year(last_month: int, today: date) -> str:
+    """The year of the most recent occurrence of a period that ends in `last_month` and has already finished."""
+    year = today.year
+    return str(year if _month_start(year, last_month + 1) <= today else year - 1)
+
+
 def _range_period(match: re.Match[str], fallback_year: str | None) -> PeriodRange | None:
+    m1, m2 = _MONTH_WORDS[match.group("m1").casefold()], _MONTH_WORDS[match.group("m2").casefold()]
     year = match.group("y2") or match.group("y1") or fallback_year
     if not year:
         return None
     first_year = match.group("y1") or year
-    m1, m2 = _MONTH_WORDS[match.group("m1").casefold()], _MONTH_WORDS[match.group("m2").casefold()]
     start, end = _month_start(int(first_year), m1), _month_start(int(year), m2 + 1)
     if start >= end:
         return None
@@ -55,11 +61,17 @@ def _quarter_period(quarter: int, year: int) -> PeriodRange:
     return PeriodRange(start, _month_start(year, (quarter - 1) * 3 + 4), f"Q{quarter} {year}")
 
 
-def find_periods(question: str) -> list[tuple[int, int, PeriodRange]]:
-    """Every period named in the question, in order, with its text span. A year written once serves the others."""
+def find_periods(question: str, today: date | None = None) -> list[tuple[int, int, PeriodRange]]:
+    """Every period named in the question, in order, with its text span. A year written once serves the others;
+    a period without any year means its most recent finished occurrence."""
+    today = today or date.today()
     text = question or ""
     years = _YEAR.findall(text)
     fallback = years[0] if years else None
+    if not fallback:  # one year for every period of the question: the latest one in which all of them are over
+        ends = [_MONTH_WORDS[m.group("m2").casefold()] for m in _RANGE_PATTERN.finditer(text)]
+        ends += [int(m.group(1)) * 3 for m in _YEARLESS_QUARTER.finditer(text)]
+        fallback = _recent_year(max(ends), today) if ends else None
     found: list[tuple[int, int, PeriodRange]] = []
 
     def add(start: int, end: int, period: PeriodRange | None) -> None:
@@ -89,11 +101,11 @@ class PeriodComparison:
     question_without_periods: str
 
 
-def detect_period_comparison(question: str) -> PeriodComparison | None:
+def detect_period_comparison(question: str, today: date | None = None) -> PeriodComparison | None:
     """Exactly two different periods plus a comparison word; None for anything else."""
     if not _COMPARE.search(question or ""):
         return None
-    spans = find_periods(question)
+    spans = find_periods(question, today)
     if len(spans) != 2 or spans[0][2] == spans[1][2]:
         return None
     text = question
@@ -111,13 +123,18 @@ _BENCHMARK = re.compile(
     r"(?P<reference>overall|average|keseluruhan|rata[- ]rata|company|network|national|total)\b",
     re.I,
 )
+_VERSUS_OVERALL = re.compile(
+    r"\b(?:compare[ds]?|comparison|versus|vs\.?|against|relative\s+to|dibandingkan(?:\s+dengan)?|dibanding|bandingkan)\b[^?.]{0,80}?"
+    r"\b(?:overall|keseluruhan|(?:company|network|national|global)[- ](?:wide\s+)?(?:average|rate|value)|rata[- ]rata\s+(?:keseluruhan|perusahaan|nasional))\b",
+    re.I,
+)
 _MARGIN = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:%|percent(?:age)?[- ]points?|points?|pp|poin|persen)", re.I)
 _WHICH = re.compile(r"\b(?:which|what|list|show|find|mana|apa)\s+(?P<phrase>[a-z_ ]+?)\s+(?:are|is|have|has|were|was|with|yang|perform|do)\b", re.I)
 
 
 @dataclass(frozen=True)
 class Benchmark:
-    direction: str  # "above" or "below"
+    direction: str  # "above", "below", or "any" (compare with the overall value, no filtering)
     margin: float  # points (units of the metric) the group must be away from the overall value
     breakdown_text: str  # the question with a trailing "by <what it asked about>" for dimension inference
 
@@ -125,6 +142,8 @@ class Benchmark:
 def detect_benchmark(question: str) -> Benchmark | None:
     match = _BENCHMARK.search(question or "")
     if not match:
+        if _VERSUS_OVERALL.search(question or ""):
+            return Benchmark("any", 0.0, question)  # every group, each with the overall value and its difference
         return None
     lowered = match.group("direction").casefold()
     direction = "below" if lowered.startswith(("below", "under", "lower", "beneath", "di bawah")) else "above"
@@ -184,9 +203,9 @@ def merge_benchmark(results: list[dict[str, Any]], direction: str, margin: float
         if value is None or overall_value is None:
             continue
         difference = round(value - overall_value, 4)
-        if (direction == "above" and difference > margin) or (direction == "below" and -difference > margin):
+        if direction == "any" or (direction == "above" and difference > margin) or (direction == "below" and -difference > margin):
             rows.append({**{c: row.get(c) for c in dims}, "metric_value": row.get("metric_value"), "overall_value": overall_value, "difference": difference})
-    rows.sort(key=lambda r: r["difference"], reverse=direction == "above")
+    rows.sort(key=lambda r: r["difference"], reverse=direction != "below")
     columns = [*dims, "metric_value", "overall_value", "difference"]
     return {
         "columns": columns,
@@ -237,7 +256,8 @@ async def plan_comparison(
     allowed = set(definition.get("allowed_dimensions") or [])
     dims_text = periods.question_without_periods if periods else benchmark.breakdown_text
     dimensions = list(dict.fromkeys(infer_dimensions_from_question(dims_text, allowed, dataset_name=dataset, registry=registry)))
-    if benchmark and not dimensions:
+    compare_with_overall = bool(benchmark and benchmark.direction == "any")
+    if benchmark and not dimensions and not compare_with_overall:
         return None  # "above the overall rate" needs something to group by
     filters = await resolve_value_filters(
         question=question,
@@ -251,10 +271,12 @@ async def plan_comparison(
     )
     value_predicates = [f.predicate() for f in filters]
     notes = [f.describe() for f in filters]
+    if compare_with_overall and not dimensions and not value_predicates:
+        return None  # nothing to compare: no breakdown and no named group
 
-    def compile_query(sql_question: str, dims: list[str], predicates: list[str]) -> str:
+    def compile_query(sql_question: str, dims: list[str], predicates: list[str], filtered: bool = True) -> str:
         return semantic_context.compile_governed(
-            primary_metric, sql_question, dims, extra_predicates=[*predicates, *value_predicates] or None, from_source=source
+            primary_metric, sql_question, dims, extra_predicates=[*predicates, *(value_predicates if filtered else [])] or None, from_source=source
         )
 
     resolution = {"status": "resolved", "metric": primary_metric, "definition": definition, "dimensions": dimensions, "dimension_mismatch": []}
@@ -269,7 +291,8 @@ async def plan_comparison(
         meta = {"previous": periods.earlier.label, "current": periods.later.label}
     else:
         queries.append({"metric": primary_metric, "sql": compile_query(benchmark.breakdown_text, dimensions, []), "resolution": resolution, "dimensions": dimensions, "label": "by group"})
-        queries.append({"metric": primary_metric, "sql": compile_query(benchmark.breakdown_text, [], []), "resolution": {**resolution, "dimensions": []}, "dimensions": [], "label": "overall"})
+        # Comparing with the overall value means the whole data set, not only the group that was named.
+        queries.append({"metric": primary_metric, "sql": compile_query(benchmark.breakdown_text, [], [], filtered=not compare_with_overall), "resolution": {**resolution, "dimensions": []}, "dimensions": [], "label": "overall"})
         kind = "benchmark"
         meta = {"direction": benchmark.direction, "margin": benchmark.margin}
     return {"kind": kind, "queries": queries, "columns": {}, "meta": meta}, notes

@@ -825,13 +825,11 @@ class SemanticContextService:
                     "12 bulan",
                 )
             ):
-                dataset_name = str(definition["base_dataset"])
-                fields = self.registry.dataset_fields.get(dataset_name, {})
-                for dim_key in sorted(allowed):
-                    field = fields.get(dim_key)
-                    if field and (field.get("dimension") or {}).get("is_time"):
-                        dimensions = [dim_key]
-                        break
+                from app.ask_data.intent_satisfaction import pick_time_dimension
+
+                time_key = pick_time_dimension(str(definition["base_dataset"]), allowed, self.registry)
+                if time_key:
+                    dimensions = [time_key]
             if not dimensions:
                 from app.semantic.runtime_extensions import infer_breakdown_dimensions
 
@@ -879,7 +877,12 @@ class SemanticContextService:
         base = self.registry.ansi_expression(field)
         if not re.match(r"^d\.", base.strip(), flags=re.IGNORECASE):
             base = f"d.{base}"
-        if (field.get("dimension") or {}).get("is_time") and any(
+        from app.ask_data.intent_satisfaction import pick_time_dimension
+
+        is_date_column = (field.get("dimension") or {}).get("is_time") or dimension_key == pick_time_dimension(
+            dataset_name, {dimension_key}, self.registry
+        )
+        if is_date_column and any(
             term in question.casefold()
             for term in ("month", "bulan", "bulanan", "monthly", "by month", "per bulan", "trend", "12 bulan")
         ):
@@ -934,12 +937,11 @@ class SemanticContextService:
                 term in lowered
                 for term in ("month", "bulan", "bulanan", "monthly", "by month", "per bulan", "trend")
             ):
-                fields = self.registry.dataset_fields.get(dataset_name, {})
-                for dim_key in sorted(allowed):
-                    field = fields.get(dim_key)
-                    if field and (field.get("dimension") or {}).get("is_time"):
-                        dimensions = [dim_key]
-                        break
+                from app.ask_data.intent_satisfaction import pick_time_dimension
+
+                time_key = pick_time_dimension(dataset_name, allowed, self.registry)
+                if time_key:
+                    dimensions = [time_key]
             if not dimensions:
                 from app.semantic.runtime_extensions import infer_breakdown_dimensions
 
@@ -977,7 +979,13 @@ class SemanticContextService:
             sql.append("GROUP BY " + ", ".join(dim_exprs))
         from app.ask_data.intent_satisfaction import requested_sort_direction
 
-        sql.append(f"ORDER BY metric_value {requested_sort_direction(question)}")
+        by_month = any(
+            term in lowered for term in ("month", "bulan", "bulanan", "monthly", "per bulan", "trend")
+        ) and any(expr.startswith("DATE_TRUNC('month'") for expr in dim_exprs)
+        if by_month:
+            sql.append("ORDER BY " + ", ".join(expr for expr in dim_exprs if expr.startswith("DATE_TRUNC('month'")) + " ASC")
+        else:
+            sql.append(f"ORDER BY metric_value {requested_sort_direction(question)}")
         sql.append(f"LIMIT {get_settings().sql_max_rows}")
         return "\n".join(sql)
 

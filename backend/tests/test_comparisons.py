@@ -108,3 +108,46 @@ def test_merge_dispatch_uses_the_kind() -> None:
     result = {"columns": ["metric_value"], "rows": [{"metric_value": 1}]}
     merged = cmp.merge_drill_results({"kind": "periods", "queries": [{}, {}]}, [result, result])
     assert merged["columns"][-3:] == ["previous_value", "change", "change_pct"]
+
+
+def test_a_range_without_a_year_means_its_most_recent_finished_occurrence() -> None:
+    today = date(2026, 11, 3)
+    found = cmp.detect_period_comparison("Compare late rate between March-May and June-August", today)
+    assert (found.earlier.start, found.earlier.end) == (date(2026, 3, 1), date(2026, 6, 1))
+    assert (found.later.start, found.later.end) == (date(2026, 6, 1), date(2026, 9, 1))
+    early = cmp.detect_period_comparison("Compare late rate between March-May and June-August", date(2026, 7, 1))
+    assert early.earlier.start == date(2025, 3, 1) and early.later.start == date(2025, 6, 1)  # June-August is not over yet
+    assert cmp.detect_period_comparison("Compare Q1 vs Q2", today).later.label == "Q2 2026"
+
+
+def test_compare_with_the_overall_value_is_read_as_a_benchmark_without_filtering() -> None:
+    for text in (
+        "How does Kalimantan Timur late delivery rate compare to the overall rate?",
+        "Kalimantan Timur versus overall late delivery rate",
+        "Bandingkan tingkat keterlambatan Jawa Timur dengan rata-rata keseluruhan",
+    ):
+        found = cmp.detect_benchmark(text)
+        assert found is not None and found.direction == "any", text
+    assert cmp.detect_benchmark("compare approval rate by region and channel") is None
+    assert cmp.detect_benchmark("compare average delivery days by carrier") is None
+
+
+def test_one_named_group_is_compared_with_the_overall_value_of_the_whole_data_set() -> None:
+    drill, notes = _plan("How does the approval rate of Jawa Barat compare to the overall rate?")
+    assert drill["kind"] == "benchmark" and drill["meta"]["direction"] == "any"
+    grouped, overall = drill["queries"]
+    assert "d.region_name = 'Jawa Barat'" in grouped["sql"] and "GROUP BY" not in grouped["sql"]
+    assert "Jawa Barat" not in overall["sql"] and "GROUP BY" not in overall["sql"]
+    assert any("Jawa Barat" in n for n in notes)
+    merged = cmp.merge_drill_results(drill, [{"columns": ["metric_value"], "rows": [{"metric_value": 23.15}]}, {"columns": ["metric_value"], "rows": [{"metric_value": 11.3}]}])
+    assert merged["columns"] == ["metric_value", "overall_value", "difference"]
+    assert merged["rows"] == [{"metric_value": 23.15, "overall_value": 11.3, "difference": 11.85}]
+
+
+def test_every_group_is_listed_when_compared_with_the_overall_value() -> None:
+    drill, _ = _plan("Compare the approval rate by region with the overall rate")
+    assert "GROUP BY d.region_name" in drill["queries"][0]["sql"]
+    grouped = {"columns": ["region_name", "metric_value"], "rows": [{"region_name": "A", "metric_value": 5}, {"region_name": "B", "metric_value": 20}]}
+    merged = cmp.merge_drill_results(drill, [grouped, {"columns": ["metric_value"], "rows": [{"metric_value": 10}]}])
+    assert [(r["region_name"], r["difference"]) for r in merged["rows"]] == [("B", 10.0), ("A", -5.0)]
+    assert _plan("Compare the approval rate with the overall rate") is None  # no group to compare

@@ -187,6 +187,16 @@ def _allowed_dimension_keys(definition: dict[str, Any]) -> set[str]:
     return set(definition.get("allowed_dimensions") or [])
 
 
+def pick_time_dimension(dataset_name: str, allowed: set[str] | list[str], registry: Any) -> str | None:
+    """The date column to group or filter by: a dimension flagged as time first, then one named like a date."""
+    fields = registry.dataset_fields.get(dataset_name, {})
+    candidates = [key for key in _time_dimension_keys(dataset_name, registry) if key in set(allowed)]
+    if not candidates:
+        return None
+    flagged = [key for key in candidates if (fields.get(key, {}).get("dimension") or {}).get("is_time")]
+    return sorted(flagged or candidates)[0]
+
+
 def _time_dimension_keys(dataset_name: str, registry: Any) -> list[str]:
     fields = registry.dataset_fields.get(dataset_name, {})
     keys: list[str] = []
@@ -194,7 +204,7 @@ def _time_dimension_keys(dataset_name: str, registry: Any) -> list[str]:
         if (field.get("dimension") or {}).get("is_time"):
             keys.append(dim_key)
         elif dim_key in ("sale_date", "sale_month", "reporting_period", "calmonth") or re.search(
-            r"(?:^|_)(?:date|month|period)$", dim_key
+            r"(?:^|_)(?:date|month|period|day|tanggal|bulan)$", dim_key
         ):
             keys.append(dim_key)
     return keys
