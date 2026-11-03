@@ -53,26 +53,39 @@ async def chat_stream(request: Request, body: AskDataRequest) -> StreamingRespon
         _validate_selection(request, body)
 
     async def events():
-        iterator = request.app.state.chat_service.stream(body).__aiter__()
-        pending = asyncio.create_task(iterator.__anext__())
+        # One task drives the whole generator: context variables set in an early step (the model
+        # registry resolution) must still be visible in later steps, which separate tasks per step lose.
+        queue: asyncio.Queue = asyncio.Queue()
+        done_marker = object()
+
+        async def produce() -> None:
+            try:
+                async for event in request.app.state.chat_service.stream(body):
+                    await queue.put(event)
+            except BaseException as exc:  # noqa: BLE001 - forwarded to the consumer
+                await queue.put(exc)
+            finally:
+                await queue.put(done_marker)
+
+        producer = asyncio.create_task(produce())
         try:
             while True:
-                done, _ = await asyncio.wait({pending}, timeout=HEARTBEAT_SECONDS)
-                if not done:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=HEARTBEAT_SECONDS)
+                except asyncio.TimeoutError:
                     yield ": keep-alive\n\n"
                     continue
-                try:
-                    event = pending.result()
-                except StopAsyncIteration:
+                if event is done_marker:
                     return
+                if isinstance(event, BaseException):
+                    raise event
                 payload = event.model_dump(mode="json") if hasattr(event, "model_dump") else event
                 if isinstance(payload, dict) and hasattr(payload.get("response"), "model_dump"):
                     payload = {**payload, "response": payload["response"].model_dump(mode="json")}
                 yield "data: " + json.dumps(payload, ensure_ascii=False, default=str) + "\n\n"
-                pending = asyncio.create_task(iterator.__anext__())
         finally:
-            if not pending.done():
-                pending.cancel()
+            if not producer.done():
+                producer.cancel()
 
     return StreamingResponse(
         events(),
