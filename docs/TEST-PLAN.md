@@ -70,7 +70,12 @@ behavior, and do not count them as failures.
 | PR3 | Prompts | Create version 2, publish it, then **Rollback** to version 1 | A2 answers in the style of the published version each time | |
 | PR4 | Prompts | Publish `rag.insufficient_evidence`: "Not in the policy library." Re-ask K7 | The custom sentence is used | |
 | PR5 | Prompts | Save a draft without publishing, then re-ask A2 | The draft has no effect until published | |
-| SK1 | Skills | Add the project variable `NEXT_PUBLIC_FEATURE_SKILLS` = `true`, run the Deploy Job, reload | The **Skills** menu appears (it is off by default) | |
+| F1 | Features | Settings -> **Features**: Ask Data and Settings show **Always on** without a switch; the other six have a switch | Six switches; Skills is off by default | |
+| F2 | Features | Switch **Usage** off | The Usage menu disappears at once, without a reload; opening `/usage` shows "Usage is turned off" with a link back to Settings; the row says "Changed from default (On)" | |
+| F3 | Features | Reload the page and open it in another browser | The change is still there (it is stored for the workspace, not in the browser) | |
+| F4 | Features | Switch **Semantic Layer** off while a model is published, then ask a question | Ask Data still answers from the published model; the Semantic Layer menu and page are gone | |
+| F5 | Features | **Reset to deployment defaults** | Every switch returns to its starting point | |
+| SK1 | Skills | Settings -> Features: switch **Skills** on | The **Skills** menu appears at once (it is off by default; no redeploy needed) | |
 | SK2 | Skills | New skill, handler `prompt_only`, a prompt such as "You are a delivery analyst", **Publish**, run it with a question | A text answer that follows the prompt | |
 | SK3 | Skills | New skill, handler `ask_data`, tool `ask_data`, run it with "Late delivery rate by carrier" | Same numbers as A3 | |
 | SK4 | Skills | New skill, handler `rag`, tool `rag_search`, run it with the K3 question | A grounded answer with the page citation | |

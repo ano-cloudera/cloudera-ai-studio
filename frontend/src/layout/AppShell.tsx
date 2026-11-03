@@ -16,12 +16,20 @@ import {
   SquarePen,
   Wand2,
 } from 'lucide-react'
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { BrandMark } from '../components/BrandMark'
 import { ConversationSessionList, type ConversationSessionListProps } from '../components/ConversationSessionList'
 import { appConfig } from '../config/appConfig'
 import { usePublicBranding } from '../config/PublicBrandingContext'
 import { usePlatformReadiness } from '../hooks/usePlatformReadiness'
+import { api } from '../lib/api'
+import {
+  FEATURE_LABELS,
+  featureForPath,
+  restoreCachedFeatureOverrides,
+  setFeatureOverrides,
+  useFeatureOverrides,
+} from '../lib/featureOverrides'
 
 type NavItem = {
   feature: keyof typeof appConfig.features
@@ -146,8 +154,20 @@ export function AppShell({ children }: { children: ReactNode }) {
     setChatPageChromeState(state)
   }, [])
 
-  const navigation = useMemo(() => buildPrimaryNavigation(), [])
-  const sidebarSections = useMemo(() => buildSidebarSections(), [])
+  const featureOverrides = useFeatureOverrides()
+  useEffect(() => {
+    restoreCachedFeatureOverrides() // the last known switches first, so the menu does not jump
+    Promise.resolve()
+      .then(() => api.getFeatureOverrides())
+      .then(res => setFeatureOverrides(res.overrides))
+      .catch(() => undefined) // whatever goes wrong, the deployment defaults stay
+  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const navigation = useMemo(() => buildPrimaryNavigation(), [featureOverrides])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const sidebarSections = useMemo(() => buildSidebarSections(), [featureOverrides])
+  const pageFeature = featureForPath(pathname ?? '/')
+  const pageOff = pageFeature !== null && !appConfig.features[pageFeature]
   const platform = usePlatformReadiness()
   const platformDot =
     platform.status === 'ready' ? 'bg-emerald-500' : platform.status === 'degraded' ? 'bg-amber-500' : 'bg-rose-500'
@@ -370,7 +390,17 @@ export function AppShell({ children }: { children: ReactNode }) {
               onAskData ? 'flex min-h-0 flex-col overflow-hidden' : 'overflow-y-auto p-4 sm:p-6'
             }`}
           >
-            {children}
+            {pageOff && pageFeature ? (
+              <div className="mx-auto mt-16 max-w-md rounded-xl border border-slate-200 bg-white p-6 text-center shadow-sm" role="status" data-testid="feature-off-notice">
+                <h1 className="text-lg font-semibold text-cloudera-navy">{FEATURE_LABELS[pageFeature]} is turned off</h1>
+                <p className="mt-2 text-sm text-slate-600">This part of the app is switched off for this workspace.</p>
+                <Link href="/settings" className="mt-4 inline-block text-sm font-semibold text-cloudera-orange hover:underline">
+                  Turn it on in Settings → Features
+                </Link>
+              </div>
+            ) : (
+              children
+            )}
           </main>
         </div>
 

@@ -17,6 +17,7 @@ import { AiModelsSettingsPanel } from './settings/AiModelsSettingsPanel'
 import { AskDataPresentationSettingsPanel } from './settings/AskDataPresentationSettingsPanel'
 import { AskDataStarterSettingsPanel } from './settings/AskDataStarterSettingsPanel'
 import { AskDataMcpSettingsPanel } from './settings/AskDataMcpSettingsPanel'
+import { FeaturesSettingsPanel } from './settings/FeaturesSettingsPanel'
 
 const SETTINGS_TABS = ['general', 'models', 'rag', 'features', 'mcp', 'advanced'] as const
 type SettingsTab = (typeof SETTINGS_TABS)[number]
@@ -155,19 +156,6 @@ function LegacyChatModelControls({
       )}
     </>
   )
-}
-
-function featureRows() {
-  return [
-    { key: 'Ask Data', on: appConfig.features.askData },
-    { key: 'Knowledge', on: appConfig.features.documents },
-    { key: 'Prompts', on: appConfig.features.prompts },
-    { key: 'Skills', on: appConfig.features.skills },
-    { key: 'Semantic Layer', on: appConfig.features.semanticLayer },
-    { key: appConfig.navigationConnectors, on: appConfig.features.connectors },
-    { key: 'Usage', on: appConfig.features.usage },
-    { key: 'Settings', on: appConfig.features.settings },
-  ]
 }
 
 export function SettingsPage() {
@@ -325,26 +313,7 @@ export function SettingsPage() {
           </>
         ) : null}
 
-        {tab === 'features' ? (
-          <>
-            <h2 className="text-[15px] font-semibold text-cloudera-navy">Features</h2>
-            <p className="text-sm text-slate-600">Navigation visibility is controlled by deployment feature flags (read-only).</p>
-            <ul className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-200">
-              {featureRows().map(row => (
-                <li key={row.key} className="flex items-center justify-between px-4 py-3 text-sm">
-                  <span className="font-medium text-cloudera-navy">{row.key}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                      row.on ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                    }`}
-                  >
-                    {row.on ? 'On' : 'Off'}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : null}
+        {tab === 'features' ? <FeaturesSettingsPanel /> : null}
 
         {tab === 'mcp' ? (
           <>

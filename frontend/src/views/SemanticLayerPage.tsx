@@ -208,7 +208,7 @@ export function SemanticLayerPage() {
   }, [searchParams, models])
 
   useEffect(() => {
-    if (!appConfig.features.connectors) return
+    if (!appConfig.deploymentFeatures.connectors) return
     api.listConnectors().then(r => setConnectors(r.connectors)).catch(() => setConnectors([]))
   }, [])
 

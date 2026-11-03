@@ -61,6 +61,15 @@ export const api = {
     request<{ settings: import('../types/api').AskDataSettingsPayload; workspace_slug: string }>(
       '/v1/ask-data/settings',
     ),
+  getFeatureOverrides: () =>
+    request<{ overrides: import('../lib/featureOverrides').FeatureOverrides; switchable: string[]; locked: string[]; workspace_slug: string }>(
+      '/v1/features/overrides',
+    ),
+  putFeatureOverrides: (overrides: import('../lib/featureOverrides').FeatureOverrides) =>
+    request<{ overrides: import('../lib/featureOverrides').FeatureOverrides }>('/v1/features/overrides', {
+      method: 'PUT',
+      body: JSON.stringify({ overrides }),
+    }),
   getMcpSettings: () =>
     request<{ settings: import('../types/api').McpWorkspaceSettingsPayload; workspace_slug: string }>(
       '/v1/mcp/settings',

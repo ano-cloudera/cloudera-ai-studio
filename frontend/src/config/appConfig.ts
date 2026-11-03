@@ -1,3 +1,4 @@
+import { featureEnabled, type FeatureKey } from '../lib/featureOverrides'
 /**
  * Canonical product branding (override via NEXT_PUBLIC_* for white-label / hackathon layers).
  * The Anywhere AI Studio values live in config/examples/anywhere-branding.frontend.env.
@@ -17,6 +18,23 @@ function envBool(key: string, fallback: boolean): boolean {
   if (value === 'false' || value === '0') return false
   return fallback
 }
+
+const featureDefaults: Record<FeatureKey, boolean> = {
+  askData: envBool('NEXT_PUBLIC_FEATURE_ASK_DATA', true),
+  usage: envBool('NEXT_PUBLIC_FEATURE_USAGE', true),
+  settings: envBool('NEXT_PUBLIC_FEATURE_SETTINGS', true),
+  documents: envBool('NEXT_PUBLIC_FEATURE_DOCUMENTS', true),
+  connectors: envBool('NEXT_PUBLIC_FEATURE_CONNECTORS', true),
+  prompts: envBool('NEXT_PUBLIC_FEATURE_PROMPTS', true),
+  skills: envBool('NEXT_PUBLIC_FEATURE_SKILLS', false),
+  semanticLayer: envBool('NEXT_PUBLIC_FEATURE_SEMANTIC_LAYER', true),
+  aiModelRegistry: envBool('NEXT_PUBLIC_FEATURE_AI_MODEL_REGISTRY', true),
+}
+
+const features = new Proxy(featureDefaults, {
+  get: (target, property) =>
+    typeof property === 'string' && property in target ? featureEnabled(property as FeatureKey, target) : Reflect.get(target, property),
+})
 
 export const appConfig = {
   productName: env('NEXT_PUBLIC_PRODUCT_NAME', PRODUCT_NAME),
@@ -42,17 +60,10 @@ export const appConfig = {
     if (explicit) return explicit
     return this.productName
   },
-  features: {
-    askData: envBool('NEXT_PUBLIC_FEATURE_ASK_DATA', true),
-    usage: envBool('NEXT_PUBLIC_FEATURE_USAGE', true),
-    settings: envBool('NEXT_PUBLIC_FEATURE_SETTINGS', true),
-    documents: envBool('NEXT_PUBLIC_FEATURE_DOCUMENTS', true),
-    connectors: envBool('NEXT_PUBLIC_FEATURE_CONNECTORS', true),
-    prompts: envBool('NEXT_PUBLIC_FEATURE_PROMPTS', true),
-    skills: envBool('NEXT_PUBLIC_FEATURE_SKILLS', false),
-    semanticLayer: envBool('NEXT_PUBLIC_FEATURE_SEMANTIC_LAYER', true),
-    aiModelRegistry: envBool('NEXT_PUBLIC_FEATURE_AI_MODEL_REGISTRY', true),
-  },
+  /** The features as switched in this workspace (the deployment default unless an override exists). */
+  features,
+  /** The deployment defaults only: use these where a feature is needed for logic, not just for a menu. */
+  deploymentFeatures: featureDefaults,
   starterQuestionsCaption: env('NEXT_PUBLIC_STARTER_QUESTIONS_CAPTION', 'Start with a question'),
   chatPlaceholder: env('NEXT_PUBLIC_CHAT_PLACEHOLDER', 'Ask a question about your data…'),
   emptyStateTitle: env('NEXT_PUBLIC_EMPTY_STATE_TITLE', 'Ask your data a question'),

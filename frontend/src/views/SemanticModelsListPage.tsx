@@ -134,7 +134,7 @@ export function SemanticModelsListPage() {
   useEffect(() => {
     void load()
     api.getAskDataSettings().then(res => setDefaultModelId(res.settings.default_semantic_model_id ?? null)).catch(() => setDefaultModelId(null))
-    if (appConfig.features.connectors) api.listConnectors().then(res => setConnectors(res.connectors)).catch(() => setConnectors([]))
+    if (appConfig.deploymentFeatures.connectors) api.listConnectors().then(res => setConnectors(res.connectors)).catch(() => setConnectors([]))
   }, [load])
 
   const open = (id: string) => router.push(`${SEMANTIC_MODEL_PATH}?model=${encodeURIComponent(id)}`)
