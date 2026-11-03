@@ -27,6 +27,7 @@ import { SemanticOverviewPanel } from './semantic/SemanticOverviewPanel'
 import { SemanticVersionContextBar } from './semantic/SemanticVersionContextBar'
 import { SemanticPreviewTabPanel } from './semantic/SemanticPreviewTabPanel'
 import { SemanticPublishTabPanel } from './semantic/SemanticPublishTabPanel'
+import { SemanticQualityTabPanel } from './semantic/SemanticQualityTabPanel'
 import { SemanticVersionHistoryTabPanel } from './semantic/SemanticVersionHistoryTabPanel'
 import { SemanticSuggestionsApplyModal } from './semantic/SemanticSuggestionsApplyModal'
 import { UnsavedChangesModal } from '../components/semantic/UnsavedChangesModal'
@@ -44,6 +45,7 @@ const PRIMARY_TABS = [
   'dimensions',
   'relationships',
   'glossary',
+  'quality',
   'version_history',
   'preview',
   'publish_config',
@@ -58,6 +60,7 @@ const TAB_LABELS: Record<Tab, string> = {
   dimensions: 'Dimensions',
   relationships: 'Relationships',
   glossary: 'Glossary',
+  quality: 'Answer quality',
   version_history: 'Version history',
   preview: 'Preview',
   publish_config: 'Publish',
@@ -1026,6 +1029,10 @@ export function SemanticLayerPage() {
               focusObjectId={authoringFocus?.kind === 'glossary' ? authoringFocus.objectId : null}
               onFocusObjectConsumed={() => setAuthoringFocus(null)}
             />
+          ) : null}
+
+          {tab === 'quality' && model ? (
+            <SemanticQualityTabPanel modelId={model.id} published={Boolean(model.active_version_id)} />
           ) : null}
 
           {tab === 'version_history' ? (

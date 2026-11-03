@@ -492,28 +492,41 @@ class ChatService:
             project_id = uuid.UUID(scope[1])
         except ValueError:
             return ""
-        from app.db.platform_models import WorkspaceRow
+        from app.db.platform_models import SemanticVersionRow, WorkspaceRow
         from app.prompt_management.resolver import resolve_prompt_text
         from app.workspace.ask_data_settings import read_ask_data_settings
+        from app.workspace.semantic_knowledge import read_semantic_knowledge
 
+        parts: list[str] = []
         with factory() as session:
             row = session.get(WorkspaceRow, workspace_id)
             if row is None:
                 return ""
             settings = read_ask_data_settings(row.settings_json)
             key = (settings.instruction_prompt_key or "").strip()
-            if not key:
-                return ""
-            try:
-                return resolve_prompt_text(
-                    self.settings,
-                    key,
-                    session=session,
-                    workspace_id=workspace_id,
-                    project_id=project_id,
-                ).strip()[:4000]
-            except Exception:
-                return ""
+            if key:
+                try:
+                    parts.append(
+                        resolve_prompt_text(
+                            self.settings, key, session=session, workspace_id=workspace_id, project_id=project_id
+                        ).strip()[:4000]
+                    )
+                except Exception:
+                    pass
+            version_id = getattr(self._runtime_meta, "semantic_version_id", None)
+            if version_id:
+                try:
+                    version = session.get(SemanticVersionRow, uuid.UUID(str(version_id)))
+                except ValueError:
+                    version = None
+                if version is not None:
+                    knowledge = read_semantic_knowledge(row.settings_json, str(version.semantic_model_id))
+                    if knowledge.instructions.strip():
+                        parts.append("Instructions for this semantic model:\n" + knowledge.instructions.strip())
+                    if knowledge.examples:
+                        shown = "\n".join(f"- {example.question}" for example in knowledge.examples[:8])
+                        parts.append("Example questions this model is expected to answer:\n" + shown)
+        return "\n\n".join(part for part in parts if part)[:6000]
 
     def _capability_starter_questions(self) -> list[str]:
         factory = self.dependencies.session_factory

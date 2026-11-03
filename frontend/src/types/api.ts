@@ -910,3 +910,19 @@ export type AiModelTestResult = {
   error_code?: string | null
   message?: string | null
 }
+
+export type SemanticExample = { question: string; expected_value: number | null; tolerance: number; match: string | null }
+export type SemanticBenchmarkRun = { at: string; published_version: number | null; passed: number; total: number }
+export type SemanticKnowledge = { instructions: string; examples: SemanticExample[]; runs: SemanticBenchmarkRun[] }
+export type SemanticBenchmarkResult = {
+  question: string
+  expected: number | null
+  tolerance: number
+  match: string | null
+  actual: number | null
+  status: 'pass' | 'fail' | 'error' | 'answered'
+  message?: string
+  answer?: string
+  sql?: string | null
+  ms?: number
+}

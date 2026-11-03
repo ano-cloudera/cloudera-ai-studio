@@ -1,0 +1,10 @@
+# Paste into Semantic Layer > Answer quality > Example questions > Paste several.
+# question | expected value | tolerance | row text
+How many orders do we have in total? | 8000 | 0
+Which region has the highest late delivery rate? | 23.15 | 0.05 | Kalimantan Timur
+What is the late delivery rate for Jawa Timur? | 16.34 | 0.05 | Jawa Timur
+Which carrier has the highest late delivery rate? | 13.2 | 0.05 | NusaCargo
+What is the late delivery rate for KilatKirim? | 11.3 | 0.05 | KilatKirim
+What is the late delivery rate for FastExpress? | 9.84 | 0.05 | FastExpress
+What is the cancellation rate? | 3.8 | 0.1
+How many orders were placed in March 2026? | 1002 | 0

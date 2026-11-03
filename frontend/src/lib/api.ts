@@ -329,6 +329,19 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  getSemanticKnowledge: (modelId: string) =>
+    request<import('../types/api').SemanticKnowledge>(`/v1/semantic/models/${encodeURIComponent(modelId)}/knowledge`),
+  putSemanticKnowledge: (modelId: string, body: { instructions: string; examples: import('../types/api').SemanticExample[] }) =>
+    request<import('../types/api').SemanticKnowledge>(`/v1/semantic/models/${encodeURIComponent(modelId)}/knowledge`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  runSemanticBenchmarks: (modelId: string, body: { provider: string; model: string }) =>
+    request<{
+      run: import('../types/api').SemanticBenchmarkRun
+      results: import('../types/api').SemanticBenchmarkResult[]
+      runs: import('../types/api').SemanticBenchmarkRun[]
+    }>(`/v1/semantic/models/${encodeURIComponent(modelId)}/benchmarks/run`, { method: 'POST', body: JSON.stringify(body) }),
   deleteSemanticModel: (modelId: string, confirmPublished = false) =>
     request<{ deleted: boolean; model_id: string; model_key: string; model_name: string; was_published: boolean }>(
       `/v1/semantic/models/${encodeURIComponent(modelId)}?confirm_published=${confirmPublished}`,

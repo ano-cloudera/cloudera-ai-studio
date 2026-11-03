@@ -23,6 +23,7 @@ from app.api.v1 import chat_attachments as v1_chat_attachments
 from app.api.v1 import chat_context as v1_chat_context
 from app.api.v1 import mcp as v1_mcp
 from app.api.v1 import features as v1_features
+from app.api.v1 import semantic_quality as v1_semantic_quality
 from app.api.v1 import tools as v1_tools
 from app.api.v1 import environment as v1_environment
 from app.api.v1 import projects as v1_projects
@@ -164,6 +165,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(v1_chat_context.router, prefix="/api/v1")
     application.include_router(v1_mcp.router, prefix="/api/v1")
     application.include_router(v1_features.router, prefix="/api/v1")
+    application.include_router(v1_semantic_quality.router, prefix="/api/v1")
     return application
 
 
