@@ -86,7 +86,7 @@ export function AskDataStarterSettingsPanel() {
       }
       setDraft(next)
       setSaved(next)
-      setBanner('Starter questions saved. New Ask Data sessions will use these prompts.')
+      setBanner('Saved. New Ask Data chats use these settings.')
     } catch (e) {
       setError(toAppApiError(e))
     } finally {
@@ -134,14 +134,16 @@ export function AskDataStarterSettingsPanel() {
   return (
     <div className="space-y-4 border-t border-slate-100 pt-6">
       <div>
-        <h2 className="text-[15px] font-semibold text-cloudera-navy">Ask Data — starter questions</h2>
+        <h2 className="text-[15px] font-semibold text-cloudera-navy">Ask Data</h2>
         <p className="type-chat-meta mt-1 text-slate-500">
-          Shown on an empty chat. Leave blank to hide the section. Saved per workspace (not random demo defaults).
+          What Ask Data shows when the chat is empty, and which model answers by default. Saved for this workspace.
         </p>
       </div>
 
+      <h3 className="text-sm font-semibold text-slate-800">Starter questions</h3>
+
       <label className="block text-sm font-medium text-slate-700">
-        Section caption
+        Heading above the questions
         <input
           className="input mt-1"
           value={draft.starter_questions_caption}
@@ -151,7 +153,7 @@ export function AskDataStarterSettingsPanel() {
       </label>
 
       <p className="text-sm text-slate-600">
-        Custom list — up to {MAX_QUESTIONS} questions shown in order. Empty list hides starters on Ask Data.
+        Up to {MAX_QUESTIONS} example questions, shown in this order. Leave them all empty to hide the starters.
       </p>
 
       <ul className="space-y-2">
@@ -185,6 +187,7 @@ export function AskDataStarterSettingsPanel() {
         ) : null}
       </ul>
 
+      <h3 className="pt-2 text-sm font-semibold text-slate-800">Which model answers</h3>
       <AskDataGovernedScopeSettingsPanel settings={draft} onChange={setDraft} />
 
       {banner ? <p className="type-chat-meta text-emerald-700">{banner}</p> : null}
@@ -192,7 +195,7 @@ export function AskDataStarterSettingsPanel() {
 
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" className="btn-primary px-4 py-2 text-sm" disabled={!dirty || saving} onClick={() => void save()}>
-          {saving ? 'Saving…' : 'Save starter questions'}
+          {saving ? 'Saving…' : 'Save Ask Data settings'}
         </button>
         {dirty ? <p className="type-chat-meta text-slate-500">Unsaved changes</p> : null}
       </div>

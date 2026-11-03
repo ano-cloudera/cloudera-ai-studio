@@ -249,12 +249,7 @@ export function SettingsPage() {
                 <dd className="font-medium text-cloudera-navy">{appConfig.sidebarTagline}</dd>
               </div>
             </dl>
-            {appConfig.features.askData ? (
-              <>
-                <AskDataStarterSettingsPanel />
-                <AskDataPresentationSettingsPanel />
-              </>
-            ) : null}
+            {appConfig.features.askData ? <AskDataStarterSettingsPanel /> : null}
           </>
         ) : null}
 
@@ -365,13 +360,16 @@ export function SettingsPage() {
         {tab === 'advanced' ? (
           <>
             <h2 className="text-[15px] font-semibold text-cloudera-navy">Advanced</h2>
-            <p className="text-sm text-slate-600">
-              Operational limits (query timeout, row caps, cache TTL) are set via backend environment configuration for
-              this PoC deployment.
-            </p>
-            <p className="type-chat-meta text-slate-500">
-              Report panel: {appConfig.analysisReportPanel ? 'Enabled' : 'Disabled'}
-            </p>
+            {appConfig.features.askData ? <AskDataPresentationSettingsPanel /> : null}
+            <div className="space-y-1 border-t border-slate-100 pt-6">
+              <h3 className="text-sm font-semibold text-slate-800">Operational limits</h3>
+              <p className="text-sm text-slate-600">
+                Query timeout, row caps and cache TTL are set through the backend environment configuration of this deployment.
+              </p>
+              <p className="type-chat-meta text-slate-500">
+                Report panel: {appConfig.analysisReportPanel ? 'Enabled' : 'Disabled'}
+              </p>
+            </div>
           </>
         ) : null}
       </section>

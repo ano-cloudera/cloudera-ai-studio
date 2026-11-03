@@ -44,7 +44,7 @@ user, and pick `TRINO_PASSWORD` from the **Secret reference** list (it shows the
 | Policy-exception approvals | `COUNT(CASE WHEN decision_status = 'Approved' AND policy_exception_flag THEN 1 END)` |
 
 3. **Publish** the model. Publishing validates the full artifact, and only published metrics are used to answer questions.
-4. **Settings → Ask Data** → pin `credit_applications` as the default model, so questions resolve to it without an `@`.
+4. **Settings → General → Ask Data → Default semantic model** → choose `credit_applications`, so questions resolve to it without an `@`.
 
 ## 5. Upload the knowledge documents
 

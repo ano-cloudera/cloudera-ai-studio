@@ -1,7 +1,7 @@
 # Semantic model for the fulfillment sample
 
 Create **one model** (for example `fulfillment_delivery`) with the three entities below, then **Publish**. Pin it in
-Settings -> Ask Data. One model is required so two metrics from different tables can be combined (drill-across).
+Settings -> General -> Ask Data -> Default semantic model. One model is required so two metrics from different tables can be combined (drill-across).
 
 ## Entity 1: `fulfillment_orders` (table `fulfillment_orders`)
 
