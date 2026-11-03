@@ -14,6 +14,8 @@ const connectors = [{ id: 'c1', name: 'PostgreSQL', connector_type: 'postgres', 
 const api = vi.hoisted(() => ({
   listSemanticModels: vi.fn(),
   listSemanticVersions: vi.fn(),
+  createSemanticVersion: vi.fn(),
+  cloneSemanticVersion: vi.fn(),
   getSemanticModelOverview: vi.fn(),
   listSemanticEntities: vi.fn(),
   listSemanticMetrics: vi.fn(),
@@ -625,12 +627,35 @@ describe('SEM-2B matrix', () => {
       counts: { entities: 1, metrics: 1, dimensions: 0, relationships: 0, terms: 0 },
     })
     await renderPageReady()
+    await waitFor(() => expect((screen.getByTestId('semantic-lifecycle-primary') as HTMLButtonElement).disabled).toBe(false))
     fireEvent.click(screen.getByTestId('semantic-lifecycle-primary'))
     clickTab('Overview')
     await waitFor(() => expect(screen.getByTestId('semantic-overview-metadata')).toBeTruthy())
     await waitFor(() =>
       expect(screen.getByTestId('semantic-overview-metadata').textContent).toMatch(/Editing draft v3/),
     )
+  })
+
+  it('SEM-2B-039b Edit waits for the versions of the model and never creates a version of its own', async () => {
+    const versions = [
+      { id: 'v-draft-3', semantic_model_id: 'm1', version_number: 3, status: 'DRAFT' },
+      { id: 'v-active', semantic_model_id: 'm1', version_number: 2, status: 'ACTIVE', published_at: '2026-01-01' },
+    ]
+    let release: () => void = () => undefined
+    api.listSemanticVersions.mockImplementation(() => new Promise(resolve => { release = () => resolve({ versions }) }))
+    renderPage()
+    await waitFor(() => expect(screen.getByTestId('semantic-model-toolbar')).toBeTruthy())
+    const edit = screen.getByTestId('semantic-lifecycle-primary') as HTMLButtonElement
+    expect(edit.disabled).toBe(true) // the list is still loading
+    fireEvent.click(edit)
+    expect(api.createSemanticVersion).not.toHaveBeenCalled()
+    expect(api.cloneSemanticVersion).not.toHaveBeenCalled()
+    await act(async () => release())
+    await waitFor(() => expect((screen.getByTestId('semantic-lifecycle-primary') as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.click(screen.getByTestId('semantic-lifecycle-primary'))
+    clickTab('Overview')
+    await waitFor(() => expect(screen.getByTestId('semantic-overview-metadata').textContent).toMatch(/Editing draft v3/))
+    expect(api.createSemanticVersion).not.toHaveBeenCalled() // it used the draft that exists
   })
 
   it('SEM-2B-040 rollback product modal', async () => {

@@ -74,6 +74,8 @@ export function SemanticLayerPage() {
   const [models, setModels] = useState<SemanticModelRecord[]>([])
   const [modelId, setModelId] = useState('')
   const [versions, setVersions] = useState<SemanticVersionRecord[]>([])
+  // Which model the loaded versions belong to: Edit must not act on a list that is still loading or is another model's.
+  const [versionsModelId, setVersionsModelId] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('overview')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<AppApiError | null>(null)
@@ -142,6 +144,7 @@ export function SemanticLayerPage() {
     () => versions.find(v => v.status === 'ACTIVE') ?? versions.find(v => v.id === model?.active_version_id) ?? null,
     [versions, model],
   )
+  const versionsReady = Boolean(modelId) && versionsModelId === modelId
   const isEditing = Boolean(draftVersion && editSessionActive)
   const displayVersionId =
     isEditing && draftVersion ? draftVersion.id : activeVersion?.id ?? draftVersion?.id ?? null
@@ -162,6 +165,7 @@ export function SemanticLayerPage() {
   const refreshVersions = useCallback(async (mid: string) => {
     const { versions: rows } = await api.listSemanticVersions(mid)
     setVersions(rows)
+    setVersionsModelId(mid)
   }, [])
 
   const refreshRuntime = useCallback(async (modelKey?: string) => {
@@ -231,6 +235,7 @@ export function SemanticLayerPage() {
     setArtifact(null)
     setArtifactLoadedForVersionId(null)
     setEditSessionActive(false)
+    setVersionsModelId(null)
     refreshVersions(modelId).catch(err => setError(err instanceof Error ? err.message : 'Failed to load versions'))
   }, [modelId, refreshVersions])
 
@@ -401,7 +406,7 @@ export function SemanticLayerPage() {
   }
 
   async function handleEdit() {
-    if (!model) return
+    if (!model || !versionsReady) return
     setSaving(true)
     setError('')
     try {
@@ -899,7 +904,7 @@ export function SemanticLayerPage() {
             type="button"
             data-testid="semantic-lifecycle-primary"
             className="btn-primary h-10 shrink-0 rounded-lg px-4 text-sm disabled:opacity-50"
-            disabled={saving || !model}
+            disabled={saving || !model || !versionsReady}
             onClick={() => void handleEdit()}
           >
             Edit
