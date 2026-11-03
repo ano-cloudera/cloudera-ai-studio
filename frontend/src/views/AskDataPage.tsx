@@ -61,6 +61,7 @@ import {
   ChatAnalysisDetailsExpand,
   expandTableBlock,
 } from '../components/chat/ChatAnalysisDetailsExpand'
+import { CalculationNoteBlock } from '../components/chat/CalculationNoteBlock'
 import { isExecutiveAudience, noteForExecutive } from '../lib/audienceMode'
 import { sourceHintMessage, suggestSourceHint } from '../lib/sourceHint'
 import { computePresentationTier, shouldShowChatExpand } from '../lib/presentationTier'
@@ -1106,6 +1107,8 @@ function StructuredAnswer({
           onOpen={reportArtifact.onOpen}
         />
       )}
+
+      {response.calculation && !expandForExport && !isRagResponse(response) ? <CalculationNoteBlock note={response.calculation} /> : null}
 
       {((chatInlineEvidence && shouldShowChatExpand(response, presentationTier)) ||
         executiveQueryOnlyExpand) &&

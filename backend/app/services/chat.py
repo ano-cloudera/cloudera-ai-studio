@@ -1037,6 +1037,29 @@ class ChatService:
         if not context_mode and resolution.get("explicit_structured"):
             context_mode = "GOVERNED_SEMANTIC"
         inquiry_brief = state.get("inquiry_brief") if isinstance(state.get("inquiry_brief"), dict) else None
+        calculation = None
+        if state.get("status") == "SUCCESS":
+            from app.ask_data.calculation_note import build_calculation_note
+
+            note_definition = resolution.get("definition") if isinstance(resolution.get("definition"), dict) else None
+            if note_definition is None and governed_metric:
+                try:
+                    note_definition = self.dependencies.semantic_context.metric_definition(str(governed_metric))
+                except Exception:
+                    note_definition = None
+            try:
+                calculation = build_calculation_note(
+                    strategy=str(state.get("strategy") or ""),
+                    sql=governed_sql,
+                    metric=str(governed_metric) if governed_metric else None,
+                    definition=note_definition,
+                    dimensions=[str(d) for d in (resolution.get("dimensions") or [])],
+                    drill=state.get("drill_across") if isinstance(state.get("drill_across"), dict) else None,
+                    language=detect_language(str(state.get("question") or "")),
+                    checks=state.get("verification_checks") or None,
+                )
+            except Exception:
+                logger.exception("calculation_note_failed request_id=%s", request_id)
         response = AskDataResponse(
             request_id=request_id,
             session_id=request.session_id,
@@ -1052,6 +1075,7 @@ class ChatService:
             governed_sql=governed_sql,
             semantic_runtime=self._runtime_meta,
             context_mode=context_mode if context_mode in {"RAW_TABLE", "GOVERNED_SEMANTIC"} else None,
+            calculation=calculation,
         )
         return attach_presentation_tier(
             response,

@@ -565,6 +565,24 @@ export type ChatResponse = {
   context_mode?: 'RAW_TABLE' | 'GOVERNED_SEMANTIC' | null
   clarification?: AskDataClarification | null
   presentation_tier?: 1 | 2 | 3 | null
+  calculation?: CalculationNote | null
+}
+
+export type CalculationCheck = { name: string; status: 'ok' | 'warning'; message: string }
+
+/** How an answer was reached, built from the executed plan on the server (not written by the model). */
+export type CalculationNote = {
+  kind: 'governed' | 'comparison' | 'fallback' | 'agent'
+  summary: string
+  metric?: string | null
+  formula?: string | null
+  breakdown: string[]
+  filters: string[]
+  period?: string | null
+  source: string[]
+  comparison?: string | null
+  steps: string[]
+  checks: CalculationCheck[]
 }
 
 export type SemanticOverviewPayload = {

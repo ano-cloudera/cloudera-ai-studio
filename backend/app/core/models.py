@@ -202,6 +202,28 @@ class ModelResolutionMeta(StrictModel):
     registry_model_id: str | None = None
 
 
+class CalculationCheck(StrictModel):
+    name: str
+    status: Literal["ok", "warning"]
+    message: str
+
+
+class CalculationNote(StrictModel):
+    """How an answer was reached, built from the query plan and the executed SQL, never from the model's text."""
+
+    kind: Literal["governed", "comparison", "fallback", "agent"] = "governed"
+    summary: str
+    metric: str | None = None
+    formula: str | None = None
+    breakdown: list[str] = []
+    filters: list[str] = []
+    period: str | None = None
+    source: list[str] = []
+    comparison: str | None = None
+    steps: list[str] = []
+    checks: list[CalculationCheck] = []
+
+
 class AskDataResponse(StrictModel):
     request_id: str
     session_id: str
@@ -225,3 +247,4 @@ class AskDataResponse(StrictModel):
     context_mode: ContextMode | None = None
     clarification: AskDataClarification | None = None
     presentation_tier: PresentationTier | None = None
+    calculation: CalculationNote | None = None
