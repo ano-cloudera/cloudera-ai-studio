@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Plus, Search } from 'lucide-react'
 import { PageCenter } from '../components/PageCenter'
 import { appConfig } from '../config/appConfig'
 import { api } from '../lib/api'
@@ -15,12 +15,31 @@ export const SEMANTIC_MODEL_PATH = '/semantic-layer/model'
 
 type Row = { model: SemanticModelRecord; overview: SemanticOverviewPayload | null }
 
+/** "fulfillment_delivery" is shown as "Fulfillment Delivery"; a name someone already wrote with spaces is left alone. */
+export function displayModelName(name: string): string {
+  if (!/[_-]/.test(name) || /\s/.test(name)) return name
+  return name
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
+}
+
+const letters = (text: string) => text.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+/** The key is shown under the name only when it says something the name does not. */
+export function showKey(model: Pick<SemanticModelRecord, 'name' | 'key'>): boolean {
+  return letters(model.key) !== letters(model.name)
+}
+
 export function modelStatus(overview: SemanticOverviewPayload | null): { label: string; tone: 'live' | 'draft' | 'empty' | 'unknown' } {
   if (!overview) return { label: '—', tone: 'unknown' }
   const published = overview.published_version_number
   const draft = overview.draft_version_number
   if (published != null) return { label: draft != null ? `Published v${published} · draft v${draft} open` : `Published v${published}`, tone: 'live' }
-  if (draft != null) return { label: `Draft v${draft}, not published`, tone: 'draft' }
+  const counts = overview.counts
+  const empty = counts.entities + counts.metrics + counts.dimensions === 0
+  if (draft != null) return { label: empty ? `Draft v${draft}, empty` : `Draft v${draft}, not published`, tone: empty ? 'empty' : 'draft' }
   return { label: 'Empty', tone: 'empty' }
 }
 
@@ -40,10 +59,63 @@ export function deletionNotice(row: Row): { message: string; needsTyping: boolea
   if (isPublished(row)) {
     return {
       needsTyping: true,
-      message: `“${row.model.name}” is published and Ask Data answers from it. Deleting it removes it from Ask Data (and clears it as the default model), together with every version and definition. This cannot be undone.`,
+      message: `“${displayModelName(row.model.name)}” is published and Ask Data answers from it. Deleting it removes it from Ask Data (and clears it as the default model), together with every version and definition. This cannot be undone.`,
     }
   }
-  return { needsTyping: false, message: `Delete “${row.model.name}” with its draft and definitions? This cannot be undone.` }
+  return { needsTyping: false, message: `Delete “${displayModelName(row.model.name)}” with its draft and definitions? This cannot be undone.` }
+}
+
+function RowActions({ row, isDefault, busy, onOpen, onSetDefault, onDelete }: { row: Row; isDefault: boolean; busy: boolean; onOpen: () => void; onSetDefault: () => void; onDelete: () => void }) {
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  const name = displayModelName(row.model.name)
+  useEffect(() => {
+    if (!open) return
+    const close = (event: MouseEvent) => {
+      if (box.current && !box.current.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+  return (
+    <div ref={box} className="relative flex items-center gap-2" onClick={event => event.stopPropagation()}>
+      <button type="button" aria-label={`Open ${name}`} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50" onClick={onOpen}>
+        Open
+      </button>
+      <button type="button" aria-label={`More actions for ${name}`} aria-expanded={open} className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" onClick={() => setOpen(value => !value)}>
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open ? (
+        <div role="menu" className="absolute right-0 top-10 z-10 min-w-[11rem] rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+          {isPublished(row) && !isDefault ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+              disabled={busy}
+              onClick={() => {
+                setOpen(false)
+                onSetDefault()
+              }}
+            >
+              Set as default
+            </button>
+          ) : null}
+          <button
+            type="button"
+            role="menuitem"
+            className="block w-full px-3 py-2 text-left text-sm text-red-700 hover:bg-red-50"
+            onClick={() => {
+              setOpen(false)
+              onDelete()
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
 }
 
 export function SemanticModelsListPage() {
@@ -83,7 +155,8 @@ export function SemanticModelsListPage() {
 
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase()
-    return (rows ?? []).filter(row => !needle || `${row.model.name} ${row.model.key}`.toLowerCase().includes(needle))
+    const matching = (rows ?? []).filter(row => !needle || `${row.model.name} ${displayModelName(row.model.name)} ${row.model.key}`.toLowerCase().includes(needle))
+    return [...matching].sort((a, b) => String(b.overview?.model.updated_at ?? b.model.updated_at).localeCompare(String(a.overview?.model.updated_at ?? a.model.updated_at)))
   }, [rows, search])
 
   async function setAsDefault(row: Row) {
@@ -94,7 +167,7 @@ export function SemanticModelsListPage() {
       const { settings } = await api.getAskDataSettings()
       await api.putAskDataSettings({ ...settings, default_semantic_model_id: row.model.id, auto_attach_semantic_model: true })
       setDefaultModelId(row.model.id)
-      setNotice(`“${row.model.name}” is now the default model: questions without an @ are answered from it.`)
+      setNotice(`“${displayModelName(row.model.name)}” is now the default model: questions without an @ are answered from it.`)
     } catch (err) {
       setError(safeErrorMessage(err, 'Could not set the default model'))
     } finally {
@@ -111,7 +184,7 @@ export function SemanticModelsListPage() {
       await api.deleteSemanticModel(pendingDelete.model.id, published)
       setRows(current => (current ?? []).filter(row => row.model.id !== pendingDelete.model.id))
       if (defaultModelId === pendingDelete.model.id) setDefaultModelId(null)
-      setNotice(`Deleted “${pendingDelete.model.name}”.`)
+      setNotice(`Deleted “${displayModelName(pendingDelete.model.name)}”.`)
       setPendingDelete(null)
       setTyped('')
     } catch (err) {
@@ -126,12 +199,12 @@ export function SemanticModelsListPage() {
 
   return (
     <PageCenter>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-cloudera-navy">Semantic models</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">Semantic models</h1>
           <p className="mt-1 text-sm text-slate-600">The trusted business definitions Ask Data answers from. Open a model to edit and publish it.</p>
         </div>
-        <button type="button" className="btn-primary inline-flex h-10 items-center gap-2 rounded-lg px-4 text-sm" onClick={() => setCreateOpen(true)}>
+        <button type="button" className="inline-flex items-center gap-2 rounded-xl bg-[#FF5500] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#e64d00]" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" aria-hidden />
           Create semantic model
         </button>
@@ -156,98 +229,84 @@ export function SemanticModelsListPage() {
         <input className="input w-full pl-9" placeholder="Search models…" aria-label="Search semantic models" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
-      <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-4 py-3">Model</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3 text-right">Data models</th>
-              <th className="px-4 py-3 text-right">Metrics</th>
-              <th className="px-4 py-3 text-right">Dimensions</th>
-              <th className="px-4 py-3">Last modified</th>
-              <th className="px-4 py-3 text-right">
-                <span className="sr-only">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {rows === null ? (
+      <div className="app-table-surface mt-3">
+        <div className="app-table-surface-scroll">
+          <table className="app-data-table min-w-full">
+            <thead className="app-table-head">
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                  Loading…
-                </td>
+                <th>Model</th>
+                <th>Status</th>
+                <th className="text-right">Data models</th>
+                <th className="text-right">Metrics</th>
+                <th className="text-right">Dimensions</th>
+                <th>Last modified</th>
+                <th className="w-44">Actions</th>
               </tr>
-            ) : visible.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-slate-600">
-                  {rows.length === 0 ? 'No semantic model yet. Create one to start answering questions from your data.' : 'No model matches your search.'}
-                </td>
-              </tr>
-            ) : (
-              visible.map(row => {
-                const status = modelStatus(row.overview)
-                const counts = row.overview?.counts
-                return (
-                  <tr key={row.model.id} className="cursor-pointer hover:bg-slate-50/70" onClick={() => open(row.model.id)} data-testid="semantic-model-row">
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        className="font-semibold text-cloudera-navy hover:underline"
-                        onClick={event => {
-                          event.stopPropagation()
-                          open(row.model.id)
-                        }}
-                      >
-                        {row.model.name}
-                      </button>
-                      {defaultModelId === row.model.id ? (
-                        <span className="ml-2 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-800">Default for Ask Data</span>
-                      ) : null}
-                      <div className="font-mono text-xs text-slate-500">{row.model.key}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${TONE[status.tone]}`}>{status.label}</span>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums">{counts?.entities ?? '—'}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{counts?.metrics ?? '—'}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{counts?.dimensions ?? '—'}</td>
-                    <td className="px-4 py-3 text-slate-600">{formatSemanticModifiedCompact(row.overview?.model.updated_at ?? row.model.updated_at)}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
-                      {isPublished(row) && defaultModelId !== row.model.id ? (
+            </thead>
+            <tbody>
+              {rows === null ? (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-slate-500">
+                    Loading…
+                  </td>
+                </tr>
+              ) : visible.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center text-slate-600">
+                    {rows.length === 0 ? 'No semantic model yet. Create one to start answering questions from your data.' : 'No model matches your search.'}
+                  </td>
+                </tr>
+              ) : (
+                visible.map(row => {
+                  const status = modelStatus(row.overview)
+                  const counts = row.overview?.counts
+                  const name = displayModelName(row.model.name)
+                  return (
+                    <tr key={row.model.id} className="cursor-pointer" onClick={() => open(row.model.id)} data-testid="semantic-model-row">
+                      <td>
                         <button
                           type="button"
-                          aria-label={`Set ${row.model.name} as the default model`}
-                          className="mr-2 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-cloudera-navy hover:bg-slate-50 disabled:opacity-50"
-                          disabled={settingDefaultFor !== null}
+                          className="font-semibold text-slate-900 hover:underline"
                           onClick={event => {
                             event.stopPropagation()
-                            void setAsDefault(row)
+                            open(row.model.id)
                           }}
                         >
-                          {settingDefaultFor === row.model.id ? 'Setting…' : 'Set as default'}
+                          {name}
                         </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        aria-label={`Delete ${row.model.name}`}
-                        className="rounded-lg border border-slate-200 p-2 text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
-                        onClick={event => {
-                          event.stopPropagation()
-                          setTyped('')
-                          setDeleteError('')
-                          setPendingDelete(row)
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
+                        {defaultModelId === row.model.id ? (
+                          <span className="ml-2 rounded-full bg-orange-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-orange-800">Default for Ask Data</span>
+                        ) : null}
+                        {showKey(row.model) ? <div className="text-xs text-slate-500">{row.model.key}</div> : null}
+                      </td>
+                      <td>
+                        <span className={`rounded-full px-2.5 py-0.5 text-sm font-medium ${TONE[status.tone]}`}>{status.label}</span>
+                      </td>
+                      <td className="text-right tabular-nums text-slate-700">{counts?.entities ?? '—'}</td>
+                      <td className="text-right tabular-nums text-slate-700">{counts?.metrics ?? '—'}</td>
+                      <td className="text-right tabular-nums text-slate-700">{counts?.dimensions ?? '—'}</td>
+                      <td className="text-slate-600">{formatSemanticModifiedCompact(row.overview?.model.updated_at ?? row.model.updated_at)}</td>
+                      <td>
+                        <RowActions
+                          row={row}
+                          isDefault={defaultModelId === row.model.id}
+                          busy={settingDefaultFor !== null}
+                          onOpen={() => open(row.model.id)}
+                          onSetDefault={() => void setAsDefault(row)}
+                          onDelete={() => {
+                            setTyped('')
+                            setDeleteError('')
+                            setPendingDelete(row)
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {pendingDelete && notice_ ? (
