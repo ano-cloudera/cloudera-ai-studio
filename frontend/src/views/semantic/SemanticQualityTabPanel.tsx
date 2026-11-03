@@ -155,7 +155,7 @@ export function SemanticQualityTabPanel({ modelId, published }: { modelId: strin
           Questions this model should answer. Add the number you expect and the benchmark below checks it. “Look at the row with” picks a row
           by text, for example a region name; leave it empty to check the first row.
         </p>
-        <div className="app-table-surface">
+        <div className="mt-2 rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="app-table-surface-scroll">
             <table className="app-data-table min-w-[760px]">
               <thead className="app-table-head">
@@ -292,7 +292,7 @@ export function SemanticQualityTabPanel({ modelId, published }: { modelId: strin
         </div>
 
         {results.length ? (
-          <div className="app-table-surface">
+          <div className="mt-2 rounded-xl border border-slate-200 bg-white shadow-sm">
             <div className="app-table-surface-scroll">
               <table className="app-data-table min-w-[760px]">
                 <thead className="app-table-head">
