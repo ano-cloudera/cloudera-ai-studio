@@ -15,6 +15,7 @@ from app.db.platform_models import (
     SemanticRelationshipRow,
     SemanticTermRow,
     SemanticRuntimeDeploymentRow,
+    SemanticRuntimeStateRow,
     SemanticVersionRow,
 )
 from app.semantic_registry.governance_types import READINESS_NOT_READY
@@ -170,6 +171,51 @@ class SemanticRegistryService:
         self._copy_version_content(source.id, draft.id)
         self._session.refresh(draft)
         return draft
+
+    def delete_model(
+        self,
+        model_id: uuid.UUID,
+        *,
+        workspace_id: uuid.UUID,
+        project_id: uuid.UUID,
+        allow_published: bool = False,
+    ) -> dict:
+        """Remove a semantic model with all its versions, definitions and runtime deployments.
+
+        A model that is published to Ask Data is only removed when the caller says so (allow_published), because Ask Data
+        stops answering from it.
+        """
+        model = self.get_model(model_id, workspace_id=workspace_id, project_id=project_id)
+        state = self._session.get(SemanticRuntimeStateRow, model.id)
+        was_published = bool(model.active_version_id) or bool(state and state.active_deployment_id)
+        if was_published and not allow_published:
+            raise SemanticRegistryError(
+                "model_published",
+                "This model is published to Ask Data. Confirm to remove it from Ask Data and delete it.",
+                409,
+            )
+        key, name = model.key, model.name
+        if state is not None:
+            state.active_deployment_id = None
+            state.previous_deployment_id = None
+            self._session.flush()
+            self._session.delete(state)
+        deployments = list(
+            self._session.execute(select(SemanticRuntimeDeploymentRow).where(SemanticRuntimeDeploymentRow.semantic_model_id == model.id)).scalars()
+        )
+        for deployment in deployments:
+            deployment.previous_deployment_id = None
+        self._session.flush()
+        for deployment in deployments:
+            self._session.delete(deployment)
+        self._session.flush()
+        model.active_version_id = None
+        for version in list(model.versions):
+            version.last_validation_run_id = None
+        self._session.flush()
+        self._session.delete(model)
+        self._session.flush()
+        return {"deleted": True, "model_id": str(model_id), "model_key": key, "model_name": name, "was_published": was_published}
 
     def discard_draft_version(
         self,

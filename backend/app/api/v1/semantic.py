@@ -406,6 +406,43 @@ def patch_model(
     return {"model": _model_dict(row)}
 
 
+@router.delete("/models/{model_id}")
+def delete_model(
+    model_id: uuid.UUID,
+    request: Request,
+    confirm_published: bool = Query(False),
+    session: Session = Depends(postgres_session),
+    ctx=Depends(default_project_context),
+):
+    """Delete a semantic model. A published model needs confirm_published=true (Ask Data stops using it)."""
+    ws, proj = _ctx_ids(ctx)
+    svc = SemanticRegistryService(session)
+    try:
+        result = svc.delete_model(model_id, workspace_id=ws, project_id=proj, allow_published=confirm_published)
+    except SemanticRegistryError as exc:
+        raise _err(exc) from exc
+
+    from app.db.platform_models import WorkspaceRow
+    from app.workspace.ask_data_settings import read_ask_data_settings, write_ask_data_settings
+
+    workspace = session.get(WorkspaceRow, ws)
+    if workspace is not None:  # the deleted model can no longer be the default model of Ask Data
+        settings = read_ask_data_settings(workspace.settings_json)
+        if settings.default_semantic_model_id and str(settings.default_semantic_model_id) == str(model_id):
+            workspace.settings_json = write_ask_data_settings(workspace.settings_json, settings.model_copy(update={"default_semantic_model_id": None}))
+            session.add(workspace)
+    session.flush()
+    if result["was_published"]:  # Ask Data keeps the active model in memory: switch it to what is still published
+        loader = SemanticRuntimeLoader.get(request.app.state.settings)
+        bundle = loader.load_first_active_runtime(session, workspace_id=ws, project_id=proj)
+        if bundle is not None:
+            loader.swap_bundle(bundle)
+        else:
+            bundle = loader.refresh(session, workspace_id=ws, project_id=proj, model_key=result["model_key"])
+        request.app.state.chat_service.apply_runtime_bundle(bundle)
+    return result
+
+
 @router.post("/models/{model_id}/publish-to-ask-data")
 def publish_to_ask_data(
     model_id: uuid.UUID,
