@@ -103,7 +103,7 @@ function PreviewTable({ preview }: { preview: SamplePreview }) {
       <p className="mb-2 text-xs text-slate-500">
         Preview limited to {preview.row_count} row{preview.row_count === 1 ? '' : 's'}.
       </p>
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
+      <div className="overflow-x-auto rounded-xl border border-slate-200">
         <table className="app-data-table min-w-full">
           <thead className="app-table-head sticky top-0">
             <tr>

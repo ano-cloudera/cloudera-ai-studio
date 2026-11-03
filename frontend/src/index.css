@@ -67,7 +67,12 @@ button { cursor: pointer; }
   }
 
   .app-table-surface {
-    @apply mt-2 flex min-h-[420px] flex-col rounded-xl border border-slate-200 bg-white shadow-sm;
+    @apply mt-2 flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  /* A list fills the page only once it has enough rows; an empty or short one stays as tall as its content. */
+  .app-table-surface:has(tbody tr:nth-child(6)) {
+    min-height: 420px;
   }
 
   .app-table-surface-scroll {
