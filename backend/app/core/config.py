@@ -307,6 +307,10 @@ class Settings(BaseSettings):
     # OSSIE workflow answer-quality loop (Phase B1)
     judge_max_iterations: int = Field(default=2, ge=0, le=5)
     judge_enabled: bool = True
+    agent_mode_enabled: bool = Field(
+        default=True,
+        description="Split open questions (why, what should we do) into steps that each run through governed Ask Data, then write one report.",
+    )
 
 
 

@@ -51,6 +51,14 @@ behavior, and do not count them as failures.
 | A18 | Comparison | Compare the late delivery rate of Sumatera Utara between March-May and June-August (no year) | Same as A13: the most recent finished year is used, **6.0%** then **15.6%** | |
 | A19 | Benchmark | How does Kalimantan Timur late delivery rate compare to the overall rate? | One row: **23.15%**, overall **11.3%**, difference about **+11.85 points** | |
 | A20 | Benchmark | Compare the late delivery rate by region with the overall rate | All 8 regions, each with overall 11.3% and its difference, Kalimantan Timur first | |
+| A21 | Explain | Any Ask Data answer, click **How this was calculated** | One-line summary, then metric, formula, breakdown, period, filters, source. Same wording whatever the model | |
+| A22 | Verify | `How many orders do we get per month?` | Check line says the result is split by month; months in date order | |
+| AG1 | Agent | Why is Kalimantan Timur late so often? | Progress shows steps; answer cites step numbers; NusaCargo **32.2%** stands out; **How this was calculated** lists 3 to 5 steps | |
+| AG2 | Agent | What should we do about carrier performance in Kalimantan Timur? (library with both PDFs exists) | Includes a document step; recommendation applies the **15%** review and **25%** hold thresholds and names the PDF and page | |
+| AG3 | Agent | Set `AGENT_MODE_ENABLED=false`, ask AG1 again | Normal single-query answer, no steps | |
+| Q1 | Answer quality | Semantic Layer > Answer quality > Paste several, paste `samples/fulfillment/benchmark_examples.txt`, Save | 8 examples listed | |
+| Q2 | Answer quality | Run benchmark | 8 of 8 pass; a run appears under Recent runs with the published version | |
+| Q3 | Answer quality | Add the instruction `Always show late delivery rate with 1 decimal`, Save, ask a late rate question | The answer follows the instruction | |
 | K1 | Knowledge | Create a library, upload `Delivery_Returns_Policy.pdf` and `Carrier_Operations_Guide.pdf`, wait for **Ready** | Ready, 5 pages indexed per file | |
 | K2 | Knowledge | (attach the library) What is the service level of regular delivery? | **4 days** (Express 2 days), cited to page 1 | |
 | K3 | Knowledge | When is a carrier review triggered? | Late rate above **15%** in a region in a month; above 25% new volume is held. Cited to page 2 | |

@@ -36,6 +36,7 @@ Strategy = Literal[
     "history_only_analysis",
     "rag",
     "mcp",
+    "agent",
 ]
 ChatMode = Literal["ask_data", "rag", "mcp"]
 GroundingLevel = Literal["SUPPORTED", "PARTIALLY_SUPPORTED", "INSUFFICIENT_EVIDENCE"]

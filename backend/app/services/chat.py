@@ -699,6 +699,40 @@ class ChatService:
             dimensions=[str(item) for item in dimensions] if isinstance(dimensions, list) else None,
         )
 
+    def provider_for(self, request: AskDataRequest) -> tuple[AskDataRequest, Any]:
+        """The request with its model resolved (registry assignment or legacy choice) and the provider to call."""
+        prepared = self._prepare_registry_request(request, capability="ASK_DATA")
+        return prepared, self.dependencies.provider_registry.resolve(prepared.provider, prepared.model)
+
+    def metric_catalog(self) -> list[dict[str, Any]]:
+        try:
+            return list(self.dependencies.semantic_context.registry.metric_catalog_for_classification())
+        except Exception:
+            return []
+
+    def ready_library_ids(self) -> list[str]:
+        """Knowledge libraries that hold at least one document, for steps that look something up in the documents."""
+        factory = self.dependencies.session_factory
+        scope = self._project_scope
+        if factory is None or not scope:
+            return []
+        try:
+            from app.services.library_service import LibraryService
+
+            with factory() as session:
+                items = LibraryService(session).list_libraries(workspace_id=uuid.UUID(scope[0]), project_id=uuid.UUID(scope[1]))
+            return [str(item.id) for item in items if int(getattr(item, "document_count", 0) or 0) > 0]
+        except Exception:
+            logger.exception("ready_library_ids_failed")
+            return []
+
+    def finalize_response(self, response: AskDataResponse) -> AskDataResponse:
+        return self._finalize_response(response)
+
+    def record_turn(self, request: AskDataRequest, response: AskDataResponse) -> None:
+        """Keep an agent answer in the session history so follow-up questions can refer to it."""
+        self._persist_turn(request, response, response.chart_spec)
+
     def _persist_turn(
         self,
         request: AskDataRequest,

@@ -526,6 +526,7 @@ export type ChatResponse = {
     | 'local_agent_exploratory'
     | 'error'
     | 'rag'
+    | 'agent'
   route?: 'ask_data' | 'rag' | null
   grounding?: GroundingLevel | null
   citations?: CitationRecord[] | null

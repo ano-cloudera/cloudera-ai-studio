@@ -82,6 +82,7 @@ function formatStrategyLabel(strategy: string): string {
     clarification: 'Clarification',
     unsupported: 'Unsupported',
     local_agent_exploratory: 'Exploratory',
+    agent: 'Agent analysis',
   }
   return labels[strategy] ?? strategy.replace(/_/g, ' ')
 }

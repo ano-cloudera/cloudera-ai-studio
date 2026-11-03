@@ -18,6 +18,17 @@ answers, and verify before answering.
 | Agent mode (sub-tasks, report with citations) | Drill-across and comparisons, deterministic; Knowledge is separate | No planner for open questions, no data plus document answers |
 | Shows the query and assumptions | SQL panel, "Data source" note | No plain-language "how this was calculated" that does not depend on the model |
 
+## Status
+
+| Phase | State | Where |
+|---|---|---|
+| 0 | Done | `comparisons.py`, `context.py` (month grain, yearless periods, compare with overall) |
+| 1 | Done | `calculation_note.py`, `CalculationNoteBlock.tsx` |
+| 2 | Done | Semantic Layer > Answer quality (instructions, examples); instructions reach the analyst |
+| 3 | Done | Same tab: expected values, Run benchmark, run history per published version |
+| 4 | Done, shows and discloses | `verification.py`: period, monthly split, percentage range, row limit. Warnings reach the analyst and the calculation note. No automatic re-run |
+| 5 | Done | `agent_mode.py`: planner, steps through the normal pipeline, one report. `AGENT_MODE_ENABLED=false` turns it off; any failure falls back to the normal answer |
+
 ## Phases
 
 | Phase | What | Result for the user | Effort |

@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from app.chat.context_sources import ContextSourceError, context_source_http_error
+from app.ask_data.agent_mode import AskDataAgent
 from app.core.models import AskDataRequest, AskDataResponse
 from app.llm.registry import ProviderSelectionError
 
@@ -40,6 +41,11 @@ async def chat(request: Request, body: AskDataRequest) -> AskDataResponse:
         raise context_source_http_error(exc) from exc
     if body.mode != "mcp":
         _validate_selection(request, body)
+    agent = AskDataAgent(request.app.state.chat_service)
+    if agent.applicable(body):
+        answered = await agent.run(body)
+        if answered is not None:
+            return answered
     return await request.app.state.chat_service.run(body)
 
 
@@ -60,6 +66,12 @@ async def chat_stream(request: Request, body: AskDataRequest) -> StreamingRespon
 
         async def produce() -> None:
             try:
+                finished = False
+                async for event in AskDataAgent(request.app.state.chat_service).stream(body):
+                    finished = finished or event.get("type") == "done"
+                    await queue.put(event)
+                if finished:
+                    return  # the agent answered; otherwise the normal pipeline below does
                 async for event in request.app.state.chat_service.stream(body):
                     await queue.put(event)
             except BaseException as exc:  # noqa: BLE001 - forwarded to the consumer
