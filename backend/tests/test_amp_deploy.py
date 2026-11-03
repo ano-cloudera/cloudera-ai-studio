@@ -309,3 +309,21 @@ def test_an_updated_application_that_fails_is_restarted_once() -> None:
     deploy.deploy(client, _plan("backend"), ENV, skip_build=True, timeout=60, log=logs.append, sleep=lambda _: None)
     assert [c[0] for c in client.calls].count("restart") == 1
     assert any("restarting it once" in line for line in logs)
+
+
+def test_the_reranker_feature_configures_the_backend_only_when_enabled() -> None:
+    off = {p["key"]: p for p in deploy.build_plan(deploy.load_manifest(), ENV)}
+    assert "RERANKER_PROVIDER" not in off["backend"]["environment"] and off["backend"]["memory"] == 8
+    on = {p["key"]: p for p in deploy.build_plan(deploy.load_manifest(), {**ENV, "ENABLE_RERANKER": "true"})}
+    env = on["backend"]["environment"]
+    assert env["RERANKER_PROVIDER"] == "bge" and env["RERANKER_MODEL"].endswith("bge-reranker-v2-m3")
+    assert (env["RETRIEVAL_TOP_K"], env["RERANK_TOP_N"]) == ("40", "8")
+    assert on["backend"]["memory"] == 16
+    assert on["qdrant"]["memory"] == 8  # only the Backend is resized
+
+
+def test_explicit_project_values_win_over_the_reranker_defaults() -> None:
+    env = {**ENV, "ENABLE_RERANKER": "true", "RERANK_TOP_N": "12", "AMP_BACKEND_MEMORY_GB": "24"}
+    backend = {p["key"]: p for p in deploy.build_plan(deploy.load_manifest(), env)}["backend"]
+    assert backend["environment"]["RERANK_TOP_N"] == "12" and backend["environment"]["RETRIEVAL_TOP_K"] == "40"
+    assert backend["memory"] == 24

@@ -1,0 +1,8 @@
+[
+  {"question": "What is the service level of regular delivery?", "expect": {"filename": "Delivery_Returns_Policy", "page": 1}},
+  {"question": "When is a carrier performance review triggered?", "expect": {"filename": "Delivery_Returns_Policy", "page": 2}},
+  {"question": "What compensation does a customer get for a very late delivery?", "expect": {"filename": "Delivery_Returns_Policy", "page": 3}},
+  {"question": "Can I return an opened beauty product?", "expect": {"filename": "Delivery_Returns_Policy", "page": 4}},
+  {"question": "How many days do customers have to send an item back?", "expect": {"filename": "Delivery_Returns_Policy", "page": 4}},
+  {"question": "What is the pick and pack target for marketplace orders?", "expect": {"filename": "Delivery_Returns_Policy", "page": 5}}
+]

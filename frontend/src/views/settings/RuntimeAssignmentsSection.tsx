@@ -9,6 +9,7 @@ import {
   modelsLikelyWrongTypeForCapability,
 } from '../../lib/aiRegistryUi'
 import type { AiModelRecord, AssignmentCapability, ModelAssignmentRecord } from '../../types/api'
+import { RetrievalPipelineCard } from '../../components/RetrievalPipelineCard'
 
 type Props = {
   models: AiModelRecord[]
@@ -45,12 +46,11 @@ export function RuntimeAssignmentsSection({ models, assignmentByCap, onAssign, o
       <div>
         <h3 className="text-sm font-semibold text-cloudera-navy">Runtime assignments</h3>
         <p className="type-chat-meta mt-1 max-w-2xl text-slate-500">
-          Choose registered models for each capability. Chat capabilities are fully wired; embedding and reranker
-          assignments are stored in the registry while the live pipeline still reads environment variables.
+          Choose the registered model that answers in each place.
         </p>
       </div>
 
-      {CAPABILITY_GROUPS.map(group => {
+      {CAPABILITY_GROUPS.filter(group => group.id !== 'retrieval').map(group => {
         const rows = CAPABILITY_ROWS.filter(r => r.group === group.id)
         return (
           <div key={group.id} className="space-y-2">
@@ -168,6 +168,7 @@ export function RuntimeAssignmentsSection({ models, assignmentByCap, onAssign, o
           </div>
         )
       })}
+      <RetrievalPipelineCard />
     </section>
   )
 }

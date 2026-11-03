@@ -98,3 +98,13 @@ def test_job_scripts_load_in_a_kernel_without___file__(tmp_path, monkeypatch) ->
         sys.modules[module.__name__] = module
         exec(compile(source, name, "exec"), module.__dict__)  # noqa: S102 - the repository's own script
         assert module.ROOT == tmp_path, name
+
+
+def test_the_reranker_download_is_a_step_only_when_enabled(monkeypatch) -> None:
+    monkeypatch.delenv("ENABLE_RERANKER", raising=False)
+    assert not amp_setup.reranker_enabled()
+    monkeypatch.setenv("ENABLE_RERANKER", "true")
+    assert amp_setup.reranker_enabled()
+    step = amp_setup.reranker_steps()[0]
+    assert step.name == "Reranker model" and step.command[1].endswith("prepare_reranker_model.sh")
+    assert (REPO / "scripts" / "cai" / "prepare_reranker_model.sh").is_file()

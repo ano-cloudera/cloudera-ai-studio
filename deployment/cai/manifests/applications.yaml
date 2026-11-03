@@ -33,6 +33,16 @@ applications:
     bypass_authentication: true
     resources: { cpu: 4, memory_gb: 8, nvidia_gpu: 0 }
     health_path: /health
+    # Optional features: applied when the named project variable is true. Explicit project values (forward_env) still win,
+    # and so does AMP_BACKEND_MEMORY_GB.
+    features:
+      - enabled_env: ENABLE_RERANKER
+        memory_gb: 16
+        environment:
+          RERANKER_PROVIDER: bge
+          RERANKER_MODEL: /home/cdsw/models/bge-reranker-v2-m3
+          RETRIEVAL_TOP_K: "40"
+          RERANK_TOP_N: "8"
     environment:
       PYTHON_EXECUTABLE: /home/cdsw/.venvs/studio-backend/bin/python
       DEPLOYMENT_PROFILE: cai
@@ -49,6 +59,10 @@ applications:
       APP_STARTUP_TIMEOUT_MINUTES: "10"
     forward_env:
       - STUDIO_API_TOKEN
+      - RERANKER_PROVIDER
+      - RERANKER_MODEL
+      - RETRIEVAL_TOP_K
+      - RERANK_TOP_N
       - GEMINI_API_KEY
       - OPENAI_API_KEY
       - ANTHROPIC_API_KEY

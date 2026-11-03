@@ -31,6 +31,13 @@ VLLM_MODEL_ID = os.environ.get("VLLM_MODEL_ID", "").strip()
 VLLM_MODEL = Path(os.environ.get("MODEL_PATH") or (HOME / "models" / VLLM_MODEL_ID.rsplit("/", 1)[-1] if VLLM_MODEL_ID else HOME / "models/vllm"))
 
 
+RERANKER = Path(os.environ.get("RERANKER_MODEL_PATH") or (HOME / "models/bge-reranker-v2-m3"))
+
+
+def reranker_enabled() -> bool:
+    return os.environ.get("ENABLE_RERANKER", "").strip().lower() in ("1", "true", "yes")
+
+
 def vllm_enabled() -> bool:
     return os.environ.get("ENABLE_VLLM", "").strip().lower() in ("1", "true", "yes")
 
@@ -79,6 +86,11 @@ def vllm_steps() -> list[Step]:
     return steps
 
 
+def reranker_steps() -> list[Step]:
+    sh = ROOT / "scripts" / "cai"
+    return [Step("Reranker model", (RERANKER / "config.json").is_file(), ["bash", str(sh / "prepare_reranker_model.sh"), str(RERANKER)])]
+
+
 def run(step: Step) -> None:
     if step.action is not None:
         step.action()
@@ -90,7 +102,7 @@ def run(step: Step) -> None:
 
 def main(argv: list[str]) -> int:
     dry = "--dry-run" in argv
-    steps = build_steps() + (vllm_steps() if vllm_enabled() else [])
+    steps = build_steps() + (reranker_steps() if reranker_enabled() else []) + (vllm_steps() if vllm_enabled() else [])
     for number, step in enumerate(steps, 1):
         status = "skip (already done)" if step.done else ("would run" if dry else "run")
         print(f"[{number}/{len(steps)}] {step.name}: {status}", flush=True)

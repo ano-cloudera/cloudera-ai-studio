@@ -108,6 +108,7 @@ to save a variable with an empty value.
 | `AMP_FORWARD_ENV` | A Data Source or MCP server needs other secrets | `MY_DB_PASSWORD,MY_TOOL_TOKEN` |
 | `AMP_RUNTIME_ID` | The deploy log says `Runtime: not detected` | the runtime image name on your Jobs |
 | `ENABLE_VLLM` | You serve your own model ([PoC guide](docs/POC-GUIDE.md#optional-vllm-your-own-model-on-a-gpu)) | `true` |
+| `ENABLE_RERANKER` | Knowledge search over many or similar documents ([PoC guide](docs/POC-GUIDE.md#better-knowledge-search-optional-reranker)); adds a download of about 2 GB and raises the Backend to 16 GB | `true` |
 | `TRINO_CATALOG`, `TRINO_SCHEMA` | Your tables are not in `hive` / `default` | `hive`, `default` |
 | `AMP_SUBDOMAIN_PREFIX` | Another `anywhere-*` Application already exists in the workspace (set before the first deploy) | `anywhere2` |
 

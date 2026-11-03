@@ -17,6 +17,7 @@ behavior, and do not count them as failures.
 | P5d | Platform | Settings -> AI Models -> add a provider; open **Secret reference** | A list of the key variables the Backend can read (for example `GEMINI_API_KEY`); "Other" lets you type a name | |
 | P5e | Platform | Settings -> **Advanced** -> **How answers are shown**: pick a preset, change a choice, watch **What you will see**, then **Save for this workspace** | The preview changes at once; the card shows Custom when no preset matches; Save keeps it; Reset to defaults returns to Demo | |
 | P5f | Platform | Settings -> **General** -> Ask Data: edit the starter questions, then open **Default semantic model** | Only the published models are listed, plus Automatic and None; a warning appears when none or several are published and Automatic is chosen; **Save Ask Data settings** keeps it | |
+| P5g | Platform | Settings -> AI Models, bottom: **Retrieval pipeline** | A read-only card: embedding model with its dimension (bge-m3, 1024) and the reranker (Not used, or bge when enabled); no assignment lists | |
 | P6 | Platform | Run the **Deploy applications** Job again with no change | Finishes, all Applications Running (about 3 min, plus about 30 s per Application update) | |
 | S1 | Semantic | Create one model with the 3 entities from [SEMANTIC-MODEL.md](../samples/fulfillment/SEMANTIC-MODEL.md), **Publish** | Published; the metrics appear under "Browse published metrics" | |
 | A1 | Ask Data | How many orders per month? | Jan 1014, Feb 904, Mar 1002, Apr 963, May 969, Jun 1074, Jul 1035, Aug 1039. Tabs Summary, Table, Query filled | |
@@ -49,6 +50,8 @@ behavior, and do not count them as failures.
 | K6 | Knowledge | What is the pick and pack target for marketplace orders? | **36 hours** (24 hours for other orders). Page 5 | |
 | K7 | Knowledge | What is the courier insurance policy? | Says it cannot answer from the library; no invented policy | |
 | K8 | Knowledge | Click a `Page N` chip or the source file | The PDF opens at that page | |
+| K9 | Knowledge | Run `python scripts/eval_retrieval.py --questions samples/fulfillment/retrieval_eval.json --label reranker-off` in a Session | A list of six questions with the rank of the right page and a summary (hit@1, hit@3, hit@5, MRR, mean ms). With the 5-page policy, hit@5 should be 1.0 | |
+| K10 | Knowledge | Add the project variable `ENABLE_RERANKER=true`, run the Install and Deploy Jobs, repeat K9 with `--label reranker-on` | The card shows the bge reranker; the summary is the same or better; record the mean ms | |
 | M1 | MCP | Register the server (stdio, backend venv Python, `samples/fulfillment/late_delivery_server.py`), **Test connection** | Success; tool `assess_delivery_risk` listed | |
 | M2 | MCP | (attach the server) Assess a Regular Home & Living shipment to Kalimantan Timur with NusaCargo in July | Probability **0.35**, band High, policy: volume hold above 25% | |
 | M3 | MCP | Assess a Regular Fashion shipment in DKI Jakarta with FastExpress | Probability **0.07**, band Low, no action | |

@@ -85,3 +85,32 @@ creates a fourth Application, `anywhere-vllm`, with one GPU. This needs, outside
   `GPU_MEMORY_UTILIZATION`; see `deployment/cai/env/studio-vllm.env.example`).
 When the Application runs, the deploy job prints the base URL to register in Settings -> AI Models (OpenAI-compatible provider, `<url>/v1`).
 If the vLLM install or start fails, the other three Applications are unaffected; fix it and run the `deploy-applications` Job again.
+
+## Better Knowledge search (optional reranker)
+
+Knowledge search first fetches the closest passages by vector similarity, then (optionally) a **reranker** re-scores them with the question
+and keeps the best few. It matters when a library has many or similar documents; for a handful of short PDFs it changes little.
+
+| | Off (default) | On (`ENABLE_RERANKER=true`) |
+|---|---|---|
+| Ordering | by vector score | re-scored by BAAI/bge-reranker-v2-m3 (Apache 2.0, multilingual) |
+| Passages fetched, then kept | 20, then 5 | 40, then 8 |
+| Backend memory | 8 GB | 16 GB (set automatically; `AMP_BACKEND_MEMORY_GB` overrides it) |
+| Cost | none | a download of about 2 GB, and a few more seconds per question on CPU (not measured on your workspace) |
+
+**Turn it on:** add the project variable `ENABLE_RERANKER` = `true`, run the **Install tools and dependencies** Job (it downloads the
+model; finished steps are skipped), then the **Deploy applications** Job. To change the numbers, add `RETRIEVAL_TOP_K` and `RERANK_TOP_N`
+as project variables and deploy again. Settings -> AI Models -> *Retrieval pipeline* shows what the Backend is really using. If the
+reranker fails to load, search falls back to vector order instead of failing.
+
+**Measure before you decide.** Write the questions your users will ask and where each answer is (see
+`samples/fulfillment/retrieval_eval.json`), then run, with the reranker off and again with it on:
+
+```bash
+python scripts/eval_retrieval.py --questions my_questions.json --label reranker-off
+python scripts/eval_retrieval.py --questions my_questions.json --label reranker-on
+```
+
+It prints how often the right passage is first, in the top 3 and top 5, the mean reciprocal rank and the search time. Keep the reranker
+only if the numbers improve on your documents. A larger model (Qwen3-Reranker) needs a GPU and a different loader; it is not wired in.
+

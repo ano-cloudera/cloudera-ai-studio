@@ -181,6 +181,9 @@ def build_plan(manifest: dict, env: dict[str, str], only: str | None = None) -> 
         for name in ("QDRANT_URL", "CORS_ORIGINS", "BACKEND_API_URL"):
             if app["key"] in ("backend", "frontend") and derived.get(name):
                 environment[name] = derived[name]  # an explicit project value wins inside with_amp_defaults
+        active_features = [f for f in app.get("features") or [] if env.get(f.get("enabled_env", ""), "").strip().lower() in ("1", "true", "yes")]
+        for feature in active_features:
+            environment.update(feature.get("environment") or {})
         if app["key"] == "frontend" and env.get("STUDIO_API_TOKEN") and environment.get("BACKEND_API_URL"):
             environment["BACKEND_API_URL"] = f"{environment['BACKEND_API_URL'].rstrip('/')}/{env['STUDIO_API_TOKEN']}"
         for name in [*(app.get("forward_env") or []), *(extra if app["key"] == "backend" else [])]:
@@ -203,7 +206,7 @@ def build_plan(manifest: dict, env: dict[str, str], only: str | None = None) -> 
                 "subdomain": f"{prefix}-{app['subdomain']}",
                 "script": app["script"],
                 "cpu": sized("CPU", res.get("cpu", 1), float),
-                "memory": sized("MEMORY_GB", res.get("memory_gb", 1), float),
+                "memory": sized("MEMORY_GB", max([res.get("memory_gb", 1), *[f.get("memory_gb", 0) for f in active_features]]), float),
                 "nvidia_gpu": sized("GPU", res.get("nvidia_gpu", 0), int),
                 "environment": {k: str(v) for k, v in environment.items()},
                 "build": bool(app.get("build")),
