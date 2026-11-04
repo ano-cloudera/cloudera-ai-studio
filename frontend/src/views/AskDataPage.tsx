@@ -1047,6 +1047,29 @@ function StructuredAnswer({
     </section>
   ) : null
 
+  const detailsInSurface =
+    !chartFirst && !evidenceBlock && !expandForExport && !(presentationTier === 3 && reportArtifact) && !onOpenWorkspace
+
+  const detailRows = (
+    <>
+      {response.calculation && !expandForExport && !isRagResponse(response) ? <CalculationNoteBlock note={response.calculation} embedded /> : null}
+
+      {((chatInlineEvidence && shouldShowChatExpand(response, presentationTier)) ||
+        executiveQueryOnlyExpand) &&
+      !expandForExport ? (
+        <ChatAnalysisDetailsExpand
+          response={response}
+          tier={presentationTier}
+          kpiBlock={kpiOnlyBlock}
+          tableBlock={expandTableBlock(response)}
+          executiveMode={executiveView}
+          executiveQueryOnly={executiveQueryOnlyExpand}
+          embedded
+        />
+      ) : null}
+    </>
+  )
+
   return (
     <div aria-label="AI response" className="chat-response-typography flex flex-col gap-4">
       <section className="answer-surface space-y-3">
@@ -1080,6 +1103,22 @@ function StructuredAnswer({
             )}
           </>
         )}
+        {detailsInSurface ? (
+          <div className="-mx-4 -mb-4 mt-1 divide-y divide-slate-200/80 overflow-hidden rounded-b-xl border-t border-slate-200/80 empty:hidden sm:-mx-5 sm:-mb-5">
+            {detailRows}
+            {showDataNoteBlock && !dataNoteInNarrative ? (
+              <div className="px-4 py-3 sm:px-5">
+                <DataNote
+                  note={displayDataNote}
+                  sources={provenanceSources}
+                  inChatResponse
+                  noteLabel={executiveView ? '' : 'Data note.'}
+                  hideSourceChips={executiveView}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       {evidenceBlock}
@@ -1108,23 +1147,11 @@ function StructuredAnswer({
         />
       )}
 
-      <div className="divide-y divide-slate-200/80 overflow-hidden rounded-xl border border-slate-200 bg-white empty:hidden">
-      {response.calculation && !expandForExport && !isRagResponse(response) ? <CalculationNoteBlock note={response.calculation} embedded /> : null}
-
-      {((chatInlineEvidence && shouldShowChatExpand(response, presentationTier)) ||
-        executiveQueryOnlyExpand) &&
-      !expandForExport ? (
-        <ChatAnalysisDetailsExpand
-          response={response}
-          tier={presentationTier}
-          kpiBlock={kpiOnlyBlock}
-          tableBlock={expandTableBlock(response)}
-          executiveMode={executiveView}
-          executiveQueryOnly={executiveQueryOnlyExpand}
-          embedded
-        />
+      {!detailsInSurface ? (
+        <div className="divide-y divide-slate-200/80 overflow-hidden rounded-xl border border-slate-200 bg-white empty:hidden">
+          {detailRows}
+        </div>
       ) : null}
-      </div>
 
       {onOpenWorkspace ? (
         <button
@@ -1140,7 +1167,7 @@ function StructuredAnswer({
         {isRagResponse(response) && ragCitationCount(response) > 0 ? (
           <RagSourcesList citations={response.citations ?? []} onViewSources={onViewRagSources} />
         ) : null}
-        {showDataNoteBlock && !dataNoteInNarrative && (
+        {showDataNoteBlock && !dataNoteInNarrative && !detailsInSurface && (
           <DataNote
             note={displayDataNote}
             sources={provenanceSources}

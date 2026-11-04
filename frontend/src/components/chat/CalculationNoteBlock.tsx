@@ -22,7 +22,7 @@ export function CalculationNoteBlock({ note, embedded = false }: { note: Calcula
       <button
         type="button"
         onClick={() => setOpen(value => !value)}
-        className="flex w-full items-start gap-2 px-3 py-2.5 text-left transition-colors hover:bg-slate-50"
+        className={`flex w-full items-start gap-2 py-2.5 text-left transition-colors hover:bg-slate-50 ${embedded ? 'px-4 sm:px-5' : 'px-3'}`}
         aria-expanded={open}
       >
         <Calculator size={14} className="mt-0.5 shrink-0 text-cloudera-orange" aria-hidden />
@@ -38,7 +38,7 @@ export function CalculationNoteBlock({ note, embedded = false }: { note: Calcula
         <ChevronDown size={14} className={`mt-0.5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
       </button>
       {open ? (
-        <dl className="divide-y divide-slate-100 border-t border-slate-200/80 px-3 py-2">
+        <dl className={`divide-y divide-slate-100 border-t border-slate-200/80 py-2 ${embedded ? 'px-4 sm:px-5' : 'px-3'}`}>
           {note.metric ? <Row label="Metric">{note.metric}</Row> : null}
           {note.formula ? <Row label="Formula"><code className="break-words font-mono text-xs">{note.formula}</code></Row> : null}
           {note.breakdown.length ? <Row label="Broken down by">{note.breakdown.join(', ')}</Row> : null}
