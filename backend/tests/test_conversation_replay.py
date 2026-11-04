@@ -74,3 +74,22 @@ async def test_a_question_that_really_points_at_the_last_result_still_follows_it
     r = await replay.ask("breakdown per carrier untuk yang tertinggi tadi")
     assert r.status in {"SUCCESS", "CLARIFICATION"}
     assert "d.delivery_shipments_region_name" not in r.queries_run[-1] if r.queries_run else True
+
+
+@pytest.mark.asyncio
+async def test_per_month_after_a_breakdown_groups_by_month_not_by_the_old_breakdown(monkeypatch) -> None:
+    replay = Replay(monkeypatch)
+    r = await replay.ask("Total orders by channel")
+    assert r.status == "SUCCESS" and "fulfillment_orders_channel" in r.data.rows[0]
+    r = await replay.ask("orders per month")
+    assert r.status == "SUCCESS" and [int(row["metric_value"]) for row in r.data.rows] == [1014, 904, 1002, 963, 969, 1074, 1035, 1039]
+    assert not any("channel" in column for column in r.data.columns)
+
+
+@pytest.mark.asyncio
+async def test_a_natural_breakdown_follow_up_continues_the_last_metric(monkeypatch) -> None:
+    replay = Replay(monkeypatch)
+    await replay.ask("Late delivery rate di Jawa Timur")
+    r = await replay.ask("breakdown per carrier")
+    assert r.status == "SUCCESS" and {row["delivery_shipments_carrier"] for row in r.data.rows} == {"NusaCargo", "KilatKirim", "FastExpress"}
+    assert "material" not in r.queries_run[-1]  # not the sell-in drill of an older demo

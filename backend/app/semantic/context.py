@@ -728,10 +728,19 @@ class SemanticContextService:
             term in normalized
             for term in ("bulan", "bulanan", "oktober", "november", "desember", "month")
         ):
-            for time_dim in ("calmonth", "reporting_period", "calmonth_date", "bln"):
-                if time_dim in allowed:
-                    dimensions = [time_dim, *[d for d in dimensions if d != time_dim]]
-                    break
+            from app.ask_data.intent_satisfaction import pick_time_dimension
+
+            dataset = str(definition.get("base_dataset") or "")
+            registry_time = pick_time_dimension(dataset, allowed, self.registry) if dataset else None
+            if registry_time:
+                # "per month" after a breakdown by carrier means by month, not by carrier and month: only what the
+                # question names stays next to the month.
+                dimensions = [registry_time, *[d for d in named if d != registry_time]]
+            else:
+                for time_dim in ("calmonth", "reporting_period", "calmonth_date", "bln"):
+                    if time_dim in allowed:
+                        dimensions = [time_dim, *[d for d in dimensions if d != time_dim]]
+                        break
         if not dimensions:
             # No dimension was named or carried over: let normal resolution ask, rather than guessing one.
             return None
@@ -768,6 +777,10 @@ class SemanticContextService:
         follow = try_follow_up_governed_resolution(
             question, session_analysis_context, understanding
         )
+        if follow and str(follow.get("metric")) not in self.metrics:
+            # The follow-up engine still knows the metrics of an older demo ("material_sell_in_value"). Its answer is
+            # dropped, and the plain continuation of the last metric gets its turn.
+            follow = None
         if not follow:
             follow = self._try_session_metric_continuation(question, session_analysis_context)
         if not follow or follow.get("status") != "resolved":
