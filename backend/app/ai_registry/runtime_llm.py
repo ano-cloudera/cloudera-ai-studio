@@ -193,6 +193,8 @@ def build_registry_llm_provider(
             model=model_id,
             verify_ssl=bool(config.get("verify_ssl", settings.qwen_verify_ssl)),
             modern_openai_parameters=bool(config.get("modern_openai_parameters", False)),
+            guided_json=bool(config.get("guided_json", True)),
+            disable_thinking=bool(config.get("disable_thinking", True)),
             transport=None,
         )
 

@@ -28,12 +28,23 @@ def _http_error_code(response: httpx.Response) -> str:
 
 def _structured_json(text: str) -> Any:
     value = text.strip()
+    # Reasoning models write their thinking first; only what follows it is the answer.
+    value = re.sub(r"<think>.*?</think>", "", value, flags=re.DOTALL | re.IGNORECASE)
+    if "</think>" in value.lower():
+        value = re.split(r"</think>", value, flags=re.IGNORECASE)[-1]
+    value = value.strip()
     fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", value, flags=re.DOTALL | re.IGNORECASE)
     if fenced:
         value = fenced.group(1)
     try:
         return json.loads(value)
     except json.JSONDecodeError as exc:
+        start, end = value.find("{"), value.rfind("}")
+        if 0 <= start < end:  # a sentence before or after the object
+            try:
+                return json.loads(value[start : end + 1])
+            except json.JSONDecodeError:
+                pass
         raise ProviderError("INVALID_STRUCTURED_OUTPUT") from exc
 
 
@@ -49,8 +60,13 @@ class _OpenAICompatibleProvider:
         model: str,
         verify_ssl: bool,
         modern_openai_parameters: bool = False,
+        guided_json: bool = False,
+        disable_thinking: bool = True,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
+        self.guided_json = guided_json
+        self.disable_thinking = disable_thinking
+        self._guided_rejected = False
         self.settings = settings
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
@@ -80,12 +96,23 @@ class _OpenAICompatibleProvider:
         headers = {"Content-Type": "application/json"}
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-        for attempt in range(2):
+        attempt = 0
+        while attempt < 2:
+            guided = self.guided_json and not self._guided_rejected
             body = {
                 "model": self.model,
                 "messages": request_messages,
-                "response_format": {"type": "json_object"},
+                "response_format": (
+                    {
+                        "type": "json_schema",
+                        "json_schema": {"name": response_model.__name__, "schema": response_model.model_json_schema()},
+                    }
+                    if guided
+                    else {"type": "json_object"}
+                ),
             }
+            if guided and self.disable_thinking:
+                body["chat_template_kwargs"] = {"enable_thinking": False}  # vLLM: no <think> block before the JSON
             if self.modern_openai_parameters:
                 body["max_completion_tokens"] = max_tokens
             else:
@@ -113,6 +140,11 @@ class _OpenAICompatibleProvider:
             except httpx.TimeoutException as exc:
                 raise ProviderError("TIMEOUT") from exc
             except httpx.HTTPStatusError as exc:
+                if guided and exc.response.status_code in {400, 404, 415, 422}:
+                    # This server does not take a JSON schema (or the extra template argument): use the looser mode from now on.
+                    self._guided_rejected = True
+                    logger.warning("llm_guided_json_rejected provider=%s status=%s", self.provider_name, exc.response.status_code)
+                    continue
                 logger.warning(
                     "llm_http_error provider=%s status=%s error_code=%s endpoint=%s",
                     self.provider_name,
@@ -128,6 +160,7 @@ class _OpenAICompatibleProvider:
             except (ProviderError, ValidationError) as exc:
                 if attempt == 1:
                     raise ProviderError("INVALID_STRUCTURED_OUTPUT") from exc
+                attempt += 1
                 request_messages = [
                     *request_messages,
                     {"role": "assistant", "content": content},
@@ -149,6 +182,7 @@ class QwenProvider(_OpenAICompatibleProvider):
             api_key=settings.qwen_api_key.get_secret_value(),
             model=settings.qwen_model,
             verify_ssl=settings.qwen_verify_ssl,
+            guided_json=True,
             transport=transport,
         )
 

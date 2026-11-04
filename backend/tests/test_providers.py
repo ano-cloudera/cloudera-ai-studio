@@ -216,3 +216,51 @@ async def test_gemini_headroom_can_be_set_to_zero_and_an_empty_reply_is_logged(c
             await provider.generate_structured([{"role": "user", "content": "q"}], Result, temperature=0, max_tokens=50)
     assert "llm_empty_response" in caplog.text and "MAX_TOKENS" in caplog.text
     assert client.aio.models.generate_content.await_args.kwargs["config"].max_output_tokens == 50
+
+
+def _qwen_settings() -> Settings:
+    return Settings(_env_file=None, qwen_base_url="https://qwen.internal/v1", qwen_model="qwen-model", qwen_api_key="k")
+
+
+@pytest.mark.asyncio
+async def test_a_private_endpoint_is_asked_for_a_guided_schema_and_no_thinking() -> None:
+    bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"answer":"ok"}'}}]})
+
+    provider = QwenProvider(_qwen_settings(), transport=httpx.MockTransport(handler))
+    assert await provider.generate_structured([{"role": "user", "content": "q"}], Result, temperature=0, max_tokens=50) == Result(answer="ok")
+    assert bodies[0]["response_format"]["type"] == "json_schema"
+    assert bodies[0]["response_format"]["json_schema"]["name"] == "Result"
+    assert bodies[0]["chat_template_kwargs"] == {"enable_thinking": False}
+
+
+@pytest.mark.asyncio
+async def test_a_server_that_refuses_the_schema_gets_the_looser_mode_and_is_remembered() -> None:
+    bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        bodies.append(body)
+        if body["response_format"]["type"] == "json_schema":
+            return httpx.Response(400, json={"error": {"code": "unsupported"}})
+        return httpx.Response(200, json={"choices": [{"message": {"content": '{"answer":"ok"}'}}]})
+
+    provider = QwenProvider(_qwen_settings(), transport=httpx.MockTransport(handler))
+    for _ in range(2):
+        assert await provider.generate_structured([{"role": "user", "content": "q"}], Result, temperature=0, max_tokens=50) == Result(answer="ok")
+    assert [b["response_format"]["type"] for b in bodies] == ["json_schema", "json_object", "json_object"]  # asked once, then remembered
+    assert "chat_template_kwargs" not in bodies[1]
+
+
+@pytest.mark.asyncio
+async def test_thinking_text_and_prose_around_the_json_do_not_break_it() -> None:
+    texts = ['<think>The user wants a short answer.</think>\n{"answer":"ok"}', 'Here you go: {"answer":"ok"} Hope that helps.', '```json\n{"answer":"ok"}\n```']
+    for text in texts:
+        def handler(request: httpx.Request, text: str = text) -> httpx.Response:
+            return httpx.Response(200, json={"choices": [{"message": {"content": text}}]})
+
+        provider = QwenProvider(_qwen_settings(), transport=httpx.MockTransport(handler))
+        assert await provider.generate_structured([{"role": "user", "content": "q"}], Result, temperature=0, max_tokens=50) == Result(answer="ok")
