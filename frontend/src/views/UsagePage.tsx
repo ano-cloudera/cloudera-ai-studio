@@ -29,6 +29,19 @@ function formatDayLabel(isoDay: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
+const ANSWER_PATH_LABELS: Record<string, string> = {
+  governed: 'Governed metric',
+  sql_fallback: 'Controlled SQL (fallback)',
+  clarification: 'Asked for clarification',
+  unsupported: 'Not supported',
+  conversational: 'Conversation',
+  rag: 'Knowledge documents',
+  mcp: 'MCP tool',
+  agent: 'Agent analysis',
+  local_agent_exploratory: 'Exploratory analysis',
+  history_only_analysis: 'Earlier results only',
+}
+
 export function UsagePage() {
   const [period, setPeriod] = useState<PeriodKey>('7d')
   const [summary, setSummary] = useState<UsageSummary | null>(null)
@@ -82,6 +95,14 @@ export function UsagePage() {
     () => (summary?.daily ?? []).map(row => ({ ...row, label: formatDayLabel(row.day) })),
     [summary?.daily],
   )
+
+  const answerPaths = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const ev of events) counts.set(ev.strategy || 'other', (counts.get(ev.strategy || 'other') ?? 0) + 1)
+    return Array.from(counts.entries())
+      .map(([strategy, count]) => ({ strategy, count, share: events.length ? (count / events.length) * 100 : 0 }))
+      .sort((a, b) => b.count - a.count)
+  }, [events])
 
   const budget = summary?.monthly_token_budget ?? 0
   const mtdTokens = summary?.mtd_totals.total_tokens ?? 0
@@ -204,6 +225,27 @@ export function UsagePage() {
                       <span className="text-slate-600">{row.model}</span>
                     </span>
                     <span className="font-medium text-cloudera-navy">{formatCompactTokens(row.tokens)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {answerPaths.length > 0 && (
+            <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" data-testid="answer-paths">
+              <h2 className="text-sm font-semibold text-cloudera-navy">How questions were answered</h2>
+              <p className="mb-2 text-xs text-slate-500">
+                From the last {events.length} turns. “Controlled SQL” means no governed metric matched, so the model wrote the query.
+              </p>
+              <ul className="divide-y divide-slate-100">
+                {answerPaths.map(row => (
+                  <li key={row.strategy} className="flex items-center justify-between py-2 text-sm">
+                    <span className={row.strategy === 'sql_fallback' ? 'font-medium text-amber-700' : 'text-slate-700'}>
+                      {ANSWER_PATH_LABELS[row.strategy] ?? row.strategy}
+                    </span>
+                    <span className="text-slate-600">
+                      {row.count} <span className="text-slate-400">· {row.share.toFixed(0)}%</span>
+                    </span>
                   </li>
                 ))}
               </ul>

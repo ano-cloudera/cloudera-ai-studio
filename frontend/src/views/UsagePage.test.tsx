@@ -91,4 +91,35 @@ describe('Usage page', () => {
     render(<UsagePage />)
     expect(await screen.findByText('Unable to load Usage')).toBeTruthy()
   })
+
+  it('summarises how questions were answered and flags the SQL fallback', async () => {
+    vi.mocked(api.usageSummary).mockResolvedValue({
+      period_days: 7,
+      mtd: false,
+      totals: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2, llm_calls: 4, turns: 4 },
+      mtd_totals: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2, llm_calls: 4, turns: 4 },
+      daily: [],
+      by_model: [],
+      monthly_token_budget: 0,
+    })
+    const event = (id: string, strategy: string) => ({
+      request_id: id,
+      created_at: '2026-10-15T08:00:00+00:00',
+      provider: 'gemini',
+      model: 'm',
+      strategy,
+      status: 'SUCCESS',
+      total_tokens: 1,
+      llm_calls: 1,
+    })
+    vi.mocked(api.usageEvents).mockResolvedValue({
+      events: [event('a', 'governed'), event('b', 'governed'), event('c', 'governed'), event('d', 'sql_fallback')],
+    } as never)
+    render(<UsagePage />)
+    const panel = await screen.findByTestId('answer-paths')
+    expect(panel.textContent).toContain('Governed metric')
+    expect(panel.textContent).toContain('75%')
+    expect(panel.textContent).toContain('Controlled SQL (fallback)')
+    expect(panel.textContent).toContain('25%')
+  })
 })
