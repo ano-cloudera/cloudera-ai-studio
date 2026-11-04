@@ -1,5 +1,6 @@
 'use client'
 
+import { StatusBadge } from '../components/StatusBadge'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MoreHorizontal, Plus, Search } from 'lucide-react'
 import { EditorDrawer } from '../components/promptSkills/EditorDrawer'
@@ -257,7 +258,7 @@ export function SkillsPage() {
     setDirty(true)
   }
 
-  async function saveDraft() {
+  async function handleSave(publish: boolean) {
     setSaving(true)
     setError('')
     let input_schema: Record<string, unknown> | undefined
@@ -271,6 +272,7 @@ export function SkillsPage() {
       }
     }
     try {
+      let skillId = editorId
       if (drawerMode === 'create') {
         if (!editName.trim()) {
           setError('Name is required')
@@ -286,14 +288,8 @@ export function SkillsPage() {
           config: { handler_type: handlerType },
           prompt_key: promptKey || undefined,
         })
-        setDrawerMode('edit')
-        setEditorId(skill.id)
-        setEditKey(skill.key)
-        setDirty(false)
-        await refreshList()
-        const rows = await loadVersionMeta(skill.id)
-        setVersions(rows)
-      } else if (editorId) {
+        skillId = skill.id
+      } else if (editorId && dirty) {
         await api.createSkillVersion(editorId, {
           instructions,
           prompt_key: promptKey || undefined,
@@ -301,14 +297,16 @@ export function SkillsPage() {
           input_schema,
           config: { handler_type: handlerType },
         })
-        setDirty(false)
-        const rows = await loadVersionMeta(editorId)
-        setVersions(rows)
-        applyVersionToForm(rows)
-        await refreshList()
       }
+      if (!skillId) return
+      if (publish) {
+        const draft = (await loadVersionMeta(skillId)).find(v => v.status === 'DRAFT')
+        if (draft) await api.publishSkillVersion(skillId, draft.id)
+      }
+      await refreshList()
+      closeDrawer()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Save failed')
+      setError(err instanceof Error ? err.message : publish ? 'Publish failed' : 'Save failed')
     } finally {
       setSaving(false)
     }
@@ -506,7 +504,7 @@ export function SkillsPage() {
                       <td>{formatScope(s.scope)}</td>
                       <td className="text-slate-600">{meta ? formatPromptKey(meta.promptKey) : '…'}</td>
                       <td>{meta ? `${meta.toolCount} tool${meta.toolCount === 1 ? '' : 's'}` : '…'}</td>
-                      <td>{formatSkillListStatus(s.status)}</td>
+                      <td><StatusBadge label={formatSkillListStatus(s.status)} /></td>
                       <td className="text-slate-600">{formatModified(s.updated_at)}</td>
                       <td>
                         <RowMenu
@@ -552,19 +550,21 @@ export function SkillsPage() {
         footer={
           drawerTab === 'configuration' ? (
             <div className="flex flex-wrap gap-2">
-              <button type="button" className="btn-primary h-9 px-4 text-sm" disabled={saving || (drawerMode === 'edit' && !dirty && !editName.trim())} onClick={() => void saveDraft()}>
+              <button
+                type="button"
+                className="h-9 rounded-lg border border-slate-200 px-4 text-sm font-semibold disabled:opacity-50"
+                disabled={saving || (drawerMode === 'edit' && !dirty)}
+                onClick={() => void handleSave(false)}
+              >
                 Save draft
               </button>
               <button
                 type="button"
-                className="h-9 rounded-lg border border-slate-200 px-4 text-sm font-semibold disabled:opacity-50"
-                disabled={saving || drawerMode === 'create'}
-                onClick={() => {
-                  const draft = versions.find(v => v.status === 'DRAFT')
-                  if (draft) void publishVersion(draft.id)
-                }}
+                className="btn-primary h-9 px-4 text-sm"
+                disabled={saving || (drawerMode === 'edit' && !dirty && !versions.some(v => v.status === 'DRAFT'))}
+                onClick={() => void handleSave(true)}
               >
-                Publish latest draft
+                Publish
               </button>
             </div>
           ) : null
@@ -700,7 +700,7 @@ export function SkillsPage() {
                 {versions.map(v => (
                   <tr key={v.id} className="border-b border-slate-50">
                     <td className="px-3 py-2">v{v.version_number}</td>
-                    <td className="px-3 py-2">{v.status === 'ACTIVE' ? 'Published' : v.status === 'DRAFT' ? 'Draft' : v.status}</td>
+                    <td className="px-3 py-2"><StatusBadge label={v.status === 'ACTIVE' ? 'Published' : v.status === 'DRAFT' ? 'Draft' : v.status} /></td>
                     <td>{v.status === 'ACTIVE' ? 'Yes' : '—'}</td>
                     <td className="text-slate-500">{formatModified(v.created_at)}</td>
                     <td className="px-3 py-2">

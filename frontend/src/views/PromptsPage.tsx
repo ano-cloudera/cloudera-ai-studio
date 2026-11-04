@@ -1,5 +1,6 @@
 'use client'
 
+import { StatusBadge } from '../components/StatusBadge'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MoreHorizontal, Plus, Search } from 'lucide-react'
 import { EditorDrawer } from '../components/promptSkills/EditorDrawer'
@@ -31,15 +32,6 @@ type PromptKey = (typeof KNOWN_KEYS)[number] | string
 type DrawerTab = 'editor' | 'versions' | 'preview'
 type SortKey = 'modified' | 'name'
 type StatusFilter = '' | 'published' | 'draft'
-
-const STATUS_TONE: Record<string, string> = {
-  Published: 'bg-emerald-50 text-emerald-800',
-  Draft: 'bg-violet-50 text-violet-800',
-}
-
-function StatusBadge({ label }: { label: string }) {
-  return <span className={`rounded-full px-2.5 py-0.5 text-sm font-medium ${STATUS_TONE[label] ?? 'bg-slate-100 text-slate-600'}`}>{label}</span>
-}
 
 type VersionSummary = { label: string; version: number | null; versions: PromptVersionRecord[] }
 
