@@ -14,11 +14,11 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 /** "How this was calculated": the one-line summary is always visible, the details open on click. */
-export function CalculationNoteBlock({ note }: { note: CalculationNote }) {
+export function CalculationNoteBlock({ note, embedded = false }: { note: CalculationNote; embedded?: boolean }) {
   const [open, setOpen] = useState(false)
   const warnings = note.checks.filter(check => check.status === 'warning')
   return (
-    <div className="rounded-xl border border-slate-200 bg-white" data-testid="calculation-note">
+    <div className={embedded ? 'bg-white' : 'rounded-xl border border-slate-200 bg-white'} data-testid="calculation-note">
       <button
         type="button"
         onClick={() => setOpen(value => !value)}

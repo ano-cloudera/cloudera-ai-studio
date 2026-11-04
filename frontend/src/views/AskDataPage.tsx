@@ -1108,7 +1108,8 @@ function StructuredAnswer({
         />
       )}
 
-      {response.calculation && !expandForExport && !isRagResponse(response) ? <CalculationNoteBlock note={response.calculation} /> : null}
+      <div className="divide-y divide-slate-200/80 overflow-hidden rounded-xl border border-slate-200 bg-white empty:hidden">
+      {response.calculation && !expandForExport && !isRagResponse(response) ? <CalculationNoteBlock note={response.calculation} embedded /> : null}
 
       {((chatInlineEvidence && shouldShowChatExpand(response, presentationTier)) ||
         executiveQueryOnlyExpand) &&
@@ -1120,8 +1121,10 @@ function StructuredAnswer({
           tableBlock={expandTableBlock(response)}
           executiveMode={executiveView}
           executiveQueryOnly={executiveQueryOnlyExpand}
+          embedded
         />
       ) : null}
+      </div>
 
       {onOpenWorkspace ? (
         <button

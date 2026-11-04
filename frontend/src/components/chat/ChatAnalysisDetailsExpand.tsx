@@ -20,6 +20,8 @@ type Props = {
   executiveMode?: boolean
   /** Tier 1 executive: show SQL only (no duplicate KPI table). */
   executiveQueryOnly?: boolean
+  /** Sits inside a shared card: no border or corners of its own. */
+  embedded?: boolean
 }
 
 export function ChatAnalysisDetailsExpand({
@@ -29,6 +31,7 @@ export function ChatAnalysisDetailsExpand({
   tableBlock,
   executiveMode = false,
   executiveQueryOnly = false,
+  embedded = false,
 }: Props) {
   const defaultOpen = getPresentationTierConfig().chat_details_default_open
   const [open, setOpen] = useState(defaultOpen)
@@ -56,7 +59,7 @@ export function ChatAnalysisDetailsExpand({
   const showQueryTab = hasSql && (!executiveMode || executiveQueryOnly)
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white">
+    <div className={embedded ? 'bg-white' : 'rounded-xl border border-slate-200 bg-white'}>
       <button
         type="button"
         onClick={() => setOpen(previous => !previous)}
