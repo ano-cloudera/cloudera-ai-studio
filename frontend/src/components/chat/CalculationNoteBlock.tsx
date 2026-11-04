@@ -13,6 +13,42 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   )
 }
 
+/** The rows of the calculation note, shared by the chat block and the workspace panel. */
+export function CalculationNoteRows({ note }: { note: CalculationNote }) {
+  return (
+    <>
+      {note.metric ? <Row label="Metric">{note.metric}</Row> : null}
+      {note.formula ? <Row label="Formula"><code className="break-words font-mono text-xs">{note.formula}</code></Row> : null}
+      {note.breakdown.length ? <Row label="Broken down by">{note.breakdown.join(', ')}</Row> : null}
+      {note.period ? <Row label="Period">{note.period}</Row> : null}
+      {note.filters.length ? <Row label="Filters">{note.filters.join('; ')}</Row> : null}
+      {note.source.length ? <Row label="Source">{note.source.join(', ')}</Row> : null}
+      {note.comparison ? <Row label="Comparison">{note.comparison}</Row> : null}
+      {note.steps.length ? (
+        <Row label="Steps">
+          <ol className="list-decimal space-y-0.5 pl-4">
+            {note.steps.map((step, index) => (
+              <li key={index}>{step}</li>
+            ))}
+          </ol>
+        </Row>
+      ) : null}
+      {note.checks.length ? (
+        <Row label="Checks">
+          <ul className="space-y-0.5">
+            {note.checks.map((check, index) => (
+              <li key={index} className={check.status === 'warning' ? 'text-amber-800' : 'text-emerald-800'}>
+                {check.status === 'warning' ? '⚠ ' : '✓ '}
+                {check.message}
+              </li>
+            ))}
+          </ul>
+        </Row>
+      ) : null}
+    </>
+  )
+}
+
 /** "How this was calculated": the one-line summary is always visible, the details open on click. */
 export function CalculationNoteBlock({ note, embedded = false }: { note: CalculationNote; embedded?: boolean }) {
   const [open, setOpen] = useState(false)
@@ -39,34 +75,7 @@ export function CalculationNoteBlock({ note, embedded = false }: { note: Calcula
       </button>
       {open ? (
         <dl className={`divide-y divide-slate-100 border-t border-slate-200/80 py-2 ${embedded ? 'px-4 sm:px-5' : 'px-3'}`}>
-          {note.metric ? <Row label="Metric">{note.metric}</Row> : null}
-          {note.formula ? <Row label="Formula"><code className="break-words font-mono text-xs">{note.formula}</code></Row> : null}
-          {note.breakdown.length ? <Row label="Broken down by">{note.breakdown.join(', ')}</Row> : null}
-          {note.period ? <Row label="Period">{note.period}</Row> : null}
-          {note.filters.length ? <Row label="Filters">{note.filters.join('; ')}</Row> : null}
-          {note.source.length ? <Row label="Source">{note.source.join(', ')}</Row> : null}
-          {note.comparison ? <Row label="Comparison">{note.comparison}</Row> : null}
-          {note.steps.length ? (
-            <Row label="Steps">
-              <ol className="list-decimal space-y-0.5 pl-4">
-                {note.steps.map((step, index) => (
-                  <li key={index}>{step}</li>
-                ))}
-              </ol>
-            </Row>
-          ) : null}
-          {note.checks.length ? (
-            <Row label="Checks">
-              <ul className="space-y-0.5">
-                {note.checks.map((check, index) => (
-                  <li key={index} className={check.status === 'warning' ? 'text-amber-800' : 'text-emerald-800'}>
-                    {check.status === 'warning' ? '⚠ ' : '✓ '}
-                    {check.message}
-                  </li>
-                ))}
-              </ul>
-            </Row>
-          ) : null}
+          <CalculationNoteRows note={note} />
         </dl>
       ) : null}
     </div>

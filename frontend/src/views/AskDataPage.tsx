@@ -62,6 +62,7 @@ import {
   expandTableBlock,
 } from '../components/chat/ChatAnalysisDetailsExpand'
 import { CalculationNoteBlock } from '../components/chat/CalculationNoteBlock'
+import { ComparisonSummary, comparisonKind } from '../components/analysis/ComparisonSummary'
 import { isExecutiveAudience, noteForExecutive } from '../lib/audienceMode'
 import { sourceHintMessage, suggestSourceHint } from '../lib/sourceHint'
 import { computePresentationTier, shouldShowChatExpand } from '../lib/presentationTier'
@@ -1059,6 +1060,8 @@ function StructuredAnswer({
                 unitFormat={response.data.unit_format ?? undefined}
                 title={response.chart_spec?.title ?? undefined}
               />
+            ) : comparisonKind(response.data.columns) ? (
+              <ComparisonSummary response={response} />
             ) : (
               <div className="overflow-hidden rounded-lg border border-slate-200/90 bg-white">
                 <DataTable

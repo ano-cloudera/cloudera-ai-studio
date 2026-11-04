@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { BarChart3, Briefcase, FileText, Lightbulb } from 'lucide-react'
+import { ArrowLeftRight, BarChart3, Briefcase, FileText, Lightbulb } from 'lucide-react'
 import {
   InsightListItem,
   WorkspaceSection,
@@ -14,11 +14,13 @@ import { WorkspaceDataTable } from './analysis/WorkspaceDataTable'
 import { WorkspaceQueryView } from './analysis/WorkspaceQueryView'
 import { ResultMap } from './analysis/ResultMap'
 import { KpiCard } from './KpiCard'
+import { CalculationNoteRows } from './chat/CalculationNoteBlock'
+import { ComparisonSummary, comparisonKind } from './analysis/ComparisonSummary'
 import { detectGeo } from '../lib/geo'
 import { formatCitationLabel, isRagResponse } from '../lib/ragReport'
 import type { ChatResponse } from '../types/api'
 
-type WorkspaceTab = 'summary' | 'map' | 'table' | 'query' | 'sources'
+type WorkspaceTab = 'summary' | 'map' | 'table' | 'query' | 'sources' | 'calc'
 
 type Props = {
   response: ChatResponse
@@ -29,11 +31,13 @@ function workspaceTabs(
   hasQuery: boolean,
   hasSources: boolean,
   hasMap = false,
+  hasCalculation = false,
 ): { id: WorkspaceTab; label: string; disabled?: boolean }[] {
   const tabs: { id: WorkspaceTab; label: string; disabled?: boolean }[] = [{ id: 'summary', label: 'Summary' }]
   if (hasSources) tabs.push({ id: 'sources', label: 'Sources' })
   if (hasMap) tabs.push({ id: 'map', label: 'Map' })
   tabs.push({ id: 'table', label: 'Table', disabled: !hasTable })
+  if (hasCalculation) tabs.push({ id: 'calc', label: 'How it was calculated' })
   tabs.push({ id: 'query', label: 'Query', disabled: !hasQuery })
   return tabs
 }
@@ -91,7 +95,9 @@ export function ReportDocumentSection({ response }: Props) {
   const citations = response.citations ?? []
   const hasSources = rag && citations.length > 0
   const geo = useMemo(() => (rag ? null : detectGeo(response.data.columns, response.data.rows)), [rag, response.data.columns, response.data.rows])
-  const tabs = workspaceTabs(hasTable, hasQuery, hasSources, Boolean(geo))
+  const calculation = rag ? null : response.calculation ?? null
+  const comparison = !rag && comparisonKind(response.data.columns) !== null && hasTable
+  const tabs = workspaceTabs(hasTable, hasQuery, hasSources, Boolean(geo), Boolean(calculation))
   const summarySame =
     response.answer.executive_summary.trim() === response.answer.direct_answer.trim()
   const chartTitle = response.chart_spec?.title || 'Visualization'
@@ -110,6 +116,15 @@ export function ReportDocumentSection({ response }: Props) {
               )}
             </WorkspaceSectionContent>
           </WorkspaceSection>
+
+          {comparison && (
+            <WorkspaceSection>
+              <WorkspaceSectionHeader icon={ArrowLeftRight} tone="violet" title="Comparison" />
+              <WorkspaceSectionContent>
+                <ComparisonSummary response={response} />
+              </WorkspaceSectionContent>
+            </WorkspaceSection>
+          )}
 
           {response.answer.insights.length > 0 && (
             <WorkspaceSection>
@@ -218,6 +233,15 @@ export function ReportDocumentSection({ response }: Props) {
             unitFormat={response.data.unit_format ?? undefined}
             rowCount={response.data.row_count}
           />
+        </div>
+      )}
+
+      {tab === 'calc' && calculation && (
+        <div className="mt-6" role="tabpanel" data-testid="workspace-calculation">
+          <p className="mb-3 text-sm text-slate-600">{calculation.scope ?? calculation.summary}</p>
+          <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200/90 px-4 py-2">
+            <CalculationNoteRows note={calculation} />
+          </dl>
         </div>
       )}
 
