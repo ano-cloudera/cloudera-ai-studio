@@ -243,10 +243,10 @@ async def plan_comparison(
 ) -> tuple[dict[str, Any], list[str]] | None:
     """A drill-across state (queries, kind, meta) for a period or benchmark comparison, or None for a normal question.
 
-    `periods_hint` is a comparison read from free wording by the model; the regex result always wins over it."""
+    `periods_hint` is the comparison the model read from the wording; when given it is used instead of the regex reading."""
     from app.ask_data.value_filters import resolve_value_filters
 
-    periods = detect_period_comparison(question) or periods_hint
+    periods = periods_hint or detect_period_comparison(question)
     benchmark = None if periods else detect_benchmark(question)
     if not periods and not benchmark:
         return None

@@ -1,7 +1,8 @@
 """Read two compared periods out of free wording ("antara maret dan juni", "bulan Maret dengan bulan Juni").
 
-The regex in `comparisons.py` stays the first and cheapest path. Only a question that looks like a period comparison and
-that the regex could not read is sent to the model, which returns two months or ranges as data. The result is checked here
+The model reads the periods of any question that looks like a period comparison (a comparison word plus a month or a
+period word) and returns two months or ranges as data; the regex in `comparisons.py` is the cross-check and the fallback
+when the model fails. A question without a comparison word never reaches the model. The result is checked here
 (valid months, two different periods, not in the far future) before it is used, so a wrong guess can only lead to a
 comparison the user can read in "How this was calculated", never to a made-up period.
 """
@@ -65,6 +66,25 @@ def to_comparison(result: PeriodUnderstanding, question: str, today: date) -> Pe
         return None
     earlier, later = sorted((periods[0], periods[1]), key=lambda p: p.start)  # type: ignore[type-var,arg-type]
     return PeriodComparison(earlier, later, " ".join(_STRIP.sub(" ", question).split()))
+
+
+def reconcile(regex_reading: PeriodComparison | None, model_reading: PeriodComparison | None) -> tuple[PeriodComparison | None, bool]:
+    """The comparison to run and whether the two readings disagreed.
+
+    The model is the primary reader and the regex is the cross-check: when both read two periods and they differ, the
+    model's reading is used and the difference is reported. When only one of them reads two periods, that one is used.
+    """
+    if model_reading is None:
+        return regex_reading, False
+    if regex_reading is None:
+        return model_reading, False
+    same = (regex_reading.earlier.start, regex_reading.earlier.end, regex_reading.later.start, regex_reading.later.end) == (
+        model_reading.earlier.start,
+        model_reading.earlier.end,
+        model_reading.later.start,
+        model_reading.later.end,
+    )
+    return model_reading, not same
 
 
 async def understand_periods(provider: Any, question: str, today: date | None = None) -> PeriodComparison | None:

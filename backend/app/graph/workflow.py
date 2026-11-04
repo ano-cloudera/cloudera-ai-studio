@@ -689,15 +689,13 @@ def build_workflow(deps: WorkflowDependencies):
                 compared = None
                 if not drilled:
                     from app.ask_data.comparisons import detect_benchmark, detect_period_comparison, plan_comparison
-                    from app.ask_data.period_understanding import looks_like_period_comparison, understand_periods
+                    from app.ask_data.period_understanding import looks_like_period_comparison, reconcile, understand_periods
 
                     periods_hint = None
-                    if (
-                        looks_like_period_comparison(state["question"])
-                        and detect_period_comparison(state["question"]) is None
-                        and detect_benchmark(state["question"]) is None
-                    ):
-                        periods_hint = await understand_periods(_provider(state, deps), state["question"])
+                    period_disagreement = False
+                    if looks_like_period_comparison(state["question"]) and detect_benchmark(state["question"]) is None:
+                        model_reading = await understand_periods(_provider(state, deps), state["question"])
+                        periods_hint, period_disagreement = reconcile(detect_period_comparison(state["question"]), model_reading)
                     compared = await plan_comparison(
                         periods_hint=periods_hint,
                         question=state["question"],
@@ -730,6 +728,12 @@ def build_workflow(deps: WorkflowDependencies):
                             f"Dibandingkan dengan nilai keseluruhan metrik (dihitung dari seluruh data, bukan rata-rata kelompok); hanya kelompok {side} nilai itu{by}."
                             if is_id
                             else f"Compared with the overall value of the metric (computed over all records, not the average of the groups); only groups {side} it{by} are shown."
+                        )
+                    if drill_state["kind"] == "periods" and period_disagreement:
+                        explanation += (
+                            f" Pola teks membaca periode secara berbeda; yang dipakai: {meta['previous']} dan {meta['current']}."
+                            if is_id
+                            else f" The wording could be read two ways; the periods used are {meta['previous']} and {meta['current']}."
                         )
                     partial_caveats = [*[c for c in partial_caveats if not c.startswith(("Filtered to:", "Difilter ke:"))], explanation]
                     if scope_notes:

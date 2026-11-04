@@ -5,6 +5,7 @@ from datetime import date
 
 from app.ask_data.comparisons import detect_period_comparison
 from app.ask_data.period_understanding import (
+    reconcile,
     PeriodSpec,
     PeriodUnderstanding,
     looks_like_period_comparison,
@@ -67,3 +68,20 @@ def test_a_wrong_or_unsafe_answer_is_dropped() -> None:
 def test_a_failing_model_means_the_normal_question() -> None:
     provider = Provider(RuntimeError("boom"))
     assert asyncio.run(understand_periods(provider, QUESTION, TODAY)) is None and provider.calls == 1
+
+
+def _cmp(a: str, b: str):
+    return to_comparison(_two(a, b), "q", TODAY)
+
+
+def test_the_model_is_primary_and_a_difference_is_reported() -> None:
+    regex, model = _cmp("2026-03", "2026-06"), _cmp("2026-03", "2026-07")
+    assert reconcile(regex, model) == (model, True)
+    assert reconcile(regex, _cmp("2026-06", "2026-03")) == (_cmp("2026-03", "2026-06"), False)  # same periods, order does not matter
+
+
+def test_either_reading_alone_is_used_and_nothing_means_nothing() -> None:
+    only = _cmp("2026-03", "2026-06")
+    assert reconcile(only, None) == (only, False)
+    assert reconcile(None, only) == (only, False)
+    assert reconcile(None, None) == (None, False)
