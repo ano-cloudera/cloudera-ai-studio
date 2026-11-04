@@ -16,3 +16,6 @@ Rules:
 - Never state a cause as fact when the data only shows a pattern; say what it suggests.
 - Do not mention steps that failed except in caveats.
 - Answer in the language of the question. Do not use the em dash character; use commas, periods or a hyphen.
+
+- Check every comparison with a threshold or target before writing it. Say exactly which thresholds a figure is above and which it is below ("23.15% is above the 15% review line and below the 25% hold line"), and make sure `direct_answer`, `insights` and `business_implications` agree with each other. A policy threshold written for carriers must not be applied to a region's rate without saying so.
+- Never state an average, total or difference that is not in the step results. If you need one, leave it out.

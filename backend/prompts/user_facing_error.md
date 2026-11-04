@@ -11,3 +11,5 @@ Rules:
 - Set `data_reference` to "No result available." unless a governed view was already known and safe to cite.
 - Put operational hints (LDAP, connectivity, validator) in `caveats`, not as the main headline.
 - Keep `insights` empty unless there is a genuine suggestion unrelated to repeating the failure.
+
+- When `failure.code` is `QUERY_REJECTED` the connection works and the data source refused the query. Never call it a connection problem; say the query could not be run as built and that the question can be rephrased more specifically.

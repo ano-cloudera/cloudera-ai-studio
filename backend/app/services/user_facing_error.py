@@ -39,6 +39,13 @@ def _fallback_answer(failure: dict[str, Any], *, request_id: str) -> AnalysisOut
             f"Request ID: {request_id}.",
             "Setelah autentikasi diperbaiki, silakan ajukan pertanyaan yang sama lagi.",
         ]
+    elif code == "QUERY_REJECTED":
+        direct = "Sumber data menolak query yang disusun untuk pertanyaan ini, jadi saya belum bisa menjawabnya."
+        summary = (
+            "Koneksi ke sumber data baik. Yang bermasalah adalah isi query, misalnya kolom yang tidak ditemukan atau perhitungan yang tidak valid. "
+            "Coba tulis ulang pertanyaan dengan lebih spesifik, atau minta operator memeriksa SQL di bawah."
+        )
+        caveats = [f"Request ID: {request_id}."]
     elif code == "IMPALA_QUERY_FAILED":
         direct = (
             "Query ke data warehouse tidak selesai, kemungkinan karena beban cluster, timeout, "
@@ -104,6 +111,13 @@ def _fallback_answer_en(*, kind: str, code: str, question: str, request_id: str)
             "An operator needs to check the credentials configured for the data connector."
         )
         caveats = [f"Request ID: {request_id}.", "Once authentication is fixed, please ask the same question again."]
+    elif code == "QUERY_REJECTED":
+        direct = "The data source rejected the query that was built for this question, so I could not answer it yet."
+        summary = (
+            "The connection is fine. The problem is in the query itself, for example a column that was not found or a calculation that is not valid. "
+            "Try rephrasing the question more specifically, or ask an operator to check the SQL below."
+        )
+        caveats = [f"Request ID: {request_id}."]
     elif code == "IMPALA_QUERY_FAILED":
         direct = "The query to the data warehouse did not complete, possibly because of cluster load, a timeout, or a filter that is too narrow."
         summary = (

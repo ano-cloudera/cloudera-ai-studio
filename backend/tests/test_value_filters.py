@@ -153,3 +153,11 @@ def test_the_models_own_words_are_never_read_as_a_typo() -> None:
     ignored = {"delivery", "shipments", "late"}
     assert fuzzy_matches(question, catalog, match_values(question, catalog), ignored) == []
     assert [m.values for m in fuzzy_matches("late rate di stumatra udtara", catalog, {}, ignored)] == [("Sumatera Utara",)]
+
+
+def test_a_word_of_an_applied_typo_does_not_come_back_as_a_suggestion() -> None:
+    from app.ask_data.value_filters import fuzzy_matches
+
+    catalog = {"region": ["Kalimantan Timur", "Jawa Timur"]}
+    found = fuzzy_matches("late delivery rate di kalimantn timur", catalog, {})
+    assert [(m.values, m.applied) for m in found] == [(("Kalimantan Timur",), True)]

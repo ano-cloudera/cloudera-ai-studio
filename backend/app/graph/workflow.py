@@ -1058,6 +1058,19 @@ def build_workflow(deps: WorkflowDependencies):
                 failure={"kind": "datasource", "code": exc.code, "detail": exc.message},
                 request_id=str(state.get("request_id") or ""),
             )
+            from app.core.config import get_settings
+
+            if get_settings().ask_data_show_query_errors:
+                shown_sql = " ".join(str(state.get("validated_sql") or "").split())[:900]
+                answer = answer.model_copy(
+                    update={
+                        "caveats": [
+                            *answer.caveats,
+                            f"Data source message: {' '.join(str(exc.message).split())[:300]}",
+                            *([f"SQL: {shown_sql}"] if shown_sql else []),
+                        ]
+                    }
+                )
             return {
                 **state,
                 "status": "ERROR",
@@ -1356,11 +1369,21 @@ def build_workflow(deps: WorkflowDependencies):
                 if item not in merged:
                     merged.append(item)
             analysis = analysis.model_copy(update={"caveats": merged})
+        from app.ask_data.answer_checks import review_answer
+
+        analysis, figure_warnings = review_answer(
+            analysis,
+            rows=rows,
+            question=str(state.get("question") or ""),
+            language=detect_language(str(state.get("question") or "")),
+        )
+        figure_checks = [{"name": "figures", "status": "warning", "message": w} for w in figure_warnings]
         return {
             **state,
             "status": "SUCCESS",
             "answer": analysis.model_dump(),
             "chart_spec": chart.model_dump() if chart else None,
+            "verification_checks": [*(state.get("verification_checks") or []), *figure_checks],
             "timings": _with_timing(state, "analysis_ms", _elapsed(started)),
             "judge_retry_synthesize": False,
             "judge_synthesis_hint": "",

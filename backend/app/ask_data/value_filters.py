@@ -135,7 +135,10 @@ def fuzzy_matches(
             old = out.get((dimension, match.values[0]))
             if old is None or match.score > old.score:
                 out[(dimension, match.values[0])] = match
-    return list(out.values())
+    matches = list(out.values())
+    applied_words = {w for m in matches if m.applied for w in m.heard.split()}
+    # "timur" of an applied "kalimantn timur" must not come back as a suggestion for another region.
+    return [m for m in matches if m.applied or not set(m.heard.split()) <= applied_words]
 
 
 def _candidate_dimensions(registry: Any, dataset_name: str, metric_expression: str, allowed: set[str]) -> list[str]:

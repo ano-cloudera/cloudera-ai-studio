@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     )
     # Thinking tokens count against the output limit of a Gemini model; without room for them a small call can use its
     # whole budget thinking and return nothing. This many tokens are added to every structured call.
+    # When a query is refused, show the data source's message and the SQL under the failure. Handy for an operator, so on by
+    # default for this accelerator; turn it off when end users should not see query text.
+    ask_data_show_query_errors: bool = True
     gemini_thinking_headroom_tokens: int = Field(default=4096, ge=0, le=32768)
 
     openai_base_url: str = "https://api.openai.com/v1"

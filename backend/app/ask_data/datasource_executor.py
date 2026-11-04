@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import uuid
 from time import perf_counter
 from typing import Any
@@ -19,6 +20,18 @@ from app.db.platform_models import ProjectRow
 from app.ask_data.legacy_executor import build_query_executor
 
 logger = logging.getLogger(__name__)
+
+
+_QUERY_REJECTED = re.compile(
+    r"line \d+:\d+|cannot be resolved|cannot be applied|does not exist|not found|division by zero|mismatched input|"
+    r"syntax error|type mismatch|must be an aggregate|invalid|no viable alternative|extraneous input",
+    re.IGNORECASE,
+)
+
+
+def query_error_code(exc: Exception) -> str:
+    """A refused query (a column that does not exist, a division by zero) is not a broken connection."""
+    return "QUERY_REJECTED" if _QUERY_REJECTED.search(str(exc)) else "CONNECTION_FAILED"
 
 
 class ConnectorDatasourceExecutor:
@@ -48,8 +61,9 @@ class ConnectorDatasourceExecutor:
         except ConnectorError:
             raise
         except Exception as exc:
-            logger.exception("connector_query_failed connector_id=%s", context.connector_id)
-            raise ConnectorError("CONNECTION_FAILED", str(exc), 502) from exc
+            code = query_error_code(exc)
+            logger.exception("connector_query_failed connector_id=%s code=%s sql=%s", context.connector_id, code, " ".join(sql.split())[:1200])
+            raise ConnectorError(code, str(exc), 502) from exc
         duration_ms = round((perf_counter() - started) * 1000, 2)
         rows = [json_safe_row(dict(r)) for r in result.rows]
         return {
