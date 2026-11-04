@@ -57,3 +57,43 @@ def test_orders_per_month_is_grouped_by_month_in_date_order(flag_time: bool) -> 
     assert "DATE_TRUNC('month'" in sql
     assert "GROUP BY DATE_TRUNC('month'" in sql
     assert "ORDER BY DATE_TRUNC('month'" in sql and "ASC" in sql
+
+
+def test_a_period_without_a_year_uses_the_latest_finished_one() -> None:
+    from datetime import date
+
+    from app.ask_data.intent_satisfaction import parse_yearless_period
+
+    today = date(2026, 11, 4)
+    assert parse_yearless_period("Total orders in March", today).label == "2026-03"
+    assert parse_yearless_period("Total orders pada Maret", today).label == "2026-03"
+    assert parse_yearless_period("late rate Maret sampai Mei", today).label == "2026-03 to 2026-05"
+    assert parse_yearless_period("orders in Q1", today).label == "Q1 2026"
+    assert parse_yearless_period("orders in December", today).label == "2025-12"  # this December has not finished
+
+
+def test_a_year_a_modal_verb_a_comparison_or_no_period_leaves_the_question_alone() -> None:
+    from datetime import date
+
+    from app.ask_data.intent_satisfaction import parse_yearless_period
+
+    today = date(2026, 11, 4)
+    for question in (
+        "Total orders in March 2026",
+        "Which regions may have a high late rate?",
+        "Compare March and June",
+        "Total orders",
+        "Orders in March and in June",
+    ):
+        assert parse_yearless_period(question, today) is None, question
+
+
+def test_total_orders_in_a_month_without_a_year_gets_a_date_filter() -> None:
+    from datetime import date
+
+    ctx = _build(True)
+    question = "Total orders in March"
+    resolution = ctx.resolve(question)
+    sql = ctx.compile_governed(resolution["metric"], question, [])
+    year = date.today().year if date.today() >= date(date.today().year, 4, 1) else date.today().year - 1
+    assert f"DATE '{year}-03-01'" in sql and f"DATE '{year}-04-01'" in sql

@@ -670,6 +670,16 @@ def build_workflow(deps: WorkflowDependencies):
                         if indonesian
                         else f"“{heard}” was not used as a filter because it is not certain. Did you mean {options}? Spell it out to filter the result.",
                     ]
+            from app.ask_data.intent_satisfaction import parse_yearless_period
+
+            assumed_period = parse_yearless_period(state["question"])
+            if assumed_period is not None:
+                partial_caveats = [
+                    *partial_caveats,
+                    f"Tahun tidak disebut, jadi dipakai periode terbaru yang sudah selesai: {assumed_period.label}."
+                    if detect_language(state["question"]) == "id"
+                    else f"No year was given, so the most recent finished period is used: {assumed_period.label}.",
+                ]
             if (
                 ds_ctx
                 and ds_ctx.qualified_sources

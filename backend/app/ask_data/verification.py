@@ -9,7 +9,7 @@ import re
 from typing import Any
 
 from app.ask_data.comparisons import find_periods
-from app.ask_data.intent_satisfaction import parse_requested_constraints
+from app.ask_data.intent_satisfaction import parse_requested_constraints, parse_yearless_period
 from app.core.models import CalculationCheck
 
 _DATE_IN_SQL = re.compile(r"(?:DATE|TIMESTAMP)\s*'\d{4}-\d{2}-\d{2}|CAST\(\s*'\d{4}-\d{2}-\d{2}", re.I)
@@ -62,8 +62,9 @@ def verify_answer(
     elif kind != "benchmark":
         # Months named without a year ("between March and June") still have to show up as a date filter.
         named = find_periods(question)
-        if named:
-            label = named[0][2].label
+        single = parse_yearless_period(question)
+        label = named[0][2].label if named else (single.label if single else None)
+        if label:
             if _DATE_IN_SQL.search(sql_text):
                 checks.append(CalculationCheck(name="period", status="ok", message=f"The period asked for ({label}) is applied as a date filter."))
             else:

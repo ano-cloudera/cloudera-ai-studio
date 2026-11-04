@@ -113,6 +113,38 @@ _CONCEPT_TO_DIMENSION_KEYS: dict[str, frozenset[str]] = {
 }
 
 
+_FULL_MONTHS = (
+    "january|february|march|april|may|june|july|august|september|october|november|december|"
+    "januari|februari|maret|mei|juni|juli|agustus|oktober|desember"
+)
+# "in March", "pada Maret", "bulan Mei": a full month name right after a preposition. Abbreviations and a bare "may"
+# are left out on purpose, so a modal verb is never read as a month.
+_YEARLESS_MONTH = re.compile(rf"\b(?:in|during|for|pada|selama|di|bulan)\s+(?P<m>{_FULL_MONTHS})\b(?!\s*,?\s*20\d{{2}})", re.I)
+
+
+def parse_yearless_period(question: str, today: date | None = None) -> PeriodRange | None:
+    """The one period a question names without a year ("in March", "Maret sampai Mei", "Q1"), placed in the most recent
+    year in which it has already finished. None when a year is written, when no period or more than one is named."""
+    if parse_period_range(question) is not None:
+        return None
+    from app.ask_data.comparisons import _COMPARE, _recent_year, find_periods
+
+    if _COMPARE.search(question or ""):
+        return None  # "between March and June" is two periods to compare, which the comparison path reads
+    today = today or date.today()
+    named = find_periods(question, today)
+    if len(named) == 1:
+        return named[0][2]
+    if named:
+        return None
+    months = [_MONTH_WORDS[m.group("m").casefold()] for m in _YEARLESS_MONTH.finditer(question or "")]
+    if len(set(months)) != 1:
+        return None
+    month = months[0]
+    year = int(_recent_year(month, today))
+    return PeriodRange(_month_start(year, month), _month_start(year, month + 1), f"{year:04d}-{month:02d}")
+
+
 @dataclass(frozen=True)
 class CalendarPeriod:
     year: int
@@ -354,7 +386,7 @@ def registry_period_sql_predicate(
     dataset_name: str,
     registry: Any,
 ) -> str | None:
-    period = parse_period_range(question)
+    period = parse_period_range(question) or parse_yearless_period(question)
     if not period:
         return None
     return period_sql_predicate(period, dataset_name=dataset_name, registry=registry)
