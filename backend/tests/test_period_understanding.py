@@ -32,8 +32,9 @@ def _two(a: str, b: str) -> PeriodUnderstanding:
     return PeriodUnderstanding(compare=True, periods=[PeriodSpec(start=a, end=a), PeriodSpec(start=b, end=b)])
 
 
-def test_the_regex_still_cannot_read_this_but_the_gate_lets_it_through() -> None:
-    assert detect_period_comparison(QUESTION) is None
+def test_the_regex_reads_the_common_pair_and_the_gate_still_lets_the_question_reach_the_model() -> None:
+    assert detect_period_comparison(QUESTION, TODAY) is not None  # the regex fallback reads this phrasing
+    assert detect_period_comparison("Bisa bantu compare late rate maret versus juni", TODAY) is None  # this one only the model reads
     assert looks_like_period_comparison(QUESTION)
     assert not looks_like_period_comparison("Total orders in March 2026")
     assert not looks_like_period_comparison("Compare carriers by late rate")

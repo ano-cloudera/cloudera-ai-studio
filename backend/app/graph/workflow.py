@@ -509,6 +509,7 @@ def build_workflow(deps: WorkflowDependencies):
         started = perf_counter()
         resolution = state["semantic_resolution"]
         partial_caveats: list[str] = []
+        attention_notes: list[str] = []
         entity_lookup = False
         drill_state: dict[str, Any] | None = None
         runtime_join_patch: dict[str, Any] = {}
@@ -664,12 +665,13 @@ def build_workflow(deps: WorkflowDependencies):
                     ]
                 for heard, candidates in value_resolution.suggestions:
                     options = " / ".join(candidates)
-                    partial_caveats = [
-                        *partial_caveats,
+                    note = (
                         f"“{heard}” tidak dipakai sebagai filter karena belum pasti. Maksudnya {options}? Tulis nama lengkapnya agar hasilnya terfilter."
                         if indonesian
-                        else f"“{heard}” was not used as a filter because it is not certain. Did you mean {options}? Spell it out to filter the result.",
-                    ]
+                        else f"“{heard}” was not used as a filter because it is not certain. Did you mean {options}? Spell it out to filter the result."
+                    )
+                    partial_caveats = [*partial_caveats, note]
+                    attention_notes.append(note)
             from app.ask_data.intent_satisfaction import parse_yearless_period
 
             assumed_period = parse_yearless_period(state["question"])
@@ -715,6 +717,14 @@ def build_workflow(deps: WorkflowDependencies):
                         executor=deps.query_executor,
                         state=state,
                     )
+                    if looks_like_period_comparison(state["question"]) and detect_benchmark(state["question"]) is None and not compared:
+                        unread = (
+                            "Dua periode yang ingin dibandingkan tidak terbaca otomatis, jadi hasil ini tidak dibandingkan per periode. Tulis dengan tahun, misalnya “Maret 2026 vs Juni 2026”."
+                            if detect_language(state["question"]) == "id"
+                            else "The two periods to compare could not be read, so this result is not compared by period. Write them with the year, for example “March 2026 vs June 2026”."
+                        )
+                        partial_caveats = [*partial_caveats, unread]
+                        attention_notes.append(unread)
                 if compared:
                     drill_state, scope_notes = compared
                     meta = drill_state["meta"]
@@ -901,6 +911,7 @@ def build_workflow(deps: WorkflowDependencies):
             "query_plan": plan.model_dump(),
             "sql": plan.sql or "",
             "governed_partial_caveats": partial_caveats,
+                "attention_notes": attention_notes,
             "governed_entity_lookup": entity_lookup,
             "drill_across": drill_state or {},
             "semantic_context": deps.semantic_context.planner_context(plan.domains),
@@ -1201,6 +1212,12 @@ def build_workflow(deps: WorkflowDependencies):
                 drill=state.get("drill_across") if isinstance(state.get("drill_across"), dict) else None,
                 truncated=bool(result_for_check.get("truncated")),
             )
+            from app.core.models import CalculationCheck
+
+            checks = [
+                *checks,
+                *[CalculationCheck(name="attention", status="warning", message=m) for m in (state.get("attention_notes") or [])],
+            ]
             known = list(state.get("governed_partial_caveats") or [])
             state = {
                 **state,

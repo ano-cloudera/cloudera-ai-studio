@@ -101,7 +101,9 @@ async def understand_periods(provider: Any, question: str, today: date | None = 
             temperature=0.0,
             max_tokens=200,
         )
-        return to_comparison(result, question, today)
-    except Exception:  # noqa: BLE001 - the model failing must never break the question
-        logger.warning("period_understanding_failed")
+        reading = to_comparison(result, question, today)
+        logger.info("period_understanding compare=%s periods=%s accepted=%s", result.compare, [(p.start, p.end) for p in result.periods], reading is not None)
+        return reading
+    except Exception as exc:  # noqa: BLE001 - the model failing must never break the question
+        logger.warning("period_understanding_failed error=%s detail=%s", type(exc).__name__, str(exc)[:200])
         return None

@@ -17,6 +17,7 @@ from datetime import date
 from typing import Any
 
 from app.ask_data.intent_satisfaction import (
+    _MONTH_RE,
     _MONTH_WORDS,
     _QUARTER_PATTERNS,
     _RANGE_PATTERN,
@@ -94,6 +95,34 @@ def find_periods(question: str, today: date | None = None) -> list[tuple[int, in
     return sorted(found, key=lambda item: item[0])
 
 
+_YEAR_RE = r"20\d{2}"
+_PAIR_FORMS = (
+    # "between March and June", "antara Maret dan Juni"
+    rf"\b(?:between|antara)\s+(?:(?:bulan|month)\s+)?(?P<m1>{_MONTH_RE})\b(?:\s+(?P<y1>{_YEAR_RE}))?\s+(?:and|dan|dengan)\s+(?:(?:bulan|month)\s+)?(?P<m2>{_MONTH_RE})\b(?:\s+(?P<y2>{_YEAR_RE}))?",
+    # "bulan Maret dengan bulan Juni", "month March vs month June"
+    rf"\b(?:bulan|month)\s+(?P<m1>{_MONTH_RE})\b(?:\s+(?P<y1>{_YEAR_RE}))?\s+(?:dengan|dan|vs\.?|versus|and|with)\s+(?:bulan|month)\s+(?P<m2>{_MONTH_RE})\b(?:\s+(?P<y2>{_YEAR_RE}))?",
+)
+_PAIR_PATTERNS = tuple(re.compile(form, re.I) for form in _PAIR_FORMS)
+
+
+def _month_pair(question: str, today: date) -> tuple[PeriodRange, PeriodRange, str] | None:
+    """Two single months joined by "between ... and" / "bulan ... dengan bulan ..." (only read next to a comparison word).
+    This is the fallback for the commonest phrasings; the model reads everything else."""
+    for pattern in _PAIR_PATTERNS:
+        match = pattern.search(question)
+        if not match:
+            continue
+        m1, m2 = _MONTH_WORDS[match.group("m1").casefold()], _MONTH_WORDS[match.group("m2").casefold()]
+        year = match.group("y2") or match.group("y1") or _recent_year(max(m1, m2), today)
+        first_year = match.group("y1") or year
+        a = PeriodRange(_month_start(int(first_year), m1), _month_start(int(first_year), m1 + 1), f"{int(first_year):04d}-{m1:02d}")
+        b = PeriodRange(_month_start(int(year), m2), _month_start(int(year), m2 + 1), f"{int(year):04d}-{m2:02d}")
+        if a == b:
+            return None
+        return a, b, f"{question[: match.start()]} {question[match.end():]}"
+    return None
+
+
 @dataclass(frozen=True)
 class PeriodComparison:
     earlier: PeriodRange
@@ -105,6 +134,10 @@ def detect_period_comparison(question: str, today: date | None = None) -> Period
     """Exactly two different periods plus a comparison word; None for anything else."""
     if not _COMPARE.search(question or ""):
         return None
+    pair = _month_pair(question, today or date.today())
+    if pair:
+        earlier, later = sorted((pair[0], pair[1]), key=lambda period: period.start)
+        return PeriodComparison(earlier, later, " ".join(pair[2].split()))
     spans = find_periods(question, today)
     if len(spans) != 2 or spans[0][2] == spans[1][2]:
         return None

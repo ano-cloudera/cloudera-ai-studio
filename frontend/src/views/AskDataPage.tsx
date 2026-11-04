@@ -584,7 +584,8 @@ export function AskDataPage() {
                                 }),
                               ]
                             : contextSources
-                          if (choice.contextSource) {
+                          // A metric or term picked to settle one question must not steer the next ones; only the model scope stays.
+                          if (choice.contextSource?.type === 'semantic_model') {
                             setContextSources(nextContext)
                           }
                           const prior = [...messages].reverse().find(m => m.role === 'user')?.content

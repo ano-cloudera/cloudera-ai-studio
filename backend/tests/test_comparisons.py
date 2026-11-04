@@ -158,8 +158,8 @@ def test_periods_read_by_the_model_run_like_a_regex_comparison() -> None:
     from app.ask_data.period_understanding import PeriodSpec, PeriodUnderstanding, to_comparison
     from datetime import date
 
-    question = "Bisa bantu compare approval rate di Jawa Barat antara maret dan juni 2026 per channel"
-    assert _plan(question) is None  # the regex alone reads one range, so nothing is compared
+    question = "Bisa bantu compare approval rate di Jawa Barat maret versus juni 2026 per channel"
+    assert _plan(question) is None  # the regex cannot read this wording, so nothing is compared without the model
     hint = to_comparison(
         PeriodUnderstanding(compare=True, periods=[PeriodSpec(start="2026-03", end="2026-03"), PeriodSpec(start="2026-06", end="2026-06")]),
         question,
@@ -171,3 +171,28 @@ def test_periods_read_by_the_model_run_like_a_regex_comparison() -> None:
     assert "DATE '2026-03-01'" in first["sql"] and "DATE '2026-04-01'" in first["sql"]
     assert "DATE '2026-06-01'" in second["sql"] and "DATE '2026-07-01'" in second["sql"]
     assert all("GROUP BY d.application_channel" in q["sql"] for q in drill["queries"])
+
+
+def test_the_commonest_pair_phrasings_are_read_without_the_model() -> None:
+    from datetime import date
+
+    today = date(2026, 11, 4)
+    for question in (
+        "Bisa bantu compare data late delivery di sumatera utara antara maret dan juni",
+        "Bandingkan late delivery Sumatera Utara bulan Maret dengan bulan Juni",
+        "Compare late delivery in Sumatera Utara between March and June",
+    ):
+        found = cmp.detect_period_comparison(question, today)
+        assert found is not None, question
+        assert (found.earlier.label, found.later.label) == ("2026-03", "2026-06"), question
+        assert not any(word in found.question_without_periods.casefold() for word in ("maret", "juni", "march", "june")), question
+    dated = cmp.detect_period_comparison("compare orders between March 2025 and June 2026", today)
+    assert (dated.earlier.label, dated.later.label) == ("2025-03", "2026-06")
+
+
+def test_a_range_or_a_total_between_two_months_is_not_a_comparison() -> None:
+    from datetime import date
+
+    today = date(2026, 11, 4)
+    assert cmp.detect_period_comparison("Total orders between March and June", today) is None  # no comparison word: one range
+    assert cmp.detect_period_comparison("Compare carriers from March to June", today) is None  # one range, not two periods
