@@ -11,7 +11,8 @@ import inspect
 import logging
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from difflib import SequenceMatcher
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,13 @@ MAX_DISTINCT = 200
 CACHE_TTL_SECONDS = 600.0
 _TEXT_TYPES = {"string", "text", "varchar", "char"}
 _CACHE: dict[tuple[str, str], tuple[float, list[str] | None]] = {}
+
+# A misspelt value ("stumatra udtara") is applied only when it is clearly closest to one value, and said so;
+# a weaker or tied match is offered back as a question instead of being guessed.
+FUZZY_APPLY = 0.85
+FUZZY_SUGGEST = 0.70
+FUZZY_MARGIN = 0.08
+FUZZY_MIN_LENGTH = 5
 
 
 @dataclass(frozen=True)
@@ -66,6 +74,63 @@ def match_values(question: str, catalog: dict[str, list[str]]) -> dict[str, list
     return cleaned
 
 
+@dataclass(frozen=True)
+class FuzzyMatch:
+    dimension: str
+    heard: str
+    values: tuple[str, ...]  # one value when applied, the tied candidates when only suggested
+    score: float
+    applied: bool
+
+
+@dataclass
+class ValueResolution:
+    filters: list[ValueFilter] = field(default_factory=list)
+    corrections: list[tuple[str, str]] = field(default_factory=list)  # (heard, value) for applied fuzzy matches
+    suggestions: list[tuple[str, tuple[str, ...]]] = field(default_factory=list)  # (heard, candidate values)
+
+
+def _compact(text: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", _normalize(text))
+
+
+def fuzzy_matches(question: str, catalog: dict[str, list[str]], exact: dict[str, list[str]]) -> list[FuzzyMatch]:
+    """Values the question names with a typo. Words already matched exactly are left alone."""
+    words = re.findall(r"[a-z0-9]+", _normalize(question))
+    taken = {w for values in exact.values() for value in values for w in re.findall(r"[a-z0-9]+", _normalize(value))}
+    windows: list[tuple[str, str]] = []
+    for size in (1, 2, 3):
+        for start in range(len(words) - size + 1):
+            chunk = words[start : start + size]
+            if any(w in taken for w in chunk):
+                continue
+            joined = "".join(chunk)
+            if len(joined) >= FUZZY_MIN_LENGTH:
+                windows.append((" ".join(chunk), joined))
+    out: dict[tuple[str, str], FuzzyMatch] = {}
+    for dimension, values in catalog.items():
+        known = {_compact(v): str(v) for v in values if len(_compact(v)) >= FUZZY_MIN_LENGTH and not _compact(v).isdigit()}
+        exact_here = {_compact(v) for v in exact.get(dimension, [])}
+        for heard, joined in windows:
+            scored = sorted(
+                ((SequenceMatcher(None, joined, key).ratio(), key) for key in known if key not in exact_here),
+                reverse=True,
+            )
+            if not scored or scored[0][0] < FUZZY_SUGGEST:
+                continue
+            best, best_key = scored[0]
+            second = scored[1][0] if len(scored) > 1 else 0.0
+            if best >= FUZZY_APPLY and best - second >= FUZZY_MARGIN:
+                match = FuzzyMatch(dimension, heard, (known[best_key],), round(best, 2), True)
+            else:
+                near = tuple(known[key] for score, key in scored if best - score < FUZZY_MARGIN)
+                match = FuzzyMatch(dimension, heard, near, round(best, 2), False)
+            old = out.get((dimension, match.values[0]))
+            if old is None or match.score > old.score:
+                out[(dimension, match.values[0])] = match
+    return list(out.values())
+
+
 def _candidate_dimensions(registry: Any, dataset_name: str, metric_expression: str, allowed: set[str]) -> list[str]:
     fields = registry.dataset_fields.get(dataset_name, {})
     primary = {str(k).casefold() for k in (registry.datasets.get(dataset_name, {}).get("primary_key") or [])}
@@ -106,7 +171,7 @@ async def _distinct_values(executor: Any, state: dict[str, Any], source: str, ex
     return cleaned
 
 
-async def resolve_value_filters(
+async def resolve_value_matches(
     *,
     question: str,
     dataset_name: str,
@@ -116,9 +181,9 @@ async def resolve_value_filters(
     semantic_context: Any,
     executor: Any,
     state: dict[str, Any],
-) -> list[ValueFilter]:
+) -> ValueResolution:
     if not from_source:
-        return []
+        return ValueResolution()
     registry = semantic_context.registry
     catalog: dict[str, list[str]] = {}
     expressions: dict[str, str] = {}
@@ -128,8 +193,23 @@ async def resolve_value_filters(
         if values:
             catalog[key] = values
             expressions[key] = expression
-    matches = match_values(question, catalog)
-    return [ValueFilter(dimension=k, expression=expressions[k], values=tuple(v)) for k, v in matches.items()]
+    exact = match_values(question, catalog)
+    chosen = {k: list(v) for k, v in exact.items()}
+    resolution = ValueResolution()
+    for match in fuzzy_matches(question, catalog, exact):
+        if match.applied:
+            chosen.setdefault(match.dimension, []).append(match.values[0])
+            resolution.corrections.append((match.heard, match.values[0]))
+        else:
+            resolution.suggestions.append((match.heard, match.values))
+    resolution.filters = [
+        ValueFilter(dimension=k, expression=expressions[k], values=tuple(dict.fromkeys(v))) for k, v in chosen.items()
+    ]
+    return resolution
+
+
+async def resolve_value_filters(**kwargs: Any) -> list[ValueFilter]:
+    return (await resolve_value_matches(**kwargs)).filters
 
 
 def clear_cache() -> None:

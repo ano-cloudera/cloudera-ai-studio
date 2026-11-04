@@ -51,3 +51,20 @@ models, so the gap to Genie is in explanation, knowledge and verification, not i
 
 Thinking or reasoning modes are not part of the plan. They differ per model, add latency, and do not fix formatting or
 missing context.
+
+## Understanding stage (Genie / Cortex Analyst style)
+
+Ask Data stays one application and one governed pipeline. What was missing is a tolerant understanding stage in front of
+the compiler, so free wording, other languages and typos still end in the same governed numbers.
+
+```
+question -> 1 understand (LLM, structured) -> 2 resolve (code, against real values) -> 3 compile (governed)
+         -> 4 verify (everything the question names is in the query) -> answer + How this was calculated
+```
+
+| Step | State | Where |
+|---|---|---|
+| 4. Verify: months named without a year must be a date filter | Done | `verification.py` |
+| 2. Resolve: misspelt dimension values (applied from 0.85 with a 0.08 margin, otherwise asked back) | Done | `value_filters.py` (`fuzzy_matches`, `resolve_value_matches`), caveats in `workflow.py` |
+| 1. Understand: "between X and Y" and "month X with month Y" as two periods, through a structured LLM call with the regex as fallback | Next | `comparisons.py` |
+| Feed every failed phrasing into Answer quality | Ongoing | Semantic Layer > Answer quality |

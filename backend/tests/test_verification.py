@@ -34,3 +34,14 @@ def test_an_ordinary_question_has_no_checks_and_truncation_is_flagged() -> None:
     assert warning_messages(_checks("which region is highest", truncated=True))
     periods = _checks("compare march to may with june to august", drill={"kind": "periods"})
     assert [c.name for c in periods] == ["period"] and periods[0].status == "ok"
+
+
+def test_months_without_a_year_must_still_be_a_date_filter() -> None:
+    question = "Bisa bantu compare data late delivery di sumatera utara antara maret dan juni"
+    checks = verify_answer(question=question, sql="SELECT 1 FROM t", columns=[], rows=[], definition=None, drill=None)
+    assert [c.status for c in checks if c.name == "period"] == ["warning"]
+    assert "2026-03 to 2026-06" in checks[0].message
+
+    dated = "SELECT 1 FROM t WHERE d.order_date >= DATE '2026-03-01' AND d.order_date < DATE '2026-07-01'"
+    checks = verify_answer(question=question, sql=dated, columns=[], rows=[], definition=None, drill=None)
+    assert [c.status for c in checks if c.name == "period"] == ["ok"]

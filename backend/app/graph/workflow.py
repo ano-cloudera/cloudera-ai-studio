@@ -639,9 +639,9 @@ def build_workflow(deps: WorkflowDependencies):
             if ds_ctx and ds_ctx.qualified_sources:
                 from_source = ds_ctx.qualified_sources.get(dataset_name)
             if from_source and getattr(deps.semantic_context, "_registry_runtime", False):
-                from app.ask_data.value_filters import resolve_value_filters
+                from app.ask_data.value_filters import resolve_value_matches
 
-                value_filters = await resolve_value_filters(
+                value_resolution = await resolve_value_matches(
                     question=state["question"],
                     dataset_name=dataset_name,
                     metric_expression=str(definition.get("expression") or ""),
@@ -651,14 +651,24 @@ def build_workflow(deps: WorkflowDependencies):
                     executor=deps.query_executor,
                     state=state,
                 )
+                value_filters = value_resolution.filters
+                indonesian = detect_language(state["question"]) == "id"
                 if value_filters:
                     extra_predicates = [*(extra_predicates or []), *(f.predicate() for f in value_filters)]
                     scope = "; ".join(f.describe() for f in value_filters)
+                    partial_caveats = [*partial_caveats, f"Difilter ke: {scope}." if indonesian else f"Filtered to: {scope}."]
+                for heard, value in value_resolution.corrections:
                     partial_caveats = [
                         *partial_caveats,
-                        f"Difilter ke: {scope}."
-                        if detect_language(state["question"]) == "id"
-                        else f"Filtered to: {scope}.",
+                        f"“{heard}” dibaca sebagai {value}." if indonesian else f"“{heard}” was read as {value}.",
+                    ]
+                for heard, candidates in value_resolution.suggestions:
+                    options = " / ".join(candidates)
+                    partial_caveats = [
+                        *partial_caveats,
+                        f"“{heard}” tidak dipakai sebagai filter karena belum pasti. Maksudnya {options}? Tulis nama lengkapnya agar hasilnya terfilter."
+                        if indonesian
+                        else f"“{heard}” was not used as a filter because it is not certain. Did you mean {options}? Spell it out to filter the result.",
                     ]
             if (
                 ds_ctx

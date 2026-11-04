@@ -114,3 +114,31 @@ def test_the_filter_lands_in_the_governed_sql() -> None:
         resolution["metric"], question, resolution["dimensions"], extra_predicates=[flt.predicate()]
     )
     assert "d.region_name = 'Jawa Barat'" in sql and "DATE '2026-06-01'" in sql
+
+
+def test_a_clear_typo_is_applied_and_reported() -> None:
+    from app.ask_data.value_filters import fuzzy_matches, match_values
+
+    catalog = {"region": ["Sumatera Utara", "Sumatera Barat", "Jawa Timur", "Kalimantan Timur"]}
+    question = "Bisa bantu compare data late delivery di stumatra udtara antara maret dan juni"
+    found = fuzzy_matches(question, catalog, match_values(question, catalog))
+    assert [(m.heard, m.values, m.applied) for m in found] == [("stumatra udtara", ("Sumatera Utara",), True)]
+    assert [m.values for m in fuzzy_matches("late rate jawa tmur", catalog, {})] == [("Jawa Timur",)]
+
+
+def test_a_tied_or_weak_match_is_only_a_question() -> None:
+    from app.ask_data.value_filters import fuzzy_matches
+
+    catalog = {"region": ["Sumatera Utara", "Sumatera Barat", "Jawa Timur"]}
+    found = fuzzy_matches("late rate di sumatera", catalog, {})
+    assert len(found) == 1 and not found[0].applied
+    assert set(found[0].values) == {"Sumatera Utara", "Sumatera Barat"}
+
+
+def test_ordinary_words_and_exact_matches_are_not_second_guessed() -> None:
+    from app.ask_data.value_filters import fuzzy_matches, match_values
+
+    catalog = {"region": ["Sumatera Utara", "Jawa Timur"], "carrier": ["NusaCargo", "KilatKirim"]}
+    question = "What is the late delivery rate for Jawa Timur by carrier in March?"
+    assert fuzzy_matches(question, catalog, match_values(question, catalog)) == []
+    assert [m.values for m in fuzzy_matches("compare nusa cargo", catalog, {})] == [("NusaCargo",)]

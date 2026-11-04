@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.ask_data.comparisons import find_periods
 from app.ask_data.intent_satisfaction import parse_requested_constraints
 from app.core.models import CalculationCheck
 
@@ -58,6 +59,15 @@ def verify_answer(
             checks.append(CalculationCheck(name="period", status="warning", message=f"The question names {period.label} but the query has no date filter, so the figures cover every date."))
     elif kind == "periods":
         checks.append(CalculationCheck(name="period", status="ok", message="Both periods were computed separately and merged."))
+    elif kind != "benchmark":
+        # Months named without a year ("between March and June") still have to show up as a date filter.
+        named = find_periods(question)
+        if named:
+            label = named[0][2].label
+            if _DATE_IN_SQL.search(sql_text):
+                checks.append(CalculationCheck(name="period", status="ok", message=f"The period asked for ({label}) is applied as a date filter."))
+            else:
+                checks.append(CalculationCheck(name="period", status="warning", message=f"The question names {label} but the query has no date filter, so the figures cover every date."))
 
     if "time_month" in constraints.requested_grouping:
         if _MONTH_GROUP.search(sql_text):
