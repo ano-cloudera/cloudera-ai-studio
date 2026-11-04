@@ -79,14 +79,20 @@ async def plan_steps(provider: Any, *, question: str, catalog: list[dict[str, An
         temperature=0.1,
         max_tokens=700,
     )
+    return _clean_steps(plan.steps, has_knowledge)[:MAX_STEPS]
+
+
+def _clean_steps(raw: list[AgentStep], has_knowledge: bool, *, taken: list[AgentStep] | None = None) -> list[AgentStep]:
+    """Drop duplicates, a second or unavailable knowledge step and more than four data steps; `taken` are steps already run."""
     steps: list[AgentStep] = []
-    data_steps = 0
-    seen: set[str] = set()
-    for step in plan.steps:
+    seen = {" ".join(t.question.split()).casefold() for t in taken or []}
+    data_steps = sum(1 for t in taken or [] if t.kind == "data")
+    knowledge_taken = any(t.kind == "knowledge" for t in taken or [])
+    for step in raw:
         text = " ".join(step.question.split())
         if not text or text.casefold() in seen:
             continue
-        if step.kind == "knowledge" and (not has_knowledge or any(s.kind == "knowledge" for s in steps)):
+        if step.kind == "knowledge" and (not has_knowledge or knowledge_taken or any(s.kind == "knowledge" for s in steps)):
             continue
         if step.kind == "data":
             data_steps += 1
@@ -94,7 +100,44 @@ async def plan_steps(provider: Any, *, question: str, catalog: list[dict[str, An
                 continue
         seen.add(text.casefold())
         steps.append(AgentStep(kind=step.kind, question=text, why=" ".join(step.why.split())[:160]))
-    return steps[:MAX_STEPS]
+    return steps
+
+
+class AgentRefinement(StrictModel):
+    steps: list[AgentStep]
+
+
+async def refine_steps(
+    provider: Any,
+    *,
+    question: str,
+    catalog: list[dict[str, Any]],
+    has_knowledge: bool,
+    done: list[dict[str, Any]],
+    remaining: list[AgentStep],
+) -> list[AgentStep]:
+    """The remaining steps, adjusted to what the first result showed. Never more than planned; any failure keeps the plan."""
+    import json
+
+    try:
+        payload = {
+            "question": question,
+            "metric_catalog": _humanize_catalog(catalog),
+            "documents_available": has_knowledge,
+            "done": done,
+            "planned": [{"kind": s.kind, "question": s.question, "why": s.why} for s in remaining],
+        }
+        refined = await provider.generate_structured(
+            [{"role": "system", "content": _prompt("agent_refine.md")}, {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)}],
+            AgentRefinement,
+            temperature=0.1,
+            max_tokens=500,
+        )
+        steps = _clean_steps(list(refined.steps), has_knowledge)[: len(remaining)]
+        return steps or remaining
+    except Exception:  # noqa: BLE001 - the original plan is always a valid answer
+        logger.warning("agent_refine_failed")
+        return remaining
 
 
 def _step_result(index: int, step: AgentStep, response: AskDataResponse | None, error: str | None = None) -> dict[str, Any]:
@@ -215,7 +258,10 @@ class AskDataAgent:
             return
         responses: list[AskDataResponse | None] = []
         run_id = uuid.uuid4().hex[:8]
-        for index, step in enumerate(steps, start=1):
+        index = 0
+        while index < len(steps):
+            step = steps[index]
+            index += 1
             yield {"type": "progress", "stage": "agent_step", "label": f"Step {index} of {len(steps)}: {step.why or step.question}", "detail": step.question}
             sub = prepared.model_copy(
                 update={
@@ -230,6 +276,9 @@ class AskDataAgent:
             except Exception:  # noqa: BLE001 - one failing step must not stop the others
                 logger.exception("agent_step_failed step=%s", index)
                 responses.append(None)
+            first = responses[0]
+            if index == 1 and len(steps) > 2 and first is not None and first.status == "SUCCESS" and step.kind == "data":
+                steps = [step, *await refine_steps(provider, question=request.question, catalog=catalog, has_knowledge=bool(library_ids), done=[_step_result(1, step, first)], remaining=steps[1:])]
         if not any(r is not None and r.status == "SUCCESS" and s.kind == "data" for s, r in zip(steps, responses)):
             return  # nothing to report: let the normal pipeline answer
         yield {"type": "progress", "stage": "agent_report", "label": "Writing the report"}

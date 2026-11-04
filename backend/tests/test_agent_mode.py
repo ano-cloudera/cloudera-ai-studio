@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from app.ask_data.agent_mode import AgentPlan, AgentStep, AskDataAgent, is_open_question, plan_steps
+from app.ask_data.agent_mode import AgentPlan, AgentRefinement, AgentStep, AskDataAgent, is_open_question, plan_steps
 from app.core.models import (
     AnalysisOutput,
     AskDataRequest,
@@ -34,12 +34,17 @@ def _response(question: str, *, status="SUCCESS", rows=None, citations=None, not
 
 
 class Provider:
-    def __init__(self, steps: list[AgentStep]) -> None:
+    def __init__(self, steps: list[AgentStep], refined: list[AgentStep] | None = None) -> None:
         self.steps = steps
+        self.refined = refined
         self.calls: list[str] = []
 
     async def generate_structured(self, messages, model, **_):
         self.calls.append(model.__name__)
+        if model is AgentRefinement:
+            if self.refined is None:
+                raise RuntimeError("no refinement")
+            return AgentRefinement(steps=self.refined)
         return AgentPlan(steps=self.steps) if model is AgentPlan else _analysis("Kalimantan Timur is late mostly through NusaCargo.")
 
 
@@ -114,7 +119,7 @@ def test_each_step_runs_through_the_normal_pipeline_and_one_report_is_written() 
     assert done.chart_spec is not None and done.data.row_count == 2  # the breakdown step supplies the table and chart
     assert done.usage and done.usage.llm_calls == 3
     assert chat.recorded == [done]
-    assert provider.calls == ["AgentPlan", "AnalysisOutput"]
+    assert provider.calls == ["AgentPlan", "AgentRefinement", "AnalysisOutput"]  # the refinement failed here, so the plan stood
 
 
 def test_nothing_changes_when_the_plan_is_one_step_the_steps_all_fail_or_the_mode_differs() -> None:
@@ -126,3 +131,28 @@ def test_nothing_changes_when_the_plan_is_one_step_the_steps_all_fail_or_the_mod
     rag = Chat(Provider([]))
     assert _collect(AskDataAgent(rag), _request(mode="rag")) == []
     assert _collect(AskDataAgent(rag), _request("Which region is highest?")) == []
+
+
+def test_the_remaining_steps_are_adjusted_to_what_the_first_result_showed() -> None:
+    plan = [
+        AgentStep(kind="data", question="Late rate for Kalimantan Timur by carrier"),
+        AgentStep(kind="data", question="Late rate for Kalimantan Timur by month"),
+        AgentStep(kind="data", question="Late rate for Kalimantan Timur by region"),
+    ]
+    refined = [AgentStep(kind="data", question="Late rate for NusaCargo in Kalimantan Timur by month", why="NusaCargo stood out")]
+    provider = Provider(plan, refined=refined)
+    chat = Chat(provider)
+    events = _collect(AskDataAgent(chat), _request())
+    done = events[-1]["response"]
+    assert [q for _, q in chat.asked] == ["Late rate for Kalimantan Timur by carrier", "Late rate for NusaCargo in Kalimantan Timur by month"]
+    assert len(done.calculation.steps) == 2
+    labels = [e["label"] for e in events if e["type"] == "progress" and e["stage"] == "agent_step"]
+    assert labels[-1].startswith("Step 2 of 2")
+
+
+def test_a_refinement_can_never_add_steps_or_repeat_one() -> None:
+    plan = [AgentStep(kind="data", question="a overall"), AgentStep(kind="data", question="b"), AgentStep(kind="data", question="c")]
+    refined = [AgentStep(kind="data", question="b"), AgentStep(kind="data", question="b"), AgentStep(kind="data", question="d"), AgentStep(kind="data", question="e")]
+    chat = Chat(Provider(plan, refined=refined))
+    _collect(AskDataAgent(chat), _request())
+    assert [q for _, q in chat.asked] == ["a overall", "b", "d"]  # two remaining slots, duplicates dropped
