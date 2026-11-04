@@ -245,7 +245,7 @@ async def test_a_server_that_refuses_the_schema_gets_the_looser_mode_and_is_reme
         body = json.loads(request.content)
         bodies.append(body)
         if body["response_format"]["type"] == "json_schema":
-            return httpx.Response(400, json={"error": {"code": "unsupported"}})
+            return httpx.Response(400, json={"error": {"message": "response_format json_schema is not supported"}})
         return httpx.Response(200, json={"choices": [{"message": {"content": '{"answer":"ok"}'}}]})
 
     provider = QwenProvider(_qwen_settings(), transport=httpx.MockTransport(handler))
@@ -264,3 +264,18 @@ async def test_thinking_text_and_prose_around_the_json_do_not_break_it() -> None
 
         provider = QwenProvider(_qwen_settings(), transport=httpx.MockTransport(handler))
         assert await provider.generate_structured([{"role": "user", "content": "q"}], Result, temperature=0, max_tokens=50) == Result(answer="ok")
+
+
+@pytest.mark.asyncio
+async def test_a_too_long_prompt_is_reported_as_such_and_does_not_switch_guided_mode_off() -> None:
+    bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        return httpx.Response(400, json={"error": {"message": "This model's maximum context length is 8192 tokens, however you requested 9100 tokens"}})
+
+    provider = QwenProvider(_qwen_settings(), transport=httpx.MockTransport(handler))
+    with pytest.raises(ProviderError) as caught:
+        await provider.generate_structured([{"role": "user", "content": "q"}], Result, temperature=0, max_tokens=50)
+    assert caught.value.code == "CONTEXT_TOO_LONG"
+    assert len(bodies) == 1 and provider._guided_rejected is False

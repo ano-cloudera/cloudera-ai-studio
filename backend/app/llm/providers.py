@@ -26,6 +26,17 @@ def _http_error_code(response: httpx.Response) -> str:
         return "unknown"
 
 
+_CONTEXT_TOO_LONG = re.compile(r"context length|context window|maximum context|too many tokens|prompt is too long|max_model_len", re.IGNORECASE)
+_GUIDED_UNSUPPORTED = re.compile(r"response_format|json_schema|guided|chat_template_kwargs|extra inputs|unsupported|not supported|unknown field", re.IGNORECASE)
+
+
+def _error_text(response: httpx.Response) -> str:
+    try:
+        return response.text[:1000]
+    except Exception:  # noqa: BLE001 - a body that cannot be read is just an empty reason
+        return ""
+
+
 def _structured_json(text: str) -> Any:
     value = text.strip()
     # Reasoning models write their thinking first; only what follows it is the answer.
@@ -140,10 +151,14 @@ class _OpenAICompatibleProvider:
             except httpx.TimeoutException as exc:
                 raise ProviderError("TIMEOUT") from exc
             except httpx.HTTPStatusError as exc:
-                if guided and exc.response.status_code in {400, 404, 415, 422}:
+                reply = _error_text(exc.response)
+                if exc.response.status_code in {400, 413, 422} and _CONTEXT_TOO_LONG.search(reply):
+                    logger.warning("llm_context_too_long provider=%s model=%s detail=%s", self.provider_name, self.model, reply[:300])
+                    raise ProviderError("CONTEXT_TOO_LONG") from exc
+                if guided and exc.response.status_code in {400, 404, 415, 422} and _GUIDED_UNSUPPORTED.search(reply):
                     # This server does not take a JSON schema (or the extra template argument): use the looser mode from now on.
                     self._guided_rejected = True
-                    logger.warning("llm_guided_json_rejected provider=%s status=%s", self.provider_name, exc.response.status_code)
+                    logger.warning("llm_guided_json_rejected provider=%s status=%s detail=%s", self.provider_name, exc.response.status_code, reply[:200])
                     continue
                 logger.warning(
                     "llm_http_error provider=%s status=%s error_code=%s endpoint=%s",
