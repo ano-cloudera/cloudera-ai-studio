@@ -9,3 +9,5 @@ Return the remaining steps, improved by what the first result shows:
 - A "knowledge" step stays only when documents are available and a policy or threshold would change the advice.
 - Every question must make sense on its own, keep the user's filters, and be written in the language of the original question.
 - "why" is one short sentence saying what the step checks.
+
+- Keep or set `metric` on every "data" step to the EXACT catalog metric name, character for character.

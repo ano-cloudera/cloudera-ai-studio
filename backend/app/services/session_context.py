@@ -91,12 +91,53 @@ _ENTITY_KEYS = (
 )
 
 
+_OWN_PERIOD = re.compile(
+    r"\b(?:january|february|march|april|may|june|july|august|september|october|november|december|"
+    r"januari|februari|maret|mei|juni|juli|agustus|oktober|desember)\b|\b20\d{2}\b|\bq[1-4]\b",
+    re.IGNORECASE,
+)
+# "kenapa" and "mengapa" open an investigation of their own; they do not point at a row of the previous table.
+_NOT_A_POINTER = {"kenapa", "mengapa", "penyebab"}
+
+
+_OWN_MONTH_OR_YEAR = re.compile(
+    r"\b(?:january|february|march|april|may|june|july|august|september|october|november|december|"
+    r"januari|februari|maret|mei|juni|juli|agustus|oktober|desember)\b|\b20\d{2}\b",
+    re.IGNORECASE,
+)
+
+
+def names_own_month_or_year(question: str) -> bool:
+    return _OWN_MONTH_OR_YEAR.search(" ".join(question.casefold().split())) is not None
+
+
+def names_own_period(question: str) -> bool:
+    """A month, a year or a quarter written in the question: it asks about that period, not about a row of the last table."""
+    return _OWN_PERIOD.search(" ".join(question.casefold().split())) is not None
+
+
+def points_at_prior_result(question: str) -> bool:
+    """A pointing word that is not just a demonstrative of a period ("maret 2026 ini" means this March)."""
+    normalized = " ".join(question.casefold().replace("\u2013", "-").split())
+    normalized = re.sub(rf"({_OWN_PERIOD.pattern})\s+(?:ini|itu)\b", r"\1", normalized, flags=re.IGNORECASE)
+    if _TOP_ONE_RE.search(normalized):
+        return True
+    return any(_has_marker(normalized, marker) for marker in _DRILL_REFERENTIAL_MARKERS if marker not in _NOT_A_POINTER)
+
+
+def _has_marker(normalized: str, marker: str) -> bool:
+    """A whole word or phrase: "ini" must not be found inside "dini" or "mini"."""
+    return re.search(rf"(?<![a-z0-9]){re.escape(marker)}(?![a-z0-9])", normalized) is not None
+
+
 def is_referential_follow_up(question: str) -> bool:
     """True when the user likely refers to the prior turn (not a fresh UAT prompt)."""
     normalized = " ".join(question.casefold().replace("–", "-").split())
+    if _OWN_PERIOD.search(normalized):
+        return False  # "total order di bulan maret 2026 ini" names its own period: it does not point at the last table
     if _TOP_ONE_RE.search(normalized):
         return True
-    if any(marker in normalized for marker in _DRILL_REFERENTIAL_MARKERS):
+    if any(_has_marker(normalized, marker) for marker in _DRILL_REFERENTIAL_MARKERS if marker not in _NOT_A_POINTER):
         return True
     if any(marker in normalized for marker in _COMPARE_REFERENTIAL_MARKERS):
         return any(hint in normalized for hint in _RANK_COMPARE_HINTS)

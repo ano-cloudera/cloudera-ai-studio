@@ -15,3 +15,5 @@ Rules:
 - Write each question in the language of the user's question.
 - "why" is one short sentence saying what this step checks.
 - If one step can answer the question, return exactly one step.
+
+- For every "data" step set `metric` to the EXACT `metric` name from the catalog that answers it (copy it character for character). The step is run with that metric, so choose the one that matches the question, for example the rate of late deliveries and not the count of shipments. Leave `metric` empty for a "knowledge" step.

@@ -52,6 +52,7 @@ class Chat:
     def __init__(self, provider: Provider, *, libraries: list[str] | None = None, fail_data: bool = False) -> None:
         self.provider, self.libraries, self.fail_data = provider, libraries or [], fail_data
         self.asked: list[tuple[str, str]] = []
+        self.sources: list = []
         self.recorded: list[AskDataResponse] = []
 
     def provider_for(self, request):
@@ -65,6 +66,7 @@ class Chat:
 
     async def run(self, request):
         self.asked.append((request.mode, request.question))
+        self.sources.append(request.context_sources)
         if request.mode == "rag":
             return _response(request.question, citations=[CitationRecord(document_id="d", filename="Delivery_Returns_Policy.pdf", page_number=2, chunk_id="c", snippet="above 15 percent", score=0.9)], rows=[])
         if self.fail_data:
@@ -156,3 +158,17 @@ def test_a_refinement_can_never_add_steps_or_repeat_one() -> None:
     chat = Chat(Provider(plan, refined=refined))
     _collect(AskDataAgent(chat), _request())
     assert [q for _, q in chat.asked] == ["a overall", "b", "d"]  # two remaining slots, duplicates dropped
+
+
+def test_a_data_step_is_pinned_to_a_catalog_metric_and_an_invented_name_is_dropped() -> None:
+    plan = [
+        AgentStep(kind="data", question="Late rate for Kalimantan Timur", metric="late_delivery_rate"),
+        AgentStep(kind="data", question="Late rate for Kalimantan Timur by carrier", metric="made_up_metric"),
+        AgentStep(kind="data", question="Late rate by month", metric="late_delivery_rate"),
+    ]
+    chat = Chat(Provider(plan))
+    _collect(AskDataAgent(chat), _request())
+    pinned = [[(s.type, s.id) for s in (sources or [])] for sources in chat.sources]
+    assert pinned[0] == [("semantic_metric", "late_delivery_rate")]
+    assert pinned[1] == []  # not in the catalog: the step runs without a pin instead of with a wrong one
+    assert pinned[2] == [("semantic_metric", "late_delivery_rate")]

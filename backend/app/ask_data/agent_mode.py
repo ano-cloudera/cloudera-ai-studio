@@ -23,6 +23,7 @@ from app.core.models import (
     AskDataResponse,
     CalculationCheck,
     CalculationNote,
+    ChatContextSource,
     CitationRecord,
     LlmUsage,
     QueryData,
@@ -51,6 +52,7 @@ class AgentStep(StrictModel):
     kind: Literal["data", "knowledge"]
     question: str
     why: str = ""
+    metric: str = ""  # the exact name of a catalog metric for a data step; it pins the step so no metric question comes up
 
 
 class AgentPlan(StrictModel):
@@ -59,6 +61,10 @@ class AgentPlan(StrictModel):
 
 def _prompt(name: str) -> str:
     return (PROMPT_DIR / name).read_text(encoding="utf-8")
+
+
+def _metric_names(catalog: list[dict[str, Any]]) -> set[str]:
+    return {str(item.get("name")) for item in catalog if item.get("name")}
 
 
 def _humanize_catalog(catalog: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -79,10 +85,16 @@ async def plan_steps(provider: Any, *, question: str, catalog: list[dict[str, An
         temperature=0.1,
         max_tokens=700,
     )
-    return _clean_steps(plan.steps, has_knowledge)[:MAX_STEPS]
+    return _clean_steps(plan.steps, has_knowledge, metrics=_metric_names(catalog))[:MAX_STEPS]
 
 
-def _clean_steps(raw: list[AgentStep], has_knowledge: bool, *, taken: list[AgentStep] | None = None) -> list[AgentStep]:
+def _clean_steps(
+    raw: list[AgentStep],
+    has_knowledge: bool,
+    *,
+    taken: list[AgentStep] | None = None,
+    metrics: set[str] | None = None,
+) -> list[AgentStep]:
     """Drop duplicates, a second or unavailable knowledge step and more than four data steps; `taken` are steps already run."""
     steps: list[AgentStep] = []
     seen = {" ".join(t.question.split()).casefold() for t in taken or []}
@@ -99,7 +111,8 @@ def _clean_steps(raw: list[AgentStep], has_knowledge: bool, *, taken: list[Agent
             if data_steps > 4:
                 continue
         seen.add(text.casefold())
-        steps.append(AgentStep(kind=step.kind, question=text, why=" ".join(step.why.split())[:160]))
+        pinned = step.metric.strip() if step.kind == "data" and (metrics is None or step.metric.strip() in metrics) else ""
+        steps.append(AgentStep(kind=step.kind, question=text, why=" ".join(step.why.split())[:160], metric=pinned))
     return steps
 
 
@@ -133,7 +146,7 @@ async def refine_steps(
             temperature=0.1,
             max_tokens=500,
         )
-        steps = _clean_steps(list(refined.steps), has_knowledge)[: len(remaining)]
+        steps = _clean_steps(list(refined.steps), has_knowledge, metrics=_metric_names(catalog))[: len(remaining)]
         return steps or remaining
     except Exception:  # noqa: BLE001 - the original plan is always a valid answer
         logger.warning("agent_refine_failed")
@@ -265,12 +278,18 @@ class AskDataAgent:
             step = steps[index]
             index += 1
             yield {"type": "progress", "stage": "agent_step", "label": f"Step {index} of {len(steps)}: {step.why or step.question}", "detail": step.question}
+            pinned = (
+                [ChatContextSource(type="semantic_metric", id=step.metric, name=step.metric)]
+                if step.kind == "data" and step.metric and step.metric in _metric_names(catalog)
+                else prepared.context_sources
+            )
             sub = prepared.model_copy(
                 update={
                     "session_id": f"agent-{run_id}-{index}",
                     "question": step.question,
                     "mode": "rag" if step.kind == "knowledge" else "ask_data",
                     "library_ids": library_ids if step.kind == "knowledge" else None,
+                    "context_sources": pinned,
                 }
             )
             try:

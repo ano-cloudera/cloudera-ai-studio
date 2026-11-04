@@ -318,8 +318,6 @@ def _referential_entity_for_time_breakdown(question: str, filter_entity: dict[st
         return True
     if _parse_rank_index(question) is not None:
         return True
-    if filter_entity.get("rank") is not None:
-        return True
     from app.services.session_context import is_referential_follow_up
 
     if is_referential_follow_up(question):
@@ -353,6 +351,10 @@ def _plan_filtered_entity_time_breakdown(
 ) -> FollowUpPlan | None:
     if not filter_entity or not _wants_monthly_time_breakdown(question):
         return None
+    from app.services.session_context import names_own_period
+
+    if names_own_period(question):
+        return None  # "total order di bulan maret 2026" is a new question about that period, not a month series of a row
     if not _referential_entity_for_time_breakdown(question, filter_entity):
         return None
     last_metric = str(ctx.get("last_metric") or "")
@@ -771,10 +773,9 @@ def _resolve_follow_up_plan(
     plan = plan_follow_up(question, ctx)
     if plan:
         return plan
-    referential = is_referential_follow_up(question) or bool(
-        understanding and understanding.referential_follow_up
-    )
-    if not referential:
+    # The model's opinion alone is not enough: a small model flags fresh questions as follow-ups and the first row of the
+    # previous table then becomes a filter. A pointing word in the question itself is required as well.
+    if not is_referential_follow_up(question):
         return None
     if understanding and understanding.referential_follow_up:
         return plan_from_understanding(understanding, ctx)
@@ -895,6 +896,14 @@ def _is_explicit_new_ranking_question(question: str) -> bool:
 def plan_follow_up(question: str, ctx: dict[str, Any]) -> FollowUpPlan | None:
     if not ctx.get("last_metric"):
         return None
+    from app.services.session_context import names_own_month_or_year, points_at_prior_result
+
+    if (
+        names_own_month_or_year(question)
+        and not points_at_prior_result(question)
+        and not re.search(r"\b0\d{3}\b|konteks yang sama", question.casefold())
+    ):
+        return None  # "total order di bulan maret 2026 ini" is a new question about that period
     if _is_explicit_new_ranking_question(question):
         return None
     catalog = list(ctx.get("result_catalog") or [])
@@ -1623,7 +1632,7 @@ def _drill_metric_and_dimensions(plan: FollowUpPlan, ctx: dict[str, Any]) -> tup
 
 def build_follow_up_rewrite(question: str, ctx: dict[str, Any], plan: FollowUpPlan) -> str:
     parts = [
-        f"Q4 2024 analytic follow-up on prior question: {ctx.get('last_question', '')[:160]}.",
+        f"Analytic follow-up on prior question: {ctx.get('last_question', '')[:160]}.",
         f"Prior governed metric: {ctx.get('last_metric')}; domain: {ctx.get('domain_id')}; grain: {ctx.get('active_grain')}.",
     ]
     if plan.filter_entity:
