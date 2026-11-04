@@ -242,7 +242,7 @@ class GeminiProvider:
         config = types.GenerateContentConfig(
             system_instruction=system_instruction or None,
             temperature=temperature,
-            max_output_tokens=max_tokens,
+            max_output_tokens=max_tokens + max(0, int(self.settings.gemini_thinking_headroom_tokens)),
             response_mime_type="application/json",
             response_json_schema=_gemini_json_schema(response_model),
         )
@@ -254,6 +254,12 @@ class GeminiProvider:
             )
             text = (response.text or "").strip()
             if not text:
+                candidates = getattr(response, "candidates", None) or []
+                logger.warning(
+                    "llm_empty_response provider=gemini model=%s finish_reason=%s",
+                    self.settings.gemini_model,
+                    getattr(candidates[0], "finish_reason", None) if candidates else None,
+                )
                 raise ProviderError("PROVIDER_ERROR")
             meta = getattr(response, "usage_metadata", None)
             prompt_t = completion_t = 0

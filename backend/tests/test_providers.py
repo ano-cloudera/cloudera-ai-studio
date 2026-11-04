@@ -174,7 +174,7 @@ async def test_gemini_provider_returns_validated_structured_output() -> None:
     assert result == Result(answer="grounded")
     mock_aio.models.generate_content.assert_awaited_once()
     assert captured["config"].temperature == 0.2
-    assert captured["config"].max_output_tokens == 321
+    assert captured["config"].max_output_tokens == 321 + settings.gemini_thinking_headroom_tokens  # room for the model's thinking
 
 
 @pytest.mark.asyncio
@@ -198,3 +198,21 @@ async def test_qwen_http_error_logs_safe_diagnostics_without_api_token(caplog) -
     assert "status=400" in caplog.text
     assert "context_length_exceeded" in caplog.text
     assert "super-secret-token" not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_gemini_headroom_can_be_set_to_zero_and_an_empty_reply_is_logged(caplog) -> None:
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    settings = Settings(_env_file=None, gemini_model="gemini-model", gemini_api_key="k", gemini_thinking_headroom_tokens=0)
+    provider = GeminiProvider(settings)
+    empty = MagicMock()
+    empty.text = ""
+    empty.candidates = [MagicMock(finish_reason="MAX_TOKENS")]
+    client = MagicMock()
+    client.aio.models.generate_content = AsyncMock(return_value=empty)
+    with patch.object(provider, "_client_instance", return_value=client), caplog.at_level("WARNING"):
+        with pytest.raises(ProviderError):
+            await provider.generate_structured([{"role": "user", "content": "q"}], Result, temperature=0, max_tokens=50)
+    assert "llm_empty_response" in caplog.text and "MAX_TOKENS" in caplog.text
+    assert client.aio.models.generate_content.await_args.kwargs["config"].max_output_tokens == 50

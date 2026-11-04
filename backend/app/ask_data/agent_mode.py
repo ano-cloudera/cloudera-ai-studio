@@ -248,13 +248,15 @@ class AskDataAgent:
             catalog = self._chat.metric_catalog()
             library_ids = self._knowledge_library_ids()
             if not catalog:
+                logger.warning("agent_fallback reason=no_metric_catalog")
                 return
             yield {"type": "progress", "stage": "agent_plan", "label": "Planning the analysis"}
             steps = await plan_steps(provider, question=request.question, catalog=catalog, has_knowledge=bool(library_ids))
         except Exception:  # noqa: BLE001 - the normal answer is the fallback
-            logger.exception("agent_plan_failed")
+            logger.exception("agent_plan_failed")  # the full error follows; the normal answer is the fallback
             return
         if len(steps) < 2:
+            logger.warning("agent_fallback reason=plan_has_%s_step", len(steps))
             return
         responses: list[AskDataResponse | None] = []
         run_id = uuid.uuid4().hex[:8]
@@ -280,6 +282,7 @@ class AskDataAgent:
             if index == 1 and len(steps) > 2 and first is not None and first.status == "SUCCESS" and step.kind == "data":
                 steps = [step, *await refine_steps(provider, question=request.question, catalog=catalog, has_knowledge=bool(library_ids), done=[_step_result(1, step, first)], remaining=steps[1:])]
         if not any(r is not None and r.status == "SUCCESS" and s.kind == "data" for s, r in zip(steps, responses)):
+            logger.warning("agent_fallback reason=no_step_answered statuses=%s", [getattr(r, "status", None) for r in responses])
             return  # nothing to report: let the normal pipeline answer
         yield {"type": "progress", "stage": "agent_report", "label": "Writing the report"}
         try:

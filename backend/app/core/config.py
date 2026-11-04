@@ -50,6 +50,9 @@ class Settings(BaseSettings):
         default="gemini-3.8-flash",
         validation_alias=AliasChoices("GEMINI_MODEL", "MODEL_GEMINI"),
     )
+    # Thinking tokens count against the output limit of a Gemini model; without room for them a small call can use its
+    # whole budget thinking and return nothing. This many tokens are added to every structured call.
+    gemini_thinking_headroom_tokens: int = Field(default=4096, ge=0, le=32768)
 
     openai_base_url: str = "https://api.openai.com/v1"
     openai_api_key: SecretStr = SecretStr("")
