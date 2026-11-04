@@ -1093,6 +1093,9 @@ def build_workflow(deps: WorkflowDependencies):
                     answer=_safe_answer(
                         "Data perbandingan stok Reference vs sell-in untuk material tersebut tidak lengkap "
                         "pada periode Q4 2024. Anda bisa minta rincian sell-in per bulan untuk material yang sama."
+                        if detect_language(str(state.get("question") or "")) == "id"
+                        else "The stock versus sell-in comparison for this material is incomplete in Q4 2024. "
+                        "You can ask for the monthly sell-in of the same material."
                     ),
                     chart_spec=None,
                 )
@@ -1146,7 +1149,10 @@ def build_workflow(deps: WorkflowDependencies):
                     answer=_safe_answer(
                         "Tidak ada nilai metrik yang bisa dihitung untuk kombinasi material/cabang "
                         "dan periode yang diminta (misalnya sell-in nol atau stok tidak tercatat "
-                        "pada periode Q4 2024).",
+                        "pada periode Q4 2024)."
+                        if detect_language(str(state.get("question") or "")) == "id"
+                        else "No metric value can be calculated for the requested material or branch and period "
+                        "(for example sell-in is zero or stock was not recorded in Q4 2024).",
                         caveats=list(state.get("governed_partial_caveats") or []),
                     ),
                     chart_spec=None,

@@ -145,7 +145,11 @@ class RAGService:
             answer_text=message,
             executive_summary=message,
             insights=[],
-            caveats=["Penyusunan jawaban dari dokumen gagal; retrieval mungkin sudah berhasil."],
+            caveats=[
+                "Penyusunan jawaban dari dokumen gagal; retrieval mungkin sudah berhasil."
+                if detect_language(query) == "id"
+                else "Writing the answer from the documents failed; retrieval itself may have succeeded."
+            ],
             business_implications=[],
             citations=[],
             retrieval_meta={
