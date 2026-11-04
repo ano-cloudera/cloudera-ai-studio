@@ -239,11 +239,14 @@ async def plan_comparison(
     qualified_sources: dict[str, str],
     executor: Any,
     state: dict[str, Any],
+    periods_hint: PeriodComparison | None = None,
 ) -> tuple[dict[str, Any], list[str]] | None:
-    """A drill-across state (queries, kind, meta) for a period or benchmark comparison, or None for a normal question."""
+    """A drill-across state (queries, kind, meta) for a period or benchmark comparison, or None for a normal question.
+
+    `periods_hint` is a comparison read from free wording by the model; the regex result always wins over it."""
     from app.ask_data.value_filters import resolve_value_filters
 
-    periods = detect_period_comparison(question)
+    periods = detect_period_comparison(question) or periods_hint
     benchmark = None if periods else detect_benchmark(question)
     if not periods and not benchmark:
         return None

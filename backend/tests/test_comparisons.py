@@ -60,7 +60,7 @@ def test_the_benchmark_keeps_only_groups_beyond_the_margin() -> None:
     assert cmp.merge_benchmark([grouped, overall], "below", 6.0)["rows"] == []  # nothing is that far below
 
 
-def _plan(question: str):
+def _plan(question: str, periods_hint=None):
     vf.clear_cache()
     return asyncio.run(
         cmp.plan_comparison(
@@ -70,6 +70,7 @@ def _plan(question: str):
             qualified_sources=SOURCES,
             executor=_Executor(),
             state={},
+            periods_hint=periods_hint,
         )
     )
 
@@ -151,3 +152,22 @@ def test_every_group_is_listed_when_compared_with_the_overall_value() -> None:
     merged = cmp.merge_drill_results(drill, [grouped, {"columns": ["metric_value"], "rows": [{"metric_value": 10}]}])
     assert [(r["region_name"], r["difference"]) for r in merged["rows"]] == [("B", 10.0), ("A", -5.0)]
     assert _plan("Compare the approval rate with the overall rate") is None  # no group to compare
+
+
+def test_periods_read_by_the_model_run_like_a_regex_comparison() -> None:
+    from app.ask_data.period_understanding import PeriodSpec, PeriodUnderstanding, to_comparison
+    from datetime import date
+
+    question = "Bisa bantu compare approval rate di Jawa Barat antara maret dan juni 2026 per channel"
+    assert _plan(question) is None  # the regex alone reads one range, so nothing is compared
+    hint = to_comparison(
+        PeriodUnderstanding(compare=True, periods=[PeriodSpec(start="2026-03", end="2026-03"), PeriodSpec(start="2026-06", end="2026-06")]),
+        question,
+        date(2026, 11, 4),
+    )
+    drill, notes = _plan(question, hint)
+    assert drill["kind"] == "periods" and drill["meta"] == {"previous": "2026-03", "current": "2026-06"}
+    first, second = drill["queries"]
+    assert "DATE '2026-03-01'" in first["sql"] and "DATE '2026-04-01'" in first["sql"]
+    assert "DATE '2026-06-01'" in second["sql"] and "DATE '2026-07-01'" in second["sql"]
+    assert all("GROUP BY d.application_channel" in q["sql"] for q in drill["queries"])

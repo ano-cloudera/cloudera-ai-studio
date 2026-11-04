@@ -688,9 +688,18 @@ def build_workflow(deps: WorkflowDependencies):
                 )
                 compared = None
                 if not drilled:
-                    from app.ask_data.comparisons import plan_comparison
+                    from app.ask_data.comparisons import detect_benchmark, detect_period_comparison, plan_comparison
+                    from app.ask_data.period_understanding import looks_like_period_comparison, understand_periods
 
+                    periods_hint = None
+                    if (
+                        looks_like_period_comparison(state["question"])
+                        and detect_period_comparison(state["question"]) is None
+                        and detect_benchmark(state["question"]) is None
+                    ):
+                        periods_hint = await understand_periods(_provider(state, deps), state["question"])
                     compared = await plan_comparison(
+                        periods_hint=periods_hint,
                         question=state["question"],
                         primary_metric=metric,
                         semantic_context=deps.semantic_context,

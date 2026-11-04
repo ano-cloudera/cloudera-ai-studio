@@ -66,5 +66,5 @@ question -> 1 understand (LLM, structured) -> 2 resolve (code, against real valu
 |---|---|---|
 | 4. Verify: months named without a year must be a date filter | Done | `verification.py` |
 | 2. Resolve: misspelt dimension values (applied from 0.85 with a 0.08 margin, otherwise asked back) | Done | `value_filters.py` (`fuzzy_matches`, `resolve_value_matches`), caveats in `workflow.py` |
-| 1. Understand: "between X and Y" and "month X with month Y" as two periods, through a structured LLM call with the regex as fallback | Next | `comparisons.py` |
+| 1. Understand: "between X and Y" and "month X with month Y" as two periods. The regex stays first; a question with a comparison word and a month the regex cannot read goes to a structured model call, and the result is validated before use | Done | `period_understanding.py`, `prompts/period_understanding.md`, `plan_comparison(periods_hint=...)` |
 | Feed every failed phrasing into Answer quality | Ongoing | Semantic Layer > Answer quality |

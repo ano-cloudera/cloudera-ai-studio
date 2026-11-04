@@ -53,6 +53,9 @@ behavior, and do not count them as failures.
 | A20 | Benchmark | Compare the late delivery rate by region with the overall rate | All 8 regions, each with overall 11.3% and its difference, Kalimantan Timur first | |
 | A21 | Explain | Any Ask Data answer, click **How this was calculated** | One-line summary, then metric, formula, breakdown, period, filters, source. Same wording whatever the model | |
 | A22 | Verify | `How many orders do we get per month?` | Check line says the result is split by month; months in date order | |
+| A23 | Understand | `Bisa bantu compare late delivery di stumatra udtara antara maret dan juni` | Region read as **Sumatera Utara** with the note “stumatra udtara” was read as …; two periods **2026-03** and **2026-06** compared (6.0 vs 15.6 for the sample data differs by month, check both); no “no date filter” warning | |
+| A24 | Understand | `Late delivery rate di sumatera` | Not filtered; a note asks whether Sumatera Utara or Sumatera Barat was meant | |
+| A25 | Understand | `Bandingkan late delivery Sumatera Utara bulan Maret dengan bulan Juni` | Two periods compared, same as A23 | |
 | AG1 | Agent | Why is Kalimantan Timur late so often? | Progress shows steps; answer cites step numbers; NusaCargo **32.2%** stands out; **How this was calculated** lists 3 to 5 steps | |
 | AG2 | Agent | What should we do about carrier performance in Kalimantan Timur? (library with both PDFs exists) | Includes a document step; recommendation applies the **15%** review and **25%** hold thresholds and names the PDF and page | |
 | AG3 | Agent | Set `AGENT_MODE_ENABLED=false`, ask AG1 again | Normal single-query answer, no steps | |
