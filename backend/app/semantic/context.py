@@ -773,6 +773,9 @@ class SemanticContextService:
         if not follow or follow.get("status") != "resolved":
             return None
         metric = str(follow["metric"])
+        if metric not in self.metrics:
+            # The follow-up engine still knows the metrics of an older demo ("material_sell_in_value"); this model does not.
+            return None
         explicit = self.registry.resolve_metric(question)
         if explicit.get("status") == "resolved" and str(explicit.get("metric")) != metric:
             # The question names a different metric ("approval rate by region"): do not continue the last one.
@@ -794,7 +797,31 @@ class SemanticContextService:
             )
         follow["dimensions"] = list(dict.fromkeys(dimensions))
         follow["dimension_mismatch"] = list(follow.get("dimension_mismatch") or [])
+        if follow.get("follow_up_entity_filters"):
+            mapped = self._registry_entity_predicates(
+                list(follow["follow_up_entity_filters"]), str(follow["definition"].get("base_dataset") or ""), question
+            )
+            if mapped is None:
+                return None  # a filter that cannot be written for this model is no follow-up at all
+            follow["follow_up_entity_filters"] = mapped
         return follow
+
+    def _registry_entity_predicates(self, predicates: list[str], dataset_name: str, question: str) -> list[str] | None:
+        """The follow-up engine writes `d.<dimension key> = 'value'`; in a registry model the column is the field's own
+        expression ("d.region_name"), and a time dimension cannot be compared to a text value at all."""
+        fields = self.registry.dataset_fields.get(dataset_name, {})
+        out: list[str] = []
+        for predicate in predicates:
+            rewritten = predicate
+            for key, field in fields.items():
+                if not re.search(rf"\bd\.{re.escape(key)}\b", rewritten):
+                    continue
+                if (field.get("dimension") or {}).get("is_time"):
+                    return None
+                expression = self._registry_dimension_expression(dataset_name, key, question)
+                rewritten = re.sub(rf"\bd\.{re.escape(key)}\b", lambda _m, e=expression: e, rewritten)
+            out.append(rewritten)
+        return out
 
     def _resolve_registry_runtime(self, question: str) -> dict[str, Any]:
         """Governed resolution for registry-staged OSSIE (no REFERENCE domain graph)."""

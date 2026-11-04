@@ -714,17 +714,19 @@ def _bind_entity_from_catalog(question: str, catalog: list[dict[str, Any]]) -> d
         return catalog[0]
     if any(t in lowered for t in ("terakhir", "paling bawah")):
         return catalog[-1]
-    # Substring match on entity id (e.g. palembang → DC Palembang)
+    # Substring match on entity id (e.g. palembang → DC Palembang). A word shared by several entities ("timur" in Kalimantan
+    # Timur and Jawa Timur) says nothing about which one is meant, so it only binds when exactly one entity fits.
+    whole = [item for item in catalog if (eid := _normalize(str(item.get("id") or ""))) and (eid in lowered or lowered in eid)]
+    if len(whole) == 1:
+        return whole[0]
+    by_token = []
     for item in catalog:
         eid = _normalize(str(item.get("id") or ""))
-        if not eid:
-            continue
         tokens = [t for t in re.split(r"[\s_/\-]+", eid) if len(t) >= 4]
-        for token in tokens:
-            if token in lowered:
-                return item
-        if eid in lowered or lowered in eid:
-            return item
+        if eid and any(token in lowered for token in tokens):
+            by_token.append(item)
+    if len(by_token) == 1:
+        return by_token[0]
     # "cabang X" / "branch X" single token
     match = re.search(
         r"\b(?:cabang|branch|dc)\s+([^,]+?)(?:\s*,|\s+top\b|\s+based\b|\s+produk\b|\s+product\b|$)",
