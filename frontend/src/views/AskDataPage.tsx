@@ -997,8 +997,8 @@ function StructuredAnswer({
       </div>
     ) : null
 
-  const evidenceBlock = showEvidenceBlock && !chatInlineEvidence ? (
-    <section className={`answer-surface ${hasVisualChart ? 'space-y-0' : 'space-y-3'}`}>
+  const evidenceInner = showEvidenceBlock && !chatInlineEvidence ? (
+    <>
       {response.chart_spec?.type === 'kpi' && (
         <div className="max-w-md">
           <KpiCard label={response.chart_spec.title} value={kpiValue} format="" icon={BarChart3} />
@@ -1044,11 +1044,15 @@ function StructuredAnswer({
             ))}
         </div>
       )}
-    </section>
+    </>
   ) : null
 
-  const detailsInSurface =
-    !chartFirst && !evidenceBlock && !expandForExport && !(presentationTier === 3 && reportArtifact) && !onOpenWorkspace
+  // One card: the answer, its evidence, the narrative and the details. Reports and exports keep the separate cards.
+  const singleCard = !expandForExport && !(presentationTier === 3 && reportArtifact) && !onOpenWorkspace
+  const detailsInSurface = singleCard
+  const evidenceSpacing = hasVisualChart ? 'space-y-0' : 'space-y-3'
+  const evidenceBlock =
+    evidenceInner && !singleCard ? <section className={`answer-surface ${evidenceSpacing}`}>{evidenceInner}</section> : null
 
   const detailRows = (
     <>
@@ -1069,6 +1073,21 @@ function StructuredAnswer({
       ) : null}
     </>
   )
+
+  const narrativeInner = chartFirst && hasAnalysisBody ? (
+    <>
+      {showExecutiveSummary && (
+        <AnswerProse text={response.answer.executive_summary} omitTables={omitTablesInProse} variant="support" />
+      )}
+      {!chatInlineEvidence || presentationTier >= 2 || showTier1Insights ? insightsBlock : null}
+      {!chatInlineEvidence || presentationTier >= 2 ? implicationsBlock : null}
+      {dataNoteInNarrative && (
+        <div className={showExecutiveSummary || insightsBlock || implicationsBlock ? 'answer-section-divider !pt-3' : ''}>
+          <DataNote note={dataNote} sources={provenanceSources} inChatResponse />
+        </div>
+      )}
+    </>
+  ) : null
 
   return (
     <div aria-label="AI response" className="chat-response-typography flex flex-col gap-4">
@@ -1103,6 +1122,8 @@ function StructuredAnswer({
             )}
           </>
         )}
+        {singleCard && evidenceInner ? <div className={`answer-section-divider ${evidenceSpacing}`}>{evidenceInner}</div> : null}
+        {singleCard && narrativeInner ? <div className="answer-section-divider space-y-3">{narrativeInner}</div> : null}
         {detailsInSurface ? (
           <div className="-mx-4 -mb-4 mt-1 divide-y divide-slate-200/80 overflow-hidden rounded-b-xl border-t border-slate-200/80 empty:hidden sm:-mx-5 sm:-mb-5">
             {detailRows}
@@ -1123,7 +1144,7 @@ function StructuredAnswer({
 
       {evidenceBlock}
 
-      {chartFirst && hasAnalysisBody && (
+      {chartFirst && hasAnalysisBody && !singleCard && (
         <section className="answer-surface space-y-3">
           {showExecutiveSummary && (
             <AnswerProse text={response.answer.executive_summary} omitTables={omitTablesInProse} variant="support" />
