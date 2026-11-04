@@ -208,11 +208,11 @@ export function AiModelsSettingsPanel() {
   async function saveProvider() {
     setBanner('')
     setProviderModalError('')
-    if (!providerDraft.name.trim() || !providerDraft.key.trim()) {
-      setProviderModalError('Provider name and key are required.')
+    if (!providerDraft.name.trim()) {
+      setProviderModalError('Provider name is required.')
       return
     }
-    const normalizedKey = normalizeProviderKey(providerDraft.key)
+    const normalizedKey = normalizeProviderKey(providerDraft.key.trim() || providerDraft.name)
     if (!isValidProviderKey(normalizedKey)) {
       setProviderModalError(
         'Key must be a lowercase id (e.g. gemini or google_gemini). It is not your API key — do not use XXXX or uppercase.',
@@ -869,7 +869,34 @@ export function AiModelsSettingsPanel() {
                     <span className="type-chat-meta mt-1 block text-slate-500">Display name in the registry.</span>
                   </label>
                   <label className="block">
-                    <span className="text-slate-600">Key</span>
+                    <span className="text-slate-600">Provider key</span>
+                    <input
+                      className="input mt-1 w-full font-mono text-xs"
+                      placeholder={normalizeProviderKey(providerDraft.name) || 'my_provider'}
+                      value={providerDraft.key}
+                      readOnly={Boolean(editingProviderId)}
+                      onChange={e => setProviderDraft(d => ({ ...d, key: e.target.value }))}
+                    />
+                    <span className="type-chat-meta mt-1 block text-slate-500">
+                      A short lowercase id (letters, digits, underscore). Leave it empty to use the name.
+                    </span>
+                  </label>
+                  {providerDraft.provider_type === 'OPENAI_COMPATIBLE' ? (
+                    <label className="block">
+                      <span className="text-slate-600">Base URL</span>
+                      <input
+                        className="input mt-1 w-full font-mono text-xs"
+                        placeholder="https://your-endpoint.example.com/v1"
+                        value={providerDraft.base_url}
+                        onChange={e => setProviderDraft(d => ({ ...d, base_url: e.target.value }))}
+                      />
+                      <span className="type-chat-meta mt-1 block text-slate-500">
+                        The OpenAI-compatible endpoint, ending in /v1 (a vLLM or CAI Inference service).
+                      </span>
+                    </label>
+                  ) : null}
+                  <label className="block">
+                    <span className="text-slate-600">{providerDraft.provider_type === 'OPENAI_COMPATIBLE' ? 'API token (optional)' : 'API key'}</span>
                     <div className="mt-1">
                       <EnvRefSelect
                         value={providerDraft.secret_ref}
@@ -878,8 +905,8 @@ export function AiModelsSettingsPanel() {
                       />
                     </div>
                     <span className="type-chat-meta mt-1 block text-slate-500">
-                      Pick the environment variable that holds the key. Add the variable in Project Settings and run the Deploy
-                      applications Job; the key itself is never typed here.
+                      {providerDraft.provider_type === 'OPENAI_COMPATIBLE' ? 'Only if the endpoint needs a token. ' : ''}Pick the environment variable that holds it. Add the variable in Project Settings and
+                      run the Deploy applications Job; the value itself is never typed here.
                     </span>
                   </label>
                   {providerDraft.provider_type === 'OPENAI_COMPATIBLE' ? (

@@ -15,6 +15,7 @@ vi.mock('../../lib/api', () => ({
     testAiProvider: vi.fn(),
     putModelAssignment: vi.fn(),
     deleteModelAssignment: vi.fn(),
+    listEnvironmentReferences: vi.fn(async () => ({ references: [] })),
   },
 }))
 
@@ -147,5 +148,27 @@ describe('AiModelsSettingsPanel', () => {
     expect(await screen.findByText(/Showing 1–5 of 11/)).toBeTruthy()
     expect(screen.getByText('gemini-0')).toBeTruthy()
     expect(screen.queryByText('gemini-5')).toBeNull()
+  })
+
+  it('registers an OpenAI-compatible endpoint with a base URL and a key made from the name', async () => {
+    vi.mocked(api.listAiProviders).mockResolvedValue({ providers: [] })
+    vi.mocked(api.listAiModels).mockResolvedValue({ models: [] })
+    vi.mocked(api.listModelAssignments).mockResolvedValue({ assignments: [] })
+    vi.mocked(api.createAiProvider).mockResolvedValue({ provider: { id: 'p9' } } as never)
+    renderWithProviders(<AiModelsSettingsPanel />)
+    fireEvent.click((await screen.findAllByRole('button', { name: /Register provider/i }))[0]!)
+    fireEvent.click(await screen.findByText('OpenAI Compatible'))
+    fireEvent.change(screen.getByPlaceholderText('Google Gemini (local)'), { target: { value: 'qwen-35-9b' } })
+    fireEvent.change(screen.getByPlaceholderText('https://your-endpoint.example.com/v1'), {
+      target: { value: 'https://vllm-qwen35.example.cloudera.site/v1' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(api.createAiProvider).toHaveBeenCalled())
+    expect(vi.mocked(api.createAiProvider).mock.calls[0]![0]).toMatchObject({
+      name: 'qwen-35-9b',
+      key: 'qwen_35_9b',
+      provider_type: 'OPENAI_COMPATIBLE',
+      base_url: 'https://vllm-qwen35.example.cloudera.site/v1',
+    })
   })
 })
