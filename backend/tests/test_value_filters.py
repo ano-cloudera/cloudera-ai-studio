@@ -142,3 +142,14 @@ def test_ordinary_words_and_exact_matches_are_not_second_guessed() -> None:
     question = "What is the late delivery rate for Jawa Timur by carrier in March?"
     assert fuzzy_matches(question, catalog, match_values(question, catalog)) == []
     assert [m.values for m in fuzzy_matches("compare nusa cargo", catalog, {})] == [("NusaCargo",)]
+
+
+def test_the_models_own_words_are_never_read_as_a_typo() -> None:
+    from app.ask_data.value_filters import fuzzy_matches, match_values
+
+    catalog = {"delivery_status": ["Delivered", "Failed", "Returned"], "region": ["Sumatera Utara"]}
+    question = "Which region has the highest late delivery rate?"
+    assert [m.values for m in fuzzy_matches(question, catalog, match_values(question, catalog))] == [("Delivered",)]  # the noise
+    ignored = {"delivery", "shipments", "late"}
+    assert fuzzy_matches(question, catalog, match_values(question, catalog), ignored) == []
+    assert [m.values for m in fuzzy_matches("late rate di stumatra udtara", catalog, {}, ignored)] == [("Sumatera Utara",)]

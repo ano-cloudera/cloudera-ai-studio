@@ -94,10 +94,17 @@ def _compact(text: str) -> str:
     return re.sub(r"[^a-z0-9]", "", _normalize(text))
 
 
-def fuzzy_matches(question: str, catalog: dict[str, list[str]], exact: dict[str, list[str]]) -> list[FuzzyMatch]:
-    """Values the question names with a typo. Words already matched exactly are left alone."""
+def fuzzy_matches(
+    question: str,
+    catalog: dict[str, list[str]],
+    exact: dict[str, list[str]],
+    ignore_words: set[str] | None = None,
+) -> list[FuzzyMatch]:
+    """Values the question names with a typo. Words already matched exactly, and the words of the model itself
+    (its table, columns and metric formula), are left alone: "delivery" in a question about delivery is not a typo."""
     words = re.findall(r"[a-z0-9]+", _normalize(question))
     taken = {w for values in exact.values() for value in values for w in re.findall(r"[a-z0-9]+", _normalize(value))}
+    taken |= {w.casefold() for w in ignore_words or ()}
     windows: list[tuple[str, str]] = []
     for size in (1, 2, 3):
         for start in range(len(words) - size + 1):
@@ -196,7 +203,8 @@ async def resolve_value_matches(
     exact = match_values(question, catalog)
     chosen = {k: list(v) for k, v in exact.items()}
     resolution = ValueResolution()
-    for match in fuzzy_matches(question, catalog, exact):
+    vocabulary = {w for text in (dataset_name, metric_expression, *allowed_dimensions) for w in re.findall(r"[a-z0-9]+", text.casefold())}
+    for match in fuzzy_matches(question, catalog, exact, vocabulary):
         if match.applied:
             chosen.setdefault(match.dimension, []).append(match.values[0])
             resolution.corrections.append((match.heard, match.values[0]))

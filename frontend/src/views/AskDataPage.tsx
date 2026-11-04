@@ -1008,7 +1008,7 @@ function StructuredAnswer({
       )}
 
       {hasVisualChart && (
-        <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded className="!mb-0" />
+        <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded className="!mb-0" exportId={response.request_id} />
       )}
 
       {response.data.rows.length > 0 && (

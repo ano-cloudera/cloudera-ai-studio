@@ -36,6 +36,7 @@ export function AnswerChart({
   className = '',
   embedded = false,
   hideTitle = false,
+  exportId = '',
 }: {
   chart: ChartSpec | null
   rows: Record<string, unknown>[]
@@ -43,6 +44,8 @@ export function AnswerChart({
   /** Render inside a parent card (no outer answer-surface). */
   embedded?: boolean
   hideTitle?: boolean
+  /** The id of the answer this chart belongs to, so the PDF export pairs it with the right turn. */
+  exportId?: string
 }) {
   if (!chart || chart.type === 'table' || chart.type === 'kpi' || !chart.x || !chart.y || !rows.length) return null
   const seriesNames = chart.series ? [...new Set(rows.map(row => String(row[chart.series!] ?? 'Unknown')))] : []
@@ -225,14 +228,14 @@ export function AnswerChart({
 
   if (embedded) {
     return (
-      <div className={`${ASSISTANT_CHART_CLASS} ${className}`.trim()} data-pdf-export-chart>
+      <div className={`${ASSISTANT_CHART_CLASS} ${className}`.trim()} data-pdf-export-chart={exportId}>
         {body}
       </div>
     )
   }
 
   return (
-    <div className={`answer-surface pb-6 ${ASSISTANT_CHART_CLASS} ${className}`.trim()} data-pdf-export-chart>
+    <div className={`answer-surface pb-6 ${ASSISTANT_CHART_CLASS} ${className}`.trim()} data-pdf-export-chart={exportId}>
       {body}
     </div>
   )

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { ChatResponse } from '../types/api'
-import { conversationPdfFilename, downloadConversationPdf } from './chatPdfExport'
+import { assistantChartNode, conversationPdfFilename, downloadConversationPdf } from './chatPdfExport'
 import type { StoredMessage } from './chatSessions'
 
 describe('chatPdfExport', () => {
@@ -48,5 +48,31 @@ describe('chatPdfExport', () => {
     await expect(
       downloadConversationPdf({ title: 'Top material sell-in?', messages, appName: 'Test App' }),
     ).resolves.toBeUndefined()
+  })
+})
+
+describe('chart pairing', () => {
+  const answer = (id: string, drawsChart: boolean) =>
+    ({
+      request_id: id,
+      chart_spec: drawsChart ? { type: 'bar', x: 'a', y: 'b', title: 't' } : { type: 'bar', x: 'a', y: 'b', title: 't' },
+      data: { rows: [{ a: 1, b: 2 }] },
+    }) as unknown as ChatResponse
+  const node = (id: string) => {
+    const el = document.createElement('div')
+    el.setAttribute('data-pdf-export-chart', id)
+    return el
+  }
+
+  it('pairs a chart with its own answer even when an earlier answer drew none', () => {
+    const nodes = [node('r6'), node('r14')] // r3 has a chart spec but nothing was drawn for it on screen
+    expect(assistantChartNode(answer('r3', true), nodes, 0)).toBeNull()
+    expect(assistantChartNode(answer('r6', true), nodes, 0)).toBe(nodes[0])
+    expect(assistantChartNode(answer('r14', true), nodes, 1)).toBe(nodes[1])
+  })
+
+  it('falls back to the order of the charts when none of them carries an id', () => {
+    const nodes = [node(''), node('')]
+    expect(assistantChartNode(answer('x', true), nodes, 1)).toBe(nodes[1])
   })
 })

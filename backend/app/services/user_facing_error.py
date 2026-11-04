@@ -148,6 +148,17 @@ def _fallback_answer_en(*, kind: str, code: str, question: str, request_id: str)
     )
 
 
+def _with_technical_reason(answer: AnalysisOutput, failure: dict[str, Any], question: str) -> AnalysisOutput:
+    """The kind and code of the failure (never the driver message), so an operator can tell failures apart from the PDF."""
+    kind, code = str(failure.get("kind") or "").strip(), str(failure.get("code") or "").strip()
+    if not kind and not code:
+        return answer
+    label = f"{kind}/{code}" if kind and code else (kind or code)
+    language = detect_language(question)
+    line = f"Rincian teknis: {label}." if language == "id" else f"Technical reason: {label}."
+    return answer.model_copy(update={"caveats": [*answer.caveats, line]})
+
+
 async def explain_failure(
     *,
     provider: LLMProvider | None,
@@ -170,10 +181,10 @@ async def explain_failure(
         "answer_language": "Indonesian" if detect_language(question) == "id" else "English",
     }
     if provider is None:
-        return _fallback_answer({**failure, "question": question}, request_id=request_id)
+        return _with_technical_reason(_fallback_answer({**failure, "question": question}, request_id=request_id), failure, question)
 
     try:
-        return await provider.generate_structured(
+        return _with_technical_reason(await provider.generate_structured(
             [
                 {"role": "system", "content": _prompt("global_system.md") + "\n" + _prompt("user_facing_error.md")},
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
@@ -181,7 +192,7 @@ async def explain_failure(
             AnalysisOutput,
             temperature=0.3,
             max_tokens=900,
-        )
+        ), failure, question)
     except ProviderError:
         logger.warning(
             "user_facing_error_llm_failed request_id=%s failure_kind=%s failure_code=%s",
@@ -189,4 +200,4 @@ async def explain_failure(
             failure.get("kind"),
             failure.get("code"),
         )
-        return _fallback_answer({**failure, "question": question}, request_id=request_id)
+        return _with_technical_reason(_fallback_answer({**failure, "question": question}, request_id=request_id), failure, question)

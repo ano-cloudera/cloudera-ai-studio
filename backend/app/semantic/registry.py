@@ -47,6 +47,11 @@ def _catalog_tokenize(value: str) -> set[str]:
     return {word for word in re.findall(r"[a-z0-9]+", value.casefold()) if word and word not in _CATALOG_STOPWORDS}
 
 
+def _stems(tokens: set[str]) -> set[str]:
+    """Singular forms, so that "order" finds the alias "orders"."""
+    return {t[:-1] if len(t) > 3 and t.endswith("s") else t for t in tokens}
+
+
 def _is_semantic_registry_catalog(metrics: dict[str, Any]) -> bool:
     if not metrics:
         return False
@@ -294,8 +299,12 @@ class OssieRegistry:
                 if normalized_alias and normalized_alias in normalized:
                     score = max(score, 200 + len(normalized_alias))
                     matched_alias = alias
-                elif alias_tokens and alias_tokens <= question_tokens:
-                    score = max(score, 120 + len(alias_tokens))
+                elif (
+                    alias_tokens
+                    and len(alias_tokens) >= len(set(re.findall(r"[a-z0-9]+", alias.casefold())))  # not shortened by the tokenizer
+                    and (alias_tokens <= question_tokens or _stems(alias_tokens) <= _stems(question_tokens))
+                ):
+                    score = max(score, 120 + len(alias_tokens))  # "order" and "orders" are the same word here
                     matched_alias = alias
                 elif len(alias_tokens) == 1 and alias_tokens <= question_tokens:
                     token = next(iter(alias_tokens))

@@ -482,7 +482,7 @@ async function drawAssistantTurn(
   drawTurnRule(pdf, cursor)
 }
 
-function assistantChartNode(
+export function assistantChartNode(
   response: ChatResponse,
   chartNodes: HTMLElement[],
   chartNodeIndex: number,
@@ -496,6 +496,9 @@ function assistantChartNode(
       response.data.rows.length > 0,
   )
   if (!hasVisualChart) return null
+  // Pair by the answer's id. A chart that was not drawn on screen (a single figure) must not shift the later ones.
+  const tagged = chartNodes.filter(node => node.getAttribute('data-pdf-export-chart'))
+  if (tagged.length) return tagged.find(node => node.getAttribute('data-pdf-export-chart') === response.request_id) ?? null
   return chartNodes[chartNodeIndex] ?? null
 }
 
