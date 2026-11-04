@@ -73,6 +73,15 @@ class AnalysisOutput(StrictModel):
     caveats: list[str]
     data_reference: str
     chart_spec: ChartSpec | None = None
+    follow_up_questions: list[str] = Field(default_factory=list)  # what the reader could ask next, shown as chips
+
+    @field_validator("follow_up_questions", mode="before")
+    @classmethod
+    def _clean_follow_ups(cls, value: object) -> object:
+        if not isinstance(value, list):
+            return []
+        cleaned = [without_em_dash(" ".join(item.split())) for item in value if isinstance(item, str) and item.strip()]
+        return list(dict.fromkeys(cleaned))[:3]
 
     @field_validator(
         "direct_answer",

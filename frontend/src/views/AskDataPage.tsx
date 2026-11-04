@@ -591,6 +591,7 @@ export function AskDataPage() {
                           const prior = [...messages].reverse().find(m => m.role === 'user')?.content
                           if (prior) void submit(prior, 'clarification', nextContext)
                         }}
+                        onFollowUp={index === messages.length - 1 ? question => void submit(question) : undefined}
                         clarificationDisabled={loading}
                         reportArtifact={
                           appConfig.analysisReportPanel &&
@@ -791,6 +792,7 @@ function StructuredAnswer({
   sessionId,
   expandForExport = false,
   onClarificationPick,
+  onFollowUp,
   onViewRagSources,
   clarificationDisabled = false,
   reportArtifact,
@@ -801,6 +803,8 @@ function StructuredAnswer({
   sessionId?: string
   expandForExport?: boolean
   onClarificationPick?: (choice: ClarificationChoice) => void
+  /** Asks one of the suggested next questions; only passed for the latest answer. */
+  onFollowUp?: (question: string) => void
   onViewRagSources?: () => void
   clarificationDisabled?: boolean
   reportArtifact?: { title: string; active: boolean; onOpen: () => void }
@@ -909,6 +913,27 @@ function StructuredAnswer({
       </div>
     )
   })()
+
+  const followUps = response.status === 'SUCCESS' ? (response.answer.follow_up_questions ?? []).filter(q => q.trim()) : []
+  const followUpBlock =
+    onFollowUp && followUps.length > 0 ? (
+      <div className="answer-section-divider !pt-3" role="group" aria-label="Suggested next questions" data-testid="follow-up-questions">
+        <div className="type-section-label mb-2">You could ask next</div>
+        <div className="flex flex-wrap gap-2">
+          {followUps.map(question => (
+            <button
+              key={question}
+              type="button"
+              disabled={clarificationDisabled}
+              onClick={() => onFollowUp(question)}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-left text-xs font-medium text-slate-700 transition-colors hover:border-cloudera-orange/50 hover:bg-orange-50 disabled:opacity-50"
+            >
+              {question}
+            </button>
+          ))}
+        </div>
+      </div>
+    ) : null
 
   const insightsBlock =
     !ragProseOnly && response.answer.insights.length > 0 ? (
@@ -1126,6 +1151,7 @@ function StructuredAnswer({
         )}
         {singleCard && evidenceInner ? <div className={`answer-section-divider ${evidenceSpacing}`}>{evidenceInner}</div> : null}
         {singleCard && narrativeInner ? <div className="answer-section-divider space-y-3">{narrativeInner}</div> : null}
+        {singleCard ? followUpBlock : null}
         {detailsInSurface ? (
           <div className="-mx-4 -mb-4 mt-1 divide-y divide-slate-200/80 overflow-hidden rounded-b-xl border-t border-slate-200/80 empty:hidden sm:-mx-5 sm:-mb-5">
             {detailRows}
@@ -1151,6 +1177,8 @@ function StructuredAnswer({
           {showExecutiveSummary && (
             <AnswerProse text={response.answer.executive_summary} omitTables={omitTablesInProse} variant="support" />
           )}
+
+      {!singleCard ? followUpBlock : null}
           {!chatInlineEvidence || presentationTier >= 2 || showTier1Insights ? insightsBlock : null}
           {!chatInlineEvidence || presentationTier >= 2 ? implicationsBlock : null}
           {dataNoteInNarrative && (

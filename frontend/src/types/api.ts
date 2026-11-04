@@ -496,6 +496,7 @@ export type AnalysisOutput = {
   caveats: string[]
   data_reference: string
   chart_spec: ChartSpec | null
+  follow_up_questions?: string[]
 }
 
 export type AskDataClarificationOption = {
