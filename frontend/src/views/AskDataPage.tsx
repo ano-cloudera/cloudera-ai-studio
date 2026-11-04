@@ -830,6 +830,7 @@ function StructuredAnswer({
   const executiveView = isExecutiveAudience() && chatInlineEvidence
   const dataNote = mergeDataNotes(response.answer.caveats, provenance, {
     hideInternalCodes: isExecutiveAudience(),
+    scope: response.calculation?.scope,
   })
   const omitTablesInProse = response.data.rows.length > 0
 

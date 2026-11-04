@@ -48,3 +48,17 @@ def test_nothing_executed_means_no_note_and_fallback_has_no_formula() -> None:
     assert build_calculation_note(strategy="governed", sql=None, metric=None, definition=None, dimensions=None, drill=None) is None
     note = build_calculation_note(strategy="sql_fallback", sql='SELECT 1 FROM "hive"."default"."v_x" d WHERE d.a = 1', metric=None, definition=None, dimensions=None, drill=None)
     assert note.kind == "fallback" and note.formula is None and note.source == ["v_x"]
+
+
+def test_the_scope_sentence_says_what_the_figures_cover_in_the_language_of_the_question() -> None:
+    from app.ask_data.calculation_note import _scope_sentence
+
+    assert _scope_sentence("2026-03-01 to 2026-03-31", ["fulfillment_orders"], [], [], "en") == (
+        "Covers 2026-03-01 to 2026-03-31 in fulfillment_orders, with no breakdown or filter applied."
+    )
+    assert _scope_sentence(None, ["delivery_shipments"], ["region name: Sumatera Utara"], ["carrier"], "en") == (
+        "Covers all dates in delivery_shipments, filtered to region name: Sumatera Utara, broken down by carrier."
+    )
+    assert _scope_sentence("2026-03-01 to 2026-03-31", ["fulfillment_orders"], [], [], "id") == (
+        "Mencakup 2026-03-01 sampai 2026-03-31 pada fulfillment_orders, tanpa pemecahan atau filter."
+    )

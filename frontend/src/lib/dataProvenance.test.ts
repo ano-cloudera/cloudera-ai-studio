@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { parseDataProvenance } from './dataProvenance'
+import { mergeDataNotes, parseDataProvenance } from './dataProvenance'
 
 describe('dataProvenance', () => {
   it('extracts table sources from a bare view name', () => {
@@ -46,5 +46,14 @@ describe('bare table references', () => {
 describe('mcp references', () => {
   it('does not show a raw connector id as a data note', () => {
     expect(parseDataProvenance('mcp:c5c0bb14-273c-48de-be41-ad815637cfda')).toBeNull()
+  })
+})
+
+describe('mergeDataNotes scope', () => {
+  it('uses the plan-based sentence only when the model wrote no note', () => {
+    const scope = 'Covers 2026-03-01 to 2026-03-31 in fulfillment_orders, with no breakdown or filter applied.'
+    expect(mergeDataNotes([], null, { scope })).toBe(scope)
+    expect(mergeDataNotes(['Data reflects March only.'], null, { scope })).toBe('Data reflects March only.')
+    expect(mergeDataNotes([], null, {})).toBeNull()
   })
 })

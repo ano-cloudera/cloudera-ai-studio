@@ -582,6 +582,7 @@ export type CalculationNote = {
   period?: string | null
   source: string[]
   comparison?: string | null
+  scope?: string | null
   steps: string[]
   checks: CalculationCheck[]
 }

@@ -221,6 +221,7 @@ class CalculationNote(StrictModel):
     period: str | None = None
     source: list[str] = []
     comparison: str | None = None
+    scope: str | None = None  # one plain sentence on what the figures cover, in the language of the question
     steps: list[str] = []
     checks: list[CalculationCheck] = []
 

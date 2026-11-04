@@ -141,6 +141,23 @@ def _comparison_text(drill: dict[str, Any], language: str) -> str | None:
     return None
 
 
+def _scope_sentence(period: str | None, tables: list[str], filters: list[str], breakdown: list[str], language: str) -> str:
+    """What the figures cover, from the plan alone, so every model gets the same explanatory line."""
+    indonesian = language == "id"
+    where = ", ".join(tables)
+    if indonesian:
+        base = f"Mencakup {period.replace(' to ', ' sampai ')}" if period else "Mencakup seluruh tanggal"
+        base += f" pada {where}" if where else ""
+        extras = [f"difilter ke {'; '.join(filters)}"] if filters else []
+        extras += [f"dipecah per {', '.join(breakdown)}"] if breakdown else []
+        return base + (", " + ", ".join(extras) if extras else ", tanpa pemecahan atau filter") + "."
+    base = f"Covers {period}" if period else "Covers all dates"
+    base += f" in {where}" if where else ""
+    extras = [f"filtered to {'; '.join(filters)}"] if filters else []
+    extras += [f"broken down by {', '.join(breakdown)}"] if breakdown else []
+    return base + (", " + ", ".join(extras) if extras else ", with no breakdown or filter applied") + "."
+
+
 def build_calculation_note(
     *,
     strategy: str,
@@ -191,5 +208,6 @@ def build_calculation_note(
         period=period,
         source=tables,
         comparison=comparison,
+        scope=_scope_sentence(period, tables, filters, breakdown, language) if is_governed or drill else None,
         checks=checks or [],
     )

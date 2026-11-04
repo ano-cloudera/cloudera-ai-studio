@@ -59,12 +59,14 @@ const INTERNAL_CAVEAT =
 export function mergeDataNotes(
   caveats: string[],
   provenance: DataProvenance | null,
-  options?: { hideInternalCodes?: boolean },
+  options?: { hideInternalCodes?: boolean; scope?: string | null },
 ): string | null {
   let parts = [...caveats.map(item => item.trim()).filter(Boolean)]
   if (options?.hideInternalCodes) {
     parts = parts.filter(item => !INTERNAL_CAVEAT.test(item))
   }
+  // The model sometimes writes no note at all; the plan-based sentence says what the figures cover either way.
+  if (!parts.length && options?.scope?.trim()) return options.scope.trim()
   if (provenance?.note && !parts.some(part => part.includes(provenance.note!))) {
     parts.unshift(provenance.note)
   }
