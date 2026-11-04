@@ -20,7 +20,7 @@ import { detectGeo } from '../lib/geo'
 import { formatCitationLabel, isRagResponse } from '../lib/ragReport'
 import type { ChatResponse } from '../types/api'
 
-type WorkspaceTab = 'summary' | 'map' | 'table' | 'query' | 'sources' | 'calc'
+type WorkspaceTab = 'summary' | 'map' | 'table' | 'query' | 'sources'
 
 type Props = {
   response: ChatResponse
@@ -31,13 +31,11 @@ function workspaceTabs(
   hasQuery: boolean,
   hasSources: boolean,
   hasMap = false,
-  hasCalculation = false,
 ): { id: WorkspaceTab; label: string; disabled?: boolean }[] {
   const tabs: { id: WorkspaceTab; label: string; disabled?: boolean }[] = [{ id: 'summary', label: 'Summary' }]
   if (hasSources) tabs.push({ id: 'sources', label: 'Sources' })
   if (hasMap) tabs.push({ id: 'map', label: 'Map' })
   tabs.push({ id: 'table', label: 'Table', disabled: !hasTable })
-  if (hasCalculation) tabs.push({ id: 'calc', label: 'How it was calculated' })
   tabs.push({ id: 'query', label: 'Query', disabled: !hasQuery })
   return tabs
 }
@@ -97,7 +95,7 @@ export function ReportDocumentSection({ response }: Props) {
   const geo = useMemo(() => (rag ? null : detectGeo(response.data.columns, response.data.rows)), [rag, response.data.columns, response.data.rows])
   const calculation = rag ? null : response.calculation ?? null
   const comparison = !rag && comparisonKind(response.data.columns) !== null && hasTable
-  const tabs = workspaceTabs(hasTable, hasQuery, hasSources, Boolean(geo), Boolean(calculation))
+  const tabs = workspaceTabs(hasTable, hasQuery || Boolean(calculation), hasSources, Boolean(geo))
   const summarySame =
     response.answer.executive_summary.trim() === response.answer.direct_answer.trim()
   const chartTitle = response.chart_spec?.title || 'Visualization'
@@ -236,17 +234,16 @@ export function ReportDocumentSection({ response }: Props) {
         </div>
       )}
 
-      {tab === 'calc' && calculation && (
-        <div className="mt-6" role="tabpanel" data-testid="workspace-calculation">
-          <p className="mb-3 text-sm text-slate-600">{calculation.scope ?? calculation.summary}</p>
-          <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200/90 px-4 py-2">
-            <CalculationNoteRows note={calculation} />
-          </dl>
-        </div>
-      )}
-
       {tab === 'query' && (
         <div role="tabpanel">
+          {calculation && (
+            <div className="mt-6 mb-6" data-testid="workspace-calculation">
+              <p className="mb-3 text-sm text-slate-600">{calculation.scope ?? calculation.summary}</p>
+              <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200/90 px-4 py-2">
+                <CalculationNoteRows note={calculation} />
+              </dl>
+            </div>
+          )}
           <WorkspaceQueryView response={response} />
         </div>
       )}
