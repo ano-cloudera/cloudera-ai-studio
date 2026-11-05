@@ -219,14 +219,12 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
               <div>{values.has(hover.name) ? `${label}: ${format(values.get(hover.name)!)}` : 'No data'}</div>
             </div>
           )}
-          <div className="pointer-events-none absolute bottom-3 left-3 rounded-lg bg-white/90 px-3 py-2 text-[11px] text-slate-600 shadow-sm">
-            <div className="mb-1 font-semibold text-slate-700">{label}</div>
-            <div className="h-2 w-36 rounded-full" style={{ background: `linear-gradient(to right, ${rampColor(0, 0, 1)}, ${rampColor(1, 0, 1)})` }} />
-            <div className="mt-0.5 flex justify-between">
-              <span>{format(stats.min)}</span>
-              <span>{format(stats.max)}</span>
-            </div>
-          </div>
+        </div>
+        <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-600" data-testid="map-legend">
+          <span className="shrink-0 font-semibold text-slate-700">{label}</span>
+          <span className="shrink-0">{format(stats.min)}</span>
+          <div className="h-2 min-w-0 flex-1 rounded-full" style={{ background: `linear-gradient(to right, ${rampColor(0, 0, 1)}, ${rampColor(1, 0, 1)})` }} />
+          <span className="shrink-0">{format(stats.max)}</span>
         </div>
         <p className="mt-1 text-[11px] text-slate-400">Drag to pan, use the buttons (or Ctrl and scroll) to zoom. Boundaries: Natural Earth, public domain.</p>
         {detection.unmatched.length > 0 && (
