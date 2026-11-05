@@ -129,7 +129,7 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]" data-testid="result-map">
+    <div className="space-y-4" data-testid="result-map">
       <div>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-semibold" role="group" aria-label="Map style">
@@ -234,7 +234,7 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
         )}
       </div>
 
-      <ol className="space-y-1 text-sm" aria-label={`${label} by province, highest first`}>
+      <ol className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2" aria-label={`${label} by province, highest first`}>
         {ranking.slice(0, 10).map(([name, value], index) => (
           <li
             key={name}
