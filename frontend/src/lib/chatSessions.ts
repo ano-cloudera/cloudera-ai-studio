@@ -10,6 +10,8 @@ export type ProcessSnapshot = {
 export type StoredMessage = {
   role: 'user' | 'assistant'
   content: string
+  /** The question that was sent, when the bubble shows something shorter (a picked metric). */
+  asked?: string
   response?: ChatResponse
   processSnapshot?: ProcessSnapshot
 }

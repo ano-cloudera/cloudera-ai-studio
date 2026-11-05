@@ -121,6 +121,45 @@ def _safe_answer(text: str, *, caveats: list[str] | None = None) -> dict[str, An
     ).model_dump()
 
 
+def _assistant_name(deps: WorkflowDependencies) -> str:
+    name = getattr(deps.settings, "assistant_name", "") if deps.settings is not None else ""
+    if not name:
+        from app.core.config import get_settings
+
+        name = get_settings().assistant_name
+    return str(name or "Anywhere AI Studio")
+
+
+def _metric_labels(deps: WorkflowDependencies) -> dict[str, str]:
+    try:
+        from app.ask_data.follow_up_suggestions import metric_labels
+
+        return metric_labels(deps.semantic_context)
+    except Exception:
+        return {}
+
+
+def _settled_follow_ups(
+    analysis: AnalysisOutput, deps: WorkflowDependencies, *, asked: str, metric: str | None, dimensions: list[str] | None
+) -> AnalysisOutput:
+    """Keep only suggestions that can be answered when clicked; fill the rest from the model itself."""
+    try:
+        from app.ask_data.follow_up_suggestions import settle_follow_ups
+
+        settled = settle_follow_ups(
+            list(analysis.follow_up_questions or []),
+            semantic_context=deps.semantic_context,
+            asked=asked,
+            metric=metric,
+            dimensions=dimensions,
+            language=detect_language(asked),
+        )
+    except Exception:
+        logger.exception("follow_up_suggestions_failed")
+        return analysis
+    return analysis.model_copy(update={"follow_up_questions": settled})
+
+
 def build_workflow(deps: WorkflowDependencies):
     def _turn_reading(state: AskDataState) -> TurnReading:
         existing = reading_from_state(state)
@@ -154,6 +193,8 @@ def build_workflow(deps: WorkflowDependencies):
                                     "first_turn": first_turn,
                                     "conversation_history": state.get("conversation_history", []),
                                     "capabilities": guidance,
+                                    "metric_labels": _metric_labels(deps),
+                                    "assistant_name": _assistant_name(deps),
                                 },
                                 ensure_ascii=False,
                             ),
@@ -167,9 +208,9 @@ def build_workflow(deps: WorkflowDependencies):
                 greet_id = detect_language(original_question) == "id"
                 answer = AnalysisOutput(
                     direct_answer=(
-                        "Halo! Saya asisten Ask Data. Saya menjawab pertanyaan bisnis dari semantic model yang dipublish."
+                        f"Halo! Saya {_assistant_name(deps)}. Saya menjawab pertanyaan bisnis dari semantic model yang dipublish."
                         if greet_id
-                        else "Hello! I'm the Ask Data assistant. I answer business questions from the published semantic model."
+                        else f"Hello! I'm {_assistant_name(deps)}. I answer business questions from the published semantic model."
                     ),
                     executive_summary=(
                         "Tanyakan sebuah metrik, breakdown, atau perbandingan periode. Beberapa contoh ada di bawah."
@@ -182,6 +223,7 @@ def build_workflow(deps: WorkflowDependencies):
                     data_reference="Published semantic model capability catalog.",
                     chart_spec=None,
                 )
+            answer = _settled_follow_ups(answer, deps, asked=original_question, metric=None, dimensions=None)
             if intent.attach_domain_catalog:
                 precomputed = guidance.get("domain_capability_lines")
                 if isinstance(precomputed, list) and precomputed:
@@ -896,6 +938,7 @@ def build_workflow(deps: WorkflowDependencies):
             "inquiry_brief": state.get("inquiry_brief"),
             "governed_metric": resolution.get("metric"),
             "governed_partial_caveats": state.get("governed_partial_caveats") or [],
+            "metric_labels": _metric_labels(deps),
         }
         if (state.get("drill_across") or {}).get("columns"):
             user_payload["result_columns_are_metrics"] = state["drill_across"]["columns"]
@@ -1022,6 +1065,13 @@ def build_workflow(deps: WorkflowDependencies):
             language=detect_language(str(state.get("question") or "")),
         )
         figure_checks = [{"name": "figures", "status": "warning", "message": w} for w in figure_warnings]
+        analysis = _settled_follow_ups(
+            analysis,
+            deps,
+            asked=str(state.get("question") or ""),
+            metric=str(resolution.get("metric") or "") or None,
+            dimensions=[str(d) for d in resolution.get("dimensions") or []],
+        )
         return {
             **state,
             "status": "SUCCESS",

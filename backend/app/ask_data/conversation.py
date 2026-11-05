@@ -259,17 +259,27 @@ CHOICE_PROMPT = Path(__file__).resolve().parents[2] / "prompts" / "metric_choice
 class MetricChoice(BaseModel):
     metric: str = Field(default="", description="The `name` of the metric that answers the question, or an empty string.")
     confident: bool = Field(default=False, description="True only when one metric clearly fits.")
+    candidates: list[str] = Field(
+        default_factory=list, description="Up to four metric `name`s that could fit, best first; empty when none fits."
+    )
     rationale: str = Field(default="", description="A few words on why.")
 
 
-async def choose_metric(*, provider: LLMProvider, question: str, semantic_context: Any) -> str | None:
-    """When the keyword matcher cannot tell which metric a question is about, the language model picks one from the
-    model's own catalog, the way Genie and Cortex Analyst read a question against the semantic model. It may only
-    pick a listed metric; anything else, or a pick it is not sure about, leaves the choice to the user."""
+class MetricPick(BaseModel):
+    """What the language model made of the question: one metric, or the few that could fit."""
+
+    metric: str | None = None
+    candidates: list[str] = Field(default_factory=list)
+
+
+async def pick_metric(*, provider: LLMProvider, question: str, semantic_context: Any) -> MetricPick:
+    """When the keyword matcher cannot tell which metric a question is about, the language model reads the question
+    against the model's own catalog, the way Genie and Cortex Analyst do. It may only name listed metrics: a sure pick
+    is answered straight away, an unsure one narrows the choice shown to the user to the metrics that could fit."""
     menu = metric_menu(semantic_context)
     if not menu:
-        return None
-    names = {item["name"] for item in menu}
+        return MetricPick()
+    names = [item["name"] for item in menu]
     payload = {"question": question, "metrics": [{**item, "description": _description(semantic_context, item["name"])} for item in menu]}
     try:
         choice = await provider.generate_structured(
@@ -279,19 +289,22 @@ async def choose_metric(*, provider: LLMProvider, question: str, semantic_contex
             ],
             MetricChoice,
             temperature=0.0,
-            max_tokens=200,
+            max_tokens=250,
         )
     except ProviderError as exc:
         logger.warning("metric_choice_failed error=%s", getattr(exc, "code", type(exc).__name__))
-        return None
+        return MetricPick()
     except Exception:
         logger.exception("metric_choice_failed")
-        return None
+        return MetricPick()
     picked = (choice.metric or "").strip()
-    logger.info("metric_choice question=%r metric=%r confident=%s", question[:200], picked, choice.confident)
-    if not choice.confident or picked not in names:
-        return None
-    return picked
+    candidates = [c for c in dict.fromkeys([picked, *(str(c).strip() for c in choice.candidates)]) if c in names][:4]
+    logger.info("metric_choice question=%r metric=%r confident=%s candidates=%s", question[:200], picked, choice.confident, candidates)
+    return MetricPick(metric=picked if choice.confident and picked in names else None, candidates=candidates)
+
+
+async def choose_metric(*, provider: LLMProvider, question: str, semantic_context: Any) -> str | None:
+    return (await pick_metric(provider=provider, question=question, semantic_context=semantic_context)).metric
 
 
 def _description(semantic_context: Any, name: str) -> str:
@@ -299,3 +312,28 @@ def _description(semantic_context: Any, name: str) -> str:
         return _short(str(semantic_context.metric_definition(name).get("description") or ""), 200)
     except Exception:
         return ""
+
+
+def _norm(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(text).casefold())
+
+
+def narrow_metric_options(options: list[dict[str, str]], candidates: list[str], semantic_context: Any) -> list[dict[str, str]]:
+    """The offered metric options, kept to the candidates the language model named, in its order. An option matches a
+    candidate on its id (a registry metric name) or on its shown name (the metric's label or key)."""
+    from app.ask_data.metric_labels import humanize_metric_label
+
+    out: list[dict[str, str]] = []
+    for name in candidates:
+        try:
+            label = humanize_metric_label(name=name, definition=semantic_context.metric_definition(name))
+        except Exception:
+            label = name
+        keys = {_norm(name), _norm(label)}
+        for option in options:
+            if option in out:
+                continue
+            if _norm(option.get("id", "")) in keys or _norm(option.get("name", "")) in keys:
+                out.append(option)
+                break
+    return out

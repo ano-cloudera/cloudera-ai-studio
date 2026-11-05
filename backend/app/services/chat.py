@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+import dataclasses
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
@@ -49,12 +50,13 @@ from app.ask_data.presentation_tier_config import PresentationTierConfig
 from app.workspace.presentation_config_resolver import load_presentation_tier_config
 from app.ask_data.conversation import (
     TurnReading,
-    choose_metric,
+    pick_metric,
     last_metric,
     last_turn,
     looks_like_small_talk,
     read_turn,
     turn_memory,
+    narrow_metric_options,
 )
 from app.services.guardrails import out_of_scope_message, should_block_ask_data_scope
 from app.services.ossie_trace import NODE_LABELS, trace_detail
@@ -1117,6 +1119,15 @@ class ChatService:
             if precedence.runtime_bundle is not None:
                 self.apply_runtime_bundle(precedence.runtime_bundle)
             skip = self._skip_structured_clarification(reading, request.question)
+            if precedence.clarification is not None and not skip and precedence.clarification.reason == "metric_ambiguous" and precedence.runtime_bundle is not None:
+                settled, narrowed = await self._settle_metric_choice(
+                    request, request_id=request_id, question=question, ctx=precedence.runtime_bundle.context, payload=precedence.clarification
+                )
+                if settled is not None:
+                    resolution = settled
+                    precedence = dataclasses.replace(precedence, clarification=None, resolution=settled)
+                elif narrowed is not None:
+                    precedence = dataclasses.replace(precedence, clarification=narrowed)
             if precedence.clarification is not None and not skip:
                 return _PreparedTurn(
                     response=self._clarification_response(
@@ -1145,13 +1156,18 @@ class ChatService:
         if resolution is None:
             resolution = self._resolve_question(question, carry)
             if resolution.get("status") == "needs_clarification" and resolution.get("reason") == "metric_ambiguous":
-                chosen = await choose_metric(
-                    provider=self._resolve_provider(request, request_id),
-                    question=question,
-                    semantic_context=self.dependencies.semantic_context,
+                from app.ask_data.structured_context_resolver import _clarification_from_resolution
+
+                payload = _clarification_from_resolution(resolution)
+                settled, narrowed = await self._settle_metric_choice(
+                    request, request_id=request_id, question=question, ctx=self.dependencies.semantic_context, payload=payload
                 )
-                if chosen:
-                    resolution = self.dependencies.semantic_context.resolve_for_metric(question, chosen)
+                if settled is not None:
+                    resolution = settled
+                elif payload is not None:
+                    return _PreparedTurn(
+                        response=self._clarification_response(request, request_id=request_id, payload=narrowed or payload, started=started)
+                    )
         logger.info(
             "ask_data_turn request_id=%s session_id=%s kind=%s uses_previous=%s resolution=%s metric=%s",
             request_id,
@@ -1164,6 +1180,32 @@ class ChatService:
         return _PreparedTurn(
             question=question, resolution=resolution, history=history, previous=carry, reading=reading
         )
+
+    async def _settle_metric_choice(
+        self,
+        request: AskDataRequest,
+        *,
+        request_id: str,
+        question: str,
+        ctx: Any,
+        payload: Any,
+    ) -> tuple[dict[str, Any] | None, Any]:
+        """The language model reads an ambiguous question against the catalog. A sure pick becomes the resolution;
+        otherwise the choice offered to the user is narrowed to the metrics that could fit."""
+        pick = await pick_metric(provider=self._resolve_provider(request, request_id), question=question, semantic_context=ctx)
+        if pick.metric:
+            try:
+                resolution = ctx.resolve_for_metric(question, pick.metric)
+            except Exception:
+                logger.exception("metric_choice_resolve_failed metric=%s", pick.metric)
+                return None, None
+            return {**resolution, "context_mode": "GOVERNED_SEMANTIC"}, None
+        if payload is None or not pick.candidates:
+            return None, None
+        narrowed = narrow_metric_options(payload.options, pick.candidates, ctx)
+        if not narrowed:
+            return None, None
+        return None, dataclasses.replace(payload, options=narrowed)
 
     def _failure_response(self, request: AskDataRequest, *, request_id: str, answer: AnalysisOutput, started: float) -> AskDataResponse:
         return AskDataResponse(

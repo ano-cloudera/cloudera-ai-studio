@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     )
 
     app_name: str = Field(default="Cloudera AI Accelerator", validation_alias="APP_NAME")
+    # How the assistant introduces itself in Ask Data.
+    assistant_name: str = Field(default="Anywhere AI Studio", validation_alias="ASSISTANT_NAME")
     app_env: str = "local"
     accelerator_version: str = Field(default="1.0.0-m6", validation_alias="ACCELERATOR_VERSION")
     deployment_profile: str = Field(default="local", validation_alias="DEPLOYMENT_PROFILE")

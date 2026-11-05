@@ -342,6 +342,7 @@ export function AskDataPage() {
     question = input,
     _source: 'send_button' | 'enter_key' | 'starter_question' | 'clarification' = 'send_button',
     contextOverride?: ChatContextSource[],
+    shownAs?: string,
   ) {
     const value = question.trim()
     const activeContext = contextOverride ?? contextSources
@@ -353,7 +354,7 @@ export function AskDataPage() {
       return
     }
     turnInFlightRef.current = true
-    const userMessage: StoredMessage = { role: 'user', content: value }
+    const userMessage: StoredMessage = shownAs ? { role: 'user', content: shownAs, asked: value } : { role: 'user', content: value }
     const priorMessages = messages
     setMessages(current => [...current, userMessage])
     setInput('')
@@ -589,8 +590,11 @@ export function AskDataPage() {
                           if (choice.contextSource?.type === 'semantic_model') {
                             setContextSources(nextContext)
                           }
-                          const prior = [...messages].reverse().find(m => m.role === 'user')?.content
-                          if (prior) void submit(prior, 'clarification', nextContext)
+                          // The pick answers the open question: the original question is sent again with the chosen metric,
+                          // and the bubble only shows what was picked.
+                          const priorMessage = [...messages].reverse().find(m => m.role === 'user')
+                          const prior = priorMessage?.asked ?? priorMessage?.content
+                          if (prior) void submit(prior, 'clarification', nextContext, choice.label)
                         }}
                         onFollowUp={index === messages.length - 1 ? question => void submit(question) : undefined}
                         clarificationDisabled={loading}
@@ -906,7 +910,7 @@ function StructuredAnswer({
             type="button"
             disabled={clarificationDisabled}
             onClick={() => onClarificationPick(choice)}
-            className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2 text-left text-xs font-semibold text-amber-950 transition-colors hover:border-cloudera-orange/50 hover:bg-orange-50 disabled:opacity-50"
+            className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-left text-xs font-semibold text-cloudera-violet transition-colors hover:border-cloudera-violet/50 hover:bg-violet-100 disabled:opacity-50"
           >
             {choice.label}
           </button>

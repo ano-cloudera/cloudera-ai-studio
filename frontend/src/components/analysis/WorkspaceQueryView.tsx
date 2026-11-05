@@ -1,13 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Briefcase, Check, Copy, Database, ExternalLink } from 'lucide-react'
+import { Check, Copy, ExternalLink } from 'lucide-react'
 import { appConfig } from '../../config/appConfig'
 import { mergeDataNotes, parseDataProvenance } from '../../lib/dataProvenance'
-import type { ChatResponse } from '../../types/api'
+import type { CalculationNote, ChatResponse } from '../../types/api'
+import { CalculationNoteRows } from '../chat/CalculationNoteBlock'
 import { CollapsibleDataNote } from './CollapsibleDataNote'
 import { WorkspaceSqlBlock } from './WorkspaceSqlBlock'
-import { WorkspaceSection, WorkspaceSectionContent, WorkspaceSectionHeader } from './WorkspaceSectionParts'
 
 function resolveSources(dataReference: string, provenanceSources: string[]): string[] {
   const fromRef = (dataReference.match(/\b(?:gold|silver|bronze)\.[a-z0-9_]+/gi) ?? []).map(s =>
@@ -25,9 +25,20 @@ function lineageUrlForSource(source: string): string | null {
 
 type Props = {
   response: ChatResponse
+  calculation?: CalculationNote | null
 }
 
-export function WorkspaceQueryView({ response }: Props) {
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[7.5rem_1fr] gap-2 py-1">
+      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="min-w-0 text-sm text-slate-700">{children}</dd>
+    </div>
+  )
+}
+
+/** The Query tab: what was computed and how (one card), then the SQL that ran. */
+export function WorkspaceQueryView({ response, calculation = null }: Props) {
   const [wrapLines, setWrapLines] = useState(true)
   const [copied, setCopied] = useState(false)
   const sql = response.governed_sql?.trim() ?? ''
@@ -39,9 +50,6 @@ export function WorkspaceQueryView({ response }: Props) {
   const governedLabel =
     response.data.governed_metric_display_name?.trim() ||
     (response.data.governed_metric ? response.data.governed_metric.replace(/_/g, ' ') : null)
-  const showDefinition =
-    response.context_mode === 'GOVERNED_SEMANTIC' &&
-    Boolean(governedLabel || response.data.governed_metric_expression || response.data.governed_base_dataset)
   async function copySql() {
     if (!sql) return
     try {
@@ -53,51 +61,37 @@ export function WorkspaceQueryView({ response }: Props) {
     }
   }
 
-  return (
-    <div className="mt-6 space-y-5">
-      <WorkspaceSection className="first:pt-0">
-        <WorkspaceSectionHeader icon={Database} tone="slate" title="Governed query" />
-        <WorkspaceSectionContent>
-          <p className="workspace-body-text">
-            Read-only SQL executed against the governed semantic layer
-            {engine ? ` (${engine}${sourceName ? ` · ${sourceName}` : ''})` : ' datasource'}.
-          </p>
-          {response.data.execution_ms > 0 ? (
-            <p className="mt-1 text-xs text-slate-500">Execution: {Math.round(response.data.execution_ms)} ms</p>
-          ) : null}
-        </WorkspaceSectionContent>
-      </WorkspaceSection>
+  const executedOn = [engine, sourceName].filter(Boolean).join(' · ')
+  const timing = response.data.execution_ms > 0 ? `${Math.round(response.data.execution_ms)} ms` : ''
 
-      {showDefinition && (
-        <WorkspaceSection>
-          <WorkspaceSectionHeader icon={Briefcase} tone="violet" title="Governed definition" />
-          <WorkspaceSectionContent>
-            <dl className="workspace-body-text space-y-2 text-sm text-slate-700">
-              {governedLabel ? (
-                <div>
-                  <dt className="font-semibold text-cloudera-navy">Metric</dt>
-                  <dd>{governedLabel}</dd>
-                </div>
-              ) : null}
-              {response.data.governed_base_dataset ? (
-                <div>
-                  <dt className="font-semibold text-cloudera-navy">Entity</dt>
-                  <dd>{response.data.governed_base_dataset}</dd>
-                </div>
-              ) : null}
-              {response.data.governed_metric_expression ? (
-                <div>
-                  <dt className="font-semibold text-cloudera-navy">Expression</dt>
-                  <dd className="font-mono text-xs text-slate-600">{response.data.governed_metric_expression}</dd>
-                </div>
-              ) : null}
-            </dl>
-          </WorkspaceSectionContent>
-        </WorkspaceSection>
-      )}
+  return (
+    <div className="mt-6 space-y-5" data-testid="workspace-calculation">
+      {calculation?.scope || calculation?.summary ? (
+        <p className="text-sm text-slate-600">{calculation.scope ?? calculation.summary}</p>
+      ) : null}
+      <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200/90 px-4 py-2">
+        {calculation ? (
+          <CalculationNoteRows note={calculation} />
+        ) : (
+          <>
+            {governedLabel ? <Row label="Metric">{governedLabel}</Row> : null}
+            {response.data.governed_metric_expression ? (
+              <Row label="Formula">
+                <code className="break-words font-mono text-xs">{response.data.governed_metric_expression}</code>
+              </Row>
+            ) : null}
+            {response.data.governed_base_dataset ? <Row label="Source">{response.data.governed_base_dataset}</Row> : null}
+          </>
+        )}
+        {executedOn || timing ? (
+          <Row label="Executed on">
+            {[executedOn ? `${executedOn}, read-only` : 'Read-only', timing].filter(Boolean).join(' · ')}
+          </Row>
+        ) : null}
+      </dl>
 
       {sql ? (
-        <div className="sm:ml-[calc(3rem+1rem)] lg:ml-[calc(3rem+1.125rem)]">
+        <div>
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">SQL</p>
             <div className="flex items-center gap-2">
@@ -119,15 +113,15 @@ export function WorkspaceQueryView({ response }: Props) {
           <WorkspaceSqlBlock sql={sql} wrapLines={wrapLines} />
         </div>
       ) : (
-        <p className="text-sm text-slate-500 sm:ml-[calc(3rem+1rem)]">SQL text was not returned for this turn.</p>
+        <p className="text-sm text-slate-500">SQL text was not returned for this turn.</p>
       )}
 
-      <div className="space-y-3 sm:ml-[calc(3rem+1rem)] lg:ml-[calc(3rem+1.125rem)]">
+      <div className="space-y-3">
         <CollapsibleDataNote note={dataNote} />
 
-        {sources.length > 0 ? (
+        {sources.length > 0 && appConfig.viewLineageBaseUrl.trim() ? (
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Source</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Lineage</p>
             <ul className="mt-2 space-y-2">
               {sources.map(source => {
                 const lineage = lineageUrlForSource(source)

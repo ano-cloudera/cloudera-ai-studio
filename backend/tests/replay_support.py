@@ -113,10 +113,16 @@ class WorstCaseModel:
 class ScriptedModel(WorstCaseModel):
     """A model that rewrites follow-ups and picks metrics the way the prompts ask, from a script keyed by question."""
 
-    def __init__(self, rewrites: dict[str, str] | None = None, choices: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        rewrites: dict[str, str] | None = None,
+        choices: dict[str, str] | None = None,
+        candidates: dict[str, list[str]] | None = None,
+    ) -> None:
         super().__init__()
         self.rewrites = rewrites or {}
         self.choices = choices or {}
+        self.candidates = candidates or {}
         self.payloads: list[dict[str, Any]] = []
 
     async def generate_structured(self, messages: list[dict[str, str]], model: Any, **kwargs: Any) -> Any:
@@ -137,7 +143,7 @@ class ScriptedModel(WorstCaseModel):
         if model.__name__ == "MetricChoice":
             self.calls.append(model.__name__)
             picked = self.choices.get(question, "")
-            return model(metric=picked, confident=bool(picked))
+            return model(metric=picked, confident=bool(picked), candidates=self.candidates.get(question, []))
         return await super().generate_structured(messages, model, **kwargs)
 
 

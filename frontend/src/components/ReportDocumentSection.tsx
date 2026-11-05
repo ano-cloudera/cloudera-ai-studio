@@ -14,7 +14,6 @@ import { WorkspaceDataTable } from './analysis/WorkspaceDataTable'
 import { WorkspaceQueryView } from './analysis/WorkspaceQueryView'
 import { ResultMap } from './analysis/ResultMap'
 import { KpiCard } from './KpiCard'
-import { CalculationNoteRows } from './chat/CalculationNoteBlock'
 import { ComparisonSummary, comparisonKind } from './analysis/ComparisonSummary'
 import { detectGeo } from '../lib/geo'
 import { formatCitationLabel, isRagResponse } from '../lib/ragReport'
@@ -236,15 +235,7 @@ export function ReportDocumentSection({ response }: Props) {
 
       {tab === 'query' && (
         <div role="tabpanel">
-          {calculation && (
-            <div className="mt-6 mb-6" data-testid="workspace-calculation">
-              <p className="mb-3 text-sm text-slate-600">{calculation.scope ?? calculation.summary}</p>
-              <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200/90 px-4 py-2">
-                <CalculationNoteRows note={calculation} />
-              </dl>
-            </div>
-          )}
-          <WorkspaceQueryView response={response} />
+          <WorkspaceQueryView response={response} calculation={calculation} />
         </div>
       )}
 

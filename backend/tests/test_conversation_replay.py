@@ -175,3 +175,14 @@ async def test_a_metric_the_model_does_not_have_is_never_used(monkeypatch) -> No
     replay = Replay(monkeypatch, model=ScriptedModel(choices={question: "invented_metric"}))
     r = await replay.ask(question)
     assert r.status in {"CLARIFICATION", "clarification_required"} and not r.queries_run
+
+
+@pytest.mark.asyncio
+async def test_an_unsure_pick_offers_only_the_metrics_that_could_fit(monkeypatch) -> None:
+    from replay_support import ScriptedModel
+
+    question = "berapa banyak paket yang telat?"
+    replay = Replay(monkeypatch, model=ScriptedModel(candidates={question: ["late_delivery_rate", "total_shipments"]}))
+    r = await replay.ask(question)
+    assert r.status == "clarification_required" and not r.queries_run
+    assert [option.id for option in r.clarification.options] == ["late_delivery_rate", "total_shipments"]

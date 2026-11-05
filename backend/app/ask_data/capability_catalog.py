@@ -123,8 +123,11 @@ def resolve_example_questions(
                 definition = ctx.metric_definition(name)
             except Exception:
                 definition = {}
+            from app.ask_data.follow_up_suggestions import built_suggestions
+
             label = humanize_metric_label(name=name, definition=definition)
-            auto.append(example_question_for_metric(name, label, language))
+            built = [q for q in built_suggestions(ctx, metric=name, dimensions=None, language=language) if q.startswith(label)]
+            auto.append(built[0] if built else example_question_for_metric(name, label, language))
             if len(auto) >= limit:
                 break
         auto = _dedupe_questions(auto, limit=limit)
@@ -168,23 +171,29 @@ def resolve_capability_insight_lines(
             return starter_lines
 
     if uses_published_metric_catalog(ctx):
+        from app.ask_data.follow_up_suggestions import answerable, built_suggestions
         from app.ask_data.metric_labels import humanize_metric_label
-        from app.semantic.context import guidance_focus_from_metric
 
         lines = []
         for name in sorted(ctx.metrics):
-            if exclude_focus and guidance_focus_from_metric(name) == exclude_focus:
-                continue
             try:
                 definition = ctx.metric_definition(name)
             except Exception:
-                definition = {}
+                continue
+            if definition.get("governance_status") == "reference":
+                continue
             label = humanize_metric_label(name=name, definition=definition)
-            example = example_question_for_metric(name, label, language)
-            if language == "id":
-                lines.append(f"{label}: KPI, trend, atau breakdown dimensi. Contoh: {example}")
-            else:
-                lines.append(f"{label}: KPI, trend, or breakdown by dimension. Example: {example}")
+            what = " ".join(str(definition.get("description") or "").split()).rstrip(".")
+            if what.casefold() == label.casefold():
+                what = ""
+            examples = [
+                q for q in built_suggestions(ctx, metric=name, dimensions=None, language=language)
+                if q.startswith(label) and answerable(q, ctx)
+            ]
+            text = f"{label}: {what}." if what else f"{label}."
+            if examples:
+                text += (" Contoh: " if language == "id" else " Example: ") + examples[0]
+            lines.append(text)
             if len(lines) >= limit:
                 break
         if lines:

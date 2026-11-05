@@ -5,6 +5,7 @@ You receive JSON with the `question` and the `metrics` the model can compute (ea
 Return JSON with:
 - `metric`: the `name` of the one metric that the question asks for, copied exactly from the list, or an empty string when none fits.
 - `confident`: `true` only when this metric clearly answers the question. Use `false` when two metrics fit about equally well, or when none really fits.
+- `candidates`: up to four metric `name`s that could reasonably answer the question, best first (include `metric`). Leave out metrics that are about something else: for "how many parcels were late" list late-delivery metrics, not order value or return rate. Empty when nothing fits.
 - `rationale`: a few words on why.
 
 Rules:
