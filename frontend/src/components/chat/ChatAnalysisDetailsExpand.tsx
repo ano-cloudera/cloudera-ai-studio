@@ -22,6 +22,8 @@ type Props = {
   executiveQueryOnly?: boolean
   /** Sits inside a shared card: no border or corners of its own. */
   embedded?: boolean
+  /** The data source note; shown at the bottom of the opened panel instead of as its own box. */
+  footer?: ReactNode
 }
 
 export function ChatAnalysisDetailsExpand({
@@ -32,6 +34,7 @@ export function ChatAnalysisDetailsExpand({
   executiveMode = false,
   executiveQueryOnly = false,
   embedded = false,
+  footer = null,
 }: Props) {
   const defaultOpen = getPresentationTierConfig().chat_details_default_open
   const [open, setOpen] = useState(defaultOpen)
@@ -119,6 +122,8 @@ export function ChatAnalysisDetailsExpand({
           {tab === 'data' && !showDataTab && showQueryTab ? (
             <p className="text-xs text-slate-500">No tabular result for this answer.</p>
           ) : null}
+
+          {footer ? <div className="mt-3">{footer}</div> : null}
         </div>
       ) : null}
     </div>

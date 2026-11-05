@@ -1084,13 +1084,26 @@ function StructuredAnswer({
   const evidenceBlock =
     evidenceInner && !singleCard ? <section className={`answer-surface ${evidenceSpacing}`}>{evidenceInner}</section> : null
 
+  const expandShown =
+    ((chatInlineEvidence && shouldShowChatExpand(response, presentationTier)) || executiveQueryOnlyExpand) &&
+    !expandForExport
+  // The data source note lives inside the expandable details when there are any; otherwise it stays on its own.
+  const noteInExpand = detailsInSurface && expandShown && showDataNoteBlock && !dataNoteInNarrative
+  const dataNoteBlock = (
+    <DataNote
+      note={displayDataNote}
+      sources={provenanceSources}
+      inChatResponse
+      noteLabel={executiveView ? '' : 'Data note.'}
+      hideSourceChips={executiveView}
+    />
+  )
+
   const detailRows = (
     <>
       {response.calculation && !expandForExport && !isRagResponse(response) ? <CalculationNoteBlock note={response.calculation} embedded /> : null}
 
-      {((chatInlineEvidence && shouldShowChatExpand(response, presentationTier)) ||
-        executiveQueryOnlyExpand) &&
-      !expandForExport ? (
+      {expandShown ? (
         <ChatAnalysisDetailsExpand
           response={response}
           tier={presentationTier}
@@ -1099,6 +1112,7 @@ function StructuredAnswer({
           executiveMode={executiveView}
           executiveQueryOnly={executiveQueryOnlyExpand}
           embedded
+          footer={noteInExpand ? dataNoteBlock : null}
         />
       ) : null}
     </>
@@ -1158,16 +1172,8 @@ function StructuredAnswer({
         {detailsInSurface ? (
           <div className="-mx-4 -mb-4 mt-1 divide-y divide-slate-200/80 overflow-hidden rounded-b-xl border-t border-slate-200/80 empty:hidden sm:-mx-5 sm:-mb-5">
             {detailRows}
-            {showDataNoteBlock && !dataNoteInNarrative ? (
-              <div className="px-4 py-3 sm:px-5">
-                <DataNote
-                  note={displayDataNote}
-                  sources={provenanceSources}
-                  inChatResponse
-                  noteLabel={executiveView ? '' : 'Data note.'}
-                  hideSourceChips={executiveView}
-                />
-              </div>
+            {showDataNoteBlock && !dataNoteInNarrative && !noteInExpand ? (
+              <div className="px-4 py-3 sm:px-5">{dataNoteBlock}</div>
             ) : null}
           </div>
         ) : null}
