@@ -5,8 +5,6 @@ const labelOverrides: Record<string, string> = {
   calmonth_date: 'Month',
   reporting_month: 'Month',
   metric_value: 'Metric Value',
-  sales_off: 'Sales Office',
-  dcname: 'Distribution Center',
 }
 
 export function isCalmonthField(field: string): boolean {
@@ -15,7 +13,7 @@ export function isCalmonthField(field: string): boolean {
 
 const TIME_AXIS_FIELD = /date|month|time|period|timestamp|bulan|tanggal|_dt$|_at$/i
 
-/** Governed banking / registry columns such as transactions_transaction_date. */
+/** Date-like columns such as orders_order_date. */
 export function isTimeAxisField(field: string): boolean {
   const name = field.trim()
   if (!name) return false
@@ -119,20 +117,16 @@ export function inferColumnUnitFormat(column: string, metric?: string): string |
   const metricKey = (metric || '').toLowerCase()
 
   if (col === 'metric_value' && metricKey) {
-    if (/fill_rate|service_fill|oos_rate/.test(metricKey)) return 'percent'
-    if (/minutes|picking|unloading/.test(metricKey)) return 'minutes'
-    if (/ratio|_to_|variance|months_of_stock|stock_cover|cover/.test(metricKey)) return 'ratio'
-    if (/quantity|_qty|_count|stock_qty|unfulfilled|observation_count/.test(metricKey)) return 'quantity'
-    if (
-      /_value$|_val$|stock_value|billing|penagihan|revenue|gross|sell_in|sell_out|branch_sell/.test(metricKey)
-    ) {
-      return 'currency_idr'
-    }
+    if (/_rate$|_pct$|percent/.test(metricKey)) return 'percent'
+    if (/minutes|duration_min/.test(metricKey)) return 'minutes'
+    if (/ratio|_to_|variance/.test(metricKey)) return 'ratio'
+    if (/quantity|_qty|_count/.test(metricKey)) return 'quantity'
+    if (/_value$|_value_idr$|_idr$|_val$|revenue|amount/.test(metricKey)) return 'currency_idr'
   }
 
-  if (/contribution_pct|cumulative_pct|_pct$|_rate$|fill_rate|oos_rate/.test(col)) return 'percent'
-  if (/_val$|bill_val|stock_val|sell_in_val|sell_out_val|billing|revenue|gross|amount/.test(col)) return 'currency_idr'
-  if (/_qty$|quantity|unfulfilled|stock_qty|bill_qty|po_qty|do_qty/.test(col)) return 'quantity'
+  if (/_pct$|_rate$/.test(col)) return 'percent'
+  if (col !== 'metric_value' && /_val$|_value$|_idr$|revenue|amount/.test(col)) return 'currency_idr'
+  if (/_qty$|quantity/.test(col)) return 'quantity'
   if (/minutes|duration_min/.test(col)) return 'minutes'
 
   return null

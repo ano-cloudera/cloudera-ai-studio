@@ -28,12 +28,6 @@ _REGISTRY_METRIC_EXAMPLES_EN: dict[str, str] = {
 
 def uses_published_metric_catalog(ctx: SemanticContextService) -> bool:
     """True when the capability menu should come from published metrics."""
-    from app.semantic.banking_demo_catalog import is_banking_demo_registry
-
-    if getattr(ctx, "_registry_runtime", False):
-        return True
-    if is_banking_demo_registry(ctx.datasets):
-        return True
     return bool(ctx.metrics)
 
 

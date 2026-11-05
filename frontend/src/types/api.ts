@@ -524,7 +524,6 @@ export type ChatResponse = {
     | 'unsupported'
     | 'conversational'
     | 'exploratory_local'
-    | 'local_agent_exploratory'
     | 'error'
     | 'rag'
     | 'agent'

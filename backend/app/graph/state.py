@@ -13,13 +13,11 @@ class AskDataState(TypedDict, total=False):
     session_analysis_context: dict[str, Any]
     provider: str
     model: str
-    use_local_agent: bool
     semantic_resolution: dict[str, Any]
     governed_partial_caveats: list[str]
     drill_across: dict[str, Any]
     verification_checks: list[dict[str, Any]]
     attention_notes: list[str]
-    governed_entity_lookup: bool
     semantic_context: dict[str, Any]
     strategy: str
     query_plan: dict[str, Any]
@@ -41,9 +39,7 @@ class AskDataState(TypedDict, total=False):
     judge_synthesis_hint: str
     judge_retry_plan: bool
     judge_plan_hint: str
-    conversational_intent: dict[str, Any]
-    turn_understanding: dict[str, Any]
-    skip_query_pipeline: bool
+    turn_reading: dict[str, Any]
     runtime_mode: str
     semantic_version_id: str | None
     workspace_id: str | None

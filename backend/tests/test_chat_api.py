@@ -16,7 +16,7 @@ from app.api import chat as chat_api
 from app.llm.base import ProviderError
 from app.ask_data.legacy_executor import ImpalaQueryExecutor
 from app.services.chat import ChatService
-from app.services.conversational import TurnUnderstanding
+from app.ask_data.conversation import TurnReading
 
 from conftest import isolated_settings
 from test_workflow import FakeContext
@@ -152,7 +152,6 @@ async def test_chat_reports_impala_auth_failure_without_exposing_driver_details(
         sql_validator=SimpleNamespace(),
         settings=isolated_settings(),
         session_factory=None,
-        local_agent_client=None,
         judge_max_iterations=2,
         judge_enabled=False,
         usage_tracker=None,
@@ -160,13 +159,9 @@ async def test_chat_reports_impala_auth_failure_without_exposing_driver_details(
     service.usage_tracker = None
 
     async def _turn(_request, _history, **_kwargs):
-        return TurnUnderstanding(
-            is_conversational=False,
-            attach_domain_catalog=False,
-            pipeline_question=_request.question,
-        )
+        return TurnReading(kind="data", standalone_question=_request.question)
 
-    service._understand_turn = _turn  # type: ignore[method-assign]
+    service._read_turn = _turn  # type: ignore[method-assign]
     service._sync_runtime_for_request = lambda: None  # type: ignore[method-assign]
     service._persist_turn = lambda *_a, **_k: None  # type: ignore[method-assign]
     service._attach_usage = lambda _req, resp: resp  # type: ignore[method-assign]

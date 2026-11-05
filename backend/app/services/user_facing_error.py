@@ -49,7 +49,7 @@ def _fallback_answer(failure: dict[str, Any], *, request_id: str) -> AnalysisOut
     elif code == "IMPALA_QUERY_FAILED":
         direct = (
             "Query ke data warehouse tidak selesai, kemungkinan karena beban cluster, timeout, "
-            "atau filter yang terlalu sempit untuk periode Q4 2024."
+            "atau filter yang terlalu sempit."
         )
         summary = (
             "Pertanyaan Anda sudah diproses, tetapi eksekusi di Impala gagal. "
@@ -63,9 +63,9 @@ def _fallback_answer(failure: dict[str, Any], *, request_id: str) -> AnalysisOut
             "tidak lolos pemeriksaan keamanan governed (kolom/tabel/join yang tidak disetujui)."
         )
         summary = (
-            "Biasanya ini terjadi pada pertanyaan multi-konsep atau wording yang mendorong SQL di luar "
-            "katalog metrik REFERENCE. Coba pecah pertanyaan per metrik (misalnya picking vs unloading "
-            "terpisah) atau pilih opsi klarifikasi Sell-In/Sell-Out bila diminta."
+            "Biasanya ini terjadi pada pertanyaan yang menggabungkan beberapa konsep sekaligus atau "
+            "mendorong SQL di luar katalog metrik. Coba pecah pertanyaan per metrik, atau sebut nama "
+            "metriknya secara langsung."
         )
         caveats = [f"Request ID: {request_id}."]
     elif kind == "provider":
@@ -85,7 +85,7 @@ def _fallback_answer(failure: dict[str, Any], *, request_id: str) -> AnalysisOut
         summary = (
             "Tim operator dapat menelusuri jejak server dengan request ID di bawah. "
             "Anda tetap bisa mencoba ulang dengan pertanyaan yang lebih spesifik "
-            "(metrik, periode Q4 2024, top N)."
+            "(metrik, periode, top N)."
         )
         caveats = [f"Request ID: {request_id}."]
 

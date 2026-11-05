@@ -1,24 +1,5 @@
-import pytest
-
+from app.ask_data.conversation import last_turn, previous_turns, turn_memory
 from app.core.models import AnalysisOutput
-from app.services.conversational import TurnUnderstanding
-from app.services.question_contextualize import apply_turn_understanding
-
-
-def _llm_apply(raw: str, history: list, **fields) -> str:
-    understanding = TurnUnderstanding(
-        is_conversational=False,
-        attach_domain_catalog=False,
-        pipeline_question=fields.get("pipeline_question", raw),
-        clarification_choice=fields.get("clarification_choice", ""),
-        referential_follow_up=fields.get("referential_follow_up", False),
-    )
-    return apply_turn_understanding(raw, history, understanding)
-
-
-def contextualize_question(raw: str, history: list, **fields) -> str:
-    """Simulate LLM turn understanding in unit tests."""
-    return _llm_apply(raw, history, **fields)
 from app.services.history import ConversationStore
 
 
@@ -74,20 +55,19 @@ def test_delete_session_removes_all_turns(tmp_path) -> None:
     assert len(store.load("sess-b")) == 1
 
 
-def test_history_persists_session_frame(tmp_path) -> None:
-    from app.services.session_context import build_session_frame
-
+def test_history_persists_the_turn_memory(tmp_path) -> None:
     store = ConversationStore(tmp_path / "history.sqlite")
-    frame = build_session_frame(
-        question="top 5 cabang",
+    frame = turn_memory(
+        question="and per carrier?",
+        standalone_question="Late rate per carrier in Jawa Timur in March 2026",
         status="SUCCESS",
         strategy="governed",
-        rows=[{"sales_office": "0201", "metric_value": 1}, {"sales_office": "0212", "metric_value": 2}],
-        metric="sales_office_sell_in_value",
-        dimensions=["sales_office"],
+        metric="late_delivery_rate",
+        dimensions=["delivery_shipments_carrier"],
+        scope="Jawa Timur, March 2026",
     )
     answer = AnalysisOutput(
-        direct_answer="ok",
+        direct_answer="NusaCargo is the latest.",
         executive_summary="ok",
         insights=[],
         business_implications=[],
@@ -96,216 +76,21 @@ def test_history_persists_session_frame(tmp_path) -> None:
         chart_spec=None,
     )
     store.append(
-        "s1",
-        "top 5 cabang",
-        answer,
-        [{"sales_office": "0201"}],
-        None,
-        "gemini",
-        "gemini-model",
-        status="SUCCESS",
-        strategy="governed",
-        session_frame=frame,
+        "s1", "and per carrier?", answer, [{"carrier": "NusaCargo", "metric_value": 13.2}], None, "gemini", "gemini-model",
+        status="SUCCESS", strategy="governed", session_frame=frame,
     )
-    loaded = store.load("s1")[0]
-    assert loaded["session_frame"]["last_metric"] == "sales_office_sell_in_value"
-    assert len(loaded["session_frame"]["ranked_entities"]) == 2
-    assert loaded["model"] == "gemini-model"
+    history = store.load("s1")
+    assert last_turn(history) == {"last_metric": "late_delivery_rate", "last_dimensions": ["delivery_shipments_carrier"]}
+    shown = previous_turns(history, labels={"late_delivery_rate": "Late delivery rate"})[0]
+    assert shown["read_as"] == "Late rate per carrier in Jawa Timur in March 2026"
+    assert shown["metric"] == "Late delivery rate"
+    assert shown["filters_and_period"] == "Jawa Timur, March 2026"
+    assert shown["first_rows"] == [{"carrier": "NusaCargo", "metric_value": 13.2}]
 
 
-def test_analytic_follow_up_question_is_not_merged_after_success_turn() -> None:
-    history = [
-        {
-            "question": "Analisa data unloading dan picking dan berikan Analisa dan perbandingan dengan Industri standard",
-            "answer": {
-                "direct_answer": (
-                    "Analisis unloading/picking Q4. Apakah Anda ingin detail per sales office?"
-                ),
-            },
-        }
-    ]
-    reply = "Top 10 produk dengan penjualan terbesar di Reference"
-    assert contextualize_question(reply, history) == reply
-
-
-def test_short_sell_in_follow_up_reuses_the_previous_question() -> None:
-    history = [
-        {
-            "question": "Kalau jumlah penjualan selama Q4 berapa besar?",
-            "answer": {"direct_answer": "Mau Sell-In atau Sell-Out?"},
-        }
-    ]
-
-    contextualized = contextualize_question("untuk data sell-in ya", history, clarification_choice="sell-in")
-
-    assert "Kalau jumlah penjualan selama Q4 berapa besar?" in contextualized
-    assert "sell-in" in contextualized.casefold()
-
-
-@pytest.mark.parametrize("reply", ["data sellout", "data sell out", "Sell-Out", "sell-out aja"])
-def test_sell_out_clarification_replies_all_merge_with_the_prior_question(reply: str) -> None:
-    history = [
-        {
-            "question": "Top 10 DC Acme dengan penjualan tertinggi",
-            "answer": {
-                "direct_answer": (
-                    "Apakah Anda ingin melihat Sell-In (penjualan Reference ke customer) "
-                    "atau Sell-Out (penjualan partner ke konsumen akhir)?"
-                ),
-            },
-        }
-    ]
-
-    contextualized = contextualize_question(reply, history, clarification_choice="sell-out")
-
-    assert contextualized == (
-        "Top 10 DC Acme dengan penjualan tertinggi\n"
-        "Klarifikasi pengguna: sell-out"
+def test_a_failed_turn_leaves_no_metric_to_continue() -> None:
+    frame = turn_memory(
+        question="x", standalone_question=None, status="ERROR", strategy="unsupported", metric="m", dimensions=[], scope=None
     )
-
-
-def test_plain_sell_in_choice_preserves_the_original_top_product_request() -> None:
-    history = [
-        {
-            "question": "Berapa total produk dengan penjualan terbanyak, kasih top 5 saja?",
-            "answer": {
-                "direct_answer": "Apakah Anda ingin melihat Sell-In (penjualan Reference ke customer) atau Sell-Out?",
-            },
-        }
-    ]
-
-    contextualized = contextualize_question("sell in", history, clarification_choice="sell-in")
-
-    assert contextualized == (
-        "Berapa total produk dengan penjualan terbanyak, kasih top 5 saja?\n"
-        "Klarifikasi pengguna: sell-in"
-    )
-
-
-def test_descriptive_sell_in_choice_does_not_add_customer_as_a_dimension() -> None:
-    history = [
-        {
-            "question": "Berapa total produk dengan penjualan terbanyak, kasih top 5 saja?",
-            "answer": {
-                "direct_answer": "Apakah Anda ingin melihat Sell-In (penjualan Reference ke customer) atau Sell-Out?",
-            },
-        }
-    ]
-
-    contextualized = contextualize_question(
-        "penjualan reference ke customer", history, clarification_choice="sell-in"
-    )
-
-    assert contextualized.endswith("Klarifikasi pengguna: sell-in")
-    assert "customer" not in contextualized.casefold()
-
-
-def test_standalone_question_is_not_rewritten_from_history() -> None:
-    history = [{"question": "Berapa total penjualan?", "answer": {"direct_answer": "Sell-In atau Sell-Out?"}}]
-
-    assert contextualize_question("Top 5 produk dengan gross sales terbesar", history) == "Top 5 produk dengan gross sales terbesar"
-
-
-def test_service_level_worst_branch_follow_up_rewrites_to_material_drilldown() -> None:
-    history = [
-        {
-            "question": "Hitung service level/ fill rate di cabang reference dan urutkan SL terjelek?",
-            "answer": {
-                "direct_answer": "Cabang dengan fill rate terendah adalah 0245 (41,36%).",
-                "executive_summary": "",
-                "insights": [],
-            },
-        }
-    ]
-    follow_up = "coba bantu analisa cabang paling jelek itu untuk yang top 1 ya kenapa dia bisa jelek ?"
-
-    rewrite = (
-        "Untuk sales office 0245 (cabang Reference) pada Q4 2024, "
-        "tampilkan 10 material dengan fill rate / service level terendah "
-        f"Pertanyaan asli pengguna: {follow_up}"
-    )
-    contextualized = contextualize_question(follow_up, history, pipeline_question=rewrite)
-
-    assert "sales office 0245" in contextualized
-    assert "material" in contextualized.casefold()
-    assert follow_up in contextualized
-
-
-def test_unrelated_new_question_after_roi_promo_clarification_is_not_rewritten() -> None:
-    # The ROI-promo proxy clarification is a long paragraph that happens to
-    # share common domain words ("penjualan", "Reference") with almost any new
-    # question - a brand-new, unrelated topic must not be misread as the
-    # user answering the ROI clarification just because of that overlap.
-    history = [
-        {
-            "question": "Hitung promo dengan ROI terbaik dan berikan rekomendasi/ saran",
-            "answer": {
-                "direct_answer": (
-                    "REFERENCE tidak memiliki data biaya promo atau ROI langsung untuk SAT Promo "
-                    "(Acme) - data yang tersedia hanya deskripsi mekanisme promo (teks bebas), "
-                    "bukan nilai biaya terstruktur, dan SAT Promo hanya mencakup Desember 2024 tanpa "
-                    "baseline bulan sebelumnya di channel yang sama. Satu-satunya proxy yang bisa "
-                    "dihitung adalah dampak penjualan General Trade (bukan Acme langsung) untuk "
-                    "material yang sama, dibandingkan November (baseline) vs Desember (bulan promo). "
-                    "Metrik mana yang Anda mau?"
-                ),
-                "executive_summary": "",
-                "insights": [],
-            },
-        }
-    ]
-
-    reply = "Top 10 produk dengan penjualan terbesar di Reference"
-    assert contextualize_question(reply, history) == reply
-
-
-def test_unrelated_new_question_after_sales_stage_clarification_is_not_rewritten() -> None:
-    history = [
-        {
-            "question": "berapa penjualan bulan ini?",
-            "answer": {
-                "direct_answer": (
-                    "Apakah Anda ingin melihat Sell-In (penjualan Reference ke customer) atau "
-                    "Sell-Out (penjualan partner ke konsumen akhir)?"
-                ),
-            },
-        }
-    ]
-
-    reply = "stok gudang reference berapa banyak"
-    assert contextualize_question(reply, history) == reply
-
-
-def test_short_answer_to_stock_clarification_reuses_previous_question() -> None:
-    history = [
-        {
-            "question": "Mau tahu tentang data stok, bisa analisis apa saja?",
-            "answer": {"direct_answer": "Mau stok gudang Reference, stok DC partner, atau stok retail?"},
-        }
-    ]
-
-    prev = history[0]["question"]
-    merged = f"{prev}\nKlarifikasi pengguna: stok retail"
-    contextualized = contextualize_question("stok retail", history, pipeline_question=merged)
-
-    assert "Mau tahu tentang data stok" in contextualized
-    assert "Klarifikasi pengguna: stok retail" in contextualized
-
-
-def test_domain_choice_can_be_found_in_executive_summary() -> None:
-    history = [
-        {
-            "question": "Data stok bisa dipakai untuk analisis apa?",
-            "answer": {
-                "direct_answer": "Ada beberapa arah analisis stok yang tersedia.",
-                "executive_summary": "Pilih stok gudang Reference, DC partner, atau retail store.",
-                "insights": ["Contoh: stok retail per division."],
-            },
-        }
-    ]
-
-    prev = history[0]["question"]
-    merged = f"{prev}\nKlarifikasi pengguna: stok retail"
-    contextualized = contextualize_question("stok retail", history, pipeline_question=merged)
-
-    assert contextualized.endswith("Klarifikasi pengguna: stok retail")
+    assert "metric" not in frame
+    assert last_turn([{"session_frame": frame}]) is None

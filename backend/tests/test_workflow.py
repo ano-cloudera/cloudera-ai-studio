@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import pytest
 from pydantic import ValidationError
 
-from app.core.models import AnalysisOutput, AskDataRequest, QueryPlan
+from app.core.models import AskDataRequest, QueryPlan
 from app.graph.workflow import WorkflowDependencies, build_workflow
 from app.sql.validator import ValidatedSQL
 
@@ -179,79 +179,7 @@ async def test_dimension_mismatch_uses_governed_sql_and_appends_partial_caveats(
     assert state["strategy"] == "governed"
     assert provider.calls == ["AnalysisOutput"]
     assert dependencies.query_executor.queries == [context.sql]
-    assert any("material / product / SKU" in caveat for caveat in state["answer"]["caveats"])
-
-
-@pytest.mark.asyncio
-async def test_entity_lookup_with_null_metric_value_returns_no_data() -> None:
-    provider = FakeProvider([])
-    sql = "SELECT d.material, NULL AS metric_value FROM gold.allowed d WHERE d.material = '500-21-02' LIMIT 1"
-    context = FakeContext(
-        {
-            "status": "resolved",
-            "metric": "months_of_stock_cover",
-            "definition": {"base_dataset": "material_360"},
-            "dimensions": ["material"],
-            "dimension_mismatch": ["branch"],
-        },
-        sql=sql,
-    )
-    context.registry = type(
-        "Reg",
-        (),
-        {
-            "runtime_extensions": None,
-            "datasets": {},
-            "dataset_fields": {
-                "material_360": frozenset(
-                    {"material", "calmonth", "warehouse_stock_qty", "sell_in_bill_qty", "has_sell_in", "has_stock"}
-                ),
-            },
-        },
-    )()
-    dependencies = deps(context, provider, [{"material": "500-21-02", "metric_value": None}])
-    state = await build_workflow(dependencies).ainvoke(
-        AskDataRequest(
-            session_id="s1",
-            question="material 500-21-02 di cabang 0201 cover stok",
-            provider="qwen",
-            model="qwen-model",
-        ).model_dump()
-    )
-
-    assert state["status"] == "NO_DATA"
-    assert provider.calls == []
-    assert "sell-in nol" in state["answer"]["direct_answer"].casefold() or "tidak ada nilai" in state["answer"]["direct_answer"].casefold()
-
-
-@pytest.mark.asyncio
-async def test_stock_cover_with_branch_mismatch_runs_governed_with_cover_caveats() -> None:
-    provider = FakeProvider([analysis()])
-    sql = "SELECT d.material, SUM(d.warehouse_stock_qty) FROM gold.rpt_sap_material_month_semantic d LIMIT 10"
-    context = FakeContext(
-        {
-            "status": "resolved",
-            "metric": "months_of_stock_cover",
-            "definition": {"base_dataset": "material_360"},
-            "dimensions": ["material"],
-            "dimension_mismatch": ["branch"],
-        },
-        sql=sql,
-    )
-    dependencies = deps(context, provider, [{"material": "500-21-02", "metric_value": 2.5}])
-    question = (
-        "produk material 500-21-02 di cabang 0201 hitung cover penjualan berapa hari dari stok"
-    )
-    state = await build_workflow(dependencies).ainvoke(
-        AskDataRequest(session_id="s1", question=question, provider="qwen", model="qwen-model").model_dump()
-    )
-
-    assert state["status"] == "SUCCESS"
-    assert state["strategy"] == "governed"
-    assert provider.calls == ["AnalysisOutput"]
-    caveats = " ".join(state["answer"]["caveats"])
-    assert "branch / partner DC" in caveats
-    assert "months" in caveats
+    assert any("breakdown by material" in caveat for caveat in state["answer"]["caveats"])
 
 
 @pytest.mark.asyncio
@@ -273,162 +201,6 @@ async def test_clarification_and_unsupported_do_not_execute_query() -> None:
     state = await build_workflow(unsupported).ainvoke(AskDataRequest(session_id="s", question="biaya iklan TV", provider="qwen", model="m").model_dump())
     assert state["status"] == "UNSUPPORTED"
     assert unsupported.query_executor.queries == []
-
-
-class FakeLocalAgentClient:
-    def __init__(self, *, enabled: bool = True, payload: dict | None = None, error: Exception | None = None) -> None:
-        self.enabled = enabled
-        self.payload = payload
-        self.error = error
-        self.calls: list[str] = []
-
-    async def query(self, question: str, *, answer_language: str = "id"):
-        self.calls.append(question)
-        if self.error is not None:
-            raise self.error
-        return self.payload
-
-
-@pytest.mark.asyncio
-async def test_unsupported_plan_falls_through_unchanged_when_local_agent_disabled() -> None:
-    """No local_agent_client configured (the default for every deployment
-    that hasn't opted in) must behave exactly like before this feature was
-    added - UNSUPPORTED, no extra calls, no exceptions."""
-    provider = FakeProvider([{"strategy": "unsupported", "domains": [], "metrics": [], "dimensions": [], "filters": {}, "analysis_type": "unsupported", "sql": None, "clarification_question": None}])
-    dependencies = deps(FakeContext({"status": "fallback", "reason": "no_published_metric_match"}), provider, [])
-    assert dependencies.local_agent_client is None
-
-    state = await build_workflow(dependencies).ainvoke(AskDataRequest(session_id="s", question="biaya iklan TV", provider="qwen", model="m").model_dump())
-
-    assert state["status"] == "UNSUPPORTED"
-    assert state["strategy"] == "unsupported"
-
-
-@pytest.mark.asyncio
-async def test_unsupported_plan_uses_local_agent_fallback_when_it_answers() -> None:
-    provider = FakeProvider([{"strategy": "unsupported", "domains": [], "metrics": [], "dimensions": [], "filters": {}, "analysis_type": "unsupported", "sql": None, "clarification_question": None}])
-    dependencies = deps(FakeContext({"status": "fallback", "reason": "no_published_metric_match"}), provider, [])
-    dependencies.local_agent_client = FakeLocalAgentClient(payload={
-        "resolved_query_ids": ["SI-01@calquarter_material"],
-        "final_response_markdown": "## Answer\n\nTop 5 produk dengan sell-in tertinggi...\n\n## Routing\n\n(details omitted)",
-    })
-
-    state = await build_workflow(dependencies).ainvoke(
-        AskDataRequest(session_id="s", question="top 5 produk berdasarkan sell-in", provider="qwen", model="m").model_dump()
-    )
-
-    assert state["status"] == "SUCCESS"
-    assert state["strategy"] == "local_agent_exploratory"
-    assert "Top 5 produk" in state["answer"]["direct_answer"]
-    assert "Routing" not in state["answer"]["direct_answer"]
-    assert any("exploratory" in caveat.casefold() for caveat in state["answer"]["caveats"])
-    assert "SI-01@calquarter_material" in state["answer"]["data_reference"]
-    assert dependencies.local_agent_client.calls == ["top 5 produk berdasarkan sell-in"]
-
-
-@pytest.mark.asyncio
-async def test_picking_unloading_planner_clarification_tries_local_agent_second() -> None:
-    question = (
-        "Analisa data unloading dan picking dan berikan Analisa dan perbandingan dengan Industri standard"
-    )
-    provider = FakeProvider([{
-        "strategy": "clarification",
-        "domains": [],
-        "metrics": [],
-        "dimensions": [],
-        "filters": {},
-        "analysis_type": "clarification",
-        "sql": None,
-        "clarification_question": "Standar industri apa yang ingin digunakan?",
-    }])
-    dependencies = deps(FakeContext({
-        "status": "fallback",
-        "reason": "multi_concept_metric_mismatch",
-    }), provider, [])
-    dependencies.local_agent_client = FakeLocalAgentClient(payload={
-        "resolved_query_ids": ["PK-03@company_period_delta"],
-        "final_response_markdown": "## Answer\n\nAnalisis picking vs benchmark internal...",
-    })
-
-    state = await build_workflow(dependencies).ainvoke(
-        AskDataRequest(session_id="s", question=question, provider="qwen", model="m").model_dump()
-    )
-
-    assert state["status"] == "SUCCESS"
-    assert state["strategy"] == "local_agent_exploratory"
-    assert provider.calls == ["QueryPlan"]
-    assert dependencies.local_agent_client.calls == [question]
-
-
-@pytest.mark.asyncio
-async def test_resolver_sell_in_clarification_does_not_skip_to_local_agent() -> None:
-    provider = FakeProvider([])
-    dependencies = deps(FakeContext({
-        "status": "needs_clarification",
-        "question": "Sell-In atau Sell-Out?",
-        "options": [],
-    }), provider, [])
-    dependencies.local_agent_client = FakeLocalAgentClient(payload={
-        "final_response_markdown": "## Answer\n\nShould not be used",
-    })
-
-    state = await build_workflow(dependencies).ainvoke(
-        AskDataRequest(session_id="s", question="Top 10 produk penjualan di Reference", provider="qwen", model="m").model_dump()
-    )
-
-    assert state["status"] == "CLARIFICATION"
-    assert dependencies.local_agent_client.calls == []
-
-
-@pytest.mark.asyncio
-async def test_uat_branch_sl_question_uses_governed_sales_office_path() -> None:
-    from app.semantic.context import SemanticContextService
-
-    question = "Hitung service level/ fill rate di cabang reference dan urutkan SL terjelek"
-    provider = FakeProvider([analysis()])
-    dependencies = deps(SemanticContextService(), provider, [{"sales_off": "0201", "metric_value": 0.42}])
-
-    state = await build_workflow(dependencies).ainvoke(
-        AskDataRequest(session_id="s", question=question, provider="qwen", model="m").model_dump()
-    )
-
-    assert state["status"] == "SUCCESS"
-    assert state["strategy"] == "governed"
-    assert "corr_service_sales_office_material_month" in (state.get("sql") or "")
-    assert "ORDER BY metric_value ASC" in (state.get("sql") or "")
-    assert provider.calls == ["AnalysisOutput"]
-
-
-@pytest.mark.asyncio
-async def test_unsupported_plan_falls_through_unchanged_when_local_agent_errors() -> None:
-    """A broken/unreachable local agent must never turn a normal unsupported
-    answer into a request failure - it degrades to the exact same message
-    as if the fallback didn't exist."""
-    provider = FakeProvider([{"strategy": "unsupported", "domains": [], "metrics": [], "dimensions": [], "filters": {}, "analysis_type": "unsupported", "sql": None, "clarification_question": None}])
-    dependencies = deps(FakeContext({"status": "fallback", "reason": "no_published_metric_match"}), provider, [])
-    dependencies.local_agent_client = FakeLocalAgentClient(error=RuntimeError("connection refused"))
-
-    state = await build_workflow(dependencies).ainvoke(
-        AskDataRequest(session_id="s", question="biaya iklan TV", provider="qwen", model="m").model_dump()
-    )
-
-    assert state["status"] == "UNSUPPORTED"
-    assert state["strategy"] == "unsupported"
-    assert dependencies.local_agent_client.calls == ["biaya iklan TV"]
-
-
-@pytest.mark.asyncio
-async def test_unsupported_plan_ignores_a_disabled_local_agent_client() -> None:
-    provider = FakeProvider([{"strategy": "unsupported", "domains": [], "metrics": [], "dimensions": [], "filters": {}, "analysis_type": "unsupported", "sql": None, "clarification_question": None}])
-    dependencies = deps(FakeContext({"status": "fallback", "reason": "no_published_metric_match"}), provider, [])
-    dependencies.local_agent_client = FakeLocalAgentClient(enabled=False, payload={"final_response_markdown": "## Answer\n\nShould never be reached"})
-
-    state = await build_workflow(dependencies).ainvoke(
-        AskDataRequest(session_id="s", question="biaya iklan TV", provider="qwen", model="m").model_dump()
-    )
-
-    assert state["status"] == "UNSUPPORTED"
-    assert dependencies.local_agent_client.calls == []
 
 
 @pytest.mark.asyncio
@@ -471,22 +243,17 @@ async def test_empty_result_is_no_data_and_invalid_chart_is_removed() -> None:
 async def test_greeting_is_written_by_selected_llm_without_querying_impala() -> None:
     provider = FakeProvider([analysis() | {
         "direct_answer": "Halo! Senang bisa bantu 👋",
-        "executive_summary": "Saya bisa bantu membaca data komersial REFERENCE Q4 2024.",
-        "insights": ["Coba tanyakan Gross Sales atau Sell-Out."],
+        "executive_summary": "Saya bisa bantu membaca data dari semantic model yang dipublish.",
+        "insights": ["Coba tanyakan total orders per bulan."],
         "business_implications": [],
-        "data_reference": "REFERENCE governed capability catalog.",
+        "data_reference": "Published semantic model capability catalog.",
     }])
     dependencies = deps(FakeContext({"status": "unsupported"}), provider, [])
 
     state = await build_workflow(dependencies).ainvoke({
         **AskDataRequest(session_id="s1", question="Halo", provider="qwen", model="qwen-model").model_dump(),
         "conversation_history": [],
-        "turn_understanding": {
-            "is_conversational": True,
-            "attach_domain_catalog": True,
-            "pipeline_question": "Halo",
-            "rationale": "test",
-        },
+        "turn_reading": {"kind": "chat", "standalone_question": "Halo", "rationale": "test"},
     })
 
     assert state["status"] == "SUCCESS"
@@ -495,47 +262,6 @@ async def test_greeting_is_written_by_selected_llm_without_querying_impala() -> 
     assert len(state["answer"]["insights"]) == 9
     assert dependencies.query_executor.queries == []
     assert provider.calls == ["AnalysisOutput"]
-
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize("question", [
-    "hallo apa yang bisa anda bantu hari ini?",
-    "selamat pagi",
-    "kamu bisa bantu apa lagi selain data sales?",
-    "mau tau tentang data stok dong bisa keluarin apa aja?",
-    "hallo kamu bintu apa ?",
-    "kamu bintu apa ?",
-])
-async def test_capability_conversation_is_guided_by_selected_llm_without_sql(question: str) -> None:
-    provider = FakeProvider([analysis() | {
-        "direct_answer": "Bisa. Untuk stok, saya bisa bantu beberapa arah analisis.",
-        "executive_summary": "Pilih stok Reference, DC partner, atau retail store.",
-        "insights": ["Contoh: berapa stok retail per division?"],
-        "business_implications": [],
-        "data_reference": "REFERENCE governed capability catalog.",
-    }])
-    dependencies = deps(FakeContext({"status": "unsupported"}), provider, [])
-    attach_catalog = "stok" not in question.casefold()
-
-    state = await build_workflow(dependencies).ainvoke({
-        **AskDataRequest(session_id="s1", question=question, provider="qwen", model="qwen-model").model_dump(),
-        "original_question": question,
-        "conversation_history": [{"question": "sebelumnya", "answer": {"direct_answer": "jawaban"}}],
-        "turn_understanding": {
-            "is_conversational": True,
-            "attach_domain_catalog": attach_catalog,
-            "pipeline_question": question,
-            "rationale": "test",
-        },
-    })
-
-    assert state["status"] == "SUCCESS"
-    assert state["strategy"] == "conversational"
-    assert dependencies.query_executor.queries == []
-    payload = provider.messages[1]["content"]
-    assert "conversation_history" in payload
-    if "stok" in question:
-        assert "sat_store_stock_quantity" in payload
 
 
 @pytest.mark.asyncio

@@ -19,7 +19,7 @@ PYTHONPATH=. .venv/bin/pytest -q tests
 
 Chat history is stored in **`backend/runtime/conversation_history.sqlite`** inside the application (no separate LightMemory service). For CAI, keep this path on persistent app storage; optional Postgres can replace SQLite later via the same `ConversationStore` interface.
 
-Each turn stores the question, answer JSON, **query rows**, `status`/`strategy`, and a compact **`session_frame`** (`last_metric`, `last_dimensions`, `ranked_entities` for chart/table follow-ups). Analytic follow-ups use `session_context.py` (referential rewrite from `session_frame` + rows). Clarification-chip merging runs only when the prior turn was `CLARIFICATION` / `strategy=clarification` (or a legacy no-row choice prompt)—not via a word-count gate.
+Each turn stores the question, answer JSON, **query rows**, `status`/`strategy`, and a compact **`session_frame`**: the question as it was read (`standalone_question`), its `metric`, `dimensions` and `scope`. Follow-ups work the way Cortex Analyst does it (`app/ask_data/conversation.py`): the language model rewrites each follow-up into a question that stands on its own, using the last three turns and their first rows, and the pipeline answers that question as if it were the first. A question that does not lean on the conversation is answered exactly as written. When the keyword matcher cannot tell which metric a question means, the model picks one from the published catalog (`choose_metric`); it may only pick a listed metric.
 
 ## Configuration
 

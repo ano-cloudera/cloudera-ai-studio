@@ -40,24 +40,8 @@ describe('clarificationChoices', () => {
     expect(choices?.[0].contextSource?.id).toBe('tr:abc')
   })
 
-  it('offers sell-in vs sell-out chips', () => {
-    const choices = clarificationChoices(
-      clarificationResponse(
-        'Do you want sell-in or sell-out for this analysis?',
-      ),
-    )
-    expect(choices).toHaveLength(2)
-    expect(choices?.[0].id).toBe('sell-in')
-  })
-
-  it('offers picking vs unloading chips', () => {
-    const choices = clarificationChoices(
-      clarificationResponse(
-        'Compare picking duration versus unloading duration for warehouse operations.',
-      ),
-    )
-    expect(choices).toHaveLength(2)
-    expect(choices?.map((c) => c.id)).toEqual(['picking', 'unloading'])
+  it('offers no chips when the backend sent no options', () => {
+    expect(clarificationChoices(clarificationResponse('Which metric do you mean?'))).toBeNull()
   })
 
   it('returns null for success answers', () => {

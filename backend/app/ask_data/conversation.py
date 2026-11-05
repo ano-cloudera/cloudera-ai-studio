@@ -1,0 +1,301 @@
+"""Multi-turn Ask Data, the way Cortex Analyst and Genie do it: every question is rewritten into one that stands on
+its own, and the rest of the pipeline answers that question as if it were the first one.
+
+The language model reads the new question next to the last few turns (what was asked, how it was read, which metric,
+breakdown and filters were used, and the first rows of the answer) and writes the question out in full: "and per
+carrier?" after "late rate in Jawa Timur in March 2026" becomes "late rate per carrier in Jawa Timur in March 2026".
+A question that does not lean on the conversation passes through unchanged, so a fresh question can never inherit
+the filters of an older one.
+
+The same call tells small talk ("hi", "what can you do?") apart from a data question.
+"""
+from __future__ import annotations
+
+import json
+import logging
+import re
+from pathlib import Path
+from typing import Any, Literal
+
+from pydantic import BaseModel, Field
+
+from app.llm.base import LLMProvider, ProviderError
+
+logger = logging.getLogger(__name__)
+
+PROMPT = Path(__file__).resolve().parents[2] / "prompts" / "conversation_rewrite.md"
+
+_TURNS = 3
+_ROWS = 5
+
+
+class TurnReading(BaseModel):
+    kind: Literal["data", "chat"] = Field(
+        default="data",
+        description="chat = greeting, thanks or a question about what the assistant can do; data = anything to answer from data.",
+    )
+    uses_previous: bool = Field(
+        default=False, description="True when the question leans on an earlier turn (a pronoun, an omitted metric, 'and per…')."
+    )
+    standalone_question: str = Field(
+        default="", description="The question written out in full, in the user's language; the question itself when it already stands alone."
+    )
+    rationale: str = Field(default="", description="A few words on what was carried over.")
+
+    # The fields below are what the rest of the pipeline used to read from the older turn reading; they keep
+    # callers that still look at them working.
+    @property
+    def is_conversational(self) -> bool:
+        return self.kind == "chat"
+
+    @property
+    def attach_domain_catalog(self) -> bool:
+        return self.kind == "chat"
+
+    @property
+    def pipeline_question(self) -> str:
+        return self.standalone_question
+
+
+_SMALL_TALK = re.compile(
+    r"^\s*(hi|hai|halo|hallo|hello|hey|pagi|siang|sore|malam|selamat (pagi|siang|sore|malam)|good (morning|afternoon|evening)|"
+    r"thanks?|thank you|terima ?kasih|makasih|ok(e|ay)?|sip|mantap)\b[\s!.,?]*$",
+    re.IGNORECASE,
+)
+_CAPABILITY = re.compile(
+    r"\b(what can (you|i) (do|ask)|what else can|help me with|bisa (bantu )?apa( saja| aja| lagi)?|kamu bisa apa|"
+    r"data apa (saja|aja)|bisa ditanyakan|apa yang bisa)\b",
+    re.IGNORECASE,
+)
+
+
+def looks_like_small_talk(question: str) -> bool:
+    """A greeting, a thank-you or a question about the assistant itself, recognised without the model."""
+    text = question.strip()
+    return bool(_SMALL_TALK.match(text) or _CAPABILITY.search(text))
+
+
+def turn_memory(
+    *,
+    question: str,
+    standalone_question: str | None,
+    status: str,
+    strategy: str,
+    metric: str | None,
+    dimensions: list[str] | None,
+    scope: str | None,
+) -> dict[str, Any]:
+    """What a turn leaves behind for the next one (stored as the history entry's session frame)."""
+    if status not in ("SUCCESS", "NO_DATA") or strategy not in ("governed", "sql_fallback"):
+        return {"question": question.strip(), "standalone_question": (standalone_question or question).strip()}
+    return {
+        "question": question.strip(),
+        "standalone_question": (standalone_question or question).strip(),
+        "metric": metric,
+        "dimensions": list(dimensions or []),
+        "scope": scope or None,
+        # Older turns stored these names; the continuation still reads them.
+        "last_metric": metric,
+        "last_dimensions": list(dimensions or []),
+    }
+
+
+def last_turn(history: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The previous data turn as {"last_metric", "last_dimensions"}, for the continuation safety net."""
+    for entry in reversed(history or []):
+        frame = entry.get("session_frame") if isinstance(entry.get("session_frame"), dict) else {}
+        metric = frame.get("metric") or frame.get("last_metric")
+        if isinstance(metric, str) and metric.strip():
+            return {"last_metric": metric.strip(), "last_dimensions": list(frame.get("dimensions") or frame.get("last_dimensions") or [])}
+    return None
+
+
+def last_metric(history: list[dict[str, Any]]) -> str | None:
+    previous = last_turn(history)
+    return previous["last_metric"] if previous else None
+
+
+def _short(value: Any, limit: int) -> Any:
+    if isinstance(value, str) and len(value) > limit:
+        return value[: limit - 1] + "…"
+    return value
+
+
+def previous_turns(history: list[dict[str, Any]], *, labels: dict[str, str] | None = None) -> list[dict[str, Any]]:
+    """The last few turns, compact enough for a small model's context."""
+    labels = labels or {}
+    out: list[dict[str, Any]] = []
+    for entry in (history or [])[-_TURNS:]:
+        if not isinstance(entry, dict):
+            continue
+        frame = entry.get("session_frame") if isinstance(entry.get("session_frame"), dict) else {}
+        answer = entry.get("answer") if isinstance(entry.get("answer"), dict) else {}
+        metric = frame.get("metric") or frame.get("last_metric")
+        turn: dict[str, Any] = {"question": _short(entry.get("question"), 300)}
+        read_as = frame.get("standalone_question")
+        if read_as and read_as != entry.get("question"):
+            turn["read_as"] = _short(read_as, 300)
+        if metric:
+            turn["metric"] = labels.get(str(metric), str(metric))
+        if frame.get("dimensions") or frame.get("last_dimensions"):
+            turn["breakdown"] = list(frame.get("dimensions") or frame.get("last_dimensions") or [])
+        if frame.get("scope"):
+            turn["filters_and_period"] = _short(frame["scope"], 300)
+        if answer.get("direct_answer"):
+            turn["answer"] = _short(answer["direct_answer"], 300)
+        rows = entry.get("rows") if isinstance(entry.get("rows"), list) else []
+        if rows:
+            turn["first_rows"] = [
+                {str(k): _short(v, 60) for k, v in row.items()} for row in rows[:_ROWS] if isinstance(row, dict)
+            ]
+        out.append(turn)
+    return out
+
+
+def metric_menu(semantic_context: Any, limit: int = 40) -> list[dict[str, Any]]:
+    """Metric names, labels and synonyms of the active model, so the rewrite can name the metric the way the model
+    does."""
+    from app.ask_data.metric_labels import humanize_metric_label
+
+    try:
+        names = sorted(semantic_context.metrics)
+    except Exception:
+        return []
+    menu: list[dict[str, Any]] = []
+    for name in names[:limit]:
+        try:
+            definition = semantic_context.metric_definition(name)
+        except Exception:
+            continue
+        ai = definition.get("ai_context") if isinstance(definition.get("ai_context"), dict) else {}
+        menu.append(
+            {
+                "name": name,
+                "label": humanize_metric_label(name=name, definition=definition),
+                "synonyms": [str(s) for s in (ai.get("synonyms") or [])][:4],
+                "breakdowns": [str(d) for d in definition.get("allowed_dimensions") or []][:12],
+            }
+        )
+    return menu
+
+
+def metric_labels(semantic_context: Any) -> dict[str, str]:
+    return {item["name"]: item["label"] for item in metric_menu(semantic_context)}
+
+
+def _literal(question: str, *, rationale: str) -> TurnReading:
+    kind: Literal["data", "chat"] = "chat" if looks_like_small_talk(question) else "data"
+    return TurnReading(kind=kind, uses_previous=False, standalone_question=question.strip(), rationale=rationale)
+
+
+async def read_turn(
+    *,
+    provider: LLMProvider,
+    question: str,
+    history: list[dict[str, Any]] | None,
+    semantic_context: Any = None,
+) -> TurnReading:
+    """Read the new question in the light of the conversation. Never raises: without the model the question is used
+    as written."""
+    question = question.strip()
+    history = [entry for entry in history or [] if isinstance(entry, dict)]
+    if looks_like_small_talk(question):
+        return _literal(question, rationale="small_talk")
+    if not history:
+        # A first question has nothing to lean on; it is answered as written.
+        return _literal(question, rationale="first_turn")
+    menu = metric_menu(semantic_context) if semantic_context is not None else []
+    payload = {
+        "question": question,
+        "previous_turns": previous_turns(history, labels={item["name"]: item["label"] for item in menu}),
+        "metrics": menu,
+    }
+    try:
+        reading = await provider.generate_structured(
+            [
+                {"role": "system", "content": PROMPT.read_text(encoding="utf-8")},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
+            ],
+            TurnReading,
+            temperature=0.0,
+            max_tokens=400,
+        )
+    except ProviderError as exc:
+        logger.warning("conversation_rewrite_failed error=%s", getattr(exc, "code", type(exc).__name__))
+        return _literal(question, rationale="rewrite_failed")
+    except Exception:
+        logger.exception("conversation_rewrite_failed")
+        return _literal(question, rationale="rewrite_failed")
+    return _settle(question, reading)
+
+
+def _settle(question: str, reading: TurnReading) -> TurnReading:
+    """Guard rails on what the model wrote."""
+    rewritten = " ".join((reading.standalone_question or "").split())
+    if reading.kind == "chat":
+        return TurnReading(kind="chat", uses_previous=False, standalone_question=question, rationale=reading.rationale or "chat")
+    if not reading.uses_previous or not rewritten:
+        # A question that stands on its own is answered exactly as the user wrote it.
+        return TurnReading(kind="data", uses_previous=False, standalone_question=question, rationale=reading.rationale or "standalone")
+    if len(rewritten) > max(400, len(question) * 8):
+        return TurnReading(kind="data", uses_previous=False, standalone_question=question, rationale="rewrite_too_long")
+    logger.info("conversation_rewrite question=%r standalone=%r", question[:200], rewritten[:300])
+    return TurnReading(kind="data", uses_previous=True, standalone_question=rewritten, rationale=reading.rationale)
+
+
+def reading_from_state(state: dict[str, Any]) -> TurnReading | None:
+    raw = state.get("turn_reading")
+    if not isinstance(raw, dict):
+        return None
+    try:
+        return TurnReading.model_validate(raw)
+    except Exception:
+        return None
+
+
+CHOICE_PROMPT = Path(__file__).resolve().parents[2] / "prompts" / "metric_choice.md"
+
+
+class MetricChoice(BaseModel):
+    metric: str = Field(default="", description="The `name` of the metric that answers the question, or an empty string.")
+    confident: bool = Field(default=False, description="True only when one metric clearly fits.")
+    rationale: str = Field(default="", description="A few words on why.")
+
+
+async def choose_metric(*, provider: LLMProvider, question: str, semantic_context: Any) -> str | None:
+    """When the keyword matcher cannot tell which metric a question is about, the language model picks one from the
+    model's own catalog, the way Genie and Cortex Analyst read a question against the semantic model. It may only
+    pick a listed metric; anything else, or a pick it is not sure about, leaves the choice to the user."""
+    menu = metric_menu(semantic_context)
+    if not menu:
+        return None
+    names = {item["name"] for item in menu}
+    payload = {"question": question, "metrics": [{**item, "description": _description(semantic_context, item["name"])} for item in menu]}
+    try:
+        choice = await provider.generate_structured(
+            [
+                {"role": "system", "content": CHOICE_PROMPT.read_text(encoding="utf-8")},
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
+            ],
+            MetricChoice,
+            temperature=0.0,
+            max_tokens=200,
+        )
+    except ProviderError as exc:
+        logger.warning("metric_choice_failed error=%s", getattr(exc, "code", type(exc).__name__))
+        return None
+    except Exception:
+        logger.exception("metric_choice_failed")
+        return None
+    picked = (choice.metric or "").strip()
+    logger.info("metric_choice question=%r metric=%r confident=%s", question[:200], picked, choice.confident)
+    if not choice.confident or picked not in names:
+        return None
+    return picked
+
+
+def _description(semantic_context: Any, name: str) -> str:
+    try:
+        return _short(str(semantic_context.metric_definition(name).get("description") or ""), 200)
+    except Exception:
+        return ""

@@ -5,18 +5,18 @@ from pathlib import Path
 
 import pytest
 
-from app.semantic.registry import OssieRegistry, _is_semantic_registry_catalog
+from app.semantic.registry import OssieRegistry
 
 
-def _banking_registry(tmp_path: Path) -> OssieRegistry:
-    root = tmp_path / "banking_runtime"
+def _registry(tmp_path: Path) -> OssieRegistry:
+    root = tmp_path / "runtime"
     ossie = root / "ossie"
     ossie.mkdir(parents=True)
     (ossie / "reference_core.ossie.yaml").write_text(
         """
 version: "0.2.0.dev0"
 name: banking_analytics
-description: Banking demo
+description: Customers and transactions
 datasets:
   - name: customers
     source: banking_demo.customers
@@ -62,27 +62,23 @@ metrics:
     return OssieRegistry(root, validate_profile=False)
 
 
-def test_catalog_detector_skips_reference_metrics() -> None:
-    assert not _is_semantic_registry_catalog({"sat_dc_stock_quantity": {}})
-    assert _is_semantic_registry_catalog({"total_transaction_amount": {}})
-
-
-def test_catalog_resolves_customer_question(tmp_path: Path) -> None:
-    reg = _banking_registry(tmp_path)
+def test_a_question_without_an_alias_offers_the_closest_metric_first(tmp_path: Path) -> None:
+    # The keyword matcher only resolves on an alias; the language model's metric choice handles the rest.
+    reg = _registry(tmp_path)
     hit = reg.resolve_metric("berapa total customer saat ini?")
-    assert hit["status"] == "resolved"
-    assert hit["metric"] == "customers_customer_id_total"
+    assert hit["status"] == "needs_clarification"
+    assert hit["options"][0]["id"] == "customers_customer_id_total"
 
 
 def test_catalog_resolves_transaction_amount(tmp_path: Path) -> None:
-    reg = _banking_registry(tmp_path)
+    reg = _registry(tmp_path)
     hit = reg.resolve_metric("What is total transaction amount?")
     assert hit["status"] == "resolved"
     assert hit["metric"] == "total_transaction_amount"
 
 
 def test_catalog_ambiguous_returns_picker(tmp_path: Path) -> None:
-    reg = _banking_registry(tmp_path)
+    reg = _registry(tmp_path)
     hit = reg.resolve_metric("show me the numbers")
     assert hit["status"] == "needs_clarification"
     assert len(hit.get("options") or []) >= 2

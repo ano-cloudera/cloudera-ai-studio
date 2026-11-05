@@ -7,12 +7,6 @@ from typing import Any
 
 
 def humanize_metric_label(*, name: str | None = None, definition: dict[str, Any] | None = None) -> str:
-    from app.semantic.banking_demo_catalog import display_name_for_metric
-
-    if name:
-        catalog = display_name_for_metric(name)
-        if catalog:
-            return catalog
     raw = ""
     if definition:
         ai = definition.get("ai_context") if isinstance(definition.get("ai_context"), dict) else {}

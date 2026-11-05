@@ -5,11 +5,11 @@ from app.sql.validator import validate_sql
 def test_validator_accepts_readonly_approved_query() -> None:
     result = validate_sql(
         """
-        SELECT d.material, SUM(d.sell_in_bill_val) AS sell_in
-        FROM gold.rpt_sap_material_month_semantic d
-        WHERE d.calmonth = 202412
-        GROUP BY d.material
-        ORDER BY sell_in DESC
+        SELECT d.region_name, SUM(d.order_value) AS order_value
+        FROM "hive"."default"."fulfillment_orders" d
+        WHERE d.order_status = 'Delivered'
+        GROUP BY d.region_name
+        ORDER BY order_value DESC
         LIMIT 10
         """,
         SemanticContextService(),
@@ -22,12 +22,12 @@ def test_validator_accepts_readonly_approved_query() -> None:
 
 def test_validator_rejects_allowed_column_on_wrong_table() -> None:
     result = validate_sql(
-        "SELECT d.dcname FROM gold.rpt_sap_material_month_semantic d LIMIT 10",
+        'SELECT d.carrier FROM "hive"."default"."fulfillment_orders" d LIMIT 10',
         SemanticContextService(),
     )
 
     assert result.valid is False
-    assert result.error == "Column not allowed for gold.rpt_sap_material_month_semantic: dcname"
+    assert result.error == "Column not allowed for hive.default.fulfillment_orders: carrier"
 
 
 def test_validator_rejects_write_or_multiple_statements() -> None:
@@ -38,9 +38,9 @@ def test_validator_rejects_write_or_multiple_statements() -> None:
 
 def test_validator_rejects_star_and_caps_limit() -> None:
     context = SemanticContextService()
-    star = validate_sql("SELECT * FROM gold.rpt_sap_material_month_semantic LIMIT 10", context)
+    star = validate_sql('SELECT * FROM "hive"."default"."fulfillment_orders" LIMIT 10', context)
     capped = validate_sql(
-        "SELECT d.material FROM gold.rpt_sap_material_month_semantic d LIMIT 9999",
+        'SELECT d.region_name FROM "hive"."default"."fulfillment_orders" d LIMIT 9999',
         context,
         max_rows=200,
     )
@@ -54,11 +54,11 @@ def test_validator_rejects_star_and_caps_limit() -> None:
 def test_validator_rejects_unapproved_functions() -> None:
     context = SemanticContextService()
     rejected = validate_sql(
-        "SELECT REFLECT('java.lang.Runtime', 'getRuntime') FROM gold.rpt_sap_material_month_semantic LIMIT 1",
+        "SELECT REFLECT('java.lang.Runtime', 'getRuntime') FROM \"hive\".\"default\".\"fulfillment_orders\" LIMIT 1",
         context,
     )
     accepted = validate_sql(
-        "SELECT SUM(d.sell_in_bill_val) AS total FROM gold.rpt_sap_material_month_semantic d LIMIT 1",
+        'SELECT SUM(d.order_value) AS total FROM "hive"."default"."fulfillment_orders" d LIMIT 1',
         context,
     )
 

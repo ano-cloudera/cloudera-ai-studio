@@ -110,6 +110,37 @@ class WorstCaseModel:
         return model.model_validate({k: v for k, v in base.items() if k in model.model_fields})
 
 
+class ScriptedModel(WorstCaseModel):
+    """A model that rewrites follow-ups and picks metrics the way the prompts ask, from a script keyed by question."""
+
+    def __init__(self, rewrites: dict[str, str] | None = None, choices: dict[str, str] | None = None) -> None:
+        super().__init__()
+        self.rewrites = rewrites or {}
+        self.choices = choices or {}
+        self.payloads: list[dict[str, Any]] = []
+
+    async def generate_structured(self, messages: list[dict[str, str]], model: Any, **kwargs: Any) -> Any:
+        payload: dict[str, Any] = {}
+        for message in messages:
+            if message.get("role") == "user":
+                try:
+                    payload = json.loads(message["content"])
+                except Exception:  # noqa: BLE001
+                    pass
+        question = str(payload.get("question") or "")
+        if model.__name__ == "TurnReading":
+            self.calls.append(model.__name__)
+            self.payloads.append(payload)
+            if question in self.rewrites:
+                return model(kind="data", uses_previous=True, standalone_question=self.rewrites[question], rationale="script")
+            return model(kind="data", uses_previous=False, standalone_question=question)
+        if model.__name__ == "MetricChoice":
+            self.calls.append(model.__name__)
+            picked = self.choices.get(question, "")
+            return model(metric=picked, confident=bool(picked))
+        return await super().generate_structured(messages, model, **kwargs)
+
+
 class MemoryHistory:
     def __init__(self) -> None:
         self.turns: dict[str, list[dict]] = {}
@@ -141,7 +172,7 @@ class Turn:
 class Replay:
     """One conversation: `ask` sends a question in the same session and returns the response."""
 
-    def __init__(self, monkeypatch: Any) -> None:
+    def __init__(self, monkeypatch: Any, model: Any = None) -> None:
         from app.ask_data import datasource_router as router_module
         from app.ask_data.types import DatasourceExecutionContext
         from app.graph.workflow import WorkflowDependencies
@@ -153,7 +184,7 @@ class Replay:
 
         self.context = build_context()
         self.executor = DuckExecutor()
-        self.model = WorstCaseModel()
+        self.model = model or WorstCaseModel()
         settings = isolated_settings(state_store="memory")
 
         class Registry:

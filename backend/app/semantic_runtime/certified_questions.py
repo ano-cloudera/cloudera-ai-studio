@@ -9,15 +9,6 @@ from sqlalchemy.orm import Session
 from app.db.platform_models import SemanticModelRow, WorkspaceRow
 from app.workspace.ask_data_settings import read_ask_data_settings
 
-_DEFAULT_BANKING_QUESTIONS = [
-    "What is the total transaction amount?",
-    "Show total transaction amount by channel.",
-    "Berapa total customer kita saat ini?",
-    "Berapa failed transaction rate?",
-    "Top 5 customer segment berdasarkan jumlah transaksi.",
-]
-
-
 def build_certified_golden_questions(
     session: Session,
     *,
@@ -29,8 +20,6 @@ def build_certified_golden_questions(
     questions: list[str] = []
     if settings.starter_source == "configured" and settings.starter_questions:
         questions.extend(settings.starter_questions)
-    if not questions and model and str(model.key or "").casefold() in {"banking_analytics", "retail_banking_analytics"}:
-        questions = list(_DEFAULT_BANKING_QUESTIONS)
     deduped: list[str] = []
     seen: set[str] = set()
     for q in questions:

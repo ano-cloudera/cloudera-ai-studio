@@ -32,8 +32,6 @@ Strategy = Literal[
     "clarification",
     "unsupported",
     "conversational",
-    "local_agent_exploratory",
-    "history_only_analysis",
     "rag",
     "mcp",
     "agent",
@@ -141,9 +139,6 @@ class AskDataRequest(StrictModel):
     question: str
     provider: Literal["qwen", "gemini", "openai"]
     model: str
-    # When true, also consult REFERENCE Local Agent as second option after primary path
-    # stalls on clarification/unsupported (requires LOCAL_AGENT_BASE_URL).
-    use_local_agent: bool = False
     mode: ChatMode = "ask_data"
     library_ids: list[str] | None = None
     rag_document_ids: list[str] | None = None

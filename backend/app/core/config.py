@@ -248,16 +248,6 @@ class Settings(BaseSettings):
         description="Optional soft cap for Usage UI (0 = hidden)",
     )
 
-    # Optional fallback: a separately governed sibling system (REFERENCE Local
-    # Agent) queried only when our own OSSIE-driven planner can't match a
-    # published metric at all (strategy=unsupported). Disabled by default -
-    # empty base_url means the fallback node is skipped entirely, so
-    # existing behavior is unchanged unless an operator opts in.
-    local_agent_base_url: str = ""
-    # When true and base_url is set, force local_agent_v3 (legacy; prefer ask_data_routing=v3).
-    local_agent_primary: bool = False
-    # auto | ossie | v3 — see app/services/ask_data_routing.py
-    ask_data_routing: str = "auto"
 
     # Ask Data presentation tier (AMP / deployment tuning)
     ask_data_presentation_tier_enabled: bool = Field(
@@ -305,10 +295,6 @@ class Settings(BaseSettings):
         validation_alias="ASK_DATA_TIER1_SHOW_NARRATIVE",
         description="When true, tier-1 KPI chat shows executive summary and insights (not only the headline).",
     )
-    local_agent_timeout_seconds: float = Field(default=180, gt=0, le=600)
-    local_agent_engine: str = "langgraph"
-    local_agent_max_attempts: int = Field(default=2, ge=1, le=5)
-    local_agent_retry_delay_seconds: float = Field(default=2.0, ge=0, le=30)
 
     # OSSIE workflow answer-quality loop (Phase B1)
     judge_max_iterations: int = Field(default=2, ge=0, le=5)

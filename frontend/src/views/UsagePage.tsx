@@ -38,8 +38,6 @@ const ANSWER_PATH_LABELS: Record<string, string> = {
   rag: 'Knowledge documents',
   mcp: 'MCP tool',
   agent: 'Agent analysis',
-  local_agent_exploratory: 'Exploratory analysis',
-  history_only_analysis: 'Earlier results only',
 }
 
 export function UsagePage() {

@@ -9,17 +9,15 @@ from app.ask_data.capability_catalog import (
 from app.core.config import Settings, get_settings
 
 
-def test_banking_runtime_examples_not_reference(tmp_path: Path) -> None:
-    from tests.test_banking_demo_catalog import _auto_banking_ossie
-    from app.semantic.context import SemanticContextService
+def test_a_published_model_suggests_questions_about_its_own_metrics() -> None:
+    from replay_support import build_context
 
-    _auto_banking_ossie(tmp_path)
-    ctx = SemanticContextService(tmp_path / "runtime", validate_profile=False)
+    ctx = build_context()
     questions = resolve_example_questions(ctx, limit=4)
     assert questions
-    assert not any("REFERENCE" in q or "Acme" in q for q in questions)
     lines = resolve_capability_insight_lines(ctx, limit=6)
-    assert any("customer" in line.casefold() for line in lines)
+    assert any("late" in line.casefold() for line in lines)
+    assert not any("REFERENCE" in line or "Acme" in line for line in lines)
 
 
 def test_placeholder_reference_metric_is_not_suggested_as_starter():

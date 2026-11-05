@@ -33,10 +33,7 @@ Status terakhir diperbarui: 2026-10-30. Pembersihan repo (2.5, 2.6) selesai.
 Arah baru: AMP membawa **platform**, bukan satu use case. Data, semantic model, dokumen, dan server MCP dikonfigurasi per PoC lewat UI.
 Bootstrap otomatis credit-risk **tidak lagi wajib**; jadi paket contoh opsional.
 
-- [x] 3.1 (dihentikan) Penghapusan logika domain lama: sisanya dibiarkan karena masih dipakai tes dan tidak aktif untuk credit risk. Sudah dihapus: narasi durasi operasional dan service level, penjelasan konsep sell-in/sell-out dan proxy promo, perbandingan lintas domain, bank pertanyaan lama, graf domain lama dan stub PuppyGraph, katalog kemampuan domain lama. Masih ada (tidak aktif untuk credit risk):
-  - [ ] perencana follow-up drill-down domain lama di `services/follow_up.py` (sekitar 1800 baris, bercampur dengan logika follow-up umum)
-  - [ ] aturan perutean dan kata kunci domain lama di `semantic/context.py` dan `semantic/registry.py`
-  - [ ] integrasi agen lokal opsional (`services/local_agent_client.py`, `ask_data_routing.py`, jalur `_run_via_local_agent_v3` di `chat.py`); tidak aktif tanpa `LOCAL_AGENT_BASE_URL`
+- [x] 3.1 Penghapusan logika domain lama selesai (5 Nov 2026): mesin follow-up demo (`follow_up.py`, `session_context.py`, `conversational.py`), resolver sell-in di `semantic/context.py` dan `semantic/registry.py`, profil banking (`runtime_extensions`), agen lokal v3, dan tes-tesnya. Follow-up kini ditulis ulang oleh LLM menjadi pertanyaan utuh (`ask_data/conversation.py`); fixture tes memakai model fulfillment.
   - [x] tes karakterisasi jalur credit risk (`test_credit_risk_characterization.py`) dibuat lebih dulu sebagai pengaman
 - [x] 3.2a vLLM opsional (`ENABLE_VLLM`, runtime GPU `AMP_VLLM_RUNTIME_ID`, unduh model); perlu diuji di CAI dengan GPU
 - [x] 3.2 Variabel env AMP tidak terikat Trino saja: Trino, Impala, PostgreSQL, dan kunci LLM; cara menambah variabel baru per PoC didokumentasikan

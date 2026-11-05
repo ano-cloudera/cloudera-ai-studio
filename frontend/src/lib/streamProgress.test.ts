@@ -29,7 +29,7 @@ describe('streamProgress', () => {
   })
 
   it('hides local-agent-v3 from governance chip', () => {
-    expect(governanceDisplayLabel([], 'Governed · local-agent-v3 + Impala')).toBe('Governed · Impala')
-    expect(governanceDisplayLabel([], undefined)).toBe('Governed · Impala')
+    expect(governanceDisplayLabel([], 'Governed · ossie')).toBe('Governed')
+    expect(governanceDisplayLabel([], undefined)).toBe('Governed')
   })
 })

@@ -86,7 +86,6 @@ Errors: structured `{ "detail": { "code", "message" } }` — e.g. `qdrant_unavai
   "question": "string",
   "provider": "qwen|gemini|openai",
   "model": "string",
-  "use_local_agent": false,
   "mode": "ask_data",
   "library_ids": ["uuid"]
 }

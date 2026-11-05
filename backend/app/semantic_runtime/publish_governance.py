@@ -8,32 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.platform_models import SemanticModelRow, SemanticTermRow, SemanticVersionRow
-from app.semantic.runtime_extensions.config import (
-    _profile_matches_datasets,
-    list_profile_names,
-    load_profile,
-)
-
-
-def _terms_to_phrase_map(terms: list[SemanticTermRow]) -> list[dict[str, Any]]:
-    phrase_map: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    for row in terms:
-        dims = [str(d).strip() for d in (row.related_dimension_keys or []) if str(d).strip()]
-        if not dims:
-            continue
-        phrases = [str(row.term).strip()]
-        phrases.extend(str(s).strip() for s in (row.synonyms or []) if str(s).strip())
-        phrases = list(dict.fromkeys(p for p in phrases if p))
-        if not phrases:
-            continue
-        dim = dims[0]
-        dedupe_key = f"{dim}::{phrases[0].casefold()}"
-        if dedupe_key in seen:
-            continue
-        seen.add(dedupe_key)
-        phrase_map.append({"phrases": phrases, "dimension": dim})
-    return phrase_map
 
 
 def _glossary_entries(terms: list[SemanticTermRow]) -> list[dict[str, Any]]:
@@ -53,28 +27,6 @@ def _glossary_entries(terms: list[SemanticTermRow]) -> list[dict[str, Any]]:
     return out
 
 
-def _detect_profile_name(datasets: dict[str, Any]) -> str | None:
-    for name in list_profile_names():
-        profile = load_profile(name)
-        if _profile_matches_datasets(profile.get("match"), datasets):
-            return name
-    return None
-
-
-def build_runtime_extensions_block(
-    datasets: dict[str, Any],
-    terms: list[SemanticTermRow],
-) -> dict[str, Any] | None:
-    block: dict[str, Any] = {}
-    profile = _detect_profile_name(datasets)
-    if profile:
-        block["profile"] = profile
-    phrase_map = _terms_to_phrase_map(terms)
-    if phrase_map:
-        block["breakdown"] = {"phrase_map": phrase_map}
-    return block or None
-
-
 def build_publish_governance(
     session: Session,
     *,
@@ -90,7 +42,6 @@ def build_publish_governance(
             .order_by(SemanticTermRow.key)
         ).scalars()
     )
-    runtime_extensions = build_runtime_extensions_block(datasets, terms)
     governance: dict[str, Any] = {
         "ambiguities": [],
         "unknown_metric_question": "Which metric would you like to report on?",
@@ -102,7 +53,5 @@ def build_publish_governance(
         },
         "glossary": _glossary_entries(terms),
     }
-    if runtime_extensions:
-        governance["runtime_extensions"] = runtime_extensions
     return governance
 

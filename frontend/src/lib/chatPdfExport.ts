@@ -77,11 +77,9 @@ function formatStrategyLabel(strategy: string): string {
   const labels: Record<string, string> = {
     governed: 'Governed query',
     sql_fallback: 'SQL fallback',
-    history_only_analysis: 'Prior-turn analysis',
     conversational: 'Conversation',
     clarification: 'Clarification',
     unsupported: 'Unsupported',
-    local_agent_exploratory: 'Exploratory',
     agent: 'Agent analysis',
   }
   return labels[strategy] ?? strategy.replace(/_/g, ' ')

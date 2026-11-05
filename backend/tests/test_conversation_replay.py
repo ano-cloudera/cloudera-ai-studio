@@ -93,3 +93,85 @@ async def test_a_natural_breakdown_follow_up_continues_the_last_metric(monkeypat
     r = await replay.ask("breakdown per carrier")
     assert r.status == "SUCCESS" and {row["delivery_shipments_carrier"] for row in r.data.rows} == {"NusaCargo", "KilatKirim", "FastExpress"}
     assert "material" not in r.queries_run[-1]  # not the sell-in drill of an older demo
+
+
+# The conversation the way Cortex Analyst and Genie hold it: the model rewrites each follow-up into a full question,
+# and that question is answered as if it were asked first. The scripted model writes what the prompt asks for.
+
+LATE_SQL = (
+    "SELECT carrier, 100.0 * COUNT(CASE WHEN is_late THEN 1 END) / COUNT(*) FROM delivery_shipments WHERE region_name = '{region}' "
+    "GROUP BY carrier ORDER BY 2 DESC"
+)
+
+
+@pytest.mark.asyncio
+async def test_a_follow_up_keeps_the_filter_of_the_previous_question(monkeypatch) -> None:
+    from replay_support import ScriptedModel
+
+    model = ScriptedModel(rewrites={"and per carrier?": "Late delivery rate per carrier in Jawa Timur"})
+    replay = Replay(monkeypatch, model=model)
+    await replay.ask("Late delivery rate in Jawa Timur")
+    r = await replay.ask("and per carrier?")
+    sql = r.queries_run[-1]
+    assert r.status == "SUCCESS" and "d.region_name = 'Jawa Timur'" in sql and "GROUP BY d.carrier" in sql
+    expected = {row[0]: row[1] for row in replay.executor.con.execute(LATE_SQL.format(region="Jawa Timur")).fetchall()}
+    assert {row["delivery_shipments_carrier"]: pytest.approx(float(row["metric_value"])) for row in r.data.rows} == expected
+    # What the model saw of the previous turn: how it was read, its metric and its first rows.
+    previous = model.payloads[-1]["previous_turns"][-1]
+    assert previous["metric"] and previous["first_rows"]
+
+
+@pytest.mark.asyncio
+async def test_that_region_is_the_region_on_top_of_the_previous_answer(monkeypatch) -> None:
+    from replay_support import ScriptedModel
+
+    model = ScriptedModel(rewrites={"show that region per carrier": "Late delivery rate per carrier in Kalimantan Timur"})
+    replay = Replay(monkeypatch, model=model)
+    first = await replay.ask("Which region has the highest late delivery rate?")
+    assert first.data.rows[0]["delivery_shipments_region_name"] == "Kalimantan Timur"
+    r = await replay.ask("show that region per carrier")
+    assert model.payloads[-1]["previous_turns"][-1]["first_rows"][0]["delivery_shipments_region_name"] == "Kalimantan Timur"
+    assert r.status == "SUCCESS" and "d.region_name = 'Kalimantan Timur'" in r.queries_run[-1]
+
+
+@pytest.mark.asyncio
+async def test_another_month_replaces_the_month_of_the_previous_question(monkeypatch) -> None:
+    from replay_support import ScriptedModel
+
+    replay = Replay(monkeypatch, model=ScriptedModel(rewrites={"kalau Juni?": "Total orders in June 2026"}))
+    r = await replay.ask("Total orders in March 2026")
+    assert value(r) == 1002
+    r = await replay.ask("kalau Juni?")
+    assert r.status == "SUCCESS" and value(r) == 1074 and "DATE '2026-06-01'" in r.queries_run[-1]
+
+
+@pytest.mark.asyncio
+async def test_a_fresh_question_is_answered_as_written_even_after_a_filtered_one(monkeypatch) -> None:
+    from replay_support import ScriptedModel
+
+    replay = Replay(monkeypatch, model=ScriptedModel())
+    await replay.ask("Late delivery rate in Jawa Timur")
+    r = await replay.ask("Late delivery rate per region")
+    assert r.status == "SUCCESS" and "Jawa Timur'" not in r.queries_run[-1] and len(r.data.rows) > 1
+
+
+@pytest.mark.asyncio
+async def test_the_model_picks_the_metric_when_the_keywords_do_not(monkeypatch) -> None:
+    from replay_support import ScriptedModel
+
+    question = "berapa banyak paket yang kita kirim?"
+    model = ScriptedModel(choices={question: "total_shipments"})
+    replay = Replay(monkeypatch, model=model)
+    r = await replay.ask(question)
+    assert "MetricChoice" in model.calls
+    assert r.status == "SUCCESS" and value(r) == replay.executor.scalar("SELECT COUNT(*) FROM delivery_shipments")
+
+
+@pytest.mark.asyncio
+async def test_a_metric_the_model_does_not_have_is_never_used(monkeypatch) -> None:
+    from replay_support import ScriptedModel
+
+    question = "berapa banyak paket yang kita kirim?"
+    replay = Replay(monkeypatch, model=ScriptedModel(choices={question: "invented_metric"}))
+    r = await replay.ask(question)
+    assert r.status in {"CLARIFICATION", "clarification_required"} and not r.queries_run

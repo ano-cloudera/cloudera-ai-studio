@@ -17,12 +17,10 @@ from app.core.language import detect_language
 from app.core.models import AnalysisOutput, QueryPlan
 from app.graph.inquiry_brief import build_inquiry_brief
 from app.graph.judge import judge_review
-from app.graph.governed_replan import rank_dimensions_for_brief
 from app.graph.judge_replan import apply_judge_replan
 from app.graph.state import AskDataState
-from app.semantic.context import is_governed_entity_lookup
 from app.llm.base import LLMProvider, ProviderError
-from app.services.conversational import TurnUnderstanding, turn_understanding_from_state
+from app.ask_data.conversation import TurnReading, reading_from_state
 from app.services.user_facing_error import explain_failure
 from app.sql.validator import ValidatedSQL
 
@@ -44,10 +42,6 @@ class WorkflowDependencies:
     session_factory: Any = None
     judge_max_iterations: int = 2
     judge_enabled: bool = True
-    # Optional: only used when our own planner reports strategy=unsupported.
-    # None (the default in every existing test/deployment) skips the
-    # fallback node entirely with no behavior change.
-    local_agent_client: Any = None
     usage_tracker: Any = None
 
 
@@ -80,16 +74,6 @@ def _with_timing(state: AskDataState, key: str, value: float) -> dict[str, float
     return {**state.get("timings", {}), key: value}
 
 
-def _row_from_follow_up_catalog(entity: dict[str, Any]) -> dict[str, Any] | None:
-    if not isinstance(entity, dict) or not entity.get("id"):
-        return None
-    dim = str(entity.get("entity_type") or entity.get("dimension") or "branch")
-    row: dict[str, Any] = {dim: entity["id"]}
-    if entity.get("metric_value") is not None:
-        row["metric_value"] = entity["metric_value"]
-    return row
-
-
 _TABLE_REF_RE = re.compile(r"\bFROM\s+([a-zA-Z_][\w]*\.[a-zA-Z_][\w]*)", re.IGNORECASE)
 
 
@@ -108,60 +92,20 @@ def _data_reference_from_sql(sql: str) -> str | None:
     return ", ".join(seen)
 
 
-_UNMET_DIMENSION_LABELS: dict[str, str] = {
-    "branch": "branch / partner DC",
-    "sales_off": "sales office",
-    "sales_office": "sales office",
-    "customer": "customer",
-    "material": "material / product / SKU",
-    "material_code": "material code",
-    "dcname": "partner DC name",
-    "e_store": "outlet / e-store",
-    "plu": "PLU",
-    "kode_plu": "PLU code",
-    "division": "division",
-    "cust_id": "store / outlet (customer id)",
-    "cust_code": "customer code",
-}
-
-
 def _governed_partial_caveats(resolution: dict[str, Any], language: str = "en") -> list[str]:
     unmet = list(resolution.get("dimension_mismatch") or [])
     if not unmet:
         return []
     metric = str(resolution.get("metric") or "")
-    labels = [_UNMET_DIMENSION_LABELS.get(name, name) for name in unmet]
+    labels = [name.replace("_", " ") for name in unmet]
     if language == "id":
-        caveats = [
-            f"Permintaan breakdown per {' dan '.join(labels)} tidak tersedia pada metrik yang dipilih ({metric}) "
-            "dalam katalog governed. Angka di bawah hanya mencakup grain yang didukung metrik ini."
+        return [
+            f"Breakdown per {' dan '.join(labels)} tidak tersedia untuk metrik {metric} di semantic model. "
+            "Angka di bawah hanya mencakup breakdown yang didukung metrik ini."
         ]
-    else:
-        caveats = [
-            f"A breakdown by {' and '.join(labels)} is not available for the selected metric ({metric}) "
-            "in the governed catalog. The figures below only cover the grain this metric supports."
-        ]
-    if metric == "months_of_stock_cover":
-        caveats.append(
-            "This stock cover is a proxy of warehouse stock against sell-in per material "
-            "(in months, October to December 2024), not partner DC or outlet stock "
-            "per branch and not a daily duration."
-        )
-    return caveats
-
-
-def _partner_scope_caveats(question: str, resolution: dict[str, Any]) -> list[str]:
-    lowered = (question or "").casefold()
-    metric = str(resolution.get("metric") or "")
-    b2b_metric = metric.startswith("b2b_") or "sell_out" in metric or "branch_sell_out" in metric
-    b2b_wording = any(
-        term in lowered for term in ("acme", "b2b", "sell-out", "sell out", "partner", "dc acme")
-    )
-    if not b2b_metric and not b2b_wording:
-        return []
     return [
-        "Domain note: Acme/B2B in Q4 2024 means partner-network sell-out; "
-        "branch/DC is the value of the branch column (for example DC Palembang), not a branch='Acme' filter."
+        f"A breakdown by {' and '.join(labels)} is not available for {metric} in the semantic model. "
+        "The figures below only cover the breakdowns this metric supports."
     ]
 
 
@@ -177,89 +121,23 @@ def _safe_answer(text: str, *, caveats: list[str] | None = None) -> dict[str, An
     ).model_dump()
 
 
-def _local_agent_second_enabled(deps: WorkflowDependencies) -> bool:
-    client = deps.local_agent_client
-    return client is not None and getattr(client, "enabled", False)
-
-
-def _should_try_local_agent_second(state: AskDataState, deps: WorkflowDependencies) -> bool:
-    """Primary path first; when LOCAL_AGENT_BASE_URL is set, consult Irvan's
-    catalog before showing clarification/unsupported to the user."""
-    if state.get("use_local_agent"):
-        return True
-    return _local_agent_second_enabled(deps)
-
-
-async def _try_local_agent_fallback(state: AskDataState, deps: WorkflowDependencies) -> dict[str, Any] | None:
-    """Second-option consult to REFERENCE Local Agent after our primary path
-    could not produce a direct answer (unsupported, or selected clarifications).
-
-    Returns an
-    AnalysisOutput dict on success, or None on ANY failure (disabled,
-    network error, timeout, the local agent itself refusing) - callers
-    must treat None as "fall through to the existing unsupported
-    message", never as a request-level failure. This function must never
-    raise past its own try/except; a broken or unreachable fallback
-    service must not turn a normal "unsupported" answer into a 500.
-    """
-    client = deps.local_agent_client
-    if client is None or not getattr(client, "enabled", False):
-        return None
-    try:
-        question = state.get("original_question") or state["question"]
-        payload = await client.query(question, answer_language="id")
-    except Exception as exc:  # noqa: BLE001 - any failure here must degrade to None, not propagate
-        logger.info("local_agent_fallback_failed request_id=%s reason=%s", state.get("request_id"), type(exc).__name__)
-        return None
-
-    from app.services.local_agent_client import markdown_to_plain_answer
-
-    markdown = str(payload.get("final_response_markdown") or "")
-    text = markdown_to_plain_answer(markdown)
-    if not text:
-        return None
-    query_ids = payload.get("resolved_query_ids") or []
-    reference = f"REFERENCE Local Agent (separate governed catalog) - query: {', '.join(query_ids)}" if query_ids else "REFERENCE Local Agent (separate governed catalog)."
-    return AnalysisOutput(
-        direct_answer=text,
-        executive_summary=text,
-        insights=[],
-        business_implications=[],
-        caveats=[
-            "This answer comes from a separate governed system (local agent), "
-            "not from the main metric catalog, so its definitions or scope may differ slightly. "
-            "Treat it as exploratory."
-        ],
-        data_reference=reference,
-        chart_spec=None,
-    ).model_dump()
-
-
 def build_workflow(deps: WorkflowDependencies):
-    async def _conversational_intent(state: AskDataState):
-        existing = turn_understanding_from_state(state)
+    def _turn_reading(state: AskDataState) -> TurnReading:
+        existing = reading_from_state(state)
         if existing is not None:
             return existing
-        original_question = str(state.get("original_question") or state["question"]).strip()
-        return TurnUnderstanding(
-            is_conversational=False,
-            attach_domain_catalog=False,
-            pipeline_question=original_question,
-            rationale="workflow_default_analytic",
-        )
+        return TurnReading(kind="data", standalone_question=str(state["question"]), rationale="workflow_default")
 
     async def understand_request(state: AskDataState) -> AskDataState:
         started = perf_counter()
         original_question = state.get("original_question") or state["question"]
-        intent = await _conversational_intent(state)
+        intent = _turn_reading(state)
         intent_payload = intent.model_dump()
         if intent.is_conversational:
             starters = state.get("capability_starter_questions")
             configured_starters = starters if isinstance(starters, list) and starters else None
             guidance = deps.semantic_context.guidance_context(
                 original_question,
-                session_last_metric=state.get("session_last_metric"),
-                session_capability_hint=state.get("session_capability_hint"),
                 configured_starters=configured_starters,
             )
             first_turn = not bool(state.get("conversation_history"))
@@ -286,65 +164,36 @@ def build_workflow(deps: WorkflowDependencies):
                     max_tokens=900,
                 )
             except ProviderError:
-                from app.services.conversational_fallback import (
-                    deterministic_capability_overview_answer,
+                greet_id = detect_language(original_question) == "id"
+                answer = AnalysisOutput(
+                    direct_answer=(
+                        "Halo! Saya asisten Ask Data. Saya menjawab pertanyaan bisnis dari semantic model yang dipublish."
+                        if greet_id
+                        else "Hello! I'm the Ask Data assistant. I answer business questions from the published semantic model."
+                    ),
+                    executive_summary=(
+                        "Tanyakan sebuah metrik, breakdown, atau perbandingan periode. Beberapa contoh ada di bawah."
+                        if greet_id
+                        else "Ask for a metric, a breakdown or a comparison between periods. A few examples are below."
+                    ),
+                    insights=[],
+                    business_implications=[],
+                    caveats=["Tidak ada query di turn ini." if greet_id else "No query ran on this turn."],
+                    data_reference="Published semantic model capability catalog.",
+                    chart_spec=None,
                 )
-
-                if intent.rationale in ("capability_overview", "capability_follow_up"):
-                    from app.services.conversational_fallback import (
-                        deterministic_capability_follow_up_answer,
-                    )
-
-                    excluded = guidance.get("excluded_focus")
-                    hint = guidance.get("session_capability_hint")
-                    if isinstance(hint, dict) and intent.rationale == "capability_follow_up":
-                        answer = AnalysisOutput.model_validate(
-                            deterministic_capability_follow_up_answer(
-                                excluded_focus=excluded if isinstance(excluded, str) else None,
-                                session_hint=hint,
-                                language=detect_language(original_question),
-                            )
-                        )
-                    else:
-                        answer = AnalysisOutput.model_validate(
-                            deterministic_capability_overview_answer(detect_language(original_question))
-                        )
-                else:
-                    greet_id = detect_language(original_question) == "id"
-                    answer = AnalysisOutput(
-                        direct_answer=(
-                            "Halo! Saya asisten Ask Data Cloudera AI Studio."
-                            if greet_id
-                            else "Hello! I'm the Ask Data assistant for Cloudera AI Studio."
-                        ),
-                        executive_summary=(
-                            "Saya menjawab pertanyaan bisnis menggunakan semantic model dan metric "
-                            "yang dipublish. Ajukan pertanyaan spesifik setelah memilih @Semantic model."
-                            if greet_id
-                            else "I answer business questions using the published semantic model and metrics. "
-                            "Ask a specific question after choosing a @Semantic model."
-                        ),
-                        insights=[],
-                        business_implications=[],
-                        caveats=["Tidak ada query di turn ini." if greet_id else "No query ran on this turn."],
-                        data_reference="Published semantic model capability catalog.",
-                        chart_spec=None,
-                    )
             if intent.attach_domain_catalog:
                 precomputed = guidance.get("domain_capability_lines")
                 if isinstance(precomputed, list) and precomputed:
                     insight_lines = precomputed
                 else:
-                    excluded = guidance.get("excluded_focus")
-                    excluded_key = excluded if isinstance(excluded, str) else None
                     insight_lines = deps.semantic_context.domain_capability_insight_lines(
-                        exclude_focus=excluded_key,
                         language=detect_language(original_question),
                     )
                 answer = answer.model_copy(update={"insights": insight_lines})
             return {
                 **state,
-                "conversational_intent": intent_payload,
+                "turn_reading": intent_payload,
                 "request_id": state.get("request_id") or str(uuid.uuid4()),
                 "status": "SUCCESS",
                 "strategy": "conversational",
@@ -353,8 +202,7 @@ def build_workflow(deps: WorkflowDependencies):
                 "query_result": {"columns": [], "rows": [], "row_count": 0, "execution_ms": 0},
                 "timings": _with_timing(state, "context_ms", _elapsed(started)),
             }
-        # ChatService pre-resolves with session analysis context (follow-ups).
-        # Re-resolving here without that context breaks branch→material drills.
+        # ChatService resolves the (rewritten) question before the workflow starts.
         existing = state.get("semantic_resolution")
         if isinstance(existing, dict) and existing.get("status"):
             resolution = existing
@@ -366,7 +214,7 @@ def build_workflow(deps: WorkflowDependencies):
             )
         update: AskDataState = {
             **state,
-            "conversational_intent": intent_payload,
+            "turn_reading": intent_payload,
             "request_id": state.get("request_id") or str(uuid.uuid4()),
             "semantic_resolution": resolution,
             "retry_count": state.get("retry_count", 0),
@@ -389,36 +237,11 @@ def build_workflow(deps: WorkflowDependencies):
             if isinstance(resolution.get("datasource_context"), dict):
                 update["datasource_context"] = resolution.get("datasource_context")
             return update
-        if resolution.get("status") == "history_only":
-            prior = resolution.get("prior_query_result") or {}
-            focus = resolution.get("focus_entity") if isinstance(resolution.get("focus_entity"), dict) else {}
-            prior_turn = resolution.get("prior_turn") if isinstance(resolution.get("prior_turn"), dict) else {}
-            data_ref = str(prior_turn.get("data_reference") or "prior_governed_turn")
-            update.update(
-                skip_query_pipeline=True,
-                strategy="history_only_analysis",
-                query_result=prior,
-                query_plan={"strategy": "history_only", "metrics": [resolution.get("metric")]},
-                validated_sql=data_ref,
-                governed_partial_caveats=[
-                    "Turn ini menganalisis ulang angka governed dari pertanyaan sebelumnya; "
-                    "tidak ada query baru dijalankan."
-                    if detect_language(str(state.get("question") or "")) == "id"
-                    else "This turn re-analyzes the governed numbers from the previous question; no new query was run."
-                ],
-                inquiry_brief={
-                    "mode": "history_only_analysis",
-                    "prior_turn_question": prior_turn.get("question"),
-                    "focus_entity_id": focus.get("id"),
-                    "focus_rank": focus.get("rank"),
-                    "last_metric": resolution.get("metric"),
-                },
-            )
         return update
 
     async def resolve_datasource(state: AskDataState) -> AskDataState:
         started = perf_counter()
-        if state.get("status") or state.get("skip_query_pipeline"):
+        if state.get("status"):
             return state
         pre_resolution = state.get("semantic_resolution")
         if isinstance(pre_resolution, dict) and pre_resolution.get("status") == "raw_table":
@@ -510,9 +333,7 @@ def build_workflow(deps: WorkflowDependencies):
         resolution = state["semantic_resolution"]
         partial_caveats: list[str] = []
         attention_notes: list[str] = []
-        entity_lookup = False
         drill_state: dict[str, Any] | None = None
-        runtime_join_patch: dict[str, Any] = {}
         if resolution.get("status") == "raw_table":
             raw = resolution.get("raw_table") if isinstance(resolution.get("raw_table"), dict) else {}
             qualified = str(raw.get("qualified_name") or "")
@@ -607,32 +428,13 @@ def build_workflow(deps: WorkflowDependencies):
                 )
             return update
         if resolution.get("status") == "resolved":
-            partial_caveats = _governed_partial_caveats(resolution, detect_language(state["question"])) + _partner_scope_caveats(
-                state["question"], resolution
-            )
+            partial_caveats = _governed_partial_caveats(resolution, detect_language(state["question"]))
             metric = str(resolution["metric"])
             definition = resolution.get("definition") or deps.semantic_context.metric_definition(metric)
             dataset_name = str(definition.get("base_dataset") or "")
-            fields = set(deps.semantic_context.registry.dataset_fields.get(dataset_name, ()))
-            entity_lookup = is_governed_entity_lookup(state["question"], fields)
             allowed_dims = set(definition.get("allowed_dimensions") or [])
-            pre_brief = build_inquiry_brief(
-                state["question"],
-                semantic_resolution=resolution,
-                session_last_metric=state.get("session_last_metric"),
-            )
-            rank_dims = rank_dimensions_for_brief(pre_brief, allowed_dims)
-            if state.get("judge_retry_plan") and rank_dims is None and pre_brief.get("wants_rank"):
-                rank_dims = rank_dimensions_for_brief(
-                    {**pre_brief, "wants_dc_grain": True},
-                    allowed_dims,
-                )
             dimensions = resolution.get("dimensions")
-            if rank_dims is not None and resolution.get("matched_alias") != "follow_up_context":
-                dimensions = rank_dims
-            extra_predicates = resolution.get("follow_up_entity_filters")
-            if not isinstance(extra_predicates, list):
-                extra_predicates = None
+            extra_predicates: list[str] | None = None
             from app.ask_data.types import DatasourceExecutionContext
 
             ds_ctx = DatasourceExecutionContext.from_dict(state.get("datasource_context"))
@@ -686,7 +488,6 @@ def build_workflow(deps: WorkflowDependencies):
                 ds_ctx
                 and ds_ctx.qualified_sources
                 and getattr(deps.semantic_context, "_registry_runtime", False)
-                and resolution.get("matched_alias") != "follow_up_context"
             ):
                 from app.ask_data.drill_across import plan_queries
 
@@ -805,18 +606,6 @@ def build_workflow(deps: WorkflowDependencies):
                 metrics=[q["metric"] for q in drill_state["queries"]] if drill_state else [metric],
                 sql=drill_state["queries"][0]["sql"] if drill_state else governed_sql,
             )
-            from app.semantic.runtime_extensions import governed_join_state_patch
-
-            join_patch = governed_join_state_patch(
-                extensions=deps.semantic_context.registry.runtime_extensions,
-                datasets=deps.semantic_context.registry.datasets,
-                sql=governed_sql,
-                datasource_context=state.get("datasource_context")
-                if isinstance(state.get("datasource_context"), dict)
-                else None,
-            )
-            if join_patch:
-                runtime_join_patch = join_patch
             if getattr(deps.semantic_context, "_registry_runtime", False):
                 from app.ask_data.intent_satisfaction import validate_governed_sql_covers_intent
 
@@ -906,13 +695,11 @@ def build_workflow(deps: WorkflowDependencies):
         )
         update: AskDataState = {
             **state,
-            **runtime_join_patch,
             "strategy": plan.strategy,
             "query_plan": plan.model_dump(),
             "sql": plan.sql or "",
             "governed_partial_caveats": partial_caveats,
                 "attention_notes": attention_notes,
-            "governed_entity_lookup": entity_lookup,
             "drill_across": drill_state or {},
             "semantic_context": deps.semantic_context.planner_context(plan.domains),
             "inquiry_brief": inquiry_brief,
@@ -924,36 +711,12 @@ def build_workflow(deps: WorkflowDependencies):
         if plan.strategy == "clarification":
             text = plan.clarification_question or "Please clarify the requested metric."
             update.update(status="CLARIFICATION", answer=_safe_answer(text), chart_spec=None, query_result={"columns": [], "rows": [], "row_count": 0, "execution_ms": 0})
-            if _should_try_local_agent_second(state, deps):
-                fallback_answer = await _try_local_agent_fallback(state, deps)
-                if fallback_answer is not None:
-                    update.update(
-                        status="SUCCESS",
-                        strategy="local_agent_exploratory",
-                        answer=fallback_answer,
-                        chart_spec=None,
-                        query_result={"columns": [], "rows": [], "row_count": 0, "execution_ms": 0},
-                    )
         elif plan.strategy == "unsupported":
-            fallback_answer = (
-                await _try_local_agent_fallback(state, deps)
-                if _should_try_local_agent_second(state, deps)
-                else None
-            )
-            if fallback_answer is not None:
-                update.update(
-                    status="SUCCESS",
-                    strategy="local_agent_exploratory",
-                    answer=fallback_answer,
-                    chart_spec=None,
-                    query_result={"columns": [], "rows": [], "row_count": 0, "execution_ms": 0},
-                )
-            else:
-                update.update(status="UNSUPPORTED", answer=_safe_answer(
-                    "Data yang diminta tidak tersedia pada cakupan governed saat ini."
-                    if detect_language(str(state.get("question") or "")) == "id"
-                    else "The requested data is not available in the current governed scope."
-                ), chart_spec=None, query_result={"columns": [], "rows": [], "row_count": 0, "execution_ms": 0})
+            update.update(status="UNSUPPORTED", answer=_safe_answer(
+                "Data yang diminta tidak tersedia pada cakupan governed saat ini."
+                if detect_language(str(state.get("question") or "")) == "id"
+                else "The requested data is not available in the current governed scope."
+            ), chart_spec=None, query_result={"columns": [], "rows": [], "row_count": 0, "execution_ms": 0})
         return update
 
     async def validate_query(state: AskDataState) -> AskDataState:
@@ -1085,71 +848,6 @@ def build_workflow(deps: WorkflowDependencies):
             "timings": _with_timing(state, "query_ms", _elapsed(started)),
         }
         rows = result.get("rows") or []
-        resolution = state.get("semantic_resolution") if isinstance(state.get("semantic_resolution"), dict) else {}
-        catalog_entity = resolution.get("follow_up_catalog_entity")
-        if not rows and not isinstance(catalog_entity, dict):
-            session_ctx = state.get("session_analysis_context")
-            if isinstance(session_ctx, dict) and session_ctx.get("result_catalog"):
-                from app.services.follow_up import plan_follow_up
-
-                plan = plan_follow_up(str(state.get("question") or ""), session_ctx)
-                if plan and plan.filter_entity:
-                    catalog_entity = plan.filter_entity
-        if not rows and isinstance(catalog_entity, dict):
-            synthetic = _row_from_follow_up_catalog(catalog_entity)
-            if synthetic:
-                dim = next(k for k in synthetic if k != "metric_value")
-                columns = [dim, "metric_value"] if "metric_value" in synthetic else [dim]
-                rows = [synthetic]
-                result = {
-                    **result,
-                    "columns": columns,
-                    "rows": rows,
-                    "row_count": len(rows),
-                }
-                update["query_result"] = result
-        if not rows:
-            metric_name = str(resolution.get("metric") or "")
-            if "stock_warehouse_to_sell_in" in metric_name:
-                update.update(
-                    status="CLARIFICATION",
-                    strategy="clarification",
-                    answer=_safe_answer(
-                        "Data perbandingan stok Reference vs sell-in untuk material tersebut tidak lengkap "
-                        "pada periode Q4 2024. Anda bisa minta rincian sell-in per bulan untuk material yang sama."
-                        if detect_language(str(state.get("question") or "")) == "id"
-                        else "The stock versus sell-in comparison for this material is incomplete in Q4 2024. "
-                        "You can ask for the monthly sell-in of the same material."
-                    ),
-                    chart_spec=None,
-                )
-                return update
-            if resolution.get("matched_alias") == "follow_up_context":
-                fe = re.search(r"\b(FE\d+)\b", str(state.get("question") or ""), flags=re.IGNORECASE)
-                if fe:
-                    code = fe.group(1).upper()
-                    rows = [{"material": code, "metric_value": 0}]
-                    result = {
-                        **result,
-                        "columns": ["material", "metric_value"],
-                        "rows": rows,
-                        "row_count": len(rows),
-                    }
-                    update["query_result"] = result
-            if resolution.get("follow_up_plan", {}).get("to_grain") == "material" and isinstance(
-                catalog_entity, dict
-            ):
-                syn = _row_from_follow_up_catalog(catalog_entity)
-                if syn:
-                    dim = next(k for k in syn if k != "metric_value")
-                    rows = [syn]
-                    result = {
-                        **result,
-                        "columns": [dim, "metric_value"] if "metric_value" in syn else [dim],
-                        "rows": rows,
-                        "row_count": len(rows),
-                    }
-                    update["query_result"] = result
         if not rows:
             update.update(
                 status="NO_DATA",
@@ -1160,53 +858,6 @@ def build_workflow(deps: WorkflowDependencies):
                 ),
                 chart_spec=None,
             )
-            return update
-        if state.get("governed_entity_lookup") and resolution.get("matched_alias") != "follow_up_context":
-            metric_values = [
-                row.get("metric_value")
-                for row in rows
-                if isinstance(row, dict) and "metric_value" in row
-            ]
-            if not metric_values or all(value is None for value in metric_values):
-                update.update(
-                    status="NO_DATA",
-                    answer=_safe_answer(
-                        "Tidak ada nilai metrik yang bisa dihitung untuk kombinasi material/cabang "
-                        "dan periode yang diminta (misalnya sell-in nol atau stok tidak tercatat "
-                        "pada periode Q4 2024)."
-                        if detect_language(str(state.get("question") or "")) == "id"
-                        else "No metric value can be calculated for the requested material or branch and period "
-                        "(for example sell-in is zero or stock was not recorded in Q4 2024).",
-                        caveats=list(state.get("governed_partial_caveats") or []),
-                    ),
-                    chart_spec=None,
-                )
-                return update
-        if rows and isinstance(resolution, dict) and resolution.get("status") == "resolved":
-            from app.services.analysis_enrichment import apply_analysis_enrichment
-
-            enriched = await apply_analysis_enrichment(
-                question=str(state.get("question") or ""),
-                resolution=resolution,
-                result=update.get("query_result") or result,
-                semantic_context=deps.semantic_context,
-                query_executor=deps.query_executor.execute,
-                request_id=str(state.get("request_id") or ""),
-            )
-            if enriched:
-                meta = enriched.pop("analysis_enrichment", None) or {}
-                enriched.pop("analysis_mode", None)
-                partial = list(update.get("governed_partial_caveats") or state.get("governed_partial_caveats") or [])
-                caveat = meta.get("caveat")
-                if isinstance(caveat, str) and caveat and caveat not in partial:
-                    partial.append(caveat)
-                brief = dict(update.get("inquiry_brief") or state.get("inquiry_brief") or {})
-                brief["analysis_mode"] = meta.get("mode") or brief.get("analysis_mode")
-                if meta.get("company_total_metric_value") is not None:
-                    brief["company_total_metric_value"] = meta.get("company_total_metric_value")
-                update["query_result"] = enriched
-                update["governed_partial_caveats"] = partial
-                update["inquiry_brief"] = brief
         return update
 
     async def analyze_result(state: AskDataState) -> AskDataState:
@@ -1255,14 +906,7 @@ def build_workflow(deps: WorkflowDependencies):
             user_payload["reviewer_hint"] = state["judge_synthesis_hint"]
         if state.get("ask_data_space_instructions"):
             user_payload["space_instructions"] = state["ask_data_space_instructions"]
-        if state.get("strategy") == "history_only_analysis":
-            user_payload["history_only_analysis"] = True
-            user_payload["prior_turn"] = (resolution or {}).get("prior_turn")
-            user_payload["session_analysis_context"] = state.get("session_analysis_context")
-            user_payload["conversation_history"] = state.get("conversation_history")
         analyst_prompt = _prompt("result_analyst.md")
-        if state.get("strategy") == "history_only_analysis":
-            analyst_prompt = analyst_prompt + "\n" + _prompt("result_analyst_history_only.md")
         analysis = None
         for attempt in range(2):
             try:
@@ -1419,8 +1063,6 @@ def build_workflow(deps: WorkflowDependencies):
         return "end"
 
     def after_understand(state: AskDataState) -> str:
-        if state.get("skip_query_pipeline"):
-            return "analyze_result"
         return "end" if state.get("status") else "resolve_datasource"
 
     def after_resolve_datasource(state: AskDataState) -> str:
@@ -1447,7 +1089,7 @@ def build_workflow(deps: WorkflowDependencies):
     graph.add_conditional_edges(
         "understand_request",
         after_understand,
-        {"resolve_datasource": "resolve_datasource", "analyze_result": "analyze_result", "end": END},
+        {"resolve_datasource": "resolve_datasource", "end": END},
     )
     graph.add_conditional_edges(
         "resolve_datasource",

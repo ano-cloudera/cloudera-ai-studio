@@ -206,27 +206,14 @@ class SemanticSuggestionAcceptService:
         if f"metric:{key}" in existing_keys:
             result.conflicts.append(AcceptConflict(sid, "duplicate", f"Metric `{key}` already exists."))
             return
-        from app.semantic.runtime_extensions.config import list_profile_names, load_profile
-        from app.semantic.runtime_extensions.engine import coerce_suggested_metric_metadata
-
-        profile_ext: dict | None = None
-        for pname in list_profile_names():
-            prof = load_profile(pname)
-            if key in (prof.get("metric_enrichment") or {}):
-                profile_ext = prof
-                break
-        raw_expr = _normalize_metric_expression(str(payload.get("expression") or ""))
-        display_name, expr, business_definition = coerce_suggested_metric_metadata(
-            key=key,
-            expression=raw_expr,
-            name=str(payload.get("name") or "") or None,
-            extensions=profile_ext,
-        )
-        enrich = (profile_ext or {}).get("metric_enrichment", {}).get(key) or {}
+        expr = _normalize_metric_expression(str(payload.get("expression") or ""))
+        display_name = str(payload.get("name") or "").strip()
+        if display_name.lower().startswith("suggested metric "):
+            display_name = display_name[17:].strip()
+        if not display_name or display_name == key:
+            display_name = key.replace("_", " ").title()
+        business_definition = f"Governed metric {display_name}."
         synonyms = list(payload.get("synonyms") or [])
-        for syn in enrich.get("synonyms") or []:
-            if syn not in synonyms:
-                synonyms.append(syn)
         row = self._registry.create_metric(
             version_id,
             workspace_id=ws,

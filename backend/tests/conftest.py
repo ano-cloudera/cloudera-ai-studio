@@ -58,7 +58,6 @@ def isolated_settings(**overrides) -> Settings:
         "gemini_api_key": SecretStr(""),
         "openai_model": "gpt-configured",
         "openai_api_key": SecretStr(""),
-        "local_agent_base_url": "",
         "impala_host": "localhost",
         "impala_user": "svc",
         "impala_password": "secret",

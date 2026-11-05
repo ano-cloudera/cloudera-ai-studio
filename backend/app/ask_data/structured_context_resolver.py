@@ -58,31 +58,16 @@ def _metric_display_name(metric: SemanticMetricRow) -> str:
 
 
 def _rank_metrics_for_question(metrics: list[SemanticMetricRow], question: str) -> list[SemanticMetricRow]:
-    q = question.casefold()
+    """Metrics that share the most words with the question come first."""
+    words = {w for w in re.findall(r"[a-z0-9]+", question.casefold()) if len(w) >= 3}
     scored: list[tuple[int, SemanticMetricRow]] = []
     for metric in metrics:
-        score = 0
         blob = " ".join(
-            filter(None, [metric.name, metric.key, getattr(metric, "business_definition", None)])
+            filter(None, [metric.name, metric.key, getattr(metric, "business_definition", None), *(getattr(metric, "synonyms", None) or [])])
         ).casefold()
-        if "customer" in q or "nasabah" in q:
-            if "customer" in blob:
-                score += 80
-        if "transaksi" in q or "transaction" in q:
-            if "transaction" in blob:
-                score += 80
-        if any(t in q for t in ("trend", "pertumbuhan", "per bulan", "bulanan", "12 bulan")):
-            if "transaction" in blob:
-                score += 60
-            if "transaction_id" in blob:
-                score += 50
-        if any(t in q for t in ("jumlah", "banyak", "count")) and ("transaksi" in q or "transaction" in q):
-            if "transaction_id" in blob:
-                score += 100
-            if "amount" in blob:
-                score -= 30
-        if score <= 0:
-            score = 1
+        blob_words = set(re.findall(r"[a-z0-9]+", blob))
+        stems = {w[:-1] if w.endswith("s") else w for w in blob_words}
+        score = sum(1 for w in words if w in blob_words or (w[:-1] if w.endswith("s") else w) in stems)
         scored.append((score, metric))
     scored.sort(key=lambda item: (-item[0], (item[1].name or "").casefold()))
     return [row for _, row in scored]
@@ -702,9 +687,9 @@ def _resolve_explicit_model(
             runtime_bundle=None,
             context_mode=None,
         )
-    from app.services.conversational import _is_capability_meta_question
+    from app.ask_data.conversation import looks_like_small_talk
 
-    if _is_capability_meta_question(question):
+    if looks_like_small_talk(question):
         return StructuredAskPrecedence(
             force_ossie=True,
             skip_auto_semantic_when_explicit=True,
@@ -751,7 +736,7 @@ def _resolve_explicit_model(
                 runtime_bundle=bundle,
                 context_mode="GOVERNED_SEMANTIC",
             )
-        if _is_capability_meta_question(question):
+        if looks_like_small_talk(question):
             return StructuredAskPrecedence(
                 force_ossie=True,
                 skip_auto_semantic_when_explicit=True,
@@ -1060,9 +1045,9 @@ def _resolve_automatic_semantic_model(
     question: str,
     session_analysis_context: dict[str, Any] | None = None,
 ) -> StructuredAskPrecedence:
-    from app.services.conversational import _is_capability_meta_question
+    from app.ask_data.conversation import looks_like_small_talk
 
-    if _is_capability_meta_question(question):
+    if looks_like_small_talk(question):
         return StructuredAskPrecedence(
             force_ossie=False,
             skip_auto_semantic_when_explicit=False,

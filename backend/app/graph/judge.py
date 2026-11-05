@@ -28,7 +28,7 @@ def deterministic_judge(state: dict[str, Any]) -> list[str]:
         limit = brief.get("rank_limit")
         if limit and row_count > 0 and row_count < int(limit) and int(limit) >= 5:
             issues.append(
-                f"Rank/top-{limit} requested but query returned only {row_count} row(s); check breakdown grain (e.g. dcname)."
+                f"Rank/top-{limit} requested but query returned only {row_count} row(s); check the breakdown dimension."
             )
 
     if row_count == 0 and str(state.get("status")) == "SUCCESS":
