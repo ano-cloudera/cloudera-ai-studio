@@ -1,3 +1,4 @@
+import { formatBusinessLabel, formatMonthBucket, rememberColumnLabels } from './businessPresentation'
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { ChatResponse } from '../types/api'
@@ -59,6 +60,8 @@ function formatExportTimestamp(date: Date): string {
 
 function formatCellValue(value: unknown): string {
   if (value == null) return '—'
+  const month = formatMonthBucket(value)
+  if (month) return month
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value.toLocaleString('id-ID', { maximumFractionDigits: 2 })
   }
@@ -67,10 +70,11 @@ function formatCellValue(value: unknown): string {
   return `${text.slice(0, MAX_CELL_CHARS - 1)}…`
 }
 
-function humanColumnHeader(col: string): string {
-  return col
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, ch => ch.toUpperCase())
+function humanColumnHeader(col: string, response?: ChatResponse): string {
+  const label = response?.data.column_labels?.[col]
+  if (label) return label
+  if (col === 'metric_value' && response?.data.governed_metric_display_name) return response.data.governed_metric_display_name
+  return formatBusinessLabel(col)
 }
 
 function formatStrategyLabel(strategy: string): string {
@@ -299,7 +303,7 @@ function drawDataTable(
   if (!columns.length || !rows.length) return
 
   const slice = rows.slice(0, MAX_TABLE_ROWS)
-  const head = [columns.map(col => humanColumnHeader(col))]
+  const head = [columns.map(col => humanColumnHeader(col, response))]
   const body = slice.map(row => columns.map(col => formatCellValue(row[col])))
 
   ensureSpace(pdf, cursor, 22, drawRunningHeader)
@@ -363,7 +367,10 @@ function drawKpi(pdf: jsPDF, cursor: PdfCursor, response: ChatResponse, drawRunn
   const raw = field ? response.data.rows[0]?.[field] : undefined
   ensureSpace(pdf, cursor, 12, drawRunningHeader)
   drawSectionLabel(pdf, cursor, 'Metrik utama')
-  drawBodyText(pdf, cursor, `${spec.title}: ${formatCellValue(raw)}`, { bold: true, fontSize: 10 }, drawRunningHeader)
+  const title = spec.title?.trim().endsWith('?')
+    ? response.data.column_labels?.metric_value || response.data.governed_metric_display_name || spec.title
+    : spec.title
+  drawBodyText(pdf, cursor, `${title}: ${formatCellValue(raw)}`, { bold: true, fontSize: 10 }, drawRunningHeader)
 }
 
 async function drawChartSnapshot(
@@ -504,6 +511,7 @@ export async function downloadConversationPdf(input: ConversationPdfInput): Prom
   const { title, messages, appName, chartRoot } = input
   const resolvedAppName = appName ?? 'Ask Data export'
   if (!messages.length) return
+  for (const message of messages) rememberColumnLabels(message.response?.data.column_labels)
 
   const exportedAt = new Date()
   const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' })

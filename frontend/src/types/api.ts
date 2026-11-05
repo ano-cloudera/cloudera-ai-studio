@@ -544,6 +544,8 @@ export type ChatResponse = {
     governed_metric_expression?: string | null
     governed_base_dataset?: string | null
     unit_format?: string | null
+    /** Business names for the result columns ("delivery_shipments_region_name" -> "Region"). */
+    column_labels?: Record<string, string> | null
   }
   chart_spec: ChartSpec | null
   timings: {

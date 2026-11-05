@@ -153,7 +153,9 @@ async def plan_queries(
             "dimension_mismatch": [],
         }
         for flt in filters:
-            note = flt.describe()
+            from app.ask_data.column_labels import column_labels
+
+            note = flt.describe(column_labels([flt.dimension], semantic_context=semantic_context).get(flt.dimension))
             if note not in notes:
                 notes.append(note)
     return queries, notes

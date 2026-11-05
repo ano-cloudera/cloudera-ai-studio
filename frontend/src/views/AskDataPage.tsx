@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { BarChart3, ChevronDown, Lightbulb, Table2 } from 'lucide-react'
 import { ContextAwareChatComposer } from '../components/chat/ContextAwareChatComposer'
 import { DataNote } from '../components/DataNote'
+import { rememberColumnLabels } from '../lib/businessPresentation'
 import { ResponseFooter } from '../components/ResponseFooter'
 import { StreamingProgress } from '../components/StreamingProgress'
 import { appConfig } from '../config/appConfig'
@@ -815,6 +816,7 @@ function StructuredAnswer({
   reportArtifact?: { title: string; active: boolean; onOpen: () => void }
   onOpenWorkspace?: () => void
 }) {
+  rememberColumnLabels(response.data.column_labels)
   const presentation = answerPresentation(response)
   const presentationTier = computePresentationTier(response)
   const chatInlineEvidence = presentationTier === 1 || presentationTier === 2

@@ -1,5 +1,7 @@
 'use client'
 
+import { rememberColumnLabels } from '../lib/businessPresentation'
+
 import { useMemo, useState } from 'react'
 import { ArrowLeftRight, BarChart3, Briefcase, FileText, Lightbulb } from 'lucide-react'
 import {
@@ -74,6 +76,7 @@ function WorkspaceTabBar({
 }
 
 export function ReportDocumentSection({ response }: Props) {
+  rememberColumnLabels(response.data.column_labels)
   const rag = isRagResponse(response)
   const [tab, setTab] = useState<WorkspaceTab>(rag ? 'summary' : 'summary')
   const visualChartTypes = ['bar', 'line', 'area', 'scatter', 'pie']

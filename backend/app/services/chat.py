@@ -943,6 +943,26 @@ class ChatService:
                     raw_data["governed_metric_display_name"] = str(display).strip()[:200]
         if unit_format:
             raw_data["unit_format"] = str(unit_format)
+        try:
+            from app.ask_data.column_labels import column_labels
+            from app.ask_data.metric_labels import humanize_metric_label
+
+            metric_label = None
+            if governed_metric:
+                try:
+                    metric_label = humanize_metric_label(
+                        name=str(governed_metric), definition=self.dependencies.semantic_context.metric_definition(str(governed_metric))
+                    )
+                except Exception:
+                    metric_label = None
+            raw_data["column_labels"] = column_labels(
+                list(raw_data.get("columns") or []),
+                semantic_context=self.dependencies.semantic_context,
+                sql=str(state.get("validated_sql") or state.get("sql") or ""),
+                metric_label=metric_label,
+            )
+        except Exception:
+            logger.exception("column_labels_failed request_id=%s", request_id)
         query_result = state.get("query_result") if isinstance(state.get("query_result"), dict) else {}
         for key in ("connector_type", "connector_name"):
             if query_result.get(key):
@@ -1105,6 +1125,7 @@ class ChatService:
         history = self.history.load(request.session_id, limit=8)
         previous = last_turn(history)
         reading = await self._read_turn(request, history, request_id=request_id)
+        reading = self._guard_rewrite(request.question, reading, previous)
         question = reading.standalone_question or request.question
         if not reading.is_conversational and should_block_ask_data_scope(
             question, raw_question=request.question, history=history
@@ -1121,7 +1142,8 @@ class ChatService:
             skip = self._skip_structured_clarification(reading, request.question)
             if precedence.clarification is not None and not skip and precedence.clarification.reason == "metric_ambiguous" and precedence.runtime_bundle is not None:
                 settled, narrowed = await self._settle_metric_choice(
-                    request, request_id=request_id, question=question, ctx=precedence.runtime_bundle.context, payload=precedence.clarification
+                    request, request_id=request_id, question=question, ctx=precedence.runtime_bundle.context, payload=precedence.clarification,
+                    continued=previous if reading.uses_previous else None,
                 )
                 if settled is not None:
                     resolution = settled
@@ -1160,7 +1182,8 @@ class ChatService:
 
                 payload = _clarification_from_resolution(resolution)
                 settled, narrowed = await self._settle_metric_choice(
-                    request, request_id=request_id, question=question, ctx=self.dependencies.semantic_context, payload=payload
+                    request, request_id=request_id, question=question, ctx=self.dependencies.semantic_context, payload=payload,
+                    continued=previous if reading.uses_previous else None,
                 )
                 if settled is not None:
                     resolution = settled
@@ -1181,6 +1204,25 @@ class ChatService:
             question=question, resolution=resolution, history=history, previous=carry, reading=reading
         )
 
+    def _guard_rewrite(self, raw: str, reading: TurnReading, previous: dict[str, Any] | None) -> TurnReading:
+        """A follow-up that names no metric of its own continues the last turn's metric. A rewrite that switched to
+        another metric took the wrong turn ("kalau Juni?" after orders, rewritten as a late rate) and is not used."""
+        if not reading.uses_previous or not previous or not previous.get("last_metric"):
+            return reading
+        registry = self.dependencies.semantic_context.registry
+        try:
+            if registry.resolve_metric(raw).get("status") == "resolved":
+                return reading
+            rewritten = registry.resolve_metric(reading.standalone_question)
+        except Exception:
+            return reading
+        if rewritten.get("status") == "resolved" and rewritten.get("metric") != previous["last_metric"]:
+            logger.info(
+                "conversation_rewrite_rejected reason=switched_metric last=%s rewritten=%s", previous["last_metric"], rewritten.get("metric")
+            )
+            return TurnReading(kind="data", uses_previous=False, standalone_question=raw.strip(), rationale="rewrite_switched_metric")
+        return reading
+
     async def _settle_metric_choice(
         self,
         request: AskDataRequest,
@@ -1189,9 +1231,20 @@ class ChatService:
         question: str,
         ctx: Any,
         payload: Any,
+        continued: dict[str, Any] | None = None,
     ) -> tuple[dict[str, Any] | None, Any]:
         """The language model reads an ambiguous question against the catalog. A sure pick becomes the resolution;
-        otherwise the choice offered to the user is narrowed to the metrics that could fit."""
+        otherwise the choice offered to the user is narrowed to the metrics that could fit.
+
+        A follow-up that continues the previous turn ("kalau per carrier?") keeps that turn's metric: the rewrite may
+        describe it in other words ("tingkat keterlambatan"), which is no reason to ask which metric was meant."""
+        kept = (continued or {}).get("last_metric")
+        if isinstance(kept, str) and kept in getattr(ctx, "metrics", {}):
+            logger.info("metric_kept_from_previous_turn metric=%s", kept)
+            try:
+                return {**ctx.resolve_for_metric(question, kept), "context_mode": "GOVERNED_SEMANTIC"}, None
+            except Exception:
+                logger.exception("metric_keep_failed metric=%s", kept)
         pick = await pick_metric(provider=self._resolve_provider(request, request_id), question=question, semantic_context=ctx)
         if pick.metric:
             try:

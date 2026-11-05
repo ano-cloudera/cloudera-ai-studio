@@ -1,6 +1,6 @@
 # Cloudera AI Studio — Frontend (`frontend`)
 
-User-facing branding defaults to **Cloudera AI Studio** / **AI Studio** via `src/config/appConfig.ts` and `NEXT_PUBLIC_*` overrides.
+User-facing branding defaults to **Anywhere AI Studio** / **AI Studio** via `src/config/appConfig.ts` and `NEXT_PUBLIC_*` overrides.
 
 Next.js client for **Ask Data**, **Knowledge (M2)**, Usage, and Settings. This is the **accelerator UI** — not the legacy `frontend/` tree on port 3000.
 

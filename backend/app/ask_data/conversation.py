@@ -205,9 +205,12 @@ async def read_turn(
         # A first question has nothing to lean on; it is answered as written.
         return _literal(question, rationale="first_turn")
     menu = metric_menu(semantic_context) if semantic_context is not None else []
+    turns = previous_turns(history, labels={item["name"]: item["label"] for item in menu})
     payload = {
         "question": question,
-        "previous_turns": previous_turns(history, labels={item["name"]: item["label"] for item in menu}),
+        # The turn a follow-up continues is the last one; older turns are only there to resolve a pointer.
+        "last_turn": turns[-1] if turns else None,
+        "earlier_turns": turns[:-1],
         "metrics": menu,
     }
     try:

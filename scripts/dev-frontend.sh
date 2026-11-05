@@ -27,7 +27,7 @@ frontend_start() {
   code="$(frontend_http_code)"
   if [[ "$code" == "200" ]]; then
     if [[ -f "$FRONTEND_DIR/.env.local" ]] && grep -q 'Anywhere AI Studio' "$FRONTEND_DIR/.env.local"; then
-      if curl -fsS --max-time 8 "http://127.0.0.1:$FRONTEND_DEV_PORT/" 2>/dev/null | grep -q 'Cloudera AI Studio'; then
+      if curl -fsS --max-time 8 "http://127.0.0.1:$FRONTEND_DEV_PORT/" 2>/dev/null | grep -q 'AI Studio'; then
         echo "Stale Cloudera bundle on :$FRONTEND_DEV_PORT — running restart-clean for hackathon branding…"
         frontend_restart_clean
         return $?

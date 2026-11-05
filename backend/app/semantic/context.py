@@ -40,6 +40,16 @@ def guidance_focus_from_metric(metric: str | None) -> str | None:
 _BREAKDOWN_CUE = re.compile(r"\b(per|by|berdasarkan|breakdown|break down|each|setiap|masing|top\s+\d+)\b", re.IGNORECASE)
 
 
+def _names_a_period(question: str) -> bool:
+    """"kalau Juni?", "and in Q2 2026?": the same question for another period."""
+    from app.ask_data.intent_satisfaction import parse_requested_constraints, parse_yearless_period
+
+    try:
+        return bool(parse_yearless_period(question) or parse_requested_constraints(question).explicit_period)
+    except Exception:
+        return False
+
+
 def glossary_phrase_map(governance: dict[str, Any]) -> list[tuple[tuple[str, ...], str]]:
     """Business words the model author tied to a dimension in the glossary ("kurir" -> carrier)."""
     out: list[tuple[tuple[str, ...], str]] = []
@@ -139,7 +149,7 @@ class SemanticContextService:
             if time_key:
                 # "per month" after a breakdown by carrier means by month: only what the question names stays.
                 dimensions = [time_key, *[d for d in named if d != time_key]]
-        if not dimensions:
+        if not dimensions and not _names_a_period(question):
             return None
         return {
             "status": "resolved",

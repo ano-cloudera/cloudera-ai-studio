@@ -159,6 +159,8 @@ class QueryData(StrictModel):
     connector_name: str | None = None
     connector_id: str | None = None
     truncated: bool = False
+    # Business names for the result columns ("delivery_shipments_region_name" -> "Region").
+    column_labels: dict[str, str] = {}
 
 
 class Timings(StrictModel):

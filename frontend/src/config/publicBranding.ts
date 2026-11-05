@@ -11,7 +11,7 @@ export type PublicBranding = {
   emptyStateLogoUrl: string
 }
 
-const DEFAULT_PRODUCT = 'Cloudera AI Studio'
+const DEFAULT_PRODUCT = 'Anywhere AI Studio'
 const DEFAULT_SHORT = 'AI Studio'
 
 function read(key: string, fallback: string): string {

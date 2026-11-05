@@ -306,7 +306,10 @@ async def plan_comparison(
         state=state,
     )
     value_predicates = [f.predicate() for f in filters]
-    notes = [f.describe() for f in filters]
+    from app.ask_data.column_labels import column_labels
+
+    names = column_labels([f.dimension for f in filters], semantic_context=semantic_context)
+    notes = [f.describe(names.get(f.dimension)) for f in filters]
     if compare_with_overall and not dimensions and not value_predicates:
         return None  # nothing to compare: no breakdown and no named group
 

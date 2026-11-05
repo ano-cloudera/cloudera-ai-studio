@@ -130,6 +130,15 @@ def _assistant_name(deps: WorkflowDependencies) -> str:
     return str(name or "Anywhere AI Studio")
 
 
+def _title_is_the_question(title: str | None, *questions: str) -> bool:
+    text = " ".join((title or "").casefold().split())
+    if not text:
+        return True
+    if text.endswith("?"):
+        return True
+    return any(text == " ".join(q.casefold().split())[: len(text)] and len(text) > 20 for q in questions if q)
+
+
 def _metric_labels(deps: WorkflowDependencies) -> dict[str, str]:
     try:
         from app.ask_data.follow_up_suggestions import metric_labels
@@ -500,7 +509,10 @@ def build_workflow(deps: WorkflowDependencies):
                 indonesian = detect_language(state["question"]) == "id"
                 if value_filters:
                     extra_predicates = [*(extra_predicates or []), *(f.predicate() for f in value_filters)]
-                    scope = "; ".join(f.describe() for f in value_filters)
+                    from app.ask_data.column_labels import column_labels
+
+                    names = column_labels([f.dimension for f in value_filters], semantic_context=deps.semantic_context)
+                    scope = "; ".join(f.describe(names.get(f.dimension)) for f in value_filters)
                     partial_caveats = [*partial_caveats, f"Difilter ke: {scope}." if indonesian else f"Filtered to: {scope}."]
                 for heard, value in value_resolution.corrections:
                     partial_caveats = [
@@ -1038,6 +1050,11 @@ def build_workflow(deps: WorkflowDependencies):
             chart = repair_chart_spec(chart, columns=columns_list, rows=rows)
         if chart and any(field and field not in columns for field in (chart.x, chart.y, chart.series)):
             chart = None
+        if chart is not None and _title_is_the_question(chart.title, str(state.get("question") or ""), str(state.get("original_question") or "")):
+            # A chart (or KPI) named after the question reads "bisa bantu keluarkan ...?: 16,34"; name it after the metric.
+            label = _metric_labels(deps).get(str(resolution.get("metric") or ""))
+            if label:
+                chart = chart.model_copy(update={"title": label})
         if chart is not None:
             analysis = analysis.model_copy(update={"chart_spec": chart})
         elif analysis.chart_spec is not None:

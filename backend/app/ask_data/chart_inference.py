@@ -77,6 +77,11 @@ def repair_chart_spec(
         return ChartSpec(type=chart_type, title=title or "Chart", x=x, y=y, series=chart.series if chart else None)
 
     updates: dict[str, Any] = {}
+    # A series must be a category column. The value column (or any numeric one, or the x axis itself) as a series gives
+    # every point its own colour and a legend made of numbers.
+    series = chart.series
+    if series and (series in (x, y) or series not in col_list or _is_numeric_cell(sample.get(series))):
+        updates["series"] = None
     if chart.x != x:
         updates["x"] = x
     if chart.y != y:

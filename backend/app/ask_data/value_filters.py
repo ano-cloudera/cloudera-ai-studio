@@ -42,8 +42,8 @@ class ValueFilter:
             return f"{self.expression} = {quoted}"
         return f"{self.expression} IN ({quoted})"
 
-    def describe(self) -> str:
-        return f"{self.dimension} = {' or '.join(self.values)}"
+    def describe(self, label: str | None = None) -> str:
+        return f"{label or self.dimension}: {' or '.join(self.values)}"
 
 
 def _normalize(text: str) -> str:
@@ -94,6 +94,20 @@ def _compact(text: str) -> str:
     return re.sub(r"[^a-z0-9]", "", _normalize(text))
 
 
+# Everyday words of a question. A phrase made only of these is never read as a misspelt value.
+_EVERYDAY = frozenset(
+    """
+    yang dan atau di ke dari untuk pada dengan ini itu kita kami saya anda kamu mereka ada adalah akan sudah belum bisa
+    bantu tolong mohon berapa banyak jumlah total semua setiap per apa mana siapa kapan kenapa mengapa bagaimana gimana
+    kalau kalo jika tampilkan tunjukkan keluarkan lihat cari hitung buat kirim dikirim kirimkan terima diterima jual beli
+    paket barang pesanan order bulan tahun minggu hari ini lalu depan terakhir tertinggi terendah paling lebih kurang
+    naik turun tren data nilai rata the a an of for with and or in on at to from by is are was were be can could would
+    please show give list how many much what which who when why where per each all total number count value rate
+    highest lowest top last this next month year week day
+    """.split()
+)
+
+
 def fuzzy_matches(
     question: str,
     catalog: dict[str, list[str]],
@@ -104,13 +118,21 @@ def fuzzy_matches(
     (its table, columns and metric formula), are left alone: "delivery" in a question about delivery is not a typo."""
     words = re.findall(r"[a-z0-9]+", _normalize(question))
     taken = {w for values in exact.values() for value in values for w in re.findall(r"[a-z0-9]+", _normalize(value))}
-    taken |= {w.casefold() for w in ignore_words or ()}
+    vocabulary = {w.casefold() for w in ignore_words or ()}
+    taken |= vocabulary
+    # A misspelt word of the model's own vocabulary ("deliveray" for "delivery") is not a value either.
+    taken |= {
+        w for w in words
+        if len(w) >= FUZZY_MIN_LENGTH and any(SequenceMatcher(None, w, v).ratio() >= FUZZY_APPLY for v in vocabulary if len(v) >= FUZZY_MIN_LENGTH)
+    }
     windows: list[tuple[str, str]] = []
     for size in (1, 2, 3):
         for start in range(len(words) - size + 1):
             chunk = words[start : start + size]
             if any(w in taken for w in chunk):
                 continue
+            if all(w in _EVERYDAY for w in chunk):
+                continue  # "kita kirim" is a sentence, not a misspelt "KilatKirim"
             joined = "".join(chunk)
             if len(joined) >= FUZZY_MIN_LENGTH:
                 windows.append((" ".join(chunk), joined))

@@ -117,7 +117,7 @@ async def test_a_follow_up_keeps_the_filter_of_the_previous_question(monkeypatch
     expected = {row[0]: row[1] for row in replay.executor.con.execute(LATE_SQL.format(region="Jawa Timur")).fetchall()}
     assert {row["delivery_shipments_carrier"]: pytest.approx(float(row["metric_value"])) for row in r.data.rows} == expected
     # What the model saw of the previous turn: how it was read, its metric and its first rows.
-    previous = model.payloads[-1]["previous_turns"][-1]
+    previous = model.payloads[-1]["last_turn"]
     assert previous["metric"] and previous["first_rows"]
 
 
@@ -130,7 +130,7 @@ async def test_that_region_is_the_region_on_top_of_the_previous_answer(monkeypat
     first = await replay.ask("Which region has the highest late delivery rate?")
     assert first.data.rows[0]["delivery_shipments_region_name"] == "Kalimantan Timur"
     r = await replay.ask("show that region per carrier")
-    assert model.payloads[-1]["previous_turns"][-1]["first_rows"][0]["delivery_shipments_region_name"] == "Kalimantan Timur"
+    assert model.payloads[-1]["last_turn"]["first_rows"][0]["delivery_shipments_region_name"] == "Kalimantan Timur"
     assert r.status == "SUCCESS" and "d.region_name = 'Kalimantan Timur'" in r.queries_run[-1]
 
 
@@ -186,3 +186,30 @@ async def test_an_unsure_pick_offers_only_the_metrics_that_could_fit(monkeypatch
     r = await replay.ask(question)
     assert r.status == "clarification_required" and not r.queries_run
     assert [option.id for option in r.clarification.options] == ["late_delivery_rate", "total_shipments"]
+
+
+@pytest.mark.asyncio
+async def test_a_rewrite_that_takes_an_older_turn_is_not_used(monkeypatch) -> None:
+    from replay_support import ScriptedModel
+
+    # The model continues the late-rate turn instead of the orders turn just before.
+    model = ScriptedModel(rewrites={"kalau Juni?": "Late delivery rate in Kalimantan Timur in June 2026"})
+    replay = Replay(monkeypatch, model=model)
+    await replay.ask("Late delivery rate in Kalimantan Timur per month")
+    await replay.ask("Total orders in March 2026")
+    r = await replay.ask("kalau Juni?")
+    assert r.status == "SUCCESS" and "fulfillment_orders" in r.queries_run[-1] and "DATE '2026-06-01'" in r.queries_run[-1]
+    assert value(r) == 1074
+
+
+@pytest.mark.asyncio
+async def test_a_follow_up_rewritten_in_other_words_keeps_the_last_metric(monkeypatch) -> None:
+    from replay_support import ScriptedModel
+
+    # Qwen wrote the metric in Indonesian, which no alias matches.
+    model = ScriptedModel(rewrites={"kalau per carrier?": "tingkat keterlambatan pengiriman per carrier di Jawa Timur"})
+    replay = Replay(monkeypatch, model=model)
+    await replay.ask("Late delivery rate di Jawa Timur")
+    r = await replay.ask("kalau per carrier?")
+    sql = r.queries_run[-1]
+    assert r.status == "SUCCESS" and "is_late" in sql and "d.region_name = 'Jawa Timur'" in sql and "GROUP BY d.carrier" in sql

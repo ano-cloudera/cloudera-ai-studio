@@ -119,7 +119,11 @@ _FULL_MONTHS = (
 )
 # "in March", "pada Maret", "bulan Mei": a full month name right after a preposition. Abbreviations and a bare "may"
 # are left out on purpose, so a modal verb is never read as a month.
-_YEARLESS_MONTH = re.compile(rf"\b(?:in|during|for|pada|selama|di|bulan)\s+(?P<m>{_FULL_MONTHS})\b(?!\s*,?\s*20\d{{2}})", re.I)
+# "in March", "bulan Maret", and the follow-up forms "kalau Juni?", "what about June?" or a bare "Juni?".
+_YEARLESS_MONTH = re.compile(
+    rf"(?:^\s*|\b(?:in|during|for|pada|selama|di|bulan|kalau|kalo|gimana|bagaimana|about|untuk)\s+)(?P<m>{_FULL_MONTHS})\b(?!\s*,?\s*20\d{{2}})",
+    re.I,
+)
 
 
 def parse_yearless_period(question: str, today: date | None = None) -> PeriodRange | None:

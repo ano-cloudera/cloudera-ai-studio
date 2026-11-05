@@ -48,8 +48,20 @@ export function AnswerChart({
   exportId?: string
 }) {
   if (!chart || chart.type === 'table' || chart.type === 'kpi' || !chart.x || !chart.y || !rows.length) return null
-  const seriesNames = chart.series ? [...new Set(rows.map(row => String(row[chart.series!] ?? 'Unknown')))] : []
-  const flattenRankingSeries = chart.type === 'bar' && Boolean(chart.series) && rows.length > 1 && seriesNames.length === rows.length
+  // A series must be a category: the value column (or the x axis) as a series gives each point its own colour and a
+  // legend made of numbers.
+  const declaredSeries = chart.series ?? null
+  const seriesSample = declaredSeries ? rows[0]?.[declaredSeries] : undefined
+  const series =
+    declaredSeries &&
+    declaredSeries !== chart.y &&
+    declaredSeries !== chart.x &&
+    typeof seriesSample !== 'number' &&
+    declaredSeries in (rows[0] ?? {})
+      ? declaredSeries
+      : null
+  const seriesNames = series ? [...new Set(rows.map(row => String(row[series!] ?? 'Unknown')))] : []
+  const flattenRankingSeries = chart.type === 'bar' && Boolean(series) && rows.length > 1 && seriesNames.length === rows.length
   const xKey = flattenRankingSeries ? '__category' : chart.x
   const visibleSeriesNames = flattenRankingSeries ? [] : seriesNames
   const yField = chart.y!
@@ -74,12 +86,12 @@ export function AnswerChart({
     return scaleRatioToPercent ? numeric * 100 : numeric
   }
   let data = flattenRankingSeries
-    ? rows.map(row => ({ ...row, __category: `${String(row[chart.x!] ?? '')} · ${String(row[chart.series!] ?? 'Unknown')}`, [yField]: toDisplayY(row[yField]) }))
+    ? rows.map(row => ({ ...row, __category: `${String(row[chart.x!] ?? '')} · ${String(row[series!] ?? 'Unknown')}`, [yField]: toDisplayY(row[yField]) }))
     : seriesNames.length
     ? [...rows.reduce((groups, row) => {
         const category = String(row[chart.x!] ?? '')
         const point = groups.get(category) || { [chart.x!]: row[chart.x!] }
-        point[String(row[chart.series!] ?? 'Unknown')] = toDisplayY(row[chart.y!])
+        point[String(row[series!] ?? 'Unknown')] = toDisplayY(row[chart.y!])
         groups.set(category, point)
         return groups
       }, new Map<string, Record<string, unknown>>()).values()]
@@ -209,7 +221,7 @@ export function AnswerChart({
         <ResponsiveContainer width="100%" height="100%">
     {chart.type === 'bar' ? <BarChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => <Bar key={key} dataKey={key} fill={COLORS[index % COLORS.length]} radius={[6, 6, 0, 0]} maxBarSize={54} />)}</BarChart>
       : chart.type === 'area' ? <AreaChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => <Area key={key} dataKey={key} stroke={COLORS[index % COLORS.length]} fill={COLORS[index % COLORS.length]} fillOpacity={0.12} />)}</AreaChart>
-      : chart.type === 'scatter' ? <ScatterChart margin={chartMargin}><CartesianGrid vertical={false} stroke="#E7E8F0" /><XAxis type="number" dataKey={chart.x} name={chart.x} tick={tick} /><YAxis type="number" dataKey={chart.y} name={chart.y} tick={tick} width={56} tickFormatter={formatAxisNumber} /><Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={formatTooltipValue} />{chart.series ? seriesNames.map((name, index) => <Scatter key={name} name={name} data={rows.filter(row => String(row[chart.series!] ?? 'Unknown') === name)} fill={COLORS[index % COLORS.length]} />) : <Scatter data={data} fill={COLORS[2]} />}{chart.series && <Legend wrapperStyle={{ fontSize: 11 }} />}</ScatterChart>
+      : chart.type === 'scatter' ? <ScatterChart margin={chartMargin}><CartesianGrid vertical={false} stroke="#E7E8F0" /><XAxis type="number" dataKey={chart.x} name={chart.x} tick={tick} /><YAxis type="number" dataKey={chart.y} name={chart.y} tick={tick} width={56} tickFormatter={formatAxisNumber} /><Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={formatTooltipValue} />{series ? seriesNames.map((name, index) => <Scatter key={name} name={name} data={rows.filter(row => String(row[series!] ?? 'Unknown') === name)} fill={COLORS[index % COLORS.length]} />) : <Scatter data={data} fill={COLORS[2]} />}{series && <Legend wrapperStyle={{ fontSize: 11 }} />}</ScatterChart>
       : chart.type === 'pie' ? <PieChart margin={{ bottom: 16 }}><Pie data={data} dataKey={chart.y} nameKey={chart.x} innerRadius={52} outerRadius={88}>{data.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip formatter={formatTooltipValue} /><Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} /></PieChart>
       : <LineChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => (
             <Line

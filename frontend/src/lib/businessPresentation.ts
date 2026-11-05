@@ -105,8 +105,33 @@ export function compareCalmonthValues(a: unknown, b: unknown): number {
   return (parseCalmonth(a) ?? 0) - (parseCalmonth(b) ?? 0)
 }
 
+/** Business names the backend sent for result columns ("delivery_shipments_region_name" -> "Region"). A column key
+ * names the same field in every answer of a model, so the names are kept for the session. The value column is not:
+ * it means a different metric in each answer. */
+const columnLabels = new Map<string, string>()
+
+export function rememberColumnLabels(labels?: Record<string, string> | null): void {
+  for (const [key, label] of Object.entries(labels ?? {})) {
+    if (key !== 'metric_value' && label?.trim()) columnLabels.set(key.trim().toLowerCase(), label.trim())
+  }
+}
+
+const MONTH_START = /^(\d{4})-(\d{2})-01T00:00:00(?:\.0+)?Z?$/
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** "2026-03-01T00:00:00" (a month bucket of DATE_TRUNC) reads as "Mar 2026". */
+export function formatMonthBucket(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const match = MONTH_START.exec(value.trim())
+  if (!match) return null
+  const month = Number(match[2])
+  return month >= 1 && month <= 12 ? `${MONTH_NAMES[month - 1]} ${match[1]}` : null
+}
+
 export function formatBusinessLabel(value: string): string {
   const normalized = value.trim().toLowerCase()
+  const remembered = columnLabels.get(normalized)
+  if (remembered) return remembered
   if (labelOverrides[normalized]) return labelOverrides[normalized]
   return value.replaceAll('_', ' ').replaceAll('-', ' ').replace(/\b\w/g, character => character.toUpperCase())
 }
@@ -141,7 +166,7 @@ export function formatBusinessValue(field: string, value: unknown, metric?: stri
     if (monthLabel) return monthLabel
   }
 
-  if (typeof value !== 'number') return String(value)
+  if (typeof value !== 'number') return formatMonthBucket(value) ?? String(value)
   if (!Number.isFinite(value)) return 'Unavailable'
   const resolvedUnit = unitFormat ?? (col === 'metric_value' ? inferColumnUnitFormat(field, metric) : inferColumnUnitFormat(field))
 

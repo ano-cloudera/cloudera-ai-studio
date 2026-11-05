@@ -3,7 +3,7 @@ import { featureEnabled, type FeatureKey } from '../lib/featureOverrides'
  * Canonical product branding (override via NEXT_PUBLIC_* for white-label / hackathon layers).
  * The Anywhere AI Studio values live in config/examples/anywhere-branding.frontend.env.
  */
-export const PRODUCT_NAME = 'Cloudera AI Studio'
+export const PRODUCT_NAME = 'Anywhere AI Studio'
 export const PRODUCT_SHORT_NAME = 'AI Studio'
 
 /** Branding and copy — override via NEXT_PUBLIC_* env vars for reuse across deployments. */
