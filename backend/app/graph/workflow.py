@@ -130,9 +130,13 @@ def _assistant_name(deps: WorkflowDependencies) -> str:
     return str(name or "Anywhere AI Studio")
 
 
+_GENERIC_TITLES = {"chart", "grafik", "result", "results", "hasil", "data", "table", "tabel", "kpi", "metric", "metrik"}
+
+
 def _title_is_the_question(title: str | None, *questions: str) -> bool:
+    """A title that says nothing of its own: empty, generic ("Chart") or a copy of the question."""
     text = " ".join((title or "").casefold().split())
-    if not text:
+    if not text or text in _GENERIC_TITLES:
         return True
     if text.endswith("?"):
         return True
@@ -233,6 +237,8 @@ def build_workflow(deps: WorkflowDependencies):
                     chart_spec=None,
                 )
             answer = _settled_follow_ups(answer, deps, asked=original_question, metric=None, dimensions=None)
+            # No query ran: a data note saying so only adds noise under a greeting.
+            answer = answer.model_copy(update={"caveats": [], "data_reference": ""})
             if intent.attach_domain_catalog:
                 precomputed = guidance.get("domain_capability_lines")
                 if isinstance(precomputed, list) and precomputed:
@@ -1053,6 +1059,11 @@ def build_workflow(deps: WorkflowDependencies):
         if chart is not None and _title_is_the_question(chart.title, str(state.get("question") or ""), str(state.get("original_question") or "")):
             # A chart (or KPI) named after the question reads "bisa bantu keluarkan ...?: 16,34"; name it after the metric.
             label = _metric_labels(deps).get(str(resolution.get("metric") or ""))
+            if label and chart.type != "kpi" and chart.x:
+                from app.ask_data.column_labels import column_labels
+
+                by = column_labels([chart.x], semantic_context=deps.semantic_context, sql=str(state.get("validated_sql") or "")).get(chart.x)
+                label = f"{label} by {by}" if by else label
             if label:
                 chart = chart.model_copy(update={"title": label})
         if chart is not None:

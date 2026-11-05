@@ -15,7 +15,18 @@ from app.semantic.registry import OssieRegistry
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT_DIR = Path(os.environ.get("OSSIE_PROJECT_DIR") or ROOT / "projects" / "reference_impala")
 
-_MONTH_WORDS = ("month", "bulan", "bulanan", "monthly", "by month", "per bulan", "trend", "tren", "12 bulan")
+_MONTH_WORDS = ("month", "bulan", "bulanan", "monthly", "by month", "per bulan", "trend", "tren", "12 bulan", "pertumbuhan")
+
+
+def wants_by_month(question: str) -> bool:
+    """A breakdown by month ("per bulan", "monthly", "trend"), not one month named with the word ("bulan Juni",
+    "the month of June", "Juni bulan ini")."""
+    from app.ask_data.intent_satisfaction import _MONTH_RE
+
+    text = question.casefold()
+    text = re.sub(rf"\b(bulan|month of|month)\s+({_MONTH_RE})\b", r"\2", text, flags=re.I)
+    text = re.sub(r"\bbulan\s+(ini|lalu|kemarin|depan)\b", "", text)
+    return any(term in text for term in _MONTH_WORDS)
 
 
 def _table_key(name: str) -> str:
@@ -144,7 +155,7 @@ class SemanticContextService:
             question, allowed, dataset_name=dataset, registry=self.registry
         )
         dimensions = list(named)
-        if any(term in question.casefold() for term in _MONTH_WORDS):
+        if wants_by_month(question):
             time_key = pick_time_dimension(dataset, allowed, self.registry) if dataset else None
             if time_key:
                 # "per month" after a breakdown by carrier means by month: only what the question names stays.
@@ -184,21 +195,7 @@ class SemanticContextService:
             resolution.setdefault("definition", definition)
             allowed = set(definition.get("allowed_dimensions") or [])
             dimensions = list(resolution.get("dimensions") or [])
-            lowered = question.casefold()
-            if not dimensions and any(
-                term in lowered
-                for term in (
-                    "month",
-                    "bulan",
-                    "bulanan",
-                    "monthly",
-                    "by month",
-                    "per bulan",
-                    "trend",
-                    "pertumbuhan",
-                    "12 bulan",
-                )
-            ):
+            if not dimensions and wants_by_month(question):
                 from app.ask_data.intent_satisfaction import pick_time_dimension
 
                 time_key = pick_time_dimension(str(definition["base_dataset"]), allowed, self.registry)
@@ -251,10 +248,7 @@ class SemanticContextService:
         is_date_column = (field.get("dimension") or {}).get("is_time") or dimension_key == pick_time_dimension(
             dataset_name, {dimension_key}, self.registry
         )
-        if is_date_column and any(
-            term in question.casefold()
-            for term in ("month", "bulan", "bulanan", "monthly", "by month", "per bulan", "trend", "12 bulan")
-        ):
+        if is_date_column and wants_by_month(question):
             return f"DATE_TRUNC('month', CAST({base} AS TIMESTAMP))"
         return base
 
@@ -280,17 +274,13 @@ class SemanticContextService:
             dataset_name=dataset_name,
             registry=self.registry,
         )
-        lowered = question.casefold()
         if company_total_aggregate:
             dimensions: list[str] = []
         elif requested_dimensions is not None:
             dimensions = [d for d in requested_dimensions if d in allowed]
         else:
             dimensions = []
-            if any(
-                term in lowered
-                for term in ("month", "bulan", "bulanan", "monthly", "by month", "per bulan", "trend")
-            ):
+            if wants_by_month(question):
                 from app.ask_data.intent_satisfaction import pick_time_dimension
 
                 time_key = pick_time_dimension(dataset_name, allowed, self.registry)
@@ -328,9 +318,7 @@ class SemanticContextService:
             sql.append("GROUP BY " + ", ".join(dim_exprs))
         from app.ask_data.intent_satisfaction import requested_sort_direction
 
-        by_month = any(
-            term in lowered for term in ("month", "bulan", "bulanan", "monthly", "per bulan", "trend")
-        ) and any(expr.startswith("DATE_TRUNC('month'") for expr in dim_exprs)
+        by_month = wants_by_month(question) and any(expr.startswith("DATE_TRUNC('month'") for expr in dim_exprs)
         if by_month:
             sql.append("ORDER BY " + ", ".join(expr for expr in dim_exprs if expr.startswith("DATE_TRUNC('month'")) + " ASC")
         else:

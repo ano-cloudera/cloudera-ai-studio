@@ -84,6 +84,7 @@ def turn_memory(
     metric: str | None,
     dimensions: list[str] | None,
     scope: str | None,
+    period: str | None = None,
 ) -> dict[str, Any]:
     """What a turn leaves behind for the next one (stored as the history entry's session frame)."""
     if status not in ("SUCCESS", "NO_DATA") or strategy not in ("governed", "sql_fallback"):
@@ -94,6 +95,7 @@ def turn_memory(
         "metric": metric,
         "dimensions": list(dimensions or []),
         "scope": scope or None,
+        "period": period or None,
         # Older turns stored these names; the continuation still reads them.
         "last_metric": metric,
         "last_dimensions": list(dimensions or []),
@@ -106,7 +108,11 @@ def last_turn(history: list[dict[str, Any]]) -> dict[str, Any] | None:
         frame = entry.get("session_frame") if isinstance(entry.get("session_frame"), dict) else {}
         metric = frame.get("metric") or frame.get("last_metric")
         if isinstance(metric, str) and metric.strip():
-            return {"last_metric": metric.strip(), "last_dimensions": list(frame.get("dimensions") or frame.get("last_dimensions") or [])}
+            return {
+                "last_metric": metric.strip(),
+                "last_dimensions": list(frame.get("dimensions") or frame.get("last_dimensions") or []),
+                "last_period": frame.get("period"),
+            }
     return None
 
 
@@ -340,3 +346,45 @@ def narrow_metric_options(options: list[dict[str, str]], candidates: list[str], 
                 out.append(option)
                 break
     return out
+
+
+_MONTHS_EN = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+
+
+def _one_month(period: str | None) -> tuple[int, int] | None:
+    """(year, month) of a period like "2026-06-01 to 2026-06-30"; None for anything wider than one month."""
+    dates = re.findall(r"(\d{4})-(\d{2})-(\d{2})", period or "")
+    if not dates:
+        return None
+    months = {(int(y), int(m)) for y, m, _ in dates}
+    return next(iter(months)) if len(months) == 1 else None
+
+
+def comparison_follow_up(raw: str, previous: dict[str, Any] | None, metric_label: str | None) -> str | None:
+    """"bisa bandingkan dengan bulan Mei?" right after a June figure: the two months to compare are June (the last turn)
+    and May (this message). Written out as a full comparison when the message names one month, no metric, and the last
+    turn covered exactly one month."""
+    from app.ask_data.comparisons import _COMPARE, detect_period_comparison
+    from app.ask_data.intent_satisfaction import parse_requested_constraints
+
+    if not previous or not metric_label or not _COMPARE.search(raw or "") or detect_period_comparison(raw):
+        return None
+    before = _one_month(previous.get("last_period"))
+    if before is None:
+        return None
+    from app.ask_data.intent_satisfaction import _MONTH_WORDS, _YEARLESS_MONTH
+
+    explicit = parse_requested_constraints(raw).explicit_period
+    if explicit and getattr(explicit, "month", None):
+        now: tuple[int, int] | None = (explicit.year, explicit.month)
+    else:
+        months = {_MONTH_WORDS[m.group("m").casefold()] for m in _YEARLESS_MONTH.finditer(raw or "")}
+        now = None
+        if len(months) == 1:
+            month = next(iter(months))
+            # The year of the month just asked: "Juni 2026" then "Mei" is May 2026.
+            now = (before[0], month)
+    if now is None or now == before:
+        return None
+    first, second = (f"{_MONTHS_EN[m - 1]} {y}" for y, m in (before, now))
+    return f"Compare {metric_label} {first} vs {second}"

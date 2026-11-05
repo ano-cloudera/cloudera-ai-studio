@@ -57,6 +57,7 @@ from app.ask_data.conversation import (
     read_turn,
     turn_memory,
     narrow_metric_options,
+    comparison_follow_up,
 )
 from app.services.guardrails import out_of_scope_message, should_block_ask_data_scope
 from app.services.ossie_trace import NODE_LABELS, trace_detail
@@ -641,6 +642,7 @@ class ChatService:
             metric=str(metric) if isinstance(metric, str) else None,
             dimensions=[str(item) for item in dimensions] if isinstance(dimensions, list) else None,
             scope=scope,
+            period=getattr(response.calculation, "period", None) if response.calculation else None,
         )
 
 
@@ -1126,6 +1128,7 @@ class ChatService:
         previous = last_turn(history)
         reading = await self._read_turn(request, history, request_id=request_id)
         reading = self._guard_rewrite(request.question, reading, previous)
+        reading = self._comparison_follow_up(request.question, reading, previous)
         question = reading.standalone_question or request.question
         if not reading.is_conversational and should_block_ask_data_scope(
             question, raw_question=request.question, history=history
@@ -1177,7 +1180,11 @@ class ChatService:
         self._refresh_presentation_tier_config()
         if resolution is None:
             resolution = self._resolve_question(question, carry)
-            if resolution.get("status") == "needs_clarification" and resolution.get("reason") == "metric_ambiguous":
+            if (
+                not reading.is_conversational
+                and resolution.get("status") == "needs_clarification"
+                and resolution.get("reason") == "metric_ambiguous"
+            ):
                 from app.ask_data.structured_context_resolver import _clarification_from_resolution
 
                 payload = _clarification_from_resolution(resolution)
@@ -1203,6 +1210,28 @@ class ChatService:
         return _PreparedTurn(
             question=question, resolution=resolution, history=history, previous=carry, reading=reading
         )
+
+    def _comparison_follow_up(self, raw: str, reading: TurnReading, previous: dict[str, Any] | None) -> TurnReading:
+        """A comparison that names one month continues the last turn's month: written out in full when the rewrite did
+        not already make it a two-period comparison."""
+        if reading.is_conversational or not previous:
+            return reading
+        from app.ask_data.comparisons import detect_period_comparison
+        from app.ask_data.metric_labels import humanize_metric_label
+
+        if reading.uses_previous and detect_period_comparison(reading.standalone_question):
+            return reading
+        metric = str(previous.get("last_metric") or "")
+        ctx = self.dependencies.semantic_context
+        try:
+            label = humanize_metric_label(name=metric, definition=ctx.metric_definition(metric)) if metric in ctx.metrics else None
+        except Exception:
+            label = None
+        written = comparison_follow_up(raw, previous, label)
+        if not written:
+            return reading
+        logger.info("comparison_follow_up question=%r standalone=%r", raw[:200], written)
+        return TurnReading(kind="data", uses_previous=True, standalone_question=written, rationale="comparison_follow_up")
 
     def _guard_rewrite(self, raw: str, reading: TurnReading, previous: dict[str, Any] | None) -> TurnReading:
         """A follow-up that names no metric of its own continues the last turn's metric. A rewrite that switched to

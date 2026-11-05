@@ -213,3 +213,26 @@ async def test_a_follow_up_rewritten_in_other_words_keeps_the_last_metric(monkey
     r = await replay.ask("kalau per carrier?")
     sql = r.queries_run[-1]
     assert r.status == "SUCCESS" and "is_late" in sql and "d.region_name = 'Jawa Timur'" in sql and "GROUP BY d.carrier" in sql
+
+
+@pytest.mark.asyncio
+async def test_compare_with_one_month_compares_it_with_the_month_just_asked(monkeypatch) -> None:
+    from replay_support import ScriptedModel
+
+    replay = Replay(monkeypatch, model=ScriptedModel())  # the model does not rewrite anything
+    r = await replay.ask("kalau bulan juni berapa total orders?")
+    assert value(r) == 1074 and "GROUP BY" not in r.queries_run[-1]  # one month named, not a monthly breakdown
+    r = await replay.ask("bisa bandingkan dengan bulan mei ?")
+    assert r.status == "SUCCESS" and r.calculation is not None and r.calculation.kind == "comparison"
+    row = r.data.rows[0]
+    assert {float(row["previous_value"]), float(row["metric_value"])} == {969.0, 1074.0}
+
+
+@pytest.mark.asyncio
+async def test_small_talk_after_data_questions_is_a_conversation_not_a_metric_choice(monkeypatch) -> None:
+    from replay_support import ScriptedModel
+
+    replay = Replay(monkeypatch, model=ScriptedModel())
+    await replay.ask("Total orders in March 2026")
+    r = await replay.ask("kamu sebenernya bisa apa sih ?")
+    assert r.status == "SUCCESS" and r.strategy == "conversational" and not r.queries_run

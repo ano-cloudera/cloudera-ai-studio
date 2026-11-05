@@ -80,7 +80,7 @@ def test_history_persists_the_turn_memory(tmp_path) -> None:
         status="SUCCESS", strategy="governed", session_frame=frame,
     )
     history = store.load("s1")
-    assert last_turn(history) == {"last_metric": "late_delivery_rate", "last_dimensions": ["delivery_shipments_carrier"]}
+    assert last_turn(history) == {"last_metric": "late_delivery_rate", "last_dimensions": ["delivery_shipments_carrier"], "last_period": None}
     shown = previous_turns(history, labels={"late_delivery_rate": "Late delivery rate"})[0]
     assert shown["read_as"] == "Late rate per carrier in Jawa Timur in March 2026"
     assert shown["metric"] == "Late delivery rate"
