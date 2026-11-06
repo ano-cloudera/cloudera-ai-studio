@@ -247,7 +247,7 @@ def _time_dimension_keys(dataset_name: str, registry: Any) -> list[str]:
 
 
 _BREAKDOWN_PHRASE = re.compile(
-    r"\b(?:by|per|across|for\s+each|each|grouped\s+by|broken\s+down\s+by|breakdown\s+by|berdasarkan)\s+"
+    r"\b(?:by|per|across|for\s+each|each|grouped\s+by|broken\s+down\s+by|breakdown\s+by|berdasarkan|tiap|setiap|masing-masing|dipecah\s+per)\s+"
     r"(?P<phrase>.+?)(?=\s+(?:from|in|during|between|for|where|with|that|which|over|sampai|dari|selama|pada)\b|[?.;!]|$)",
     re.I,
 )
@@ -256,6 +256,9 @@ _WHICH_PHRASE = re.compile(
     r"(?:highest|lowest|most|least|top|bottom|largest|smallest|best|worst|fewest)\b",
     re.I,
 )
+# Indonesian "which": "wilayah mana yang paling sering telat?", "kurir apa yang paling lambat?".
+_WHICH_PHRASE_ID = re.compile(r"\b(?P<phrase>[a-z_]+(?:\s+[a-z_]+)?)\s+(?:mana|apa)\b(?=\s+(?:saja\s+|aja\s+)?yang\b|\s*\?|\s*$)", re.I)
+_WHICH_ID_STOP = frozenset({"di", "ke", "dari", "yang", "data", "metrik", "angka", "bisa", "itu", "ini", "sebelah", "bagian"})
 _ASCENDING_RANK = re.compile(
     r"\b(lowest|least|bottom|smallest|fewest|worst|terendah|terkecil|paling\s+sedikit)\b", re.I
 )
@@ -269,6 +272,15 @@ _DIMENSION_WORD_SYNONYMS: dict[str, frozenset[str]] = {
     "segment": frozenset({"segmen"}),
     "product": frozenset({"produk"}),
     "category": frozenset({"kategori"}),
+    "carrier": frozenset({"kurir", "ekspedisi"}),
+    "courier": frozenset({"kurir", "ekspedisi"}),
+    "city": frozenset({"kota"}),
+    "warehouse": frozenset({"gudang"}),
+    "customer": frozenset({"pelanggan", "customer"}),
+    "branch": frozenset({"cabang"}),
+    "store": frozenset({"toko"}),
+    "payment": frozenset({"pembayaran"}),
+    "method": frozenset({"metode"}),
 }
 
 
@@ -294,6 +306,11 @@ def infer_dimensions_from_question(
     """Breakdown dimensions named after "by", "per", "across" or "which <dimension> has the highest"."""
     phrases = [m.group("phrase") for m in _BREAKDOWN_PHRASE.finditer(question or "")]
     phrases += [m.group("phrase") for m in _WHICH_PHRASE.finditer(question or "")]
+    phrases += [
+        m.group("phrase")
+        for m in _WHICH_PHRASE_ID.finditer(question or "")
+        if m.group("phrase").split()[-1].casefold() not in _WHICH_ID_STOP
+    ]
     if not phrases:
         return []
     time_keys = set(_time_dimension_keys(dataset_name, registry))

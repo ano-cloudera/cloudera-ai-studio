@@ -111,3 +111,26 @@ async def test_a_question_the_agent_leaves_is_read_only_once(monkeypatch) -> Non
     r = await replay.ask("kalau per carrier?", agent=True)
     assert r.strategy == "governed" and "GROUP BY d.carrier" in r.queries_run[-1]
     assert model.calls.count("TurnReading") == 1 and "AgentPlan" not in model.calls
+
+
+@needs_data
+@pytest.mark.asyncio
+async def test_which_region_in_indonesian_is_a_ranking_with_the_overall_value(monkeypatch) -> None:
+    question = "Wilayah mana yang pengirimannya paling sering telat, dan seberapa jauh bedanya dengan yang lain?"
+    replay = Replay(monkeypatch, model=ScriptedModel(choices={question: "late_delivery_rate"}))
+    r = await replay.ask(question)
+    assert r.data.row_count == 8 and r.data.rows[0]["delivery_shipments_region_name"] == "Kalimantan Timur"
+    assert r.data.overall_value == pytest.approx(11.26, abs=0.01)
+    r = await replay.ask("Kurir mana yang late delivery rate-nya paling tinggi?")
+    assert r.data.rows[0]["delivery_shipments_carrier"] == "NusaCargo"
+    r = await replay.ask("Late delivery rate tiap kurir")
+    assert r.data.row_count == 3
+
+
+def test_the_data_range_is_only_told_when_the_question_is_about_time() -> None:
+    from app.ask_data.answer_context import asks_about_time
+
+    assert asks_about_time("Ringkasan temuan utama minggu ini")
+    assert asks_about_time("Total order Desember 2025")
+    assert not asks_about_time("Bagaimana performa pengiriman kita secara keseluruhan?")
+    assert not asks_about_time("Wilayah mana yang paling sering telat?")

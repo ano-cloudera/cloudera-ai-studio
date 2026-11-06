@@ -116,6 +116,22 @@ def period_outside_coverage(question: str, coverage: dict[str, str] | None, toda
     return None
 
 
+_RECENT = re.compile(
+    r"\b(today|this (?:week|month|year|quarter)|latest|recent(?:ly)?|last (?:week|month)|so far|hari ini|minggu ini|bulan ini|tahun ini|kuartal ini"
+    r"|terakhir|terbaru|terkini|sekarang|saat ini|minggu lalu|bulan lalu|kemarin)\b",
+    re.I,
+)
+
+
+def asks_about_time(question: str) -> bool:
+    """A question that names a period or "this week", "latest": only then is the data range worth telling."""
+    from app.ask_data.comparisons import find_periods
+    from app.ask_data.intent_satisfaction import parse_yearless_period
+
+    text = question or ""
+    return bool(_RECENT.search(text) or find_periods(text) or parse_yearless_period(text))
+
+
 def no_data_message(question: str, coverage: dict[str, str] | None, language: str) -> str | None:
     label = coverage_label(coverage, language)
     if not label:

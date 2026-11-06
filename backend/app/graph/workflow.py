@@ -1006,7 +1006,7 @@ def build_workflow(deps: WorkflowDependencies):
                 "meaning": "the same metric over the same filters and period, without the breakdown",
             }
         coverage_text = answer_context.coverage_label(state.get("data_coverage"), language)
-        if coverage_text:
+        if coverage_text and answer_context.asks_about_time(str(state.get("original_question") or state.get("question") or "")):
             user_payload["data_coverage"] = coverage_text
         outside = answer_context.outside_caveat(str(state.get("question") or ""), state.get("data_coverage"), language)
         if outside:

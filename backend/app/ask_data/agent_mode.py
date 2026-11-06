@@ -15,6 +15,8 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, AsyncIterator, Literal
 
+from pydantic import BaseModel, ConfigDict
+
 from app.ask_data.calculation_note import readable_name
 from app.core.language import detect_language
 from app.core.models import (
@@ -27,7 +29,6 @@ from app.core.models import (
     CitationRecord,
     LlmUsage,
     QueryData,
-    StrictModel,
     Timings,
 )
 
@@ -65,14 +66,19 @@ def _labels(language: str) -> dict[str, str]:
     return {"plan": "Planning the analysis", "step": "Step {i} of {n}: {what}", "report": "Writing the report"}
 
 
-class AgentStep(StrictModel):
+class _Lenient(BaseModel):
+    # A small model sometimes adds a field of its own; that must not throw away an otherwise good plan.
+    model_config = ConfigDict(extra="ignore")
+
+
+class AgentStep(_Lenient):
     kind: Literal["data", "knowledge"]
     question: str
     why: str = ""
     metric: str = ""  # the exact name of a catalog metric for a data step; it pins the step so no metric question comes up
 
 
-class AgentPlan(StrictModel):
+class AgentPlan(_Lenient):
     steps: list[AgentStep]
 
 
@@ -118,9 +124,16 @@ async def plan_steps(
         [{"role": "system", "content": _prompt("agent_planner.md")}, {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
         AgentPlan,
         temperature=0.1,
-        max_tokens=700,
+        max_tokens=1200,
     )
-    return _clean_steps(plan.steps, has_knowledge, metrics=_metric_names(catalog))[:MAX_STEPS]
+    steps = _clean_steps(plan.steps, has_knowledge, metrics=_metric_names(catalog))[:MAX_STEPS]
+    logger.info(
+        "agent_plan raw=%s kept=%s steps=%r",
+        len(plan.steps),
+        len(steps),
+        [(s.kind, s.metric or "-", s.question[:120]) for s in steps],
+    )
+    return steps
 
 
 def _clean_steps(
@@ -151,7 +164,7 @@ def _clean_steps(
     return steps
 
 
-class AgentRefinement(StrictModel):
+class AgentRefinement(_Lenient):
     steps: list[AgentStep]
 
 
@@ -382,6 +395,11 @@ class AskDataAgent:
             except Exception:  # noqa: BLE001 - one failing step must not stop the others
                 logger.exception("agent_step_failed step=%s", index)
                 responses.append(None)
+            last = responses[-1]
+            logger.info(
+                "agent_step step=%s status=%s strategy=%s rows=%s question=%r",
+                index, getattr(last, "status", None), getattr(last, "strategy", None), getattr(getattr(last, "data", None), "row_count", None), step.question[:120],
+            )
             first = responses[0]
             if index == 1 and len(steps) > 2 and first is not None and first.status == "SUCCESS" and step.kind == "data":
                 steps = [step, *await refine_steps(provider, question=question, catalog=catalog, has_knowledge=bool(library_ids), done=[_step_result(1, step, first)], remaining=steps[1:])]
