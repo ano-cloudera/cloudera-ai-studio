@@ -67,7 +67,9 @@ async def test_a_breakdown_comes_with_the_overall_value_and_the_data_range(monke
 async def test_a_period_before_the_data_starts_is_said_so_instead_of_reported_as_zero(monkeypatch) -> None:
     replay = Replay(monkeypatch)
     r = await replay.ask("Total orders in December 2025")
-    assert any("outside the available data" in c for c in r.answer.caveats), r.answer.caveats
+    # COUNT gives one row of 0 there; the answer says the period is outside the data instead of reporting 0 orders.
+    assert r.status == "NO_DATA" and r.data.row_count == 0
+    assert "outside the data" in r.answer.direct_answer and "August 2026" in r.answer.direct_answer
 
 
 @needs_data

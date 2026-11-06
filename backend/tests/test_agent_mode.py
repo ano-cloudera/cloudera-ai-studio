@@ -200,3 +200,20 @@ def test_an_overview_without_a_usable_plan_gets_the_headline_volume_trend_and_st
     # The planner's own step leads; the main rate of the same data follows.
     seeded = fallback_steps("How is delivery doing overall?", catalog, [AgentStep(kind="data", question="Average delivery days", metric="average_delivery_days")], "en")
     assert [s.metric for s in seeded][:2] == ["average_delivery_days", "late_delivery_rate"] and len(seeded) == 4
+
+
+def test_the_catalog_plan_follows_the_conversation_and_checks_both_metrics_a_question_names() -> None:
+    from app.ask_data.agent_mode import fallback_steps
+
+    ship = ["delivery_shipments_region_name", "delivery_shipments_ship_date"]
+    orders = ["fulfillment_orders_region_name", "fulfillment_orders_order_date"]
+    catalog = [
+        {"name": "total_orders", "description": "Total number of orders.", "allowed_dimensions": orders},
+        {"name": "cancellation_rate", "description": "Share of cancelled orders (%).", "allowed_dimensions": orders},
+        {"name": "late_delivery_rate", "description": "Share of shipments delivered late (%).", "allowed_dimensions": ship},
+    ]
+    # Nothing in the words names a metric: the one the conversation is about leads, not the first rate in the catalog.
+    plain = fallback_steps("Kalau saya mau perbaiki satu hal dulu, sebaiknya mulai dari mana?", catalog, [], "id", current_metric="late_delivery_rate")
+    assert plain[0].metric == "late_delivery_rate"
+    both = fallback_steps("Berapa pesanan yang dibatalkan dan apakah ada hubungannya dengan keterlambatan?", catalog, [], "id")
+    assert {"cancellation_rate", "late_delivery_rate"} <= {s.metric for s in both}

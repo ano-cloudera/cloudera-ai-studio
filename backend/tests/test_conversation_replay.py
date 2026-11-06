@@ -64,7 +64,7 @@ async def test_the_session_from_the_field_review(monkeypatch) -> None:
     assert all("d.region_name = 'Sumatera Utara'" in q for q in r.queries_run[-2:])
 
     r = await ask("Total orders in March 2020")
-    assert r.status == "SUCCESS" and value(r) == 0
+    assert r.status == "NO_DATA" and "outside the data" in r.answer.direct_answer  # not "0 orders"
 
 
 @pytest.mark.asyncio

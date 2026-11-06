@@ -1,0 +1,249 @@
+{
+  "name": "pov-fulfillment-id",
+  "description": "The 10-question Indonesian POV conversation, asked in one session in this order. Numbers come from samples/fulfillment/data (late rate overall 11.26 over 7698 shipments, cancellation 3.78 over 8000 orders).",
+  "language": "id",
+  "turns": [
+    {
+      "question": "Halo, saya baru di tim ini. Data apa saja yang bisa saya tanyakan ke kamu?",
+      "expect": {
+        "route": "chat",
+        "mentions": [
+          [
+            "keterlambatan",
+            "late delivery",
+            "telat"
+          ],
+          [
+            "pesanan",
+            "order"
+          ]
+        ],
+        "forbids": [
+          "tidak dapat",
+          "error"
+        ]
+      }
+    },
+    {
+      "question": "Gimana performa pengiriman kita secara keseluruhan?",
+      "expect": {
+        "route": "agent",
+        "min_steps": 3,
+        "numbers": [
+          11.26
+        ],
+        "mentions": [
+          [
+            "keterlambatan",
+            "late delivery",
+            "terlambat",
+            "telat"
+          ]
+        ],
+        "metric": [
+          "late_delivery_rate"
+        ]
+      }
+    },
+    {
+      "question": "Wilayah mana yang pengirimannya paling sering telat, dan seberapa jauh bedanya dengan yang lain?",
+      "expect": {
+        "route": "data",
+        "metric": [
+          "late_delivery_rate"
+        ],
+        "first_row": "Kalimantan Timur",
+        "min_rows": 8,
+        "overall_value": 11.26,
+        "numbers": [
+          23.15,
+          11.26
+        ],
+        "mentions": [
+          "Kalimantan Timur"
+        ],
+        "forbids": [
+          "tidak mencakup informasi per wilayah",
+          "Data hanya mencakup periode"
+        ]
+      }
+    },
+    {
+      "question": "Kenapa Kalimantan Timur bisa setinggi itu?",
+      "expect": {
+        "route": "agent",
+        "min_steps": 2,
+        "numbers": [
+          32.2
+        ],
+        "mentions": [
+          "Kalimantan Timur",
+          "NusaCargo",
+          [
+            "kemungkinan",
+            "bisa jadi",
+            "diduga",
+            "mengindikasikan",
+            "menunjukkan"
+          ]
+        ],
+        "metric": [
+          "late_delivery_rate"
+        ]
+      }
+    },
+    {
+      "question": "Dari ketiga kurir, siapa yang paling bermasalah di sana?",
+      "expect": {
+        "route": "data",
+        "metric": [
+          "late_delivery_rate"
+        ],
+        "first_row": "NusaCargo",
+        "min_rows": 3,
+        "numbers": [
+          32.2
+        ],
+        "mentions": [
+          "NusaCargo",
+          "Kalimantan Timur"
+        ]
+      }
+    },
+    {
+      "question": "Apakah masalah telat ini makin parah atau membaik dari bulan ke bulan?",
+      "expect": {
+        "route": "data",
+        "metric": [
+          "late_delivery_rate"
+        ],
+        "min_rows": 8,
+        "mentions": [
+          [
+            "naik",
+            "turun",
+            "fluktuatif",
+            "berfluktuasi",
+            "meningkat",
+            "menurun",
+            "stabil",
+            "membaik",
+            "memburuk"
+          ]
+        ]
+      }
+    },
+    {
+      "question": "Bandingkan Sumatera Utara sebelum dan sesudah Mei",
+      "expect": {
+        "route": "data",
+        "metric": [
+          "late_delivery_rate"
+        ],
+        "numbers_any": [
+          [
+            6.79,
+            15.42
+          ],
+          [
+            5.97,
+            15.59
+          ]
+        ],
+        "mentions": [
+          "Sumatera Utara",
+          [
+            "naik",
+            "meningkat",
+            "lebih tinggi",
+            "kenaikan"
+          ]
+        ]
+      }
+    },
+    {
+      "question": "Kalau saya mau perbaiki satu hal dulu, sebaiknya mulai dari mana?",
+      "expect": {
+        "route": "agent",
+        "min_steps": 2,
+        "mentions": [
+          [
+            "Kalimantan Timur",
+            "NusaCargo"
+          ]
+        ],
+        "needs_actions": true,
+        "metric": [
+          "late_delivery_rate"
+        ]
+      }
+    },
+    {
+      "question": "Berapa pesanan yang dibatalkan dan apakah ada hubungannya dengan keterlambatan?",
+      "expect": {
+        "route": "agent",
+        "min_steps": 2,
+        "numbers": [
+          3.78
+        ],
+        "mentions": [
+          [
+            "pembatalan",
+            "dibatalkan",
+            "cancel"
+          ],
+          [
+            "keterlambatan",
+            "terlambat",
+            "telat",
+            "late"
+          ]
+        ],
+        "metric": [
+          "cancellation_rate",
+          "late_delivery_rate"
+        ]
+      }
+    },
+    {
+      "question": "Buatkan ringkasan untuk atasan saya yang isinya temuan utama minggu ini",
+      "expect": {
+        "route": "agent",
+        "min_steps": 2,
+        "mentions": [
+          [
+            "Agustus 2026",
+            "September 2026",
+            "akhir data",
+            "data terakhir",
+            "data yang tersedia"
+          ]
+        ],
+        "needs_actions": true,
+        "metric": [
+          "late_delivery_rate",
+          "cancellation_rate"
+        ]
+      }
+    },
+    {
+      "question": "Total order Desember 2025",
+      "expect": {
+        "status": [
+          "NO_DATA"
+        ],
+        "mentions": [
+          [
+            "di luar data",
+            "tidak ada data",
+            "belum ada data",
+            "tidak tersedia"
+          ]
+        ],
+        "forbids_numbers": [
+          0
+        ]
+      }
+    }
+  ]
+}

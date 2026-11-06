@@ -942,7 +942,14 @@ def build_workflow(deps: WorkflowDependencies):
             update["overall_value"] = await answer_context.overall_value(
                 executor=deps.query_executor, state=state, sql=state["reference_sql"]
             )
-        if not rows:
+        # COUNT over a period the data does not hold returns one row of 0: that is no data, not a zero.
+        outside = answer_context.period_outside_coverage(str(state.get("question") or ""), update.get("data_coverage"))
+        only_zeros = bool(rows) and all(
+            value in (0, None) for row in rows for key, value in row.items() if str(key).startswith("metric_value")
+        )
+        if not rows or (outside and only_zeros):
+            if rows:
+                update["query_result"] = {**result, "rows": [], "row_count": 0}
             language = detect_language(state.get("original_question") or state["question"])
             message = answer_context.no_data_message(str(state.get("question") or ""), update.get("data_coverage"), language)
             update.update(

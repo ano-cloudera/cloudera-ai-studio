@@ -59,6 +59,7 @@ behavior, and do not count them as failures.
 | AG1 | Agent | Why is Kalimantan Timur late so often? | Progress shows steps; answer cites step numbers; NusaCargo **32.2%** stands out; **How this was calculated** lists 3 to 5 steps | |
 | AG2 | Agent | What should we do about carrier performance in Kalimantan Timur? (library with both PDFs exists) | Includes a document step; recommendation applies the **15%** review and **25%** hold thresholds and names the PDF and page | |
 | AG3 | Agent | Set `AGENT_MODE_ENABLED=false`, ask AG1 again | Normal single-query answer, no steps | |
+| J1 | Judge | In a Session: `python scripts/judge_answers.py --cases samples/fulfillment/judge_conversation.json --out judge.json` | The 11-question Indonesian POV conversation is asked in one session and every answer is checked against the sample data (route, metric, top row, numbers in the text, language, no repeated labels). `11 of 11 answers pass`; send `judge.json` back for any FAIL | |
 | Q1 | Answer quality | Semantic Layer > Answer quality > Paste several, paste `samples/fulfillment/benchmark_examples.txt`, Save | 8 examples listed | |
 | Q2 | Answer quality | Run benchmark | 8 of 8 pass; a run appears under Recent runs with the published version | |
 | Q3 | Answer quality | Add the instruction `Always show late delivery rate with 1 decimal`, Save, ask a late rate question | The answer follows the instruction | |

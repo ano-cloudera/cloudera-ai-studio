@@ -121,7 +121,7 @@ async def plan_steps(
     if data_coverage:
         payload["data_coverage"] = data_coverage
     plan = await provider.generate_structured(
-        [{"role": "system", "content": _prompt("agent_planner.md")}, {"role": "user", "content": json.dumps(payload, ensure_ascii=False)}],
+        [{"role": "system", "content": _prompt("agent_planner.md")}, {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)}],
         AgentPlan,
         temperature=0.1,
         max_tokens=1200,
@@ -140,7 +140,7 @@ _RATE = re.compile(r"\b(rate|ratio|share|percent\w*|persen\w*|tingkat)\b|%", re.
 _VOLUME = re.compile(r"\b(total|number of|count|jumlah|banyaknya)\b", re.I)
 _NOT_A_GROUP = re.compile(r"(_id$|date|time|_at$|days?$|hours?$|value|amount|items|qty|quantity|_is_|^is_|_flag)", re.I)
 _QUESTION_WORDS = {
-    "pengiriman": "delivery shipment shipments", "kirim": "delivery shipment", "telat": "late", "terlambat": "late",
+    "pengiriman": "delivery shipment shipments", "kirim": "delivery shipment", "telat": "late", "terlambat": "late", "keterlambatan": "late",
     "pesanan": "order orders", "order": "order orders", "batal": "cancel cancelled cancellation", "dibatalkan": "cancel cancelled cancellation",
     "penjualan": "sales order value", "pendapatan": "revenue value", "kurir": "carrier", "gudang": "warehouse",
 }
@@ -162,23 +162,33 @@ def _is_volume(item: dict[str, Any]) -> bool:
     return not _is_rate(item) and bool(_VOLUME.search(f"{readable_name(str(item.get('name') or ''))} {item.get('description') or ''}"))
 
 
-def fallback_steps(question: str, catalog: list[dict[str, Any]], seed: list[AgentStep], language: str) -> list[AgentStep]:
+def fallback_steps(
+    question: str, catalog: list[dict[str, Any]], seed: list[AgentStep], language: str, *, current_metric: str | None = None
+) -> list[AgentStep]:
     """The plan an analyst would start from when the planner gave fewer than two steps: the headline figure, the volume
-    behind it, its trend by month and the group that stands out. Built only from catalog metrics and their breakdowns."""
+    behind it (or the second metric the question names), its trend by month and the group that stands out. Built only
+    from catalog metrics and their breakdowns. The metric is the planner's, else the one the question names, else the
+    one the conversation is about (`current_metric`), else the first rate."""
     metrics = [item for item in catalog if item.get("name")]
     if not metrics:
         return list(seed)
     by_name = {str(item["name"]): item for item in metrics}
+    asked = _words(question)
+    asked |= {w for word in list(asked) for w in _QUESTION_WORDS.get(word, "").split()}
+    scored = sorted(
+        ((len(asked & _words(f"{readable_name(str(m['name']))} {m.get('description') or ''}")), _is_rate(m), -i, m) for i, m in enumerate(metrics)),
+        key=lambda t: t[:3],
+        reverse=True,
+    )
+    named = [t[3] for t in scored if t[0] > 0]
     main = next((by_name[s.metric] for s in seed if s.kind == "data" and s.metric in by_name), None)
     if main is None:
-        asked = _words(question)
-        asked |= {w for word in list(asked) for w in _QUESTION_WORDS.get(word, "").split()}
-        scored = [(len(asked & _words(f"{readable_name(str(m['name']))} {m.get('description') or ''}")), _is_rate(m), -i, m) for i, m in enumerate(metrics)]
-        best = max(scored, key=lambda t: t[:3])
-        main = best[3] if best[0] else next((m for m in metrics if _is_rate(m)), metrics[0])
+        main = (named[0] if named else None) or by_name.get(current_metric or "") or next((m for m in metrics if _is_rate(m)), metrics[0])
     same = [m for m in metrics if _dataset_key(m) == _dataset_key(main)]
     rate = main if _is_rate(main) else next((m for m in same if _is_rate(m)), main)
-    volume = next((m for m in same if _is_volume(m) and m is not main), None)
+    # A second rate the question names on other data ("dibatalkan ... keterlambatan") is checked next to the first.
+    other = next((m for m in named if m is not main and m is not rate and _is_rate(m) and _dataset_key(m) != _dataset_key(main)), None)
+    volume = other or next((m for m in same if _is_volume(m) and m is not main), None)
     dims = [str(d) for d in rate.get("allowed_dimensions") or []]
     has_time = any(re.search(r"date|month|period|time", d, re.I) for d in dims)
     groups = [d for d in dims if not _NOT_A_GROUP.search(d)]
@@ -201,7 +211,8 @@ def fallback_steps(question: str, catalog: list[dict[str, Any]], seed: list[Agen
     if rate is not main:
         steps.append(AgentStep(kind="data", question=label(rate), why="Rasio utama" if ind else "The main rate", metric=str(rate["name"])))
     if volume is not None:
-        steps.append(AgentStep(kind="data", question=label(volume), why="Volume di baliknya" if ind else "The volume behind it", metric=str(volume["name"])))
+        why = ("Metrik kedua yang ditanyakan" if ind else "The other metric asked about") if volume is other else ("Volume di baliknya" if ind else "The volume behind it")
+        steps.append(AgentStep(kind="data", question=label(volume), why=why, metric=str(volume["name"])))
     if has_time:
         steps.append(AgentStep(kind="data", question=f"{label(rate)} per {'bulan' if ind else 'month'}", why="Tren per bulan" if ind else "The trend by month", metric=str(rate["name"])))
     if groups:
@@ -445,7 +456,9 @@ class AskDataAgent:
                 return
             steps = []
         if len(steps) < 2:
-            steps = fallback_steps(question, catalog, steps, language)
+            from app.ask_data.conversation import last_metric
+
+            steps = fallback_steps(question, catalog, steps, language, current_metric=last_metric(history) if history else None)
             logger.warning("agent_plan_fallback steps=%r", [(s.metric, s.question) for s in steps])
         if len(steps) < 2:
             logger.warning("agent_fallback reason=plan_has_%s_step", len(steps))
