@@ -391,6 +391,8 @@ def build_workflow(deps: WorkflowDependencies):
         partial_caveats: list[str] = []
         attention_notes: list[str] = []
         drill_state: dict[str, Any] | None = None
+        reference_sql = ""
+        coverage_source: dict[str, str] = {}
         if resolution.get("status") == "raw_table":
             raw = resolution.get("raw_table") if isinstance(resolution.get("raw_table"), dict) else {}
             qualified = str(raw.get("qualified_name") or "")
@@ -666,6 +668,17 @@ def build_workflow(deps: WorkflowDependencies):
                 metrics=[q["metric"] for q in drill_state["queries"]] if drill_state else [metric],
                 sql=drill_state["queries"][0]["sql"] if drill_state else governed_sql,
             )
+            if from_source:
+                coverage_source = {"dataset": dataset_name, "source": from_source}
+            if not drill_state and dimensions and from_source and definition.get("governance_status") != "reference":
+                # The same metric, filters and period without the breakdown: the overall value the groups are read against.
+                try:
+                    reference_sql = deps.semantic_context.compile_governed(
+                        metric, state["question"], [], extra_predicates=extra_predicates, from_source=from_source
+                    )
+                except Exception:  # noqa: BLE001 - context only
+                    logger.warning("overall_value_compile_failed metric=%s", metric)
+                    reference_sql = ""
             if getattr(deps.semantic_context, "_registry_runtime", False):
                 from app.ask_data.intent_satisfaction import validate_governed_sql_covers_intent
 
@@ -761,6 +774,8 @@ def build_workflow(deps: WorkflowDependencies):
             "governed_partial_caveats": partial_caveats,
                 "attention_notes": attention_notes,
             "drill_across": drill_state or {},
+            "reference_sql": reference_sql,
+            "coverage_source": coverage_source,
             "semantic_context": deps.semantic_context.planner_context(plan.domains),
             "inquiry_brief": inquiry_brief,
             "judge_iteration": state.get("judge_iteration", 0),
@@ -826,6 +841,10 @@ def build_workflow(deps: WorkflowDependencies):
                 checked.append({**extra, "sql": check.sql or extra["sql"]})
             else:
                 state = {**state, "drill_across": {**drill, "queries": [drill["queries"][0], *checked]}}
+        if result.valid and state.get("reference_sql"):
+            resolution_now = state.get("semantic_resolution") if isinstance(state.get("semantic_resolution"), dict) else {}
+            check = deps.sql_validator(state["reference_sql"], {**state, "semantic_resolution": {**resolution_now, "dimensions": []}})
+            state = {**state, "reference_sql": (check.sql or state["reference_sql"]) if check.valid else ""}
         update: AskDataState = {
             **state,
             "retry_count": retry_count,
@@ -908,13 +927,33 @@ def build_workflow(deps: WorkflowDependencies):
             "timings": _with_timing(state, "query_ms", _elapsed(started)),
         }
         rows = result.get("rows") or []
+        from app.ask_data import answer_context
+
+        coverage_source = state.get("coverage_source") or {}
+        if coverage_source.get("source") and getattr(deps.semantic_context, "registry", None) is not None:
+            update["data_coverage"] = await answer_context.data_coverage(
+                executor=deps.query_executor,
+                state=state,
+                dataset=coverage_source.get("dataset", ""),
+                source=coverage_source["source"],
+                registry=deps.semantic_context.registry,
+            )
+        if len(rows) > 1 and state.get("reference_sql"):
+            update["overall_value"] = await answer_context.overall_value(
+                executor=deps.query_executor, state=state, sql=state["reference_sql"]
+            )
         if not rows:
+            language = detect_language(state.get("original_question") or state["question"])
+            message = answer_context.no_data_message(str(state.get("question") or ""), update.get("data_coverage"), language)
             update.update(
                 status="NO_DATA",
                 answer=_safe_answer(
-                    "Tidak ada data yang cocok untuk pertanyaan dan filter tersebut."
-                    if detect_language(state.get("original_question") or state["question"]) == "id"
-                    else "No data matches this question and these filters."
+                    message
+                    or (
+                        "Tidak ada data yang cocok untuk pertanyaan dan filter tersebut."
+                        if language == "id"
+                        else "No data matches this question and these filters."
+                    )
                 ),
                 chart_spec=None,
             )
@@ -958,6 +997,23 @@ def build_workflow(deps: WorkflowDependencies):
             "governed_partial_caveats": state.get("governed_partial_caveats") or [],
             "metric_labels": _metric_labels(deps),
         }
+        from app.ask_data import answer_context
+
+        language = detect_language(str(state.get("original_question") or state.get("question") or ""))
+        if state.get("overall_value") is not None:
+            user_payload["overall_value"] = {
+                "value": state["overall_value"],
+                "meaning": "the same metric over the same filters and period, without the breakdown",
+            }
+        coverage_text = answer_context.coverage_label(state.get("data_coverage"), language)
+        if coverage_text:
+            user_payload["data_coverage"] = coverage_text
+        outside = answer_context.outside_caveat(str(state.get("question") or ""), state.get("data_coverage"), language)
+        if outside:
+            known = list(state.get("governed_partial_caveats") or [])
+            if outside not in known:
+                state = {**state, "governed_partial_caveats": [*known, outside]}
+                user_payload["governed_partial_caveats"] = state["governed_partial_caveats"]
         if (state.get("drill_across") or {}).get("columns"):
             user_payload["result_columns_are_metrics"] = state["drill_across"]["columns"]
         if (state.get("drill_across") or {}).get("kind"):

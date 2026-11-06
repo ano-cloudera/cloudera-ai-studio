@@ -74,9 +74,10 @@ class DuckExecutor:
         self.con.execute(f"CREATE TABLE fulfillment_orders AS SELECT * FROM read_csv_auto('{DATA / 'orders.csv'}')")
         self.con.execute(f"CREATE TABLE delivery_shipments AS SELECT * FROM read_csv_auto('{DATA / 'shipments.csv'}')")
         self.queries: list[str] = []
+        self.context_queries: list[str] = []  # the data coverage and the overall value, run next to an answer
 
     def execute(self, sql: str, state: Any) -> dict[str, Any]:
-        self.queries.append(" ".join(sql.split()))
+        (self.context_queries if (state or {}).get("context_query") else self.queries).append(" ".join(sql.split()))
         cursor = self.con.execute(sql.replace('"hive"."default".', ""))
         columns = [d[0] for d in cursor.description]
         rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -118,12 +119,18 @@ class ScriptedModel(WorstCaseModel):
         rewrites: dict[str, str] | None = None,
         choices: dict[str, str] | None = None,
         candidates: dict[str, list[str]] | None = None,
+        analysis: set[str] | None = None,
+        plans: dict[str, list[dict[str, str]]] | None = None,
     ) -> None:
         super().__init__()
         self.rewrites = rewrites or {}
         self.choices = choices or {}
         self.candidates = candidates or {}
+        self.analysis = analysis or set()  # questions the reading calls "analysis" (one for the agent)
+        self.plans = plans or {}  # the agent's steps, keyed by the question as it reaches the planner
         self.payloads: list[dict[str, Any]] = []
+        self.plan_payloads: list[dict[str, Any]] = []
+        self.report_payloads: list[dict[str, Any]] = []
 
     async def generate_structured(self, messages: list[dict[str, str]], model: Any, **kwargs: Any) -> Any:
         payload: dict[str, Any] = {}
@@ -137,9 +144,23 @@ class ScriptedModel(WorstCaseModel):
         if model.__name__ == "TurnReading":
             self.calls.append(model.__name__)
             self.payloads.append(payload)
+            kind = "analysis" if question in self.analysis else "data"
             if question in self.rewrites:
-                return model(kind="data", uses_previous=True, standalone_question=self.rewrites[question], rationale="script")
-            return model(kind="data", uses_previous=False, standalone_question=question)
+                return model(kind=kind, uses_previous=True, standalone_question=self.rewrites[question], rationale="script")
+            return model(kind=kind, uses_previous=False, standalone_question=question)
+        if model.__name__ == "AgentPlan":
+            self.calls.append(model.__name__)
+            self.plan_payloads.append(payload)
+            return model.model_validate({"steps": self.plans.get(question, [])})
+        if model.__name__ == "AgentRefinement":
+            raise RuntimeError("the plan stands")
+        if model.__name__ == "AnalysisOutput" and "steps" in payload:
+            self.calls.append("AgentReport")
+            self.report_payloads.append(payload)
+            return model.model_validate(
+                {"direct_answer": "report", "executive_summary": "", "insights": [], "business_implications": [], "caveats": [], "data_reference": "x",
+                 "follow_up_questions": ["Late delivery rate per bulan di Kalimantan Timur", "Something nobody can answer"]}
+            )
         if model.__name__ == "MetricChoice":
             self.calls.append(model.__name__)
             picked = self.choices.get(question, "")
@@ -222,7 +243,15 @@ class Replay:
         self.service.apply_runtime_bundle(bundle)
         self.session_id = f"replay-{uuid.uuid4().hex[:6]}"
 
-    async def ask(self, question: str) -> Any:
+    async def ask(self, question: str, *, agent: bool = False) -> Any:
+        """`agent=True` sends the question the way the chat API does: to the agent first, then the normal pipeline."""
         before = len(self.executor.queries)
-        response = await self.service.run(AskDataRequest(session_id=self.session_id, question=question, provider="qwen", model="/models/Qwen3.8-27B-AWQ"))
+        request = AskDataRequest(session_id=self.session_id, question=question, provider="qwen", model="/models/Qwen3.8-27B-AWQ")
+        response = None
+        if agent:
+            from app.ask_data.agent_mode import AskDataAgent
+
+            response = await AskDataAgent(self.service).run(request)
+        if response is None:
+            response = await self.service.run(request)
         return Turn(response, self.executor.queries[before:])

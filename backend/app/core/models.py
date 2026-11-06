@@ -161,6 +161,10 @@ class QueryData(StrictModel):
     truncated: bool = False
     # Business names for the result columns ("delivery_shipments_region_name" -> "Region").
     column_labels: dict[str, str] = {}
+    # The same metric over the same filters and period without the breakdown, when the answer is a breakdown.
+    overall_value: float | None = None
+    # The first and last date the dataset holds ({"first": "2026-01-01", "last": "2026-08-31"}).
+    data_coverage: dict[str, str] | None = None
 
 
 class Timings(StrictModel):

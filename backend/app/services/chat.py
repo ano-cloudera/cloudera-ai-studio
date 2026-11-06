@@ -133,6 +133,8 @@ class ChatService:
         self._project_scope: tuple[str, str] | None = None
         self._active_resolution: ModelResolutionMeta | None = None
         self._active_presentation_config = PresentationTierConfig.from_settings(settings)
+        # A turn the agent already read, kept for the normal pipeline when the agent does not answer it.
+        self._readings: dict[tuple[str, str], TurnReading] = {}
         self.apply_runtime_bundle(SemanticRuntimeLoader.get(settings).get_bundle())
 
     def _presentation_tier_config(self) -> PresentationTierConfig:
@@ -676,9 +678,51 @@ class ChatService:
     def finalize_response(self, response: AskDataResponse) -> AskDataResponse:
         return self._finalize_response(response)
 
-    def record_turn(self, request: AskDataRequest, response: AskDataResponse) -> None:
-        """Keep an agent answer in the session history so follow-up questions can refer to it."""
-        self._persist_turn(request, response, response.chart_spec)
+    def record_turn(self, request: AskDataRequest, response: AskDataResponse, *, frame: dict[str, Any] | None = None) -> None:
+        """Keep an agent answer in the session history so follow-up questions can refer to it. `frame` is what the turn
+        leaves behind (the metric and breakdown of the step whose table is shown), so "and per carrier?" still works."""
+        self._persist_turn(request, response, response.chart_spec, session_frame_override=frame or None)
+
+    def step_frame(self, session_id: str) -> dict[str, Any] | None:
+        """The turn memory an agent step left in its own session, which is then removed."""
+        try:
+            entries = self.history.load(session_id, limit=1)
+        except Exception:
+            return None
+        frame = entries[-1].get("session_frame") if entries and isinstance(entries[-1], dict) else None
+        try:
+            self.history.delete_session(session_id)
+        except Exception:
+            pass
+        return dict(frame) if isinstance(frame, dict) else None
+
+    async def read_conversation(self, request: AskDataRequest) -> tuple[TurnReading, list[dict[str, Any]]]:
+        """The question read in the light of the conversation, for the agent. The reading is kept so the normal
+        pipeline reuses it when the agent does not answer."""
+        self._sync_runtime_for_request()
+        history = self.history.load(request.session_id, limit=8)
+        reading = await read_turn(
+            provider=self.dependencies.provider_registry.resolve(request.provider, request.model),
+            question=request.question,
+            history=history,
+            semantic_context=self.dependencies.semantic_context,
+        )
+        reading = self._guard_rewrite(request.question, reading, last_turn(history))
+        if len(self._readings) > 256:
+            self._readings.clear()
+        self._readings[(request.session_id, request.question.strip())] = reading
+        return reading, history
+
+    def discard_reading(self, request: AskDataRequest) -> None:
+        self._readings.pop((request.session_id, request.question.strip()), None)
+
+    def settle_follow_ups(
+        self, analysis: AnalysisOutput, *, asked: str, metric: str | None, dimensions: list[str] | None
+    ) -> AnalysisOutput:
+        """Only suggestions that can be answered when clicked, filled from the model itself (as for a normal answer)."""
+        from app.graph.workflow import _settled_follow_ups
+
+        return _settled_follow_ups(analysis, self.dependencies, asked=asked, metric=metric, dimensions=dimensions)
 
     def _persist_turn(
         self,
@@ -830,6 +874,9 @@ class ChatService:
         *,
         request_id: str,
     ) -> TurnReading:
+        kept = self._readings.pop((request.session_id, request.question.strip()), None)
+        if kept is not None:
+            return kept
         return await read_turn(
             provider=self._resolve_provider(request, request_id),
             question=request.question,
@@ -965,6 +1012,10 @@ class ChatService:
             )
         except Exception:
             logger.exception("column_labels_failed request_id=%s", request_id)
+        if isinstance(state.get("overall_value"), (int, float)):
+            raw_data["overall_value"] = float(state["overall_value"])
+        if isinstance(state.get("data_coverage"), dict):
+            raw_data["data_coverage"] = dict(state["data_coverage"])
         query_result = state.get("query_result") if isinstance(state.get("query_result"), dict) else {}
         for key in ("connector_type", "connector_name"):
             if query_result.get(key):

@@ -7,7 +7,7 @@ You receive JSON with:
 - `metrics`: the metrics the assistant can compute, with their labels, synonyms and the breakdowns each supports.
 
 Return JSON with:
-- `kind`: `"chat"` for a greeting, a thank-you, or a question about what the assistant can do. `"data"` for everything else.
+- `kind`: `"chat"` for a greeting, a thank-you, or a question about what the assistant can do. `"analysis"` for a question that one figure or one table cannot answer and that needs several checks: why something happens ("kenapa bisa setinggi itu?"), what to do or where to start ("sebaiknya mulai dari mana?", "what should we fix first?"), an overview or a summary of performance ("gimana performa kita secara keseluruhan?", "buatkan ringkasan untuk atasan"), or how two things relate ("apakah ada hubungannya dengan keterlambatan?"). `"data"` for everything else, including a ranking, a breakdown, a trend or a comparison of two periods.
 - `uses_previous`: `true` only when the new message cannot be answered on its own: it uses a pointer to an earlier answer ("that region", "the highest one", "those two", "it", "tadi", "tersebut", "yang itu"), or it leaves out the metric, the filters or the period and clearly continues the previous question ("and per carrier?", "what about June?", "kalau per bulan?", "bandingkan dengan Mei", "why?", "kenapa?").
 - `standalone_question`: the new message rewritten so that someone who never saw the conversation can answer it. When `uses_previous` is `false`, copy the new message exactly.
 - `rationale`: a few words on what you carried over.
@@ -20,7 +20,7 @@ How to rewrite:
 5. Resolve pointers with the actual values from `first_rows` or `answer`: "the highest one" → the name in the first row of a ranking sorted from high to low; "the lowest one" → the last row shown; "those two" → the two names that were discussed. Write the value exactly as it appears in the rows.
 6. Name the metric with its label or one of its synonyms from `metrics`. Never invent a metric, a filter value, or a period that is not in the new message or the previous turns.
 7. A new message that names its own metric and does not point back ("Total orders in March 2026", "late rate per region") stands on its own: `uses_previous` is `false`, even if it is about the same topic as before.
-8. "Why?" or "kenapa?" about a result becomes a question that breaks the same metric down by the most useful dimension with the same filters and period, for example "Why is the late rate high in Kalimantan Timur in June 2026?" → "Late rate in Kalimantan Timur in June 2026 per carrier".
+8. An `"analysis"` question is still rewritten so it stands on its own: name the metric, the group and the period it is about ("kenapa bisa setinggi itu?" after the late rate of Kalimantan Timur → "Kenapa Late Delivery Rate di Kalimantan Timur tinggi?"). For a `"data"` question, "Why?" or "kenapa?" about a result becomes a question that breaks the same metric down by the most useful dimension with the same filters and period, for example "Why is the late rate high in Kalimantan Timur in June 2026?" → "Late rate in Kalimantan Timur in June 2026 per carrier".
 
 Examples (previous question → new message → standalone question):
 - "Late rate per region in March 2026" → "and per carrier?" → "Late rate per carrier in March 2026"

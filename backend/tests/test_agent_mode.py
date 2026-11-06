@@ -77,7 +77,7 @@ class Chat:
     def finalize_response(self, response):
         return response
 
-    def record_turn(self, request, response):
+    def record_turn(self, request, response, **_):
         self.recorded.append(response)
 
 

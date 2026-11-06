@@ -109,7 +109,7 @@ Fields in `backend/app/core/models.py`:
 - `request_id`, `session_id`, `status` (`SUCCESS|CLARIFICATION|NO_DATA|UNSUPPORTED|ERROR`)
 - `strategy` (`governed|sql_fallback|clarification|unsupported|conversational|...`)
 - `answer`: `AnalysisOutput` (direct_answer, executive_summary, insights, business_implications, caveats, data_reference, chart_spec)
-- `data`: columns, rows, row_count, execution_ms, governed_metric, unit_format; optional safe datasource fields `connector_type`, `connector_name` (C5)
+- `data`: columns, rows, row_count, execution_ms, governed_metric, unit_format, column_labels; optional safe datasource fields `connector_type`, `connector_name` (C5); `overall_value` (the same metric over the same filters and period without the breakdown, for a breakdown answer) and `data_coverage` (`{first, last}` dates the dataset holds)
 - `chart_spec`, `timings`, `retry_count`, `usage`, `governed_sql`
 
 ## SSE contract (current)

@@ -48,3 +48,7 @@ class AskDataState(TypedDict, total=False):
     datasource_error: dict[str, Any]
     raw_table_policy: dict[str, Any]
     context_mode: str
+    reference_sql: str
+    overall_value: float | None
+    coverage_source: dict[str, str]
+    data_coverage: dict[str, str] | None

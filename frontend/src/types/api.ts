@@ -546,6 +546,8 @@ export type ChatResponse = {
     unit_format?: string | null
     /** Business names for the result columns ("delivery_shipments_region_name" -> "Region"). */
     column_labels?: Record<string, string> | null
+    overall_value?: number | null
+    data_coverage?: { first: string; last: string } | null
   }
   chart_spec: ChartSpec | null
   timings: {

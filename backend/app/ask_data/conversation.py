@@ -30,9 +30,12 @@ _ROWS = 5
 
 
 class TurnReading(BaseModel):
-    kind: Literal["data", "chat"] = Field(
+    kind: Literal["data", "chat", "analysis"] = Field(
         default="data",
-        description="chat = greeting, thanks or a question about what the assistant can do; data = anything to answer from data.",
+        description=(
+            "chat = greeting, thanks or a question about what the assistant can do; analysis = a question one figure or "
+            "one table cannot answer (why, what to do, an overview or summary, how two things relate); data = anything else."
+        ),
     )
     uses_previous: bool = Field(
         default=False, description="True when the question leans on an earlier turn (a pronoun, an omitted metric, 'and per…')."
@@ -243,13 +246,14 @@ def _settle(question: str, reading: TurnReading) -> TurnReading:
     rewritten = " ".join((reading.standalone_question or "").split())
     if reading.kind == "chat":
         return TurnReading(kind="chat", uses_previous=False, standalone_question=question, rationale=reading.rationale or "chat")
+    kind: Literal["data", "analysis"] = "analysis" if reading.kind == "analysis" else "data"
     if not reading.uses_previous or not rewritten:
         # A question that stands on its own is answered exactly as the user wrote it.
-        return TurnReading(kind="data", uses_previous=False, standalone_question=question, rationale=reading.rationale or "standalone")
+        return TurnReading(kind=kind, uses_previous=False, standalone_question=question, rationale=reading.rationale or "standalone")
     if len(rewritten) > max(400, len(question) * 8):
-        return TurnReading(kind="data", uses_previous=False, standalone_question=question, rationale="rewrite_too_long")
-    logger.info("conversation_rewrite question=%r standalone=%r", question[:200], rewritten[:300])
-    return TurnReading(kind="data", uses_previous=True, standalone_question=rewritten, rationale=reading.rationale)
+        return TurnReading(kind=kind, uses_previous=False, standalone_question=question, rationale="rewrite_too_long")
+    logger.info("conversation_rewrite question=%r standalone=%r kind=%s", question[:200], rewritten[:300], kind)
+    return TurnReading(kind=kind, uses_previous=True, standalone_question=rewritten, rationale=reading.rationale)
 
 
 def reading_from_state(state: dict[str, Any]) -> TurnReading | None:
