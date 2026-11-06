@@ -157,6 +157,36 @@ describe('V2 Ask Data page', () => {
     await waitFor(() => expect(screen.getByText('Berapa gross sales Q4?')).toBeTruthy())
   })
 
+  it('keeps the story of a big answer in the chat: the answer, the summary, three findings and follow-ups', async () => {
+    vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
+    const rows = Array.from({ length: 14 }, (_, i) => ({ region: `Wilayah ${i + 1}`, metric_value: 20 - i }))
+    vi.mocked(api.chatStream).mockImplementation((async function* () {
+      yield { type: 'done', response: {
+        request_id: 'r3', session_id: 's3', status: 'SUCCESS', provider: 'qwen', model: 'qwen-model', strategy: 'agent',
+        answer: {
+          direct_answer: 'Kalimantan Timur paling sering terlambat, sekitar dua kali angka keseluruhan.',
+          executive_summary: 'Selisihnya terpusat pada satu kurir dan bukan merata di semua wilayah.',
+          insights: ['Temuan satu', 'Temuan dua', 'Temuan tiga', 'Temuan empat', 'Temuan lima'],
+          business_implications: ['Tinjau kurir tersebut'], caveats: [], data_reference: 'delivery_shipments',
+          follow_up_questions: ['Late rate per bulan di Kalimantan Timur'], chart_spec: null,
+        },
+        data: { columns: ['region', 'metric_value'], rows, row_count: 14, execution_ms: 1 }, chart_spec: null,
+        timings: { context_ms: 1, planning_ms: 1, validation_ms: 1, query_ms: 1, analysis_ms: 1, total_ms: 6 }, retry_count: 0,
+      } }
+    }) as never)
+    renderWithProviders(<AskDataPage />)
+
+    await submitViaComposer('Kenapa Kalimantan Timur bisa setinggi itu?')
+
+    expect((await screen.findAllByText(/paling sering terlambat/)).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/terpusat pada satu kurir/).length).toBeGreaterThan(0)
+    const insights = await screen.findByTestId('chat-top-insights')
+    expect(insights.textContent).toContain('Temuan tiga')
+    expect(insights.textContent).not.toContain('Temuan empat')
+    expect(insights.textContent).toContain('+2 more in the analysis')
+    expect(screen.getByTestId('follow-up-questions').textContent).toContain('Late rate per bulan')
+  })
+
   it('collapses the primary sidebar from the sidebar toggle', async () => {
     vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
     renderWithProviders(

@@ -92,6 +92,8 @@ import type { ChatResponse, LibraryRecord, SuggestedQuestion } from '../types/ap
 import { useHydrated } from '../lib/useHydrated'
 
 const STARTER_QUESTION_COUNT = 3
+/** Findings shown in the chat bubble of a big answer; the rest are in the analysis panel. */
+const CHAT_TOP_INSIGHTS = 3
 
 export function AskDataPage() {
   const searchParams = useSearchParams()
@@ -986,15 +988,37 @@ function StructuredAnswer({
   )
 
   if (chatDocumentSplit) {
-    const teaser = response.answer.direct_answer.trim()
-    const teaserText = teaser.length > 320 ? `${teaser.slice(0, 317)}…` : teaser
+    // A big answer keeps its story in the chat (the answer, what it means, the top findings); the full analysis,
+    // the table and the chart stay in the panel behind the card.
+    const answerText = response.answer.direct_answer.trim()
+    const topInsights = ragProseOnly ? [] : response.answer.insights.filter(item => item.trim()).slice(0, CHAT_TOP_INSIGHTS)
+    const moreInsights = ragProseOnly ? 0 : Math.max(0, response.answer.insights.length - topInsights.length)
     return (
       <div aria-label="AI response" className="chat-response-typography flex flex-col gap-3">
-        <section className="answer-surface space-y-2">
+        <section className="answer-surface space-y-3">
           {headerRow}
           {governedWarning}
-          <AnswerProse text={teaserText} omitTables={omitTablesInProse} variant="main" />
+          <div className="space-y-2">
+            <AnswerProse text={answerText} omitTables={omitTablesInProse} variant="main" />
+            {showExecutiveSummary && (
+              <AnswerProse text={response.answer.executive_summary} omitTables={omitTablesInProse} variant="support" />
+            )}
+          </div>
+          {topInsights.length > 0 && (
+            <ul className="answer-prose-secondary space-y-2" data-testid="chat-top-insights">
+              {topInsights.map(item => (
+                <li key={item} className="flex gap-2">
+                  <span className="text-cloudera-orange" aria-hidden>
+                    •
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+              {moreInsights > 0 && <li className="text-xs text-slate-500">+{moreInsights} more in the analysis</li>}
+            </ul>
+          )}
           {clarificationBlock}
+          {followUpBlock}
         </section>
         <ReportArtifactCard
           title={reportArtifact!.title}
