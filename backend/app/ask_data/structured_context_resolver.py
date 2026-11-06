@@ -492,6 +492,24 @@ def _raw_table_resolution(
     }
 
 
+def _metric_by_name(session: Session, *, workspace_id: uuid.UUID, project_id: uuid.UUID, tokens: set[str]) -> SemanticMetricRow | None:
+    """A metric named by its key (the agent pins its steps this way). The same metric exists in every version of a
+    semantic model, so the one of the version Ask Data runs is taken, else the newest version of the project's models."""
+    rows = session.execute(
+        select(SemanticMetricRow).where(SemanticMetricRow.key.in_(tokens) | SemanticMetricRow.name.in_(tokens))
+    ).scalars().all()
+    ranked: list[tuple[int, int, SemanticMetricRow]] = []
+    for row in rows:
+        version = session.get(SemanticVersionRow, row.semantic_version_id)
+        model = session.get(SemanticModelRow, version.semantic_model_id) if version else None
+        if not version or not model or model.workspace_id != workspace_id or model.project_id != project_id:
+            continue
+        ranked.append((1 if model.active_version_id == version.id else 0, int(version.version_number or 0), row))
+    if not ranked:
+        return None
+    return max(ranked, key=lambda item: item[:2])[2]
+
+
 def _resolve_explicit_metric(
     session: Session,
     *,
@@ -508,14 +526,7 @@ def _resolve_explicit_metric(
         metric_id = uuid.UUID(source.id)
         metric = session.get(SemanticMetricRow, metric_id)
     except ValueError:
-        metric = session.execute(
-            select(SemanticMetricRow).where(
-                (SemanticMetricRow.key == lookup)
-                | (SemanticMetricRow.name == lookup)
-                | (SemanticMetricRow.key == source.id)
-                | (SemanticMetricRow.name == source.id)
-            )
-        ).scalar_one_or_none()
+        metric = _metric_by_name(session, workspace_id=workspace_id, project_id=project_id, tokens={lookup, source.id})
         if metric is None:
             return StructuredAskPrecedence(
                 force_ossie=True,

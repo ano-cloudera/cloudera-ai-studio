@@ -489,6 +489,14 @@ class AskDataAgent:
             except Exception:  # noqa: BLE001 - one failing step must not stop the others
                 logger.exception("agent_step_failed step=%s", index)
                 responses.append(None)
+            failed = responses[-1] is None or responses[-1].status not in ("SUCCESS", "NO_DATA")
+            if failed and step.kind == "data" and pinned is not prepared.context_sources:
+                # The pin is a help, not a requirement: the same question without it goes through the normal metric choice.
+                logger.warning("agent_step_unpinned step=%s metric=%s", index, step.metric)
+                try:
+                    responses[-1] = await self._chat.run(sub.model_copy(update={"context_sources": prepared.context_sources}))
+                except Exception:  # noqa: BLE001
+                    logger.exception("agent_step_failed step=%s unpinned", index)
             last = responses[-1]
             logger.info(
                 "agent_step step=%s status=%s strategy=%s rows=%s question=%r",

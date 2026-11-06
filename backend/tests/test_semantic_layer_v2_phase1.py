@@ -262,3 +262,26 @@ def test_sem_p1_020_dialect_preserved_in_raw_router(settings: Settings):
         )
     assert ctx.dialect == "trino"
     assert "hive" in next(iter(ctx.qualified_sources.values())).casefold()
+
+
+def test_a_metric_named_by_key_is_taken_from_the_active_version_when_every_version_has_it():
+    """The agent pins its steps by metric key; every published or draft version of the model holds the same metric."""
+    from app.ask_data.structured_context_resolver import _metric_by_name
+
+    workspace, project, model_id = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+    versions = {n: SimpleNamespace(id=uuid.uuid4(), semantic_model_id=model_id, version_number=n) for n in (1, 2, 3)}
+    model = SimpleNamespace(id=model_id, workspace_id=workspace, project_id=project, active_version_id=versions[2].id)
+    other = SimpleNamespace(id=uuid.uuid4(), workspace_id=uuid.uuid4(), project_id=uuid.uuid4(), active_version_id=None)
+    rows = [SimpleNamespace(key="late_delivery_rate", semantic_version_id=v.id, version=n) for n, v in versions.items()]
+    foreign_version = SimpleNamespace(id=uuid.uuid4(), semantic_model_id=other.id, version_number=9)
+    rows.append(SimpleNamespace(key="late_delivery_rate", semantic_version_id=foreign_version.id, version=9))
+    lookup = {v.id: v for v in versions.values()} | {foreign_version.id: foreign_version, model_id: model, other.id: other}
+    session = MagicMock()
+    session.execute.return_value.scalars.return_value.all.return_value = rows
+    session.get.side_effect = lambda cls, pk: lookup.get(pk)
+
+    picked = _metric_by_name(session, workspace_id=workspace, project_id=project, tokens={"late_delivery_rate"})
+    assert picked.version == 2  # the active version, not the newest draft and not another project's metric
+    model.active_version_id = None
+    assert _metric_by_name(session, workspace_id=workspace, project_id=project, tokens={"late_delivery_rate"}).version == 3
+    assert _metric_by_name(session, workspace_id=uuid.uuid4(), project_id=project, tokens={"late_delivery_rate"}) is None

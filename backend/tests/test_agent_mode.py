@@ -217,3 +217,18 @@ def test_the_catalog_plan_follows_the_conversation_and_checks_both_metrics_a_que
     assert plain[0].metric == "late_delivery_rate"
     both = fallback_steps("Berapa pesanan yang dibatalkan dan apakah ada hubungannya dengan keterlambatan?", catalog, [], "id")
     assert {"cancellation_rate", "late_delivery_rate"} <= {s.metric for s in both}
+
+
+def test_a_step_whose_metric_pin_fails_is_asked_again_without_the_pin() -> None:
+    class PinFails(Chat):
+        async def run(self, request):
+            if request.context_sources and any(s.type == "semantic_metric" for s in request.context_sources):
+                self.asked.append(("pinned", request.question))
+                return _response(request.question, status="ERROR", rows=[])
+            return await super().run(request)
+
+    plan = [AgentStep(kind="data", question="Late rate per carrier", metric="late_delivery_rate"), AgentStep(kind="data", question="Late rate per month", metric="late_delivery_rate")]
+    chat = PinFails(Provider(plan))
+    events = _collect(AskDataAgent(chat), _request())
+    assert events[-1]["type"] == "done" and events[-1]["response"].strategy == "agent"
+    assert [m for m, _ in chat.asked].count("pinned") == 2 and [m for m, _ in chat.asked].count("ask_data") == 2
