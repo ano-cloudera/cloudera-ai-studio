@@ -42,13 +42,15 @@ def test_explicit_values_and_a_missing_domain_win() -> None:
 def test_metadata_matches_the_repository() -> None:
     assert METADATA["specification_version"] and METADATA["prototype_version"]
     tasks = METADATA["tasks"]
-    assert [t["type"] for t in tasks] == ["create_job", "run_job", "create_job", "run_job"]
+    # The update job is only created: the code was just cloned, so it has nothing to pull at import.
+    assert [t["type"] for t in tasks] == ["create_job", "run_job", "create_job", "run_job", "create_job"]
     jobs = {t["entity_label"]: t for t in tasks if t["type"] == "create_job"}
     for job in jobs.values():
         assert (REPO / job["script"]).is_file(), job["script"]
     for run in (t for t in tasks if t["type"] == "run_job"):
         assert run["entity_label"] in jobs and run["wait_for"] is True
-    assert list(jobs) == ["install-tools", "deploy-applications"]
+    assert list(jobs) == ["install-tools", "deploy-applications", "update-from-github"]
+    assert not any(t["entity_label"] == "update-from-github" for t in tasks if t["type"] == "run_job")
     declared = METADATA.get("environment_variables") or {}
     manifest = yaml.safe_load((REPO / "deployment/cai/manifests/applications.yaml").read_text(encoding="utf-8"))
     forwarded = {n for app in manifest["applications"] for n in app.get("forward_env", [])}

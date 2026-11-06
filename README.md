@@ -41,6 +41,7 @@ and waits for each:
 |---|---|
 | `install-tools` | `scripts/amp/setup.py`: Node.js, Backend virtualenv, Qdrant and its UI, the embedding model, data folders, Frontend packages. Safe to run again |
 | `deploy-applications` | `scripts/amp/deploy.py`: builds the UI, then creates (or updates and restarts) the **Qdrant, Backend and Frontend Applications** through the Cloudera AI API v2 and waits until they run. URLs between the Applications are derived from the workspace domain |
+| `update-from-github` | `scripts/amp/update.py`: `git pull --ff-only`, then redeploys when something new came in. Not run at import. Use it instead of a Session for every code update |
 
 ## Before you start
 
@@ -121,7 +122,7 @@ After adding variables, run the **Deploy applications** Job again.
 | When | Do this |
 |---|---|
 | You added or changed a variable | Run the **Deploy applications** Job again (it copies the variables to the Applications and restarts them) |
-| You pulled new code | In a Session: `cd /home/cdsw && git pull`, then run the **Deploy applications** Job again |
+| You pushed new code to GitHub | Run the **Update from GitHub** Job. It pulls, installs new Backend requirements if they changed, and redeploys (no Session needed). It stops without redeploying when nothing is new; it never merges or discards local edits and tells you what to do if it cannot pull |
 | A variable shows `[object Object]` | In a Session: `python scripts/amp/set_env.py` (or `python scripts/amp/set_env.py NAME` for one variable); secrets are not echoed |
 | You want to test the API access first | In a Session: `python scripts/amp/deploy.py --check` (read-only) |
 

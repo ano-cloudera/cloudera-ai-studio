@@ -52,3 +52,18 @@ tasks:
   - type: run_job
     entity_label: deploy-applications
     wait_for: true
+
+  # Not run at import: the code was just cloned. Run it later whenever new commits are on GitHub.
+  - type: create_job
+    name: Update from GitHub
+    entity_label: update-from-github
+    short_summary: git pull from GitHub, then redeploy the Applications when something changed
+    long_summary: >-
+      Replaces opening a Session to run git pull. Pulls the current branch as a fast-forward only (it never merges or
+      discards local edits and stops with instructions if it cannot), installs new Backend requirements when they changed,
+      and runs the Deploy applications script. When nothing new was pulled it stops without redeploying.
+    script: scripts/amp/update.py
+    kernel: python3
+    cpu: 2
+    memory: 8
+    timeout: 90
