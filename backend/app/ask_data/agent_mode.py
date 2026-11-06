@@ -548,12 +548,13 @@ class AskDataAgent:
                 )
             except Exception:  # noqa: BLE001
                 logger.exception("agent_follow_ups_failed")
-        response = assemble_response(request=request, steps=steps, responses=responses, analysis=analysis, elapsed_ms=round((perf_counter() - started) * 1000, 3))
+        # The model that ran (a registry assignment may differ from the one the UI sent), as a normal answer reports it.
+        response = assemble_response(request=prepared, steps=steps, responses=responses, analysis=analysis, elapsed_ms=round((perf_counter() - started) * 1000, 3))
         response = self._chat.finalize_response(response)
         if frame:
-            self._chat.record_turn(request, response, frame=frame)
+            self._chat.record_turn(prepared, response, frame=frame)
         else:
-            self._chat.record_turn(request, response)
+            self._chat.record_turn(prepared, response)
         yield {"type": "done", "response": response}
 
     def _step_frames(self, run_id: str, count: int, shown: int | None, *, request: AskDataRequest, question: str) -> dict[str, Any] | None:
