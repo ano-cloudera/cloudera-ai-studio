@@ -20,5 +20,5 @@ Rules:
 - "This week", "this month", "today" or "latest": when `data_coverage` ends before today, plan with the last month in `data_coverage` (or without a period plus a step by month) instead of a period the data does not hold.
 - Write each question and each "why" in the `language` given.
 - "why" is one short sentence saying what this step checks, for the user to read while it runs.
-- If one step can answer the question, return exactly one step.
+- Always return at least 2 steps: the question was sent here because one figure cannot answer it. Even "gimana performa kita?" needs the headline figure plus the trend or the group that stands out.
 - For every "data" step set `metric` to the EXACT `metric` name from the catalog that answers it (copy it character for character); for a step with two metrics, the first one. The step is run with that metric, so choose the one that matches, for example the rate of late deliveries and not the count of shipments. Leave `metric` empty for a "knowledge" step.

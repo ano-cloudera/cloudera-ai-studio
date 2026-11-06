@@ -2,8 +2,8 @@
 
 A planner (the language model, limited to the metrics of the published semantic model and the document libraries) writes
 the steps. Each data step is an ordinary Ask Data question, so governed compilation, comparisons and checks all apply; each
-knowledge step is an ordinary document question. A final call writes the report from those results. If the planner fails
-or finds one step enough, nothing here changes the normal answer.
+knowledge step is an ordinary document question. A final call writes the report from those results. A plan of fewer than two
+steps (or a failed plan call) is completed from the metric catalog; only when no step answers does the normal answer stand.
 """
 from __future__ import annotations
 
@@ -134,6 +134,80 @@ async def plan_steps(
         [(s.kind, s.metric or "-", s.question[:120]) for s in steps],
     )
     return steps
+
+
+_RATE = re.compile(r"\b(rate|ratio|share|percent\w*|persen\w*|tingkat)\b|%", re.I)
+_VOLUME = re.compile(r"\b(total|number of|count|jumlah|banyaknya)\b", re.I)
+_NOT_A_GROUP = re.compile(r"(_id$|date|time|_at$|days?$|hours?$|value|amount|items|qty|quantity|_is_|^is_|_flag)", re.I)
+_QUESTION_WORDS = {
+    "pengiriman": "delivery shipment shipments", "kirim": "delivery shipment", "telat": "late", "terlambat": "late",
+    "pesanan": "order orders", "order": "order orders", "batal": "cancel cancelled cancellation", "dibatalkan": "cancel cancelled cancellation",
+    "penjualan": "sales order value", "pendapatan": "revenue value", "kurir": "carrier", "gudang": "warehouse",
+}
+
+
+def _words(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z]+", text.casefold()) if len(w) > 2}
+
+
+def _dataset_key(item: dict[str, Any]) -> tuple[str, ...]:
+    return tuple(sorted(str(d) for d in item.get("allowed_dimensions") or []))
+
+
+def _is_rate(item: dict[str, Any]) -> bool:
+    return bool(_RATE.search(f"{readable_name(str(item.get('name') or ''))} {item.get('description') or ''}"))
+
+
+def _is_volume(item: dict[str, Any]) -> bool:
+    return not _is_rate(item) and bool(_VOLUME.search(f"{readable_name(str(item.get('name') or ''))} {item.get('description') or ''}"))
+
+
+def fallback_steps(question: str, catalog: list[dict[str, Any]], seed: list[AgentStep], language: str) -> list[AgentStep]:
+    """The plan an analyst would start from when the planner gave fewer than two steps: the headline figure, the volume
+    behind it, its trend by month and the group that stands out. Built only from catalog metrics and their breakdowns."""
+    metrics = [item for item in catalog if item.get("name")]
+    if not metrics:
+        return list(seed)
+    by_name = {str(item["name"]): item for item in metrics}
+    main = next((by_name[s.metric] for s in seed if s.kind == "data" and s.metric in by_name), None)
+    if main is None:
+        asked = _words(question)
+        asked |= {w for word in list(asked) for w in _QUESTION_WORDS.get(word, "").split()}
+        scored = [(len(asked & _words(f"{readable_name(str(m['name']))} {m.get('description') or ''}")), _is_rate(m), -i, m) for i, m in enumerate(metrics)]
+        best = max(scored, key=lambda t: t[:3])
+        main = best[3] if best[0] else next((m for m in metrics if _is_rate(m)), metrics[0])
+    same = [m for m in metrics if _dataset_key(m) == _dataset_key(main)]
+    rate = main if _is_rate(main) else next((m for m in same if _is_rate(m)), main)
+    volume = next((m for m in same if _is_volume(m) and m is not main), None)
+    dims = [str(d) for d in rate.get("allowed_dimensions") or []]
+    has_time = any(re.search(r"date|month|period|time", d, re.I) for d in dims)
+    groups = [d for d in dims if not _NOT_A_GROUP.search(d)]
+    ind = language == "id"
+
+    def label(item: dict[str, Any]) -> str:
+        return readable_name(str(item["name"]))
+
+    def group_label(key: str) -> str:
+        words = readable_name(key).split()
+        # "delivery shipments region name" -> "region": drop the dataset words the metric already names.
+        words = words[2:] if len(words) > 2 else words
+        if len(words) > 1 and words[-1].casefold() == "name":
+            words = words[:-1]
+        return " ".join(words)
+
+    steps: list[AgentStep] = list(seed[:1]) if seed and seed[0].kind == "data" else []
+    if not steps:
+        steps.append(AgentStep(kind="data", question=label(main), why="Angka utama" if ind else "The headline figure", metric=str(main["name"])))
+    if rate is not main:
+        steps.append(AgentStep(kind="data", question=label(rate), why="Rasio utama" if ind else "The main rate", metric=str(rate["name"])))
+    if volume is not None:
+        steps.append(AgentStep(kind="data", question=label(volume), why="Volume di baliknya" if ind else "The volume behind it", metric=str(volume["name"])))
+    if has_time:
+        steps.append(AgentStep(kind="data", question=f"{label(rate)} per {'bulan' if ind else 'month'}", why="Tren per bulan" if ind else "The trend by month", metric=str(rate["name"])))
+    if groups:
+        group = group_label(groups[0])
+        steps.append(AgentStep(kind="data", question=f"{label(rate)} per {group}", why=(f"{group} yang paling menonjol" if ind else f"The {group} that stands out"), metric=str(rate["name"])))
+    return _clean_steps(steps, False, metrics=set(by_name))[:4]
 
 
 def _clean_steps(
@@ -340,6 +414,8 @@ class AskDataAgent:
         started = perf_counter()
         language = detect_language(request.question)
         labels = _labels(language)
+        catalog: list[dict[str, Any]] = []
+        question = None
         try:
             prepared, provider = self._chat.provider_for(request)
             question, history = await self._read(prepared)
@@ -363,9 +439,14 @@ class AskDataAgent:
                 conversation=previous_turns(history)[-2:] if history else None,
                 data_coverage=coverage,
             )
-        except Exception:  # noqa: BLE001 - the normal answer is the fallback
-            logger.exception("agent_plan_failed")  # the full error follows; the normal answer is the fallback
-            return
+        except Exception:  # noqa: BLE001 - a plan built from the catalog follows
+            logger.exception("agent_plan_failed")
+            if not question or not catalog:
+                return
+            steps = []
+        if len(steps) < 2:
+            steps = fallback_steps(question, catalog, steps, language)
+            logger.warning("agent_plan_fallback steps=%r", [(s.metric, s.question) for s in steps])
         if len(steps) < 2:
             logger.warning("agent_fallback reason=plan_has_%s_step", len(steps))
             return

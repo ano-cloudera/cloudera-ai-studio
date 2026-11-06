@@ -124,10 +124,16 @@ def test_each_step_runs_through_the_normal_pipeline_and_one_report_is_written() 
     assert provider.calls == ["AgentPlan", "AgentRefinement", "AnalysisOutput"]  # the refinement failed here, so the plan stood
 
 
-def test_nothing_changes_when_the_plan_is_one_step_the_steps_all_fail_or_the_mode_differs() -> None:
-    one = Chat(Provider([AgentStep(kind="data", question="Late rate")]))
-    assert _collect(AskDataAgent(one), _request()) == [{"type": "progress", "stage": "agent_plan", "label": "Planning the analysis"}]
-    assert one.asked == []
+def test_a_one_step_plan_is_completed_from_the_catalog_and_nothing_changes_when_steps_fail_or_the_mode_differs() -> None:
+    # A small model often answers an overview with one step; the agent then adds the breakdowns an analyst would check.
+    one = Chat(Provider([AgentStep(kind="data", question="Late rate", metric="late_delivery_rate")]))
+    events = _collect(AskDataAgent(one), _request())
+    assert events[-1]["type"] == "done" and events[-1]["response"].strategy == "agent"
+    assert [q for _, q in one.asked] == ["Late rate", "late delivery rate per carrier"]
+    bare = Chat(Provider([AgentStep(kind="data", question="Late rate")]))
+    bare.metric_catalog = lambda: [{"name": "late_delivery_rate", "description": "Late delivery rate", "allowed_dimensions": []}]  # type: ignore[method-assign]
+    assert _collect(AskDataAgent(bare), _request()) == [{"type": "progress", "stage": "agent_plan", "label": "Planning the analysis"}]
+    assert bare.asked == []
     failing = Chat(Provider([AgentStep(kind="data", question="a"), AgentStep(kind="data", question="b")]), fail_data=True)
     assert not any(e["type"] == "done" for e in _collect(AskDataAgent(failing), _request()))
     rag = Chat(Provider([]))
@@ -172,3 +178,25 @@ def test_a_data_step_is_pinned_to_a_catalog_metric_and_an_invented_name_is_dropp
     assert pinned[0] == [("semantic_metric", "late_delivery_rate")]
     assert pinned[1] == []  # not in the catalog: the step runs without a pin instead of with a wrong one
     assert pinned[2] == [("semantic_metric", "late_delivery_rate")]
+
+
+def test_an_overview_without_a_usable_plan_gets_the_headline_volume_trend_and_standout_group() -> None:
+    from app.ask_data.agent_mode import fallback_steps
+
+    dims = ["delivery_shipments_shipment_id", "delivery_shipments_region_name", "delivery_shipments_carrier", "delivery_shipments_ship_date", "delivery_shipments_delivery_days"]
+    catalog = [
+        {"name": "total_orders", "description": "Total number of orders.", "allowed_dimensions": ["fulfillment_orders_order_date", "fulfillment_orders_channel"]},
+        {"name": "average_delivery_days", "description": "Average days from ship to delivery.", "allowed_dimensions": dims},
+        {"name": "late_delivery_rate", "description": "Share of shipments delivered late (%).", "allowed_dimensions": dims},
+        {"name": "total_shipments", "description": "Number of shipments.", "allowed_dimensions": dims},
+    ]
+    steps = fallback_steps("Gimana performa pengiriman kita secara keseluruhan?", catalog, [], "id")
+    assert [(s.metric, s.question) for s in steps] == [
+        ("late_delivery_rate", "late delivery rate"),
+        ("total_shipments", "total shipments"),
+        ("late_delivery_rate", "late delivery rate per bulan"),
+        ("late_delivery_rate", "late delivery rate per region"),
+    ]
+    # The planner's own step leads; the main rate of the same data follows.
+    seeded = fallback_steps("How is delivery doing overall?", catalog, [AgentStep(kind="data", question="Average delivery days", metric="average_delivery_days")], "en")
+    assert [s.metric for s in seeded][:2] == ["average_delivery_days", "late_delivery_rate"] and len(seeded) == 4
