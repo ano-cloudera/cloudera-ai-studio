@@ -23,6 +23,9 @@ from test_workflow import FakeContext
 
 
 class FakeChatService:
+    def assigned_model(self, mode: str = "ask_data"):
+        return None  # no registry assignment: the models of the environment are validated
+
     def normalize_request(self, request: AskDataRequest) -> AskDataRequest:
         return request
 

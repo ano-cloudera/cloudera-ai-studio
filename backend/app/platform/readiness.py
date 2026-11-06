@@ -63,14 +63,15 @@ def _metadata_database_check(settings: Settings) -> dict[str, Any]:
 _postgres_check = _metadata_database_check
 
 
-def build_readiness_report(settings: Settings, *, provider_registry: Any) -> dict[str, Any]:
+def build_readiness_report(settings: Settings, *, provider_registry: Any, assigned_model_ready: bool = False) -> dict[str, Any]:
     profile = normalize_feature_profile(getattr(settings, "feature_profile", "FULL_ACCELERATOR"))
     state_store = settings.state_store.strip().lower()
     use_duckdb = settings.data_backend.strip().lower() == "duckdb"
     legacy_datasource_ready = (
         is_duckdb_governed_configured(settings) if use_duckdb else is_impala_configured(settings)
     )
-    llm_ready = any(model.available for model in provider_registry.list_models())
+    # A model assigned in Settings -> AI Models counts even when no provider has environment variables.
+    llm_ready = assigned_model_ready or any(model.available for model in provider_registry.list_models())
 
     metadata_db = _postgres_check(settings) if platform_metadata_configured(settings) else {"status": "not_configured"}
     # Backward-compatible readiness key (same payload as metadata_db).

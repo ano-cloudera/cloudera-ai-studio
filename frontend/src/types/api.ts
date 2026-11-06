@@ -461,6 +461,8 @@ export type ModelInfo = {
   label: string
   available: boolean
   reason: string | null
+  /** The model assigned to Ask Data in Settings -> AI Models; it answers whatever the browser sends. */
+  assigned?: boolean
 }
 
 export type ModelSelection = { provider: ProviderName; model: string }

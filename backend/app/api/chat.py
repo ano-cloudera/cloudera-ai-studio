@@ -18,6 +18,8 @@ _SESSION_ID_MAX_LEN = 128
 
 
 def _validate_selection(request: Request, body: AskDataRequest) -> None:
+    if request.app.state.chat_service.assigned_model(body.mode) is not None:
+        return  # the assigned model runs instead of the one sent; a broken assignment is reported when it runs
     try:
         request.app.state.provider_registry.resolve(body.provider, body.model)
     except ProviderSelectionError as exc:

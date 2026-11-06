@@ -17,6 +17,8 @@ class ModelInfo(StrictModel):
     label: str
     available: bool
     reason: str | None = None
+    # The model the project assigned to Ask Data (Settings -> AI Models); it answers whatever the browser sends.
+    assigned: bool = False
 
 
 class ModelList(StrictModel):

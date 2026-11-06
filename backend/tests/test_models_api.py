@@ -38,6 +38,7 @@ def test_models_reports_configured_availability_without_secrets() -> None:
                 "label": "Qwen Private",
                 "available": True,
                 "reason": None,
+                "assigned": False,
             },
             {
                 "provider": "gemini",
@@ -45,6 +46,7 @@ def test_models_reports_configured_availability_without_secrets() -> None:
                 "label": "Gemini",
                 "available": False,
                 "reason": "API key not configured",
+                "assigned": False,
             },
             {
                 "provider": "openai",
@@ -52,6 +54,7 @@ def test_models_reports_configured_availability_without_secrets() -> None:
                 "label": "ChatGPT",
                 "available": False,
                 "reason": "API key not configured",
+                "assigned": False,
             },
         ]
     }

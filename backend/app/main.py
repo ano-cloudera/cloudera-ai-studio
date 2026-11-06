@@ -121,7 +121,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @application.get("/health/ready")
     def readiness() -> JSONResponse:
-        report = build_readiness_report(configured, provider_registry=application.state.provider_registry)
+        report = build_readiness_report(
+            configured,
+            provider_registry=application.state.provider_registry,
+            assigned_model_ready=application.state.chat_service.assigned_model("ask_data") is not None,
+        )
         report["components"]["semantic_runtime"] = _semantic_runtime_health(configured)
         code = 200 if report.get("core_ready") else 503
         return JSONResponse(status_code=code, content=report)

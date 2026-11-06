@@ -29,10 +29,13 @@ function readSavedSelection(): ModelSelection | null {
   }
 }
 
-function pickDefaultSelection(models: ModelInfo[], saved: ModelSelection | null): ModelSelection | null {
+/** The assigned model first (Settings -> AI Models decides), then the saved choice, then the private model, then any. */
+export function pickDefaultSelection(models: ModelInfo[], saved: ModelSelection | null): ModelSelection | null {
   const available = models.filter(model => model.available)
   const selected =
-    available.find(model => model.provider === saved?.provider && model.id === saved?.model)
+    available.find(model => model.assigned)
+    || available.find(model => model.provider === saved?.provider && model.id === saved?.model)
+    || available.find(model => model.provider === 'qwen')
     || available.find(model => model.provider === 'gemini')
     || available[0]
   return selected ? { provider: selected.provider, model: selected.id } : null

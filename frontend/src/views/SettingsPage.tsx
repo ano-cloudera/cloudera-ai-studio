@@ -254,7 +254,7 @@ export function SettingsPage() {
               </div>
             )}
 
-            {appConfig.features.aiModelRegistry ? (
+            {appConfig.features.aiModelRegistry && !models.some(model => model.assigned) ? (
               <details className="mt-6 rounded-xl border border-slate-200 bg-slate-50/40 px-4 py-3">
                 <summary className="cursor-pointer text-sm font-semibold text-cloudera-navy">Default chat model</summary>
                 <p className="type-chat-meta mt-2 text-slate-500">
@@ -279,7 +279,7 @@ export function SettingsPage() {
                   />
                 </div>
               </details>
-            ) : (
+            ) : appConfig.features.aiModelRegistry ? null : (
               <LegacyChatModelControls
                 loading={loading}
                 error={error}

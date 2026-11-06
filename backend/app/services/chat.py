@@ -18,6 +18,7 @@ from app.core.models import (
     ChartSpec,
     ClarificationOption,
     LlmUsage,
+    ModelInfo,
     QueryData,
     SemanticRuntimeMeta,
     Timings,
@@ -361,6 +362,30 @@ class ChatService:
                 "provider": legacy_provider,  # type: ignore[arg-type]
                 "model": resolution.legacy_model or request.model,
             }
+        )
+
+    def assigned_model(self, mode: str = "ask_data") -> ModelInfo | None:
+        """The model the project assigned to this kind of question in Settings -> AI Models, as the provider and model id
+        the UI can send. None when nothing is assigned (the models configured by environment variables are then used)."""
+        reg = self.dependencies.provider_registry
+        if not isinstance(reg, HybridProviderRegistry):
+            return None
+        probe = AskDataRequest(session_id="model-probe", question="model", provider="qwen", model="model", mode="rag" if mode == "rag" else "ask_data")
+        try:
+            self._prepare_registry_request(probe, capability="RAG_GENERATION" if mode == "rag" else "ASK_DATA")
+            resolution = reg.last_resolution
+        except Exception:  # noqa: BLE001 - a disabled or broken assignment is reported when the model runs
+            return None
+        finally:
+            reg.clear_request_context()
+        if resolution is None or not resolution.uses_registry or not resolution.legacy_provider or not resolution.legacy_model:
+            return None
+        return ModelInfo(
+            provider=resolution.legacy_provider,  # type: ignore[arg-type]
+            id=resolution.legacy_model,
+            label=resolution.model_key or resolution.legacy_model,
+            available=True,
+            assigned=True,
         )
 
     def _attach_usage(self, request: AskDataRequest, response: AskDataResponse) -> AskDataResponse:
