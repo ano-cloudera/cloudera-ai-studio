@@ -84,3 +84,19 @@ def test_readiness_counts_an_assigned_model_when_no_environment_model_exists() -
     with_assignment = build_readiness_report(isolated_settings(), provider_registry=registry, assigned_model_ready=True)
     assert without["components"]["llm"] == "not_configured"
     assert with_assignment["components"]["llm"] == "ready"
+
+
+def test_the_answer_carries_the_name_the_model_has_in_ai_models() -> None:
+    """The footer under an answer names the model that ran; the provider bucket ('qwen' for any OpenAI-compatible endpoint) does not."""
+    from app.services.chat import ChatService
+
+    registry = _registry()
+    registry.last_resolution = RuntimeModelResolution(
+        source="PROJECT", capability="ASK_DATA", model_uuid=None, model_key="nemotron_super", runtime_model_id="nvidia/nemotron-3-super-120b-a12b",
+        provider_uuid=None, provider_type="OPENAI_COMPATIBLE", provider_key="nemotron", legacy_provider="qwen",
+        legacy_model="nvidia/nemotron-3-super-120b-a12b", model_name="nvidia/nemotron-3-super-120b-a12b", provider_name="nemotron",
+    )
+    service = ChatService.__new__(ChatService)
+    service.dependencies = SimpleNamespace(provider_registry=registry)
+    meta = service._resolution_meta_from_registry()
+    assert meta is not None and (meta.model_name, meta.provider_name, meta.model_key) == ("nvidia/nemotron-3-super-120b-a12b", "nemotron", "nemotron_super")

@@ -519,6 +519,16 @@ export type ChatResponse = {
   status: 'SUCCESS' | 'CLARIFICATION' | 'clarification_required' | 'NO_DATA' | 'UNSUPPORTED' | 'ERROR'
   provider: ProviderName
   model: string
+  /** The registry model that ran (Settings -> AI Models), when one is assigned. */
+  model_resolution?: {
+    capability?: string | null
+    assignment_source?: string | null
+    provider_type?: string | null
+    model_key?: string | null
+    registry_model_id?: string | null
+    model_name?: string | null
+    provider_name?: string | null
+  } | null
   strategy:
     | 'governed'
     | 'sql_fallback'

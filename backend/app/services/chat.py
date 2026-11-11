@@ -242,6 +242,8 @@ class ChatService:
             provider_type=resolution.provider_type,
             model_key=resolution.model_key,
             registry_model_id=resolution.runtime_model_id,
+            model_name=getattr(resolution, "model_name", None),
+            provider_name=getattr(resolution, "provider_name", None),
         )
 
     def _with_resolution_meta(self, response: AskDataResponse) -> AskDataResponse:

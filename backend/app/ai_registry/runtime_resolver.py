@@ -31,6 +31,8 @@ class RuntimeModelResolution:
     legacy_provider: str | None
     legacy_model: str | None
     assignment_health: str | None = None
+    model_name: str | None = None  # the name given in Settings -> AI Models, shown under each answer
+    provider_name: str | None = None
 
     @property
     def uses_registry(self) -> bool:
@@ -137,6 +139,8 @@ class RuntimeModelResolver:
             legacy_provider=legacy,
             legacy_model=model.model_id,
             assignment_health=health,
+            model_name=getattr(model, "name", None),
+            provider_name=getattr(provider, "name", None),
         )
 
     def load_provider_row(self, provider_id: uuid.UUID) -> AiProviderRow:

@@ -21,9 +21,17 @@ export function formatDurationSeconds(totalMs: number | undefined): string | nul
   return `${Math.round(seconds)}s`
 }
 
-/** Human-readable footer line — no raw model id or milliseconds. */
+/** The model that answered, as named in Settings -> AI Models ("nvidia/nemotron-3-super" shows as "nemotron-3-super");
+ * without an assignment, the provider. */
+export function answeringModelLabel(response: ChatResponse): string {
+  const named = (response.model_resolution?.model_name || response.model_resolution?.model_key || '').trim()
+  if (named) return named.split('/').filter(Boolean).pop() || named
+  return titleCaseProvider(response.provider)
+}
+
+/** Human-readable footer line — no milliseconds. */
 export function formatResponseMetadata(response: ChatResponse): string {
-  const parts: string[] = [titleCaseProvider(response.provider)]
+  const parts: string[] = [answeringModelLabel(response)]
   const strategy = strategyLabel(response.strategy)
   if (strategy) parts.push(strategy)
   const duration = formatDurationSeconds(response.timings?.total_ms)

@@ -215,6 +215,8 @@ class ModelResolutionMeta(StrictModel):
     provider_type: str | None = None
     model_key: str | None = None
     registry_model_id: str | None = None
+    model_name: str | None = None  # as named in Settings -> AI Models; the answer footer shows it
+    provider_name: str | None = None
 
 
 class CalculationCheck(StrictModel):

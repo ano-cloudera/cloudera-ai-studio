@@ -26,8 +26,21 @@ const base = {
 } satisfies ChatResponse
 
 describe('responseMetadata', () => {
-  it('formats human-readable metadata without model id or raw ms', () => {
+  it('formats human-readable metadata without raw ms', () => {
     expect(formatResponseMetadata(base)).toBe('Gemini · Governed · 36s')
+  })
+
+  it('names the model assigned in AI Models, not the provider bucket it runs through', () => {
+    const viaRegistry = {
+      ...base,
+      provider: 'qwen',
+      model: 'nvidia/nemotron-3-super-120b-a12b',
+      timings: { total_ms: 7200 },
+      model_resolution: { model_name: 'nvidia/nemotron-3-super-120b-a12b', model_key: 'nemotron_super', provider_name: 'nemotron' },
+    } satisfies ChatResponse
+    expect(formatResponseMetadata(viaRegistry)).toBe('nemotron-3-super-120b-a12b · Governed · 7.2s')
+    expect(formatResponseMetadata({ ...viaRegistry, model_resolution: { model_key: 'qwen3.5-9b' } })).toBe('qwen3.5-9b · Governed · 7.2s')
+    expect(formatResponseMetadata({ ...viaRegistry, model_resolution: null })).toBe('Qwen · Governed · 7.2s')
   })
 
   it('formats sub-10s durations with one decimal', () => {
