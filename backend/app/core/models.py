@@ -145,6 +145,8 @@ class AskDataRequest(StrictModel):
     library_ids: list[str] | None = None
     rag_document_ids: list[str] | None = None
     context_sources: list[ChatContextSource] | None = None
+    # "llm" or "rules" for this request only (the judge compares both); empty uses the ASK_DATA_UNDERSTANDING setting.
+    understanding: Literal["rules", "llm"] | None = None
 
 
 class QueryData(StrictModel):

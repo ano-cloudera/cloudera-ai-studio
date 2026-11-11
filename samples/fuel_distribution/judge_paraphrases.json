@@ -1,0 +1,23 @@
+{
+  "name": "fuel-paraphrases-id",
+  "description": "The core facts of the fuel demo asked in other words than the rehearsed conversation, each question standing on its own. It measures whether the questions are understood rather than matched. Numbers from samples/fuel_distribution/data (expected_answers.py and tests/test_fuel_judge_key.py).",
+  "language": "id",
+  "turns": [
+    {"question": "Total BBM yang sudah kita salurkan berapa KL?", "expect": {"route": "data", "metric": ["total_volume"], "numbers_any": [[4996168], [4.99], [5.0]]}},
+    {"question": "Secara keseluruhan, berapa persen pengiriman yang telat?", "expect": {"route": "data", "metric": ["tingkat_keterlambatan"], "numbers": [16.07]}},
+    {"question": "Wilayah regional mana yang pengirimannya paling sering molor?", "expect": {"route": "data", "metric": ["tingkat_keterlambatan"], "first_row": "Papua Maluku", "numbers": [34.54]}},
+    {"question": "Urutkan regional dari yang paling jarang terlambat", "expect": {"route": "data", "metric": ["tingkat_keterlambatan"], "first_row": "Jatimbalinus", "numbers": [11.4]}},
+    {"question": "Apakah SPBU DODO lebih sering telat dibanding COCO dan CODO?", "expect": {"route": "data", "metric": ["tingkat_keterlambatan"], "first_row": "SPBU_DODO", "min_rows": 3, "numbers": [19.53, 9.22]}},
+    {"question": "BBM jenis apa yang paling banyak disalurkan?", "expect": {"route": "data", "metric": ["total_volume"], "first_row": "Pertalite"}},
+    {"question": "Berapa persen dari volume yang merupakan BBM bersubsidi?", "expect": {"route": "data", "metric": ["porsi_subsidi"], "numbers": [49.78]}},
+    {"question": "Regional mana yang serapan kuota subsidinya paling tinggi?", "expect": {"route": "data", "metric": ["pencapaian_kuota"], "first_row": "Kalimantan", "numbers": [101.9]}},
+    {"question": "Serapan kuota Biosolar Sulawesi bulan Oktober 2026 berapa persen?", "expect": {"route": "data", "metric": ["pencapaian_kuota"], "numbers": [114.74]}},
+    {"question": "Top 3 provinsi dengan volume penyaluran terbesar", "expect": {"route": "data", "metric": ["total_volume"], "first_row": "Jawa Tengah", "min_rows": 3, "numbers": [714496]}},
+    {"question": "Ada berapa SPBU yang kita layani?", "expect": {"route": "data", "metric": ["jumlah_spbu", "spbu_aktif"], "numbers": [3000]}},
+    {"question": "Volume penyaluran terminal Kertapati per bulan di tahun 2025", "expect": {"route": "data", "metric": ["total_volume"], "min_rows": 12, "numbers": [2056]}},
+    {"question": "Berapa rata-rata lama pengiriman dalam menit?", "expect": {"route": "data", "metric": ["rata_durasi"], "numbers": [168.54]}},
+    {"question": "Tampilkan tren tingkat keterlambatan dari bulan ke bulan", "expect": {"route": "data", "metric": ["tingkat_keterlambatan"], "min_rows": 22}},
+    {"question": "Berapa nilai penyaluran BBM dalam rupiah?", "expect": {"route": "data", "metric": ["total_nilai"], "numbers_any": [[58537828400000], [58.54]]}},
+    {"question": "Keterlambatan di Papua Maluku per terminal", "expect": {"route": "data", "metric": ["tingkat_keterlambatan"], "first_row": "Sorong", "numbers": [36.31]}}
+  ]
+}

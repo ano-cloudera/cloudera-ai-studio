@@ -1214,6 +1214,24 @@ class ChatService:
         # safety net for a question the model could not rewrite.
         carry = None if reading.uses_previous else previous
         precedence = self._structured_precedence(request, question=question, session_analysis_context=carry)
+        bundle = precedence.runtime_bundle if precedence is not None and precedence.runtime_bundle is not None else self._runtime_bundle
+        if (
+            self._understanding_mode(request) == "llm"
+            and not reading.is_conversational
+            and bundle is not None
+            and bundle.mode == "runtime"
+            and not (precedence is not None and precedence.explicit_error)
+            and not (precedence is not None and precedence.resolution and precedence.resolution.get("status") == "raw_table")
+        ):
+            self.apply_runtime_bundle(bundle)
+            understood = await self._understand_question(request, request_id=request_id, question=question, precedence=precedence, bundle=bundle, history=history)
+            if understood is not None:
+                self._refresh_presentation_tier_config()
+                logger.info(
+                    "ask_data_turn request_id=%s session_id=%s kind=%s understanding=llm resolution=%s metric=%s",
+                    request_id, request.session_id, reading.kind, understood.get("status"), understood.get("metric"),
+                )
+                return _PreparedTurn(question=question, resolution=understood, history=history, previous=carry, reading=reading)
         resolution: dict[str, Any] | None = None
         if precedence is not None:
             if precedence.runtime_bundle is not None:
@@ -1327,6 +1345,72 @@ class ChatService:
             )
             return TurnReading(kind="data", uses_previous=False, standalone_question=raw.strip(), rationale="rewrite_switched_metric")
         return reading
+
+    def _understanding_mode(self, request: AskDataRequest) -> str:
+        return (request.understanding or str(getattr(self.settings, "ask_data_understanding", "") or "rules")).strip().lower()
+
+    async def _understand_question(
+        self, request: AskDataRequest, *, request_id: str, question: str, precedence: Any, bundle: Any, history: list[dict[str, Any]]
+    ) -> dict[str, Any] | None:
+        """The question read by the language model against the published model and its real values (app.ask_data.understanding).
+        None when the model call fails, so the turn still runs on the rules path."""
+        from app.ask_data.understanding import understand
+
+        ctx = bundle.context
+        pinned = None
+        if precedence is not None and precedence.resolution and any(getattr(s, "type", "") == "semantic_metric" for s in request.context_sources or []):
+            pinned = str(precedence.resolution.get("metric") or "") or None  # an agent step names its metric
+        try:
+            values = await self._dimension_values(ctx, bundle, request_id)
+        except Exception:  # noqa: BLE001 - the model can still read the question without the values
+            logger.exception("understanding_values_failed request_id=%s", request_id)
+            values = {}
+        conversation = [
+            {"question": str(item.get("question") or ""), "answer": str(item.get("answer") or "")[:300]} for item in (history or [])[-3:]
+        ] or None
+        try:
+            resolution = await understand(
+                self._resolve_provider(request, request_id), question=question, ctx=ctx, values=values, pinned_metric=pinned, conversation=conversation
+            )
+        except Exception:  # noqa: BLE001 - the rules path answers when the model cannot
+            logger.exception("understanding_failed request_id=%s", request_id)
+            return None
+        if precedence is not None and precedence.resolution and precedence.resolution.get("semantic_model_id"):
+            resolution["semantic_model_id"] = precedence.resolution["semantic_model_id"]
+        return resolution
+
+    async def _dimension_values(self, ctx: Any, bundle: Any, request_id: str) -> dict[tuple[str, str], list[str]]:
+        """Values of the model's low-cardinality dimensions, read from the connector of each dataset (cached for a while)."""
+        factory = self.dependencies.session_factory
+        scope = self._project_scope
+        if not scope:
+            from app.projects.resolver import load_default_project
+
+            project = load_default_project(self.settings)
+            scope = (str(project.workspace_id), str(project.id)) if project else None
+        if factory is None or not scope or bundle.mode != "runtime":
+            return {}
+        from app.ask_data.datasource_router import AskDataDatasourceRouter
+        from app.ask_data.types import DatasourceExecutionContext
+        from app.ask_data.understanding import dimension_values
+
+        sources: dict[str, tuple[str, dict[str, Any]]] = {}
+        with factory() as session:
+            router = AskDataDatasourceRouter(session, settings=self.settings)
+            for dataset in ctx.datasets:
+                routing = router.resolve_for_governed_metric(
+                    workspace_id=uuid.UUID(scope[0]),
+                    project_id=uuid.UUID(scope[1]),
+                    semantic_version_id=bundle.semantic_version_id,
+                    dataset_name=dataset,
+                    bundle_mode=bundle.mode,
+                )
+                if isinstance(routing, DatasourceExecutionContext) and not routing.legacy_fallback:
+                    source = (routing.qualified_sources or {}).get(dataset)
+                    if source:
+                        state = {"datasource_context": routing.to_dict(), "workspace_id": scope[0], "project_id": scope[1], "request_id": request_id}
+                        sources[dataset] = (source, state)
+        return await dimension_values(ctx, self.dependencies.query_executor, sources)
 
     async def _settle_metric_choice(
         self,

@@ -494,7 +494,32 @@ def build_workflow(deps: WorkflowDependencies):
                     query_result={"columns": [], "rows": [], "row_count": 0, "execution_ms": 0},
                 )
             return update
-        if resolution.get("status") == "resolved":
+        if resolution.get("status") == "resolved" and isinstance(resolution.get("intent"), dict):
+            # Understood by the language model (app.ask_data.understanding): the SQL is compiled from the checked intent, and
+            # none of the wording-based readers below (comparisons, typo filters, yearless periods) runs.
+            intent = resolution["intent"]
+            metric = str(resolution["metric"])
+            definition = resolution.get("definition") or deps.semantic_context.metric_definition(metric)
+            dataset_name = str(definition.get("base_dataset") or "")
+            from app.ask_data.types import DatasourceExecutionContext
+
+            ds_ctx = DatasourceExecutionContext.from_dict(state.get("datasource_context"))
+            from_source = ds_ctx.qualified_sources.get(dataset_name) if ds_ctx and ds_ctx.qualified_sources else None
+            governed_sql = deps.semantic_context.compile_intent(metric, intent, from_source=from_source)
+            plan = QueryPlan(strategy="governed", domains=[dataset_name], metrics=[metric], sql=governed_sql)
+            if from_source:
+                coverage_source = {"dataset": dataset_name, "source": from_source}
+                if (intent.get("breakdown") or intent.get("time_key")) and definition.get("governance_status") != "reference":
+                    reference_sql = deps.semantic_context.compile_intent(metric, intent, from_source=from_source, overall=True)
+            indonesian = intent.get("language") == "id"
+            partial_caveats = [str(n) for n in intent.get("notes") or []]
+            if intent.get("filters"):
+                from app.ask_data.column_labels import column_labels
+
+                names = column_labels([str(f.get("dimension")) for f in intent["filters"]], semantic_context=deps.semantic_context)
+                scope = "; ".join(f"{names.get(str(f.get('dimension'))) or f.get('dimension')}: {' or '.join(map(str, f.get('values') or []))}" for f in intent["filters"])
+                partial_caveats.append(f"Difilter ke: {scope}." if indonesian else f"Filtered to: {scope}.")
+        elif resolution.get("status") == "resolved":
             partial_caveats = _governed_partial_caveats(resolution, detect_language(state["question"]))
             metric = str(resolution["metric"])
             definition = resolution.get("definition") or deps.semantic_context.metric_definition(metric)

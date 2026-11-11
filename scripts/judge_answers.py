@@ -196,9 +196,11 @@ def run_conversation(ask: Callable[[str, str], dict[str, Any]], cases: dict[str,
     return {"name": cases.get("name"), "session": session, "passed": passed, "total": len(turns), "turns": turns}
 
 
-def http_ask(base_url: str, provider: str, model: str) -> Callable[[str, str], dict[str, Any]]:
+def http_ask(base_url: str, provider: str, model: str, understanding: str | None = None) -> Callable[[str, str], dict[str, Any]]:
     def ask(question: str, session: str) -> dict[str, Any]:
-        body = {"session_id": session, "question": question, "provider": provider, "model": model}
+        body: dict[str, Any] = {"session_id": session, "question": question, "provider": provider, "model": model}
+        if understanding:
+            body["understanding"] = understanding  # "llm" or "rules" for this run, whatever the Backend's default is
         request = urllib.request.Request(
             f"{base_url.rstrip('/')}/chat", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}, method="POST"
         )
@@ -231,6 +233,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--provider", help="qwen, gemini or openai (default: the first available model)")
     parser.add_argument("--model", help="model id as the Backend lists it under /models")
     parser.add_argument("--out", help="write every answer and check as JSON, to send back for review")
+    parser.add_argument("--understanding", choices=("rules", "llm"), help="how the Backend reads each question for this run (default: its own setting)")
     args, _ = parser.parse_known_args(argv)  # the IPython kernel that runs CAI jobs adds '-f <kernel.json>'
     base_url = args.base_url or default_base_url(dict(os.environ))
     if not base_url:
@@ -245,8 +248,9 @@ def main(argv: list[str]) -> int:
     if not selection:
         print("No available model is listed by the Backend; pass --provider and --model.", file=sys.stderr)
         return 1
-    print(f"model: {selection[0]} {selection[1]}")
-    result = run_conversation(http_ask(base_url, *selection), cases)
+    print(f"model: {selection[0]} {selection[1]}" + (f"  understanding: {args.understanding}" if args.understanding else ""))
+    result = run_conversation(http_ask(base_url, *selection, args.understanding), cases)
+    result["understanding"] = args.understanding or "backend default"
     result["model"] = {"provider": selection[0], "id": selection[1]}
     print_report(result)
     if args.out:

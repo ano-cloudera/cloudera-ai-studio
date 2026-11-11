@@ -75,3 +75,29 @@ def test_the_judge_numbers_come_from_the_data(tmp_path) -> None:
     assert all(t["question"] and t["expect"] for t in keyed["turns"])
     numbers = {float(n) for t in keyed["turns"] for n in (t["expect"].get("numbers") or [])}
     assert {16.07, 34.54, 19.53, 49.78, 114.74} <= numbers
+
+
+def test_the_paraphrase_key_comes_from_the_data(tmp_path) -> None:
+    _generator().generate(_generator().ROWS, tmp_path)
+    deliveries = list(csv.DictReader((tmp_path / "deliveries.csv").open()))
+    done = [d for d in deliveries if d["status_pengiriman"] != "Dalam_Perjalanan"]
+
+    def late(rows) -> float:
+        return round(sum(r["status_pengiriman"] == "Terlambat" for r in rows) * 100 / len(rows), 2)
+
+    by_region = defaultdict(list)
+    by_terminal = defaultdict(list)
+    for d in done:
+        by_region[d["regional"]].append(d)
+        if d["regional"] == "Papua Maluku":
+            by_terminal[d["fuel_terminal"]].append(d)
+    lowest = min(by_region, key=lambda r: late(by_region[r]))
+    assert (lowest, late(by_region[lowest])) == ("Jatimbalinus", 11.4)
+    worst = max(by_terminal, key=lambda t: late(by_terminal[t]))
+    assert (worst, late(by_terminal[worst])) == ("Sorong", 36.31)
+    assert round(sum(int(d["durasi_kirim_menit"]) for d in done) / len(done), 2) == 168.54
+    assert sum(int(d["total_nilai_idr"]) for d in deliveries) == 58537828400000
+    months_2025 = {d["tanggal_transaksi"][:7] for d in deliveries if d["fuel_terminal"] == "Kertapati" and d["tanggal_transaksi"].startswith("2025")}
+    assert len(months_2025) == 12
+    keyed = json.loads((SAMPLE / "judge_paraphrases.json").read_text())
+    assert len(keyed["turns"]) == 16 and all(t["expect"].get("route") == "data" for t in keyed["turns"])

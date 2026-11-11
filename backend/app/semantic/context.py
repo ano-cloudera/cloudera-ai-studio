@@ -441,6 +441,63 @@ class SemanticContextService:
             from_source=from_source,
         )
 
+    def compile_intent(self, metric: str, intent: dict[str, Any], *, from_source: str | None = None, overall: bool = False) -> str:
+        """Governed SQL for an intent the language model read (see app.ask_data.understanding): the metric's own formula, the
+        breakdown (the month first), the filters and the period. Nothing is read from the question's wording here.
+
+        `overall` gives the same metric, filters and period without the breakdown: the value the groups are read against."""
+        from app.ask_data.intent_satisfaction import PeriodRange, period_sql_predicate
+        from app.ask_data.value_filters import ValueFilter
+        from app.core.config import get_settings
+
+        definition = self.metric_definition(metric)
+        dataset_name = str(definition["base_dataset"])
+        allowed = set(definition.get("allowed_dimensions") or [])
+        projections: list[str] = []
+        groups: list[str] = []
+        time_key = None if overall else intent.get("time_key")
+        if time_key and time_key in allowed:
+            expr = f"DATE_TRUNC('month', CAST({self._registry_dimension_expression(dataset_name, time_key, '')} AS TIMESTAMP))"
+            projections.append(f"{expr} AS {time_key}")
+            groups.append(expr)
+        for key in [] if overall else list(dict.fromkeys(intent.get("breakdown") or [])):
+            if key not in allowed or key == time_key:
+                continue
+            expr = self._registry_dimension_expression(dataset_name, key, "")
+            projections.append(f"{expr} AS {key}")
+            groups.append(expr)
+        projections.append(f"{definition['expression'].replace(f'{dataset_name}.', 'd.')} AS metric_value")
+        predicates: list[str] = []
+        if definition.get("row_filter"):
+            predicates.append(f"({definition['row_filter']})")
+        start, end = intent.get("period_start"), intent.get("period_end")
+        if start and end:
+            from datetime import date
+
+            period = PeriodRange(start=date.fromisoformat(str(start)), end=date.fromisoformat(str(end)), label=f"{start}..{end}")
+            predicate = period_sql_predicate(period, dataset_name=dataset_name, registry=self.registry)
+            if predicate:
+                predicates.append(predicate)
+        for flt in intent.get("filters") or []:
+            key = str(flt.get("dimension") or "")
+            values = tuple(str(v) for v in flt.get("values") or [])
+            if key in allowed and values:
+                predicates.append(ValueFilter(key, self._registry_dimension_expression(dataset_name, key, ""), values).predicate())
+        source = from_source or self.datasets[dataset_name]["source"]
+        sql = ["SELECT", "  " + ",\n  ".join(projections), f"FROM {source} d"]
+        if predicates:
+            sql.append("WHERE " + "\n  AND ".join(predicates))
+        if groups:
+            sql.append("GROUP BY " + ", ".join(groups))
+        if time_key and groups and groups[0].startswith("DATE_TRUNC"):
+            sql.append(f"ORDER BY {groups[0]} ASC")
+        else:
+            sql.append(f"ORDER BY metric_value {'ASC' if intent.get('sort') == 'asc' else 'DESC'}")
+        cap = get_settings().sql_max_rows
+        limit = intent.get("limit")
+        sql.append(f"LIMIT {min(int(limit), cap) if limit and not overall else cap}")
+        return "\n".join(sql)
+
     def planner_context(self, domains: list[str] | None = None) -> dict[str, Any]:
         selected = {domain for domain in domains or [] if domain in self.datasets} or set(self.datasets)
         datasets = []

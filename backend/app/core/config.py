@@ -305,6 +305,12 @@ class Settings(BaseSettings):
         default=True,
         description="Split open questions (why, what should we do) into steps that each run through governed Ask Data, then write one report.",
     )
+    ask_data_understanding: str = Field(
+        default="rules",
+        validation_alias="ASK_DATA_UNDERSTANDING",
+        description="How a data question is understood: 'llm' lets the language model read it against the published model and real "
+        "values (metric, breakdown, filters, period), checked by code; 'rules' is the keyword and pattern matcher.",
+    )
 
 
 
