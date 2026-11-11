@@ -245,3 +245,19 @@ def test_the_overall_value_of_a_filtered_step_says_it_covers_only_that_group() -
     plain = _response("q")
     plain.data.overall_value = 16.07
     assert "overall_value_covers" not in _step_result(1, AgentStep(kind="data", question="Late rate per regional"), plain)
+
+
+def test_the_agent_plans_with_the_model_ask_data_answers_from() -> None:
+    order: list[str] = []
+
+    class Tracking(Chat):
+        def use_default_semantic_model(self, request):
+            order.append("default model")
+
+        def metric_catalog(self):
+            order.append("catalog")
+            return CATALOG
+
+    steps = [AgentStep(kind="data", question="Late rate by carrier in Kalimantan Timur"), AgentStep(kind="data", question="Late rate by month in Kalimantan Timur")]
+    _collect(AskDataAgent(Tracking(Provider(steps))), _request())
+    assert order[:2] == ["default model", "catalog"]

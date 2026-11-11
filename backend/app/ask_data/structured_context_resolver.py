@@ -1047,6 +1047,33 @@ def _published_models_for_project(
     return rows
 
 
+def default_semantic_model(session: Session, *, workspace_id: uuid.UUID, project_id: uuid.UUID) -> SemanticModelRow | None:
+    """The model Ask Data answers from: the one pinned in Settings, else the only published one, else the one published last.
+
+    Every path uses this (data questions, the greeting, the agent's catalog), so they never describe different models; before,
+    the greeting and the agent read whichever model the process had loaded last, and after a restart that was an arbitrary one."""
+    workspace = session.get(WorkspaceRow, workspace_id)
+    ask_settings = read_ask_data_settings(workspace.settings_json if workspace else None)
+    pinned = (ask_settings.default_semantic_model_id or "").strip()
+    if pinned:
+        try:
+            candidate = session.get(SemanticModelRow, uuid.UUID(pinned))
+        except ValueError:
+            candidate = None
+        if candidate is not None and candidate.workspace_id == workspace_id and candidate.project_id == project_id and candidate.active_version_id:
+            return candidate
+    published = _published_models_for_project(session, workspace_id=workspace_id, project_id=project_id)
+    if len(published) <= 1:
+        return published[0] if published else None
+
+    def published_at(model: SemanticModelRow) -> str:
+        version = session.get(SemanticVersionRow, model.active_version_id) if model.active_version_id else None
+        stamp = (version.published_at or version.updated_at) if version else None
+        return stamp.isoformat() if stamp else ""
+
+    return max(published, key=published_at)
+
+
 def _resolve_automatic_semantic_model(
     session: Session,
     *,
@@ -1080,24 +1107,7 @@ def _resolve_automatic_semantic_model(
             runtime_bundle=None,
             context_mode=None,
         )
-    model: SemanticModelRow | None = None
-    pinned = (ask_settings.default_semantic_model_id or "").strip()
-    if pinned:
-        try:
-            candidate = session.get(SemanticModelRow, uuid.UUID(pinned))
-        except ValueError:
-            candidate = None
-        if (
-            candidate is not None
-            and candidate.workspace_id == workspace_id
-            and candidate.project_id == project_id
-            and candidate.active_version_id
-        ):
-            model = candidate
-    if model is None:
-        published = _published_models_for_project(session, workspace_id=workspace_id, project_id=project_id)
-        if len(published) == 1:
-            model = published[0]
+    model = default_semantic_model(session, workspace_id=workspace_id, project_id=project_id)
     if model is None:
         return StructuredAskPrecedence(
             force_ossie=False,

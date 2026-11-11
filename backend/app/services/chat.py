@@ -1348,6 +1348,33 @@ class ChatService:
             return TurnReading(kind="data", uses_previous=False, standalone_question=raw.strip(), rationale="rewrite_switched_metric")
         return reading
 
+    def use_default_semantic_model(self, request: AskDataRequest) -> None:
+        """Load the model Ask Data answers from (see default_semantic_model) before anything reads the semantic context, so the
+        greeting and the agent's metric catalog describe the same model as the data questions."""
+        factory = self.dependencies.session_factory
+        if factory is None or not (self.settings.database_url or "").strip():
+            return
+        try:
+            from app.ask_data.structured_context_resolver import default_semantic_model
+            from app.projects.scope import resolve_structured_project_scope
+            from app.semantic_runtime.loader import SemanticRuntimeLoader
+
+            with factory() as session:
+                project = resolve_structured_project_scope(session, self.settings, request)
+                if project is None:
+                    return
+                self._project_scope = (str(project.workspace_id), str(project.id))
+                model = default_semantic_model(session, workspace_id=project.workspace_id, project_id=project.id)
+                if model is None:
+                    return
+                bundle = SemanticRuntimeLoader.get(self.settings).load_from_session(
+                    session, workspace_id=project.workspace_id, project_id=project.id, model_key=model.key
+                )
+            if bundle.mode == "runtime":
+                self.apply_runtime_bundle(bundle)
+        except Exception:  # noqa: BLE001 - the per-question resolution still loads the model a data question needs
+            logger.exception("default_semantic_model_failed")
+
     def _understanding_mode(self, request: AskDataRequest) -> str:
         return (request.understanding or str(getattr(self.settings, "ask_data_understanding", "") or "rules")).strip().lower()
 
@@ -1488,6 +1515,8 @@ class ChatService:
                 )
                 return self._registry_error_response(request, request_id=request_id, exc=exc, started=started)
             try:
+                if request.mode != "rag":
+                    self.use_default_semantic_model(request)
                 if request.mode == "rag":
                     logger.info("ask_data_route=rag request_id=%s session_id=%s", request_id, request.session_id)
                     out = await self._run_rag(request, request_id=request_id)

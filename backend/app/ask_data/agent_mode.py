@@ -506,6 +506,9 @@ class AskDataAgent:
             question, history = await self._read(prepared)
             if question is None:
                 return
+            use_default = getattr(self._chat, "use_default_semantic_model", None)
+            if callable(use_default):
+                use_default(prepared)  # plan with the model the steps will run on, not whichever one the process loaded last
             catalog = self._chat.metric_catalog()
             library_ids = self._knowledge_library_ids()
             if not catalog:
