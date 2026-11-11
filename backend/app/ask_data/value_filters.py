@@ -71,7 +71,15 @@ def match_values(question: str, catalog: dict[str, list[str]]) -> dict[str, list
         kept = [v for v in kept if not any(v != o and _normalize(v) in _normalize(o) for o in kept)]
         if kept:
             cleaned[dimension] = kept
-    return cleaned
+    # The same holds across dimensions: "Maluku" and "Papua" inside "Papua Maluku" (a regional) are not provinces named on their own.
+    named = [(d, v) for d, values in cleaned.items() for v in values]
+
+    def inside_longer(value: str) -> bool:
+        norm = _normalize(value)
+        return any(len(_normalize(o)) > len(norm) and re.search(rf"(?<![a-z0-9]){re.escape(norm)}(?![a-z0-9])", _normalize(o)) for _, o in named)
+
+    pruned = {d: [v for v in values if not inside_longer(v)] for d, values in cleaned.items()}
+    return {d: values for d, values in pruned.items() if values}
 
 
 @dataclass(frozen=True)

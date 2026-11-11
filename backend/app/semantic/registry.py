@@ -250,6 +250,7 @@ class OssieRegistry:
                     "name": name,
                     "description": str(metric.get("description") or ""),
                     "allowed_dimensions": config.get("allowed_dimensions", []),
+                    "headline": int(config.get("headline") or 0),  # 1 is the metric the business watches most; 0 is not a headline
                 }
             )
         return result

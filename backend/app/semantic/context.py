@@ -198,23 +198,22 @@ class SemanticContextService:
             resolution.setdefault("definition", definition)
             allowed = set(definition.get("allowed_dimensions") or [])
             dimensions = list(resolution.get("dimensions") or [])
+            from app.ask_data.intent_satisfaction import infer_dimensions_from_question
+
+            def named_dimensions() -> list[str]:
+                return self._glossary_dimensions(question, allowed) or infer_dimensions_from_question(
+                    question, allowed, dataset_name=str(definition["base_dataset"]), registry=self.registry
+                )
+
             if not dimensions and wants_by_month(question):
                 from app.ask_data.intent_satisfaction import pick_time_dimension
 
                 time_key = pick_time_dimension(str(definition["base_dataset"]), allowed, self.registry)
                 if time_key:
-                    dimensions = [time_key]
+                    # "per terminal per bulan" is both: the month first, then what the question also names.
+                    dimensions = [time_key, *[d for d in named_dimensions() if d != time_key]]
             if not dimensions:
-                dimensions = self._glossary_dimensions(question, allowed)
-            if not dimensions:
-                from app.ask_data.intent_satisfaction import infer_dimensions_from_question
-
-                dimensions = infer_dimensions_from_question(
-                    question,
-                    allowed,
-                    dataset_name=str(definition["base_dataset"]),
-                    registry=self.registry,
-                )
+                dimensions = named_dimensions()
             resolution["dimensions"] = dimensions
             resolution["dimension_mismatch"] = list(resolution.get("dimension_mismatch") or [])
             missing = unavailable_dimensions(question, allowed, dataset_name=str(definition["base_dataset"]), registry=self.registry)
@@ -350,20 +349,21 @@ class SemanticContextService:
             dimensions = [d for d in requested_dimensions if d in allowed]
         else:
             dimensions = []
+            from app.ask_data.intent_satisfaction import infer_dimensions_from_question
+
+            def named_dimensions() -> list[str]:
+                return self._glossary_dimensions(question, allowed) or infer_dimensions_from_question(
+                    question, allowed, dataset_name=dataset_name, registry=self.registry
+                )
+
             if wants_by_month(question):
                 from app.ask_data.intent_satisfaction import pick_time_dimension
 
                 time_key = pick_time_dimension(dataset_name, allowed, self.registry)
                 if time_key:
-                    dimensions = [time_key]
+                    dimensions = [time_key, *[d for d in named_dimensions() if d != time_key]]
             if not dimensions:
-                dimensions = self._glossary_dimensions(question, allowed)
-            if not dimensions:
-                from app.ask_data.intent_satisfaction import infer_dimensions_from_question
-
-                dimensions = infer_dimensions_from_question(
-                    question, allowed, dataset_name=dataset_name, registry=self.registry
-                )
+                dimensions = named_dimensions()
         dimensions = list(dict.fromkeys(dimensions))
         if any(name not in allowed for name in dimensions):
             raise ValueError("Requested dimension is not governed for this metric")

@@ -9,6 +9,7 @@ SPEC keys:
   entities    [{"key", "name", "table", "kind" ("table" | "view"), "primary_key", "description"}]
   dimensions  [(key, name, entity key, column, data type, synonyms, description)]
   metrics     [(key, name, entity key, expression, unit, synonyms, business definition)]
+  headline    optional list of metric keys an overview starts with, most important first
   terms       [(key, term, definition, related metric keys)]
 """
 from __future__ import annotations
@@ -42,12 +43,16 @@ def dimension_payload(row: tuple) -> dict:
     return {"key": key, "name": name, "source_entity_key": entity, "source_column": column, "data_type": data_type, "synonyms": synonyms, "description": description}
 
 
-def metric_payload(row: tuple, dimension_keys: dict[str, list[str]]) -> dict:
+def metric_payload(row: tuple, dimension_keys: dict[str, list[str]], headline: list[str] | None = None) -> dict:
     key, name, entity, expression, unit, synonyms, definition = row
-    return {
+    payload = {
         "key": key, "name": name, "expression": expression, "source_entity_key": entity, "description": definition,
         "business_definition": definition, "unit": unit, "synonyms": synonyms, "allowed_dimension_keys": dimension_keys[entity],
     }
+    if key in (headline or []):
+        # The figures an overview starts with, most important first.
+        payload["metadata"] = {"reference_extension": {"headline": (headline or []).index(key) + 1}}
+    return payload
 
 
 def term_payload(row: tuple) -> dict:
@@ -62,7 +67,7 @@ def plan(spec: dict, connector_id: str) -> dict[str, list[dict]]:
     return {
         "entities": [entity_payload(spec, e, connector_id) for e in spec["entities"]],
         "dimensions": [dimension_payload(r) for r in spec["dimensions"]],
-        "metrics": [metric_payload(r, keys) for r in spec["metrics"]],
+        "metrics": [metric_payload(r, keys, spec.get("headline")) for r in spec["metrics"]],
         "terms": [term_payload(r) for r in spec["terms"]],
     }
 

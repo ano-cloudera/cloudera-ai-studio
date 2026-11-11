@@ -23,6 +23,8 @@ _FINISHED = "NULLIF(COUNT(CASE WHEN status_pengiriman <> 'Dalam_Perjalanan' THEN
 SPEC = {
     "key": "fuel_distribution", "name": "Distribusi BBM", "catalog": "iceberg", "schema": "default",
     "description": "Penyaluran BBM dari terminal ke SPBU dan pelanggan industri: volume, ketepatan pengiriman, dan realisasi BBM subsidi terhadap kuota.",
+    # What an overview answer starts with, most important first: how late deliveries are, how much was delivered, and the quota.
+    "headline": ["tingkat_keterlambatan", "total_volume", "pencapaian_kuota"],
     "entities": [
         {"key": "penyaluran", "name": "Penyaluran (Loading Order)", "table": "fuel_deliveries", "kind": "table", "primary_key": "id_lo",
          "description": "Satu baris per Loading Order (LO): pengiriman BBM dari terminal ke SPBU atau pelanggan industri, dengan produk, volume dalam KL, nilai, jarak, durasi, SLA, dan status. Dipakai untuk volume, nilai, ketepatan dan keterlambatan pengiriman."},

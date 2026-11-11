@@ -198,3 +198,11 @@ def test_a_word_of_the_metric_itself_is_not_offered_as_a_value() -> None:
     question = "Berapa churn rate kita?"
     assert _resolve_grouped(ctx, question, executor, set()).suggestions == [("churn", ("Churned",))]
     assert _resolve_grouped(ctx, question, executor, set(), extra_words=["churn rate", "churn"]).suggestions == []
+
+
+def test_a_value_inside_a_longer_value_of_another_dimension_is_not_a_filter() -> None:
+    catalog = {"regional": ["Papua Maluku", "Kalimantan", "Sulawesi"], "provinsi": ["Maluku", "Papua", "Kalimantan Timur", "Sulawesi Selatan"]}
+    found = vf.match_values("Kenapa Papua Maluku dan Kalimantan bisa setinggi itu?", catalog)
+    assert found == {"regional": ["Papua Maluku", "Kalimantan"]}
+    # A province named on its own is still a filter.
+    assert vf.match_values("Volume di Papua", catalog) == {"provinsi": ["Papua"]}

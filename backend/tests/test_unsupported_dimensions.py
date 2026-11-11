@@ -122,3 +122,20 @@ def test_the_metric_that_can_do_the_breakdown_is_used_when_the_words_point_to_it
     assert resolution["metric"] == "customer_revenue" and resolution["dimensions"] == ["loyalty_tier"]
     kept = retail.resolve("Pendapatan per kategori produk")
     assert kept["metric"] == "total_revenue" and kept["dimensions"] == ["product_category"]
+
+
+def test_a_breakdown_by_a_dimension_and_by_month_keeps_both(fuel) -> None:
+    resolution = fuel.resolve("Total volume per fuel terminal per bulan")
+    assert resolution["dimensions"] == ["tanggal_transaksi", "fuel_terminal"]
+    assert fuel.resolve("Total volume per bulan")["dimensions"] == ["tanggal_transaksi"]
+    sql = fuel.compile_governed("total_volume", "Total volume per fuel terminal per bulan")
+    assert "DATE_TRUNC('month'" in sql and "d.fuel_terminal" in sql and sql.count("GROUP BY") == 1
+
+
+def test_a_headline_metric_is_marked_in_the_catalog() -> None:
+    ctx = _build(
+        [("d", '"c"."s"."t"', _field("regional", "regional", "Regional", []))],
+        _metric("a", "Rate a.", "COUNT(*)", ["a"], "d", ["regional"]).replace('"allowed_dimensions": ["regional"]', '"allowed_dimensions": ["regional"], "headline": 1')
+        + _metric("b", "Rate b.", "COUNT(*)", ["b"], "d", ["regional"]),
+    )
+    assert {m["name"]: m["headline"] for m in ctx.registry.metric_catalog_for_classification()} == {"a": 1, "b": 0}

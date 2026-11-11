@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 PROMPT_DIR = Path(__file__).resolve().parents[2] / "prompts"
 MAX_STEPS = 5
-MAX_ROWS_PER_STEP = 15
+MAX_ROWS_PER_STEP = 30  # a breakdown by terminal or province fits whole, so a low-volume group is not cut off
 
 # Questions one figure or one table cannot answer: why, what to do, an overview or summary, how two things relate.
 # The conversation reading (an LLM call) recognises them in other words too; this is the part that needs no model.
@@ -58,6 +58,18 @@ _OPEN_QUESTION = re.compile(
 
 def is_open_question(question: str) -> bool:
     return bool(_OPEN_QUESTION.search(question or ""))
+
+
+# An overview asks for the state of things, not for one figure: it is answered with the figures the author marked as headline.
+_OVERVIEW = re.compile(
+    r"\b(overall|overview|summary|summari[sz]e|how (?:are|is) (?:we|our \w+) doing|keseluruhan|secara umum|ringkasan|rangkuman|"
+    r"(?:performa|kinerja|kondisi|kesehatan)\b)",
+    re.I,
+)
+
+
+def _headline_metrics(catalog: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted((m for m in catalog if m.get("name") and m.get("headline")), key=lambda m: int(m["headline"]))
 
 
 def _labels(language: str) -> dict[str, str]:
@@ -94,7 +106,10 @@ def _humanize_catalog(catalog: list[dict[str, Any]]) -> list[dict[str, Any]]:
     out = []
     for item in catalog:
         dims = [readable_name(str(d)) for d in item.get("allowed_dimensions") or []]
-        out.append({"metric": item.get("name"), "description": str(item.get("description") or "")[:160], "breakdowns": dims[:24]})
+        entry = {"metric": item.get("name"), "description": str(item.get("description") or "")[:160], "breakdowns": dims[:24]}
+        if item.get("headline"):
+            entry["headline"] = int(item["headline"])  # the author marked it as one of the figures the business watches most (1 first)
+        out.append(entry)
     return out
 
 
@@ -127,6 +142,12 @@ async def plan_steps(
         max_tokens=1200,
     )
     steps = _clean_steps(plan.steps, has_knowledge, metrics=_metric_names(catalog))[:MAX_STEPS]
+    headline = {str(m["name"]) for m in _headline_metrics(catalog)}
+    if headline and _OVERVIEW.search(question or "") and not any(s.metric in headline for s in steps if s.kind == "data"):
+        # An overview that leaves out every headline figure (it asked for price and value, not the late rate) is replaced by the
+        # plan built from them.
+        logger.info("agent_plan_overview_without_headline kept=%s", len(steps))
+        steps = fallback_steps(question, catalog, [], detect_language(question), prefer_headline=True)[:MAX_STEPS]
     logger.info(
         "agent_plan raw=%s kept=%s steps=%r",
         len(plan.steps),
@@ -138,7 +159,8 @@ async def plan_steps(
 
 _RATE = re.compile(r"\b(rate|ratio|share|percent\w*|persen\w*|tingkat)\b|%", re.I)
 _VOLUME = re.compile(r"\b(total|number of|count|jumlah|banyaknya)\b", re.I)
-_NOT_A_GROUP = re.compile(r"(_id$|date|time|_at$|days?$|hours?$|value|amount|items|qty|quantity|_is_|^is_|_flag)", re.I)
+_NOT_A_GROUP = re.compile(r"(_id$|date|time|_at$|days?$|hours?$|value|amount|items|qty|quantity|_is_|^is_|_flag|tanggal|bulan|periode|waktu|tahun)", re.I)
+_TIME_DIMENSION = re.compile(r"date|month|period|time|tanggal|bulan|periode|waktu", re.I)
 _QUESTION_WORDS = {
     "pengiriman": "delivery shipment shipments", "kirim": "delivery shipment", "telat": "late", "terlambat": "late", "keterlambatan": "late",
     "pesanan": "order orders", "order": "order orders", "batal": "cancel cancelled cancellation", "dibatalkan": "cancel cancelled cancellation",
@@ -163,7 +185,13 @@ def _is_volume(item: dict[str, Any]) -> bool:
 
 
 def fallback_steps(
-    question: str, catalog: list[dict[str, Any]], seed: list[AgentStep], language: str, *, current_metric: str | None = None
+    question: str,
+    catalog: list[dict[str, Any]],
+    seed: list[AgentStep],
+    language: str,
+    *,
+    current_metric: str | None = None,
+    prefer_headline: bool = False,
 ) -> list[AgentStep]:
     """The plan an analyst would start from when the planner gave fewer than two steps: the headline figure, the volume
     behind it (or the second metric the question names), its trend by month and the group that stands out. Built only
@@ -182,15 +210,22 @@ def fallback_steps(
     )
     named = [t[3] for t in scored if t[0] > 0]
     main = next((by_name[s.metric] for s in seed if s.kind == "data" and s.metric in by_name), None)
+    headline = _headline_metrics(metrics)
+    if main is None and prefer_headline and headline:
+        main = next((m for m in headline if _is_rate(m)), headline[0])
     if main is None:
         main = (named[0] if named else None) or by_name.get(current_metric or "") or next((m for m in metrics if _is_rate(m)), metrics[0])
     same = [m for m in metrics if _dataset_key(m) == _dataset_key(main)]
     rate = main if _is_rate(main) else next((m for m in same if _is_rate(m)), main)
     # A second rate the question names on other data ("dibatalkan ... keterlambatan") is checked next to the first.
     other = next((m for m in named if m is not main and m is not rate and _is_rate(m) and _dataset_key(m) != _dataset_key(main)), None)
-    volume = other or next((m for m in same if _is_volume(m) and m is not main), None)
+    volume = (
+        other
+        or next((m for m in headline if m in same and not _is_rate(m) and m is not main), None)
+        or next((m for m in same if _is_volume(m) and m is not main), None)
+    )
     dims = [str(d) for d in rate.get("allowed_dimensions") or []]
-    has_time = any(re.search(r"date|month|period|time", d, re.I) for d in dims)
+    has_time = any(_TIME_DIMENSION.search(d) for d in dims)
     groups = [d for d in dims if not _NOT_A_GROUP.search(d)]
     ind = language == "id"
 
@@ -458,7 +493,7 @@ class AskDataAgent:
         if len(steps) < 2:
             from app.ask_data.conversation import last_metric
 
-            steps = fallback_steps(question, catalog, steps, language, current_metric=last_metric(history) if history else None)
+            steps = fallback_steps(question, catalog, steps, language, current_metric=last_metric(history) if history else None, prefer_headline=bool(_OVERVIEW.search(question)))
             logger.warning("agent_plan_fallback steps=%r", [(s.metric, s.question) for s in steps])
         if len(steps) < 2:
             logger.warning("agent_fallback reason=plan_has_%s_step", len(steps))
