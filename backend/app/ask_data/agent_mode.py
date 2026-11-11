@@ -148,6 +148,8 @@ async def plan_steps(
         # plan built from them.
         logger.info("agent_plan_overview_without_headline kept=%s", len(steps))
         steps = fallback_steps(question, catalog, [], detect_language(question), prefer_headline=True)[:MAX_STEPS]
+    if headline and _OVERVIEW.search(question or ""):
+        steps = _with_breakdown(steps, catalog, detect_language(question))
     logger.info(
         "agent_plan raw=%s kept=%s steps=%r",
         len(plan.steps),
@@ -254,6 +256,39 @@ def fallback_steps(
         group = group_label(groups[0])
         steps.append(AgentStep(kind="data", question=f"{label(rate)} per {group}", why=(f"{group} yang paling menonjol" if ind else f"The {group} that stands out"), metric=str(rate["name"])))
     return _clean_steps(steps, False, metrics=set(by_name))[:4]
+
+
+def _with_breakdown(steps: list[AgentStep], catalog: list[dict[str, Any]], language: str) -> list[AgentStep]:
+    """An overview names the group that stands out, so it needs one step by a group. When the plan has none, the main headline rate
+    by its first non-time dimension is added, in place of the first step that is not a headline metric (else the last step)."""
+    by_name = {str(m["name"]): m for m in catalog if m.get("name")}
+    data = [s for s in steps if s.kind == "data"]
+    if any(re.search(r"\bper\s+(?!bulan\b|month\b|tahun\b|year\b)\w", s.question, re.I) for s in data):
+        return steps
+    headline = _headline_metrics(catalog)
+    rate = next((m for m in headline if _is_rate(m)), None)
+    if rate is None:
+        return steps
+    groups = [str(d) for d in rate.get("allowed_dimensions") or [] if not _NOT_A_GROUP.search(str(d))]
+    if not groups:
+        return steps
+    words = readable_name(groups[0]).split()
+    words = words[2:] if len(words) > 2 else words
+    if len(words) > 1 and words[-1].casefold() == "name":
+        words = words[:-1]
+    group = " ".join(words)
+    added = AgentStep(
+        kind="data",
+        question=f"{readable_name(str(rate['name']))} per {group}",
+        why=f"{group} yang paling menonjol" if language == "id" else f"The {group} that stands out",
+        metric=str(rate["name"]),
+    )
+    headline_names = {str(m["name"]) for m in headline}
+    kept = list(steps)
+    if len(data) >= 4:
+        drop = next((s for s in kept if s.kind == "data" and s.metric not in headline_names), data[-1])
+        kept.remove(drop)
+    return [*kept, added]
 
 
 def _clean_steps(

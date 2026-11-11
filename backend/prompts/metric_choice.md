@@ -10,6 +10,7 @@ Return JSON with:
 
 Rules:
 - Read the meaning, not only the words: "how many customers" asks for a count of customers, "nilai penjualan" asks for a sales value, "berapa yang telat" asks for a late rate or a count of late items, depending on what the list offers.
+- Prefer the metric whose own name or synonym is in the question over one that only shares a topic word with it: "pencapaian kuota BBM subsidi" asks for the quota attainment metric, even though "BBM subsidi" is also what another metric measures.
 - A question that asks for a breakdown ("per region", "by carrier") needs a metric whose `breakdowns` include that dimension; prefer it over one that does not.
 - Never pick a metric that is not in the list and never invent one. When unsure, return an empty `metric` and `confident: false`; the user will then be asked to choose.
 

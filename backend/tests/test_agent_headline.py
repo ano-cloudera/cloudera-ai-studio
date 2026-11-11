@@ -31,7 +31,9 @@ def test_an_overview_without_a_headline_metric_is_replaced_by_the_plan_built_fro
 def test_a_plan_that_already_has_a_headline_metric_is_kept() -> None:
     proposed = [AgentStep(kind="data", question="Tingkat Keterlambatan", metric="tingkat_keterlambatan"), AgentStep(kind="data", question="Total Nilai", metric="total_nilai")]
     steps = asyncio.run(plan_steps(Provider(proposed), question=QUESTION, catalog=CATALOG, has_knowledge=False))
-    assert [s.metric for s in steps] == ["tingkat_keterlambatan", "total_nilai"]
+    # What the planner chose is kept, and the group that stands out is added because the plan had none.
+    assert [s.metric for s in steps] == ["tingkat_keterlambatan", "total_nilai", "tingkat_keterlambatan"]
+    assert steps[-1].question.endswith("per regional")
 
 
 def test_a_question_that_is_not_an_overview_is_left_to_the_planner() -> None:
@@ -49,3 +51,25 @@ def test_the_fallback_prefers_the_headline_rate_and_volume() -> None:
 def test_the_catalog_given_to_the_planner_marks_the_headline_metrics() -> None:
     marked = {m["metric"]: m.get("headline") for m in _humanize_catalog(CATALOG)}
     assert marked["tingkat_keterlambatan"] == 1 and marked["total_volume"] == 2 and marked["total_nilai"] is None
+
+
+def test_an_overview_gets_a_step_by_a_group_when_the_plan_has_none() -> None:
+    proposed = [
+        AgentStep(kind="data", question="Total Volume", metric="total_volume"),
+        AgentStep(kind="data", question="Ketepatan Pengiriman", metric="harga_rata"),
+        AgentStep(kind="data", question="Tingkat Keterlambatan", metric="tingkat_keterlambatan"),
+        AgentStep(kind="data", question="Total Volume per bulan", metric="total_volume"),
+    ]
+    steps = asyncio.run(plan_steps(Provider(proposed), question=QUESTION, catalog=CATALOG, has_knowledge=False))
+    assert len(steps) == 4
+    assert [s.metric for s in steps][-1] == "tingkat_keterlambatan" and steps[-1].question.endswith("per regional")
+    assert "harga_rata" not in [s.metric for s in steps]  # the step that was not a headline metric made room
+
+
+def test_a_plan_that_already_breaks_down_by_a_group_is_left_alone() -> None:
+    proposed = [
+        AgentStep(kind="data", question="Tingkat Keterlambatan", metric="tingkat_keterlambatan"),
+        AgentStep(kind="data", question="Tingkat Keterlambatan per regional", metric="tingkat_keterlambatan"),
+    ]
+    steps = asyncio.run(plan_steps(Provider(proposed), question=QUESTION, catalog=CATALOG, has_knowledge=False))
+    assert [s.question for s in steps] == ["Tingkat Keterlambatan", "Tingkat Keterlambatan per regional"]

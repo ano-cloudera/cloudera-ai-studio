@@ -94,3 +94,12 @@ async def test_the_pov_conversation_takes_the_right_route_metric_and_rows(monkey
         failed = [(name, seen) for name, ok, seen in ja.judge(expect, payload, language="none") if not ok and name not in ("answered", "no repeated labels")]
         report.append((turn["question"][:60], failed))
     assert [r for r in report if r[1]] == []
+
+
+def test_numbers_are_read_whole_whatever_their_separators() -> None:
+    numbers_in = ja.numbers_in
+    assert numbers_in("Jumlah SPBU kita adalah 3000.") == [3000.0]
+    assert numbers_in("4.996.168 KL dan 2.056 KL") == [4996168.0, 2056.0]
+    assert 11716.55 in numbers_in("Rp 11.716,55") and 11716.55 in numbers_in("11,716.55")
+    assert numbers_in("34,54% dan 23.15%") == [34.54, 23.15]
+    assert ja.states_number("Jumlah SPBU kita adalah 3000.", 3000)

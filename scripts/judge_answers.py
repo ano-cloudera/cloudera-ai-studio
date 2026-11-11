@@ -37,7 +37,7 @@ HERE = Path(__file__).resolve().parent
 _ROUTES = {"chat": {"conversational"}, "agent": {"agent"}, "data": {"governed", "sql_fallback"}}
 # Words that only an English sentence uses; metric names ("Late Delivery Rate") are fine in an Indonesian answer.
 _ENGLISH = re.compile(r"\b(the|is|are|was|were|which|with|this|that|these|there|than|from|of|and|by|for|in|to|has|have|shows?)\b", re.I)
-_NUMBER = re.compile(r"(?<![\w.,])-?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|-?\d+(?:[.,]\d+)?")
+_NUMBER = re.compile(r"(?<![\w.,])-?\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|(?<![\w.,])-?\d+(?:[.,]\d+)?")
 
 
 def default_base_url(env: dict[str, str]) -> str | None:
@@ -68,6 +68,9 @@ def numbers_in(text: str) -> list[float]:
         cleaned = token
         if re.fullmatch(r"-?\d{1,3}(?:[.,]\d{3})+", token):
             cleaned = re.sub(r"[.,]", "", token)
+        elif "," in token and "." in token:  # "11.716,55" and "11,716.55": the last separator is the decimal one
+            last = max(token.rfind(","), token.rfind("."))
+            cleaned = re.sub(r"[.,]", "", token[:last]) + "." + token[last + 1 :]
         else:
             cleaned = token.replace(",", ".")
         try:
