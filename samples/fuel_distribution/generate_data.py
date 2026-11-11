@@ -69,8 +69,32 @@ TRUCK_CAPACITY = {16: 20, 24: 35, 32: 30, 40: 15}
 MONTH_DEMAND = {3: 1.3, 12: 1.35, 1: 0.95, 2: 0.95}
 PEAK_MONTHS = (3, 12)
 
+# The provinces a terminal serves (names the Frontend map recognises) and where the terminal is (city level, approximate).
+TERMINAL_PROVINCES = {
+    "Medan Group": {"Sumatera Utara": 55, "Aceh": 25, "Sumatera Barat": 10, "Riau": 10}, "Siantar": {"Sumatera Utara": 80, "Riau": 20},
+    "Kisaran": {"Sumatera Utara": 70, "Aceh": 30}, "Kertapati": {"Sumatera Selatan": 75, "Bengkulu": 10, "Bangka Belitung": 15},
+    "Panjang": {"Lampung": 100}, "Jambi": {"Jambi": 85, "Bengkulu": 15}, "Plumpang": {"DKI Jakarta": 60, "Jawa Barat": 40},
+    "Tanjung Gerem": {"Banten": 100}, "Balongan": {"Jawa Barat": 100}, "Rewulu": {"DI Yogyakarta": 50, "Jawa Tengah": 50},
+    "Pengapon": {"Jawa Tengah": 100}, "Maos": {"Jawa Tengah": 100}, "Surabaya Group": {"Jawa Timur": 100}, "Tuban": {"Jawa Timur": 100},
+    "Manggis": {"Bali": 55, "Nusa Tenggara Barat": 25, "Nusa Tenggara Timur": 20}, "Tanjung Batu": {"Kalimantan Timur": 100},
+    "Pontianak": {"Kalimantan Barat": 100}, "Banjarmasin": {"Kalimantan Selatan": 60, "Kalimantan Tengah": 40},
+    "Makassar": {"Sulawesi Selatan": 60, "Sulawesi Barat": 20, "Sulawesi Tenggara": 20}, "Bitung": {"Sulawesi Utara": 70, "Gorontalo": 30},
+    "Donggala": {"Sulawesi Tengah": 100}, "Wayame": {"Maluku": 70, "Maluku Utara": 30}, "Jayapura": {"Papua": 100}, "Sorong": {"Papua Barat": 100},
+}
+TERMINAL_PLACES = {  # terminal -> (city, latitude, longitude)
+    "Medan Group": ("Medan", 3.78, 98.70), "Siantar": ("Pematangsiantar", 2.96, 99.06), "Kisaran": ("Kisaran", 2.98, 99.62),
+    "Kertapati": ("Palembang", -3.02, 104.77), "Panjang": ("Bandar Lampung", -5.47, 105.32), "Jambi": ("Jambi", -1.61, 103.61),
+    "Plumpang": ("Jakarta Utara", -6.13, 106.89), "Tanjung Gerem": ("Cilegon", -5.99, 106.03), "Balongan": ("Indramayu", -6.35, 108.43),
+    "Rewulu": ("Yogyakarta", -7.82, 110.28), "Pengapon": ("Semarang", -6.95, 110.43), "Maos": ("Cilacap", -7.65, 109.12),
+    "Surabaya Group": ("Surabaya", -7.20, 112.73), "Tuban": ("Tuban", -6.90, 112.05), "Manggis": ("Karangasem", -8.50, 115.51),
+    "Tanjung Batu": ("Balikpapan", -1.27, 116.83), "Pontianak": ("Pontianak", -0.03, 109.33), "Banjarmasin": ("Banjarmasin", -3.32, 114.59),
+    "Makassar": ("Makassar", -5.14, 119.41), "Bitung": ("Bitung", 1.44, 125.19), "Donggala": ("Donggala", -0.68, 119.74),
+    "Wayame": ("Ambon", -3.63, 128.17), "Jayapura": ("Jayapura", -2.53, 140.72), "Sorong": ("Sorong", -0.88, 131.26),
+}
+SUBSIDISED = ("Pertalite", "Biosolar")
+
 DELIVERY_COLUMNS = [
-    "id_lo", "tanggal_transaksi", "segmen_bisnis", "regional", "fuel_terminal", "kode_pelanggan", "nama_tipe_pelanggan", "produk",
+    "id_lo", "tanggal_transaksi", "segmen_bisnis", "regional", "provinsi", "fuel_terminal", "kode_pelanggan", "nama_tipe_pelanggan", "produk",
     "kategori_bbm", "volume_kl", "harga_per_liter_idr", "total_nilai_idr", "nopol_mobil_tangki", "kapasitas_tangki_kl",
     "jarak_tempuh_km", "durasi_kirim_menit", "sla_menit", "status_pengiriman",
 ]
@@ -162,6 +186,10 @@ def generate(rows: int = ROWS, out: Path = OUT) -> dict:
     rng = random.Random(SEED)
     out.mkdir(parents=True, exist_ok=True)
     customers = build_customers(rng)
+    province_rng = random.Random(SEED + 1)  # its own stream, so adding provinces leaves every other number as it was
+    for c in customers:
+        options = TERMINAL_PROVINCES[c["terminal"]]
+        c["provinsi"] = province_rng.choices(list(options), weights=list(options.values()))[0]
     prices = build_prices(rng)
     trucks = build_trucks(rng)
     calendar = build_calendar()
@@ -202,7 +230,7 @@ def generate(rows: int = ROWS, out: Path = OUT) -> dict:
         duration = int(duration)
         in_transit = day == END
         deliveries.append({
-            "tanggal_transaksi": day, "segmen_bisnis": segment, "regional": c["region"], "fuel_terminal": served_from,
+            "tanggal_transaksi": day, "segmen_bisnis": segment, "regional": c["region"], "provinsi": c["provinsi"], "fuel_terminal": served_from,
             "kode_pelanggan": c["kode"], "nama_tipe_pelanggan": c["tipe_nama"], "produk": product, "kategori_bbm": category,
             "volume_kl": volume, "harga_per_liter_idr": price, "total_nilai_idr": volume * 1000 * price,
             "nopol_mobil_tangki": truck["plate"], "kapasitas_tangki_kl": capacity, "jarak_tempuh_km": distance,
@@ -218,19 +246,72 @@ def generate(rows: int = ROWS, out: Path = OUT) -> dict:
         writer.writerows(deliveries)
     with (out / "customers.csv").open("w", newline="", encoding="utf-8") as fh:
         writer = csv.writer(fh)
-        writer.writerow(["kode_pelanggan", "segmen_bisnis", "nama_tipe_pelanggan", "regional", "fuel_terminal", "jarak_standar_km"])
+        writer.writerow(["kode_pelanggan", "segmen_bisnis", "nama_tipe_pelanggan", "regional", "provinsi", "fuel_terminal", "jarak_standar_km"])
         for c in customers:
-            writer.writerow([c["kode"], c["segmen"], c["tipe_nama"], c["region"], c["terminal"], c["distance"]])
-    print(f"customers.csv: {len(customers)} rows\ndeliveries.csv: {len(deliveries)} rows")
-    return {"customers": customers, "deliveries": deliveries}
+            writer.writerow([c["kode"], c["segmen"], c["tipe_nama"], c["region"], c["provinsi"], c["terminal"], c["distance"]])
+    quota = build_quota(deliveries)
+    with (out / "quota.csv").open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(["regional", "produk", "bulan", "kuota_kl"])
+        writer.writerows(quota)
+    with (out / "terminals.csv").open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.writer(fh)
+        writer.writerow(["fuel_terminal", "regional", "kota", "latitude", "longitude"])
+        for region, (_, terminals, _, _) in REGIONALS.items():
+            for terminal in terminals:
+                city, lat, lon = TERMINAL_PLACES[terminal]
+                writer.writerow([terminal, region, city, lat, lon])
+    print(f"customers.csv: {len(customers)} rows\ndeliveries.csv: {len(deliveries)} rows\nquota.csv: {len(quota)} rows\nterminals.csv: 24 rows")
+    return {"customers": customers, "deliveries": deliveries, "quota": quota}
+
+
+def build_quota(deliveries: list[dict]) -> list[list]:
+    """Monthly quota of subsidised fuel per regional, set from what was delivered so attainment tells a story.
+
+    Sulawesi Biosolar runs over its quota from June 2026, Kalimantan Pertalite is always a little over, Papua Maluku Pertalite uses
+    only about three quarters of what it was given; every other region is a few percent under its quota.
+    """
+    rng = random.Random(SEED + 2)
+    realised: dict[tuple[str, str, str], int] = defaultdict(int)
+    for r in deliveries:
+        if r["segmen_bisnis"] == "Ritel_SPBU" and r["produk"] in SUBSIDISED:
+            realised[(r["regional"], r["produk"], r["tanggal_transaksi"].strftime("%Y-%m-01"))] += r["volume_kl"]
+    rows = []
+    for (region, product, month), volume in sorted(realised.items()):
+        factor = rng.uniform(1.03, 1.10)
+        if (region, product) == ("Sulawesi", "Biosolar") and month >= "2026-06-01":
+            factor = rng.uniform(0.84, 0.90)
+        elif (region, product) == ("Kalimantan", "Pertalite"):
+            factor = rng.uniform(0.91, 0.95)
+        elif (region, product) == ("Papua Maluku", "Pertalite"):
+            factor = rng.uniform(1.30, 1.40)
+        rows.append([region, product, month, int(round(volume * factor / 8) * 8)])
+    return rows
 
 
 def pct(a: float, b: float) -> str:
     return f"{a * 100 / b:.1f}%" if b else "n/a"
 
 
-def report(deliveries: list[dict]) -> None:
+def attainment(deliveries: list[dict], quota: list[list], since: str) -> dict[tuple[str, str], float]:
+    """Realised volume as a share of quota, per regional and subsidised product, for the months from `since` (YYYY-MM-01)."""
+    realised: dict[tuple[str, str], int] = defaultdict(int)
+    for r in deliveries:
+        month = r["tanggal_transaksi"].strftime("%Y-%m-01")
+        if r["segmen_bisnis"] == "Ritel_SPBU" and r["produk"] in SUBSIDISED and month >= since:
+            realised[(r["regional"], r["produk"])] += r["volume_kl"]
+    given: dict[tuple[str, str], int] = defaultdict(int)
+    for region, product, month, kl in quota:
+        if month >= since:
+            given[(region, product)] += kl
+    return {key: realised[key] / given[key] for key in given if given[key]}
+
+
+def report(deliveries: list[dict], quota: list[list]) -> None:
     done = [r for r in deliveries if r["status_pengiriman"] != "Dalam_Perjalanan"]
+    ranked = sorted(attainment(deliveries, quota, "2026-06-01").items(), key=lambda kv: -kv[1])
+    print("\nSubsidised fuel, realised against quota, Jun-Oct 2026 (top 3 and bottom 2):")
+    print("  " + ", ".join(f"{r} {p} {v * 100:.0f}%" for (r, p), v in ranked[:3] + ranked[-2:]))
 
     def late(rows) -> str:
         return pct(sum(r["status_pengiriman"] == "Terlambat" for r in rows), len(rows))
@@ -269,7 +350,8 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--rows", type=int, default=ROWS)
     args = parser.parse_args(argv)
-    report(generate(args.rows)["deliveries"])
+    result = generate(args.rows)
+    report(result["deliveries"], result["quota"])
 
 
 if __name__ == "__main__":

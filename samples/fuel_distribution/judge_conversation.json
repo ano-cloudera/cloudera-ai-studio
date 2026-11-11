@@ -1,0 +1,23 @@
+{
+  "name": "pov-fuel-distribution-id",
+  "description": "The Indonesian demo conversation for the fuel distribution sample, asked in one session in this order. The numbers come from samples/fuel_distribution/data (run expected_answers.py): 4,996,168 KL over 200,000 LO, late rate 16.07% over 199,689 finished LO, Papua Maluku 34.54%, DODO 19.53%, subsidised share 49.78% of all volume, Biosolar Sulawesi 114.74% of quota in Oct 2026. The data ends on 2026-10-31.",
+  "language": "id",
+  "turns": [
+    {"question": "Halo, data apa saja yang bisa saya tanyakan ke kamu?", "expect": {"route": "chat", "mentions": [["penyaluran", "volume", "BBM"], ["keterlambatan", "terlambat", "kuota"]], "forbids": ["tidak dapat", "error"]}},
+    {"question": "Berapa total volume penyaluran BBM kita?", "expect": {"route": "data", "metric": ["total_volume"], "numbers_any": [[4996168], [4.99], [5.0]]}},
+    {"question": "Berapa tingkat keterlambatan pengiriman secara keseluruhan?", "expect": {"route": "data", "metric": ["tingkat_keterlambatan"], "numbers": [16.07]}},
+    {"question": "Regional mana yang paling sering terlambat, dan seberapa jauh bedanya dengan yang lain?", "expect": {"route": "data", "metric": ["tingkat_keterlambatan"], "first_row": "Papua Maluku", "min_rows": 8, "overall_value": 16.07, "numbers": [34.54, 16.07], "mentions": ["Papua Maluku"]}},
+    {"question": "Kenapa Papua Maluku dan Kalimantan bisa setinggi itu?", "expect": {"route": "agent", "min_steps": 2, "numbers": [34.54], "mentions": ["Papua Maluku", "Kalimantan", ["jarak", "km"], ["kemungkinan", "bisa jadi", "diduga", "mengindikasikan", "menunjukkan"]], "metric": ["tingkat_keterlambatan"]}},
+    {"question": "Bandingkan keterlambatan SPBU COCO, CODO, dan DODO", "expect": {"route": "data", "metric": ["tingkat_keterlambatan"], "first_row": "SPBU_DODO", "min_rows": 3, "numbers": [19.53, 14.95, 9.22], "mentions": ["DODO"]}},
+    {"question": "Produk apa yang volumenya paling besar?", "expect": {"route": "data", "metric": ["total_volume"], "first_row": "Pertalite", "numbers": [1530928]}},
+    {"question": "Berapa porsi BBM subsidi dari total penyaluran?", "expect": {"route": "data", "metric": ["porsi_subsidi"], "numbers": [49.78]}},
+    {"question": "Bagaimana pencapaian kuota BBM subsidi per regional?", "expect": {"route": "data", "metric": ["pencapaian_kuota"], "first_row": "Kalimantan", "min_rows": 8, "numbers": [101.9, 80.7], "mentions": ["Kalimantan", "Papua Maluku"]}},
+    {"question": "Berapa pencapaian kuota Biosolar di Sulawesi pada Oktober 2026?", "expect": {"route": "data", "metric": ["pencapaian_kuota"], "numbers": [114.74], "mentions": ["Sulawesi"]}},
+    {"question": "Kenapa volume terminal Kertapati turun di Agustus 2025?", "expect": {"route": "agent", "min_steps": 2, "numbers": [2056], "mentions": ["Kertapati", "Panjang"]}},
+    {"question": "Tampilkan volume penyaluran per provinsi", "expect": {"route": "data", "metric": ["total_volume"], "first_row": "Jawa Tengah", "min_rows": 30, "numbers": [714496]}},
+    {"question": "Berapa jumlah SPBU kita?", "expect": {"route": "data", "metric": ["jumlah_spbu"], "numbers": [3000]}},
+    {"question": "Berapa volume penyaluran di November 2026?", "expect": {"status": ["NO_DATA"], "mentions": [["di luar data", "tidak ada data", "belum ada data", "tidak tersedia"]], "forbids_numbers": [0]}},
+    {"question": "Gimana kondisi penyaluran BBM kita secara keseluruhan?", "expect": {"route": "agent", "min_steps": 3, "numbers": [16.07], "mentions": [["Papua Maluku", "Kalimantan"], ["keterlambatan", "terlambat", "telat"]], "needs_actions": true}},
+    {"question": "Apa yang sebaiknya kita lakukan untuk Papua Maluku?", "expect": {"mentions": ["Papua Maluku"], "needs_actions": true}}
+  ]
+}
