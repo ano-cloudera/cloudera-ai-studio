@@ -17,7 +17,7 @@
     {"question": "Tampilkan volume penyaluran per provinsi", "expect": {"route": "data", "metric": ["total_volume"], "first_row": "Jawa Tengah", "min_rows": 30, "numbers": [714496]}},
     {"question": "Berapa jumlah SPBU kita?", "expect": {"route": "data", "metric": ["jumlah_spbu"], "numbers": [3000]}},
     {"question": "Berapa volume penyaluran di November 2026?", "expect": {"status": ["NO_DATA"], "mentions": [["di luar data", "tidak ada data", "belum ada data", "tidak tersedia"]], "forbids_numbers": [0]}},
-    {"question": "Gimana kondisi penyaluran BBM kita secara keseluruhan?", "expect": {"route": "agent", "min_steps": 3, "numbers": [16.07], "mentions": [["Papua Maluku", "Kalimantan"], ["keterlambatan", "terlambat", "telat"]], "needs_actions": true}},
+    {"question": "Gimana kondisi penyaluran BBM kita secara keseluruhan?", "expect": {"route": "agent", "min_steps": 3, "numbers": [16.07], "mentions": [["Papua Maluku", "Kalimantan", "Sorong", "Wayame", "Jayapura", "Tanjung Batu", "Pontianak", "Banjarmasin"], ["keterlambatan", "terlambat", "telat"]], "needs_actions": true}},
     {"question": "Apa yang sebaiknya kita lakukan untuk Papua Maluku?", "expect": {"mentions": ["Papua Maluku"], "needs_actions": true}}
   ]
 }
