@@ -329,6 +329,16 @@ def infer_dimensions_from_question(
     return [key for _, key in sorted(found)]
 
 
+_SATISFACTION_WORDS = re.compile(r"\b(nps|net\s+promoter|csat|satisfaction|kepuasan)\b", re.I)
+
+
+def _metric_is_about_satisfaction(resolution: dict[str, Any], definition: dict[str, Any]) -> bool:
+    """The metric's own name, description or synonyms speak of satisfaction (NPS, CSAT, kepuasan)."""
+    context = definition.get("ai_context") if isinstance(definition.get("ai_context"), dict) else {}
+    parts = [resolution.get("metric"), definition.get("name"), definition.get("description"), context.get("display_name"), *(context.get("synonyms") or [])]
+    return bool(_SATISFACTION_WORDS.search(" ".join(str(p) for p in parts if p).replace("_", " ")))
+
+
 def validate_registry_resolution(
     question: str,
     resolution: dict[str, Any],
@@ -345,7 +355,10 @@ def validate_registry_resolution(
 
     for concept in requested.requested_concepts:
         if concept == "customer_satisfaction":
-            unresolved.append("customer_satisfaction")
+            # Asking about satisfaction is only unanswerable when the chosen metric is about something else: a model that
+            # publishes an NPS or CSAT metric answers it.
+            if not _metric_is_about_satisfaction(resolution, definition):
+                unresolved.append("customer_satisfaction")
             continue
         if not _concept_satisfied(concept, allowed):
             unresolved.append(concept)
