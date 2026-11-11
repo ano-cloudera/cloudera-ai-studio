@@ -213,7 +213,12 @@ async def resolve_value_matches(
     semantic_context: Any,
     executor: Any,
     state: dict[str, Any],
+    breakdown_dimensions: set[str] | None = None,
+    extra_words: list[str] | None = None,
 ) -> ValueResolution:
+    """`breakdown_dimensions` are the dimensions the question groups by: a value of one of them is only a filter when it is spelt
+    exactly, never by guessing a typo ("per tipe SPBU (COCO, CODO, DODO)" compares all three, it does not keep COCO).
+    `extra_words` are words of the metric itself (its name and synonyms), which are never a misspelt value ("churn")."""
     if not from_source:
         return ValueResolution()
     registry = semantic_context.registry
@@ -228,8 +233,13 @@ async def resolve_value_matches(
     exact = match_values(question, catalog)
     chosen = {k: list(v) for k, v in exact.items()}
     resolution = ValueResolution()
-    vocabulary = {w for text in (dataset_name, metric_expression, *allowed_dimensions) for w in re.findall(r"[a-z0-9]+", text.casefold())}
+    vocabulary = {
+        w for text in (dataset_name, metric_expression, *allowed_dimensions, *(extra_words or [])) for w in re.findall(r"[a-z0-9]+", str(text).casefold())
+    }
+    grouped = breakdown_dimensions or set()
     for match in fuzzy_matches(question, catalog, exact, vocabulary):
+        if match.dimension in grouped:
+            continue
         if match.applied:
             chosen.setdefault(match.dimension, []).append(match.values[0])
             resolution.corrections.append((match.heard, match.values[0]))

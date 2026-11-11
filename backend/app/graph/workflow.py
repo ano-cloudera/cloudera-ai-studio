@@ -520,6 +520,12 @@ def build_workflow(deps: WorkflowDependencies):
                     semantic_context=deps.semantic_context,
                     executor=deps.query_executor,
                     state=state,
+                    breakdown_dimensions={str(d) for d in dimensions or []},
+                    extra_words=[
+                        metric,
+                        *((definition.get("ai_context") or {}).get("synonyms") or []),
+                        str((definition.get("ai_context") or {}).get("display_name") or ""),
+                    ],
                 )
                 value_filters = value_resolution.filters
                 indonesian = detect_language(state["question"]) == "id"

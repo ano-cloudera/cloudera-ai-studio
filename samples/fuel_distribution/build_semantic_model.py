@@ -79,14 +79,15 @@ SPEC = {
         ("jumlah_spbu", "Jumlah SPBU", "pelanggan", "COUNT(CASE WHEN segmen_bisnis = 'Ritel_SPBU' THEN kode_pelanggan END)", "stations", ["total spbu", "berapa spbu", "number of stations", "jumlah spbu kita"], "Jumlah SPBU yang terdaftar sebagai pelanggan."),
         ("jumlah_industri", "Jumlah Pelanggan Industri", "pelanggan", "COUNT(CASE WHEN segmen_bisnis = 'Industri_B2B' THEN kode_pelanggan END)", "customers", ["pelanggan b2b", "jumlah industri", "industrial customers", "pelanggan industri"], "Jumlah pelanggan industri (B2B) yang terdaftar."),
     ],
-    # (key, term, definition, related metric keys)
+    # (key, term, definition, related metric keys). A term is left unrelated to any metric on purpose: a phrase such as "BBM subsidi" or
+    # "fuel terminal" appears in many questions, and tying it to metrics made the resolver pick the wrong one for the quota questions.
     "terms": [
-        ("lo", "LO (Loading Order)", "Perintah muat dari terminal ke satu SPBU atau pelanggan. Satu LO adalah satu pengiriman mobil tangki.", ["jumlah_lo"]),
-        ("tbbm", "TBBM / Fuel Terminal", "Terminal BBM tempat BBM disimpan dan dimuat ke mobil tangki sebelum dikirim.", ["total_volume"]),
-        ("coco_codo_dodo", "COCO, CODO, DODO", "Kepemilikan SPBU: COCO milik dan dioperasikan perusahaan, CODO milik perusahaan dan dioperasikan dealer, DODO milik dan dioperasikan dealer.", ["jumlah_spbu"]),
-        ("bbm_subsidi", "BBM subsidi", "Pertalite dan Biosolar dalam data ini. Penyalurannya dibatasi kuota per regional.", ["volume_subsidi", "porsi_subsidi"]),
-        ("sla", "SLA pengiriman", "Batas waktu pengiriman satu LO: 60 menit ditambah waktu tempuh pada kecepatan 40 km per jam untuk jarak standar pelanggan. Melebihi SLA berarti Terlambat.", ["tingkat_keterlambatan", "ketepatan_pengiriman"]),
-        ("kuota", "Kuota BBM subsidi", "Batas volume bulanan BBM subsidi per regional dan produk. Pencapaian di atas 100 persen berarti kuota terlampaui.", ["pencapaian_kuota", "sisa_kuota"]),
+        ("lo", "LO (Loading Order)", "Perintah muat dari terminal ke satu SPBU atau pelanggan. Satu LO adalah satu pengiriman mobil tangki.", []),
+        ("tbbm", "TBBM / Fuel Terminal", "Terminal BBM tempat BBM disimpan dan dimuat ke mobil tangki sebelum dikirim.", []),
+        ("coco_codo_dodo", "COCO, CODO, DODO", "Kepemilikan SPBU: COCO milik dan dioperasikan perusahaan, CODO milik perusahaan dan dioperasikan dealer, DODO milik dan dioperasikan dealer.", []),
+        ("bbm_subsidi", "BBM subsidi", "Pertalite dan Biosolar dalam data ini. Penyalurannya dibatasi kuota per regional.", []),
+        ("sla", "SLA pengiriman", "Batas waktu pengiriman satu LO: 60 menit ditambah waktu tempuh pada kecepatan 40 km per jam untuk jarak standar pelanggan. Melebihi SLA berarti Terlambat.", []),
+        ("kuota", "Kuota BBM subsidi", "Batas volume bulanan BBM subsidi per regional dan produk. Pencapaian di atas 100 persen berarti kuota terlampaui.", []),
     ],
 }
 

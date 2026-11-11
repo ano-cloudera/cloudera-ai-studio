@@ -131,3 +131,8 @@ def test_a_publish_that_needs_attention_is_a_failure(build, monkeypatch) -> None
 
     monkeypatch.setattr(build.semantic_api.Api, "call", fake_call)
     assert build.main(["--base-url", "https://example.invalid/token"]) == 1
+
+
+def test_a_term_is_not_tied_to_a_metric(build) -> None:
+    """A glossary term that names metrics makes its phrase pick one of them in every question that contains it."""
+    assert all(not t[3] for t in build.SPEC["terms"])

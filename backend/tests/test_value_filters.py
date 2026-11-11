@@ -161,3 +161,40 @@ def test_a_word_of_an_applied_typo_does_not_come_back_as_a_suggestion() -> None:
     catalog = {"region": ["Kalimantan Timur", "Jawa Timur"]}
     found = fuzzy_matches("late delivery rate di kalimantn timur", catalog, {})
     assert [(m.values, m.applied) for m in found] == [(("Kalimantan Timur",), True)]
+
+
+def _resolve_grouped(ctx, question, executor, grouped, extra_words=None):
+    definition = ctx.metric_definition("approval_rate")
+    return asyncio.run(
+        vf.resolve_value_matches(
+            question=question,
+            dataset_name="credit_applications",
+            metric_expression=definition["expression"],
+            allowed_dimensions=set(definition["allowed_dimensions"]),
+            from_source='"hive"."default"."credit_applications"',
+            semantic_context=ctx,
+            executor=executor,
+            state={},
+            breakdown_dimensions=grouped,
+            extra_words=extra_words,
+        )
+    )
+
+
+def test_a_typo_in_the_dimension_being_grouped_does_not_filter_the_comparison() -> None:
+    ctx = _build()
+    executor = FakeExecutor({"customer_segment": CATALOG["customer_segment"]})
+    question = "Approval rate per customer segment retaill"
+    assert [f.values for f in _resolve_grouped(ctx, question, executor, set()).filters] == [("Retail",)]  # a lone typo still filters
+    grouped = _resolve_grouped(ctx, question, executor, {"credit_applications_customer_segment"})
+    assert grouped.filters == [] and grouped.corrections == [] and grouped.suggestions == []
+    exact = _resolve_grouped(ctx, "Approval rate per customer segment Retail", executor, {"credit_applications_customer_segment"})
+    assert [f.values for f in exact.filters] == [("Retail",)]  # a value spelt exactly is still a filter
+
+
+def test_a_word_of_the_metric_itself_is_not_offered_as_a_value() -> None:
+    ctx = _build()
+    executor = FakeExecutor({"customer_segment": ["Churned", "Retail"]})
+    question = "Berapa churn rate kita?"
+    assert _resolve_grouped(ctx, question, executor, set()).suggestions == [("churn", ("Churned",))]
+    assert _resolve_grouped(ctx, question, executor, set(), extra_words=["churn rate", "churn"]).suggestions == []
