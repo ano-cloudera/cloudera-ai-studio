@@ -529,6 +529,9 @@ export type ChatResponse = {
     model_name?: string | null
     provider_name?: string | null
   } | null
+  /** Set when the answer came from the answer cache: when it was computed, and why it was served. */
+  cached_at?: string | null
+  cache_reason?: 'repeat' | 'data_source_unavailable' | null
   strategy:
     | 'governed'
     | 'sql_fallback'

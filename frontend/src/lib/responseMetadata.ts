@@ -38,5 +38,6 @@ export function formatResponseMetadata(response: ChatResponse): string {
   if (duration) parts.push(duration)
   const tokens = response.usage?.total_tokens
   if (tokens && tokens > 0) parts.push(`${formatCompactTokens(tokens)} tok`)
+  if (response.cached_at) parts.push(response.cache_reason === 'data_source_unavailable' ? 'Saved answer' : 'Cached')
   return parts.join(' · ')
 }

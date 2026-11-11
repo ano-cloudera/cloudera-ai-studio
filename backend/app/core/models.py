@@ -262,6 +262,9 @@ class AskDataResponse(StrictModel):
     retrieval: RagRetrievalMeta | None = None
     semantic_runtime: SemanticRuntimeMeta | None = None
     model_resolution: ModelResolutionMeta | None = None
+    # When the answer came from the answer cache: when it was computed (ISO), and whether because the data source failed.
+    cached_at: str | None = None
+    cache_reason: Literal["repeat", "data_source_unavailable"] | None = None
     context_mode: ContextMode | None = None
     clarification: AskDataClarification | None = None
     presentation_tier: PresentationTier | None = None

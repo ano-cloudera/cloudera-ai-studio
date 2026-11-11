@@ -133,6 +133,11 @@ class ChatService:
         self._runtime_bundle: RuntimeContextBundle | None = None
         self._project_scope: tuple[str, str] | None = None
         self._active_resolution: ModelResolutionMeta | None = None
+        from app.ask_data.answer_cache import AnswerCache, cache_directory
+
+        self.answer_cache = AnswerCache(
+            cache_directory(settings), mode=getattr(settings, "answer_cache", "fallback"), ttl_seconds=getattr(settings, "answer_cache_ttl_seconds", 21600)
+        )
         self._active_presentation_config = PresentationTierConfig.from_settings(settings)
         # A turn the agent already read, kept for the normal pipeline when the agent does not answer it.
         self._readings: dict[tuple[str, str], TurnReading] = {}
@@ -1348,6 +1353,93 @@ class ChatService:
             return TurnReading(kind="data", uses_previous=False, standalone_question=raw.strip(), rationale="rewrite_switched_metric")
         return reading
 
+    # --- the answer cache (app.ask_data.answer_cache) -------------------------------------------------------------------
+    @property
+    def _answers(self) -> Any:
+        cache = self.__dict__.get("answer_cache")
+        if cache is None:  # a service built without __init__ (tests) keeps nothing
+            from app.ask_data.answer_cache import AnswerCache
+
+            cache = AnswerCache(None, mode="off")
+            self.__dict__["answer_cache"] = cache
+        return cache
+
+    def _answer_cache_key(self, request: AskDataRequest, question: str, *, agent: bool = False) -> str | None:
+        if not self._answers.enabled or not (question or "").strip():
+            return None
+        from app.ask_data.answer_cache import AnswerCache
+
+        bundle = self._runtime_bundle
+        scope = {
+            "semantic": str(getattr(bundle, "semantic_version_id", "") or getattr(bundle, "artifact_checksum", "") or ""),
+            "understanding": self._understanding_mode(request),
+            "llm": f"{request.provider}/{request.model}",
+            "mode": request.mode,
+            "agent": agent,
+            "sources": [s.model_dump(mode="json") for s in request.context_sources or []],
+        }
+        return AnswerCache.key(question, scope)
+
+    def _turn_key(self, request: AskDataRequest, prepared: Any) -> str | None:
+        reading = getattr(prepared, "reading", None)
+        if reading is None or reading.is_conversational or not prepared.question:
+            return None
+        return self._answer_cache_key(request, prepared.question)
+
+    def _serve_cached(self, request: AskDataRequest, value: dict[str, Any], *, request_id: str, started: float, reason: str) -> AskDataResponse:
+        """A kept answer as this turn's answer: new ids and timing, a note when it stands in for a failed one, and the turn
+        recorded with the memory it left, so a follow-up continues it."""
+        from app.ask_data.answer_cache import served_note
+
+        response = AskDataResponse.model_validate(value["response"])
+        note = served_note(value, reason, detect_language(request.question))
+        answer = response.answer
+        if note:
+            answer = answer.model_copy(update={"caveats": [note, *[c for c in answer.caveats if c != note]]})
+        response = response.model_copy(
+            update={
+                "request_id": request_id,
+                "session_id": request.session_id,
+                "answer": answer,
+                "timings": Timings(total_ms=round((perf_counter() - started) * 1000, 3)),
+                "usage": None,
+                "cached_at": value.get("stored_at"),
+                "cache_reason": reason,
+            }
+        )
+        self._persist_turn(request, response, response.chart_spec, session_frame_override=value.get("frame") or None)
+        logger.info("answer_cache_served session_id=%s reason=%s stored_at=%s", request.session_id, reason, value.get("stored_at"))
+        return response
+
+    def _remember(self, request: AskDataRequest, key: str | None, response: AskDataResponse, frame: dict[str, Any] | None = None) -> None:
+        if not key:
+            return
+        if frame is None:
+            try:
+                entries = self.history.load(request.session_id, limit=1)
+                frame = entries[-1].get("session_frame") if entries and isinstance(entries[-1], dict) else None
+            except Exception:  # noqa: BLE001
+                frame = None
+        self._answers.put(key, response, frame)
+
+    def _stand_in(self, request: AskDataRequest, key: str | None, response: AskDataResponse | None, *, request_id: str, started: float) -> AskDataResponse | None:
+        """The kept answer to the same question when the live one failed (the data source or its metastore is down)."""
+        if not key or (response is not None and response.status != "ERROR"):
+            return None
+        value = self._answers.stand_in(key)
+        return self._serve_cached(request, value, request_id=request_id, started=started, reason="data_source_unavailable") if value else None
+
+    def cached_agent_answer(self, request: AskDataRequest, question: str) -> AskDataResponse | None:
+        """For the agent: a recent answer to the same open question (mode 'first')."""
+        key = self._answer_cache_key(request, question, agent=True)
+        value = self._answers.recent(key) if key else None
+        if not value:
+            return None
+        return self._finalize_response(self._serve_cached(request, value, request_id=str(uuid.uuid4()), started=perf_counter(), reason="repeat"))
+
+    def remember_agent_answer(self, request: AskDataRequest, question: str, response: AskDataResponse, frame: dict[str, Any] | None) -> None:
+        self._remember(request, self._answer_cache_key(request, question, agent=True), response, frame)
+
     def use_default_semantic_model(self, request: AskDataRequest) -> None:
         """Load the model Ask Data answers from (see default_semantic_model) before anything reads the semantic context, so the
         greeting and the agent's metric catalog describe the same model as the data questions."""
@@ -1524,6 +1616,10 @@ class ChatService:
                 prepared = await self._prepare_turn(request, request_id=request_id, started=started)
                 if prepared.response is not None:
                     return self._finalize_response(prepared.response)
+                cache_key = self._turn_key(request, prepared)
+                recent = self._answers.recent(cache_key) if cache_key else None
+                if recent:
+                    return self._finalize_response(self._serve_cached(request, recent, request_id=request_id, started=started, reason="repeat"))
                 initial = self._build_initial_state(
                     request,
                     request_id=request_id,
@@ -1538,6 +1634,12 @@ class ChatService:
                     response = self._response_from_state(request, request_id=request_id, state=state, started=started)
                     response = self._attach_usage(request, response)
                     self._persist_turn(request, response, response.chart_spec, workflow_state=state)
+                    if response.status == "SUCCESS":
+                        self._remember(request, cache_key, response)
+                    else:
+                        standing = self._stand_in(request, cache_key, response, request_id=request_id, started=started)
+                        if standing is not None:
+                            return self._finalize_response(standing)
                     logger.info(
                         "ask_data request_id=%s session_id=%s provider=%s model=%s strategy=%s status=%s retry_count=%s timings=%s",
                         request_id, request.session_id, request.provider, request.model, response.strategy, response.status, response.retry_count, response.timings.model_dump_json(),
@@ -1548,6 +1650,9 @@ class ChatService:
                         "ask_data_backend_failed request_id=%s session_id=%s provider=%s model=%s safe_error_code=%s",
                         request_id, request.session_id, request.provider, request.model, exc.code,
                     )
+                    standing = self._stand_in(request, cache_key, None, request_id=request_id, started=started)
+                    if standing is not None:
+                        return self._finalize_response(standing)
                     provider = self.dependencies.provider_registry.resolve(request.provider, request.model)
                     answer = await explain_failure(
                         provider=provider,
@@ -1558,6 +1663,9 @@ class ChatService:
                     return self._finalize_response(self._failure_response(request, request_id=request_id, answer=answer, started=started))
                 except Exception:
                     logger.exception("ask_data_failed request_id=%s session_id=%s provider=%s model=%s", request_id, request.session_id, request.provider, request.model)
+                    standing = self._stand_in(request, cache_key, None, request_id=request_id, started=started)
+                    if standing is not None:
+                        return self._finalize_response(standing)
                     provider = self.dependencies.provider_registry.resolve(request.provider, request.model)
                     answer = await explain_failure(
                         provider=provider,
@@ -1608,6 +1716,11 @@ class ChatService:
                 if prepared.response is not None:
                     yield {"type": "done", "response": self._finalize_response(prepared.response)}
                     return
+                cache_key = self._turn_key(request, prepared)
+                recent = self._answers.recent(cache_key) if cache_key else None
+                if recent:
+                    yield {"type": "done", "response": self._finalize_response(self._serve_cached(request, recent, request_id=request_id, started=started, reason="repeat"))}
+                    return
                 logger.info("ask_data_route=ossie stream request_id=%s session_id=%s", request_id, request.session_id)
                 async for event in self._stream_ossie_workflow(
                     request,
@@ -1619,7 +1732,12 @@ class ChatService:
                     turn_reading=prepared.reading,
                 ):
                     if event.get("type") == "done":
-                        event = {**event, "response": self._finalize_response(event["response"])}
+                        response = event["response"]
+                        if response.status == "SUCCESS":
+                            self._remember(request, cache_key, response)
+                        else:
+                            response = self._stand_in(request, cache_key, response, request_id=request_id, started=started) or response
+                        event = {**event, "response": self._finalize_response(response)}
                     yield event
             finally:
                 if isinstance(reg, HybridProviderRegistry):

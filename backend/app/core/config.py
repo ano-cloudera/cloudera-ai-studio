@@ -305,6 +305,14 @@ class Settings(BaseSettings):
         default=True,
         description="Split open questions (why, what should we do) into steps that each run through governed Ask Data, then write one report.",
     )
+    answer_cache: str = Field(
+        default="fallback",
+        validation_alias="ANSWER_CACHE",
+        description="'fallback': answer live, and serve the last answer to the same question only when the data source fails; "
+        "'first': serve a recent answer to the same question straight away (warm demo questions); 'off': no cache.",
+    )
+    answer_cache_ttl_seconds: int = Field(default=21600, ge=60, validation_alias="ANSWER_CACHE_TTL_SECONDS")
+    answer_cache_dir: str = Field(default="", validation_alias="ANSWER_CACHE_DIR")
     ask_data_understanding: str = Field(
         default="rules",
         validation_alias="ASK_DATA_UNDERSTANDING",

@@ -509,6 +509,11 @@ class AskDataAgent:
             use_default = getattr(self._chat, "use_default_semantic_model", None)
             if callable(use_default):
                 use_default(prepared)  # plan with the model the steps will run on, not whichever one the process loaded last
+            cached = getattr(self._chat, "cached_agent_answer", None)
+            hit = cached(prepared, question) if callable(cached) else None
+            if hit is not None:
+                yield {"type": "done", "response": hit}
+                return
             catalog = self._chat.metric_catalog()
             library_ids = self._knowledge_library_ids()
             if not catalog:
@@ -632,6 +637,9 @@ class AskDataAgent:
             self._chat.record_turn(prepared, response, frame=frame)
         else:
             self._chat.record_turn(prepared, response)
+        remember = getattr(self._chat, "remember_agent_answer", None)
+        if callable(remember):
+            remember(prepared, question, response, frame)
         yield {"type": "done", "response": response}
 
     def _step_frames(self, run_id: str, count: int, shown: int | None, *, request: AskDataRequest, question: str) -> dict[str, Any] | None:

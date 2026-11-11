@@ -43,6 +43,12 @@ describe('responseMetadata', () => {
     expect(formatResponseMetadata({ ...viaRegistry, model_resolution: null })).toBe('Qwen · Governed · 7.2s')
   })
 
+  it('says when an answer came from the answer cache', () => {
+    const cached = { ...base, timings: { total_ms: 900 }, cached_at: '2026-11-12T03:00:00+00:00', cache_reason: 'repeat' as const } satisfies ChatResponse
+    expect(formatResponseMetadata(cached)).toBe('Gemini · Governed · 0.9s · Cached')
+    expect(formatResponseMetadata({ ...cached, cache_reason: 'data_source_unavailable' })).toBe('Gemini · Governed · 0.9s · Saved answer')
+  })
+
   it('formats sub-10s durations with one decimal', () => {
     expect(formatDurationSeconds(8200)).toBe('8.2s')
   })
