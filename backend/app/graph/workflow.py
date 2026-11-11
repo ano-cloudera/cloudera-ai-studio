@@ -92,6 +92,14 @@ def _data_reference_from_sql(sql: str) -> str | None:
     return ", ".join(seen)
 
 
+def _overall_figures(value: Any) -> list[float]:
+    """The overall value the analyst was given beside the breakdown, as figures the answer may quote."""
+    try:
+        return [float(value)] if value is not None and not isinstance(value, bool) else []
+    except (TypeError, ValueError):
+        return []
+
+
 def _governed_partial_caveats(resolution: dict[str, Any], language: str = "en") -> list[str]:
     unmet = list(resolution.get("dimension_mismatch") or [])
     if not unmet:
@@ -1154,6 +1162,7 @@ def build_workflow(deps: WorkflowDependencies):
             rows=rows,
             question=str(state.get("question") or ""),
             language=detect_language(str(state.get("question") or "")),
+            extra_figures=_overall_figures(state.get("overall_value")),
         )
         figure_checks = [{"name": "figures", "status": "warning", "message": w} for w in figure_warnings]
         analysis = _settled_follow_ups(

@@ -79,6 +79,12 @@ class OssieRuntimeAdapter(SemanticRuntimeAdapter):
                     dim.metadata_ or {}
                 ).get("is_time"):
                     field["dimension"] = {"is_time": True}
+                # What the model calls the dimension: result columns are labelled with it and a question can name it by it.
+                context: dict[str, Any] = {"display_name": dim.name} if dim.name else {}
+                if dim.synonyms:
+                    context["synonyms"] = list(dim.synonyms)
+                if context:
+                    field["ai_context"] = context
                 fields.append(field)
             source = entity.metadata_.get("source") if entity.metadata_ else None
             if not source and entity.schema and (entity.table_name or entity.view_name):

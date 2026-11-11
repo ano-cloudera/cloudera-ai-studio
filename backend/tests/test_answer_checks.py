@@ -40,3 +40,16 @@ def test_review_answer_cleans_the_text_and_warns_in_the_language_of_the_question
     assert warnings and "998" in warnings[0] and warnings[0] in cleaned.caveats
     _, id_warnings = review_answer(answer, rows=MONTHS, question="berapa order per bulan", language="id")
     assert id_warnings[0].startswith("Angka 998")
+
+
+def test_the_overall_value_and_what_follows_from_it_may_be_quoted() -> None:
+    rows = [{"region": "Kalimantan Timur", "metric_value": 22.64}, {"region": "Bali", "metric_value": 18.34}, {"region": "Jawa Timur", "metric_value": 14.79}]
+    text = ["Rata-rata keseluruhan 17,04%, Kalimantan Timur lebih tinggi 5,60 poin."]
+    assert unverified_figures(text, rows, "churn per wilayah") == ["17,04", "5,60"]
+    assert unverified_figures(text, rows, "churn per wilayah", [17.04]) == []
+
+
+def test_a_figure_spoken_in_billions_or_as_a_ratio_is_derivable() -> None:
+    rows = [{"channel": "App", "revenue": 19753449000}, {"channel": "Website", "revenue": 13042320000}]
+    assert unverified_figures(["App menghasilkan 19,75 miliar, hampir 1,5 kali lipat dari Website."], rows) == []
+    assert unverified_figures(["App menghasilkan 25,50 miliar."], rows) == ["25,50"]

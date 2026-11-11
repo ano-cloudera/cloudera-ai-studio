@@ -22,6 +22,7 @@ _NUMBER = re.compile(r"(?<![\w.,])\d[\d.,]*\d|(?<![\w.,])\d")
 _THOUSANDS_COMMA = re.compile(r"^\d{1,3}(?:,\d{3})+$")
 _THOUSANDS_DOT = re.compile(r"^\d{1,3}(?:\.\d{3})+$")
 MAX_PAIRWISE_ROWS = 30
+_SCALES = (1e3, 1e6, 1e9, 1e12)  # "19,75 miliar" for 19,753,449,000
 
 
 def strip_calculation_label(text: str) -> str:
@@ -79,8 +80,9 @@ def _worth_checking(token: str, candidates: set[float], decimals: int) -> bool:
     return decimals > 0 or digits >= 3
 
 
-def allowed_figures(rows: list[dict[str, Any]], question: str) -> set[float]:
-    """Every figure the answer may state: the cells, and what can be worked out from them."""
+def allowed_figures(rows: list[dict[str, Any]], question: str, extras: list[float] | None = None) -> set[float]:
+    """Every figure the answer may state: the cells, and what can be worked out from them. `extras` are figures the answer was
+    given besides the rows (the overall value), with the differences and ratios against each cell."""
     columns: dict[str, list[float]] = {}
     for row in rows:
         for key, value in row.items():
@@ -92,6 +94,14 @@ def allowed_figures(rows: list[dict[str, Any]], question: str) -> set[float]:
         total = sum(values)
         allowed.update(values)
         allowed.update({total, total / len(values), min(values), max(values)})
+        for number in (*values, total):
+            allowed.update(number / scale for scale in _SCALES)
+        for extra in extras or []:
+            allowed.add(extra)
+            for v in values:
+                allowed.update({v - extra, extra - v})
+                if extra:
+                    allowed.update({v / extra, v / extra * 100, (v - extra) / abs(extra) * 100})
         if total:
             allowed.update(v / total * 100 for v in values)
         if len(values) <= MAX_PAIRWISE_ROWS:
@@ -100,6 +110,7 @@ def allowed_figures(rows: list[dict[str, Any]], question: str) -> set[float]:
                 if b:
                     allowed.add((a - b) / abs(b) * 100)
                     allowed.add(a / b * 100)
+                    allowed.add(a / b)
         allowed.update(values[i] - values[i + 1] for i in range(len(values) - 1))
     for token in _NUMBER.findall(question or ""):
         try:
@@ -109,11 +120,11 @@ def allowed_figures(rows: list[dict[str, Any]], question: str) -> set[float]:
     return allowed
 
 
-def unverified_figures(texts: list[str], rows: list[dict[str, Any]], question: str = "") -> list[str]:
+def unverified_figures(texts: list[str], rows: list[dict[str, Any]], question: str = "", extras: list[float] | None = None) -> list[str]:
     """Figures written in the texts that are neither in the rows nor derivable from them."""
     if not rows:
         return []
-    allowed = allowed_figures(rows, question)
+    allowed = allowed_figures(rows, question, extras)
     found: list[str] = []
     for text in texts:
         for token in _NUMBER.findall(text or ""):
@@ -135,11 +146,12 @@ def review_answer(
     rows: list[dict[str, Any]],
     question: str,
     language: str,
+    extra_figures: list[float] | None = None,
 ) -> tuple[AnalysisOutput, list[str]]:
     """The answer without a calculation label and with a caveat for each figure that cannot be verified."""
     summary = strip_calculation_label(analysis.executive_summary)
     insights = [item for item in (strip_calculation_label(i) for i in analysis.insights) if item]
-    bad = unverified_figures([analysis.direct_answer, summary, *insights], rows, question)
+    bad = unverified_figures([analysis.direct_answer, summary, *insights], rows, question, extra_figures)
     warnings = [
         (
             f"Angka {token} pada ringkasan tidak ada di hasil dan tidak dapat diturunkan darinya, jadi gunakan dengan hati-hati."

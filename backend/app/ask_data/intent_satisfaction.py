@@ -296,6 +296,81 @@ def _dimension_words(key: str, dataset_name: str) -> list[str]:
     return words or [w for w in base.casefold().split("_") if w and w not in {"id", "flag"}]
 
 
+def _breakdown_phrases(question: str) -> list[str]:
+    phrases = [m.group("phrase") for m in _BREAKDOWN_PHRASE.finditer(question or "")]
+    phrases += [m.group("phrase") for m in _WHICH_PHRASE.finditer(question or "")]
+    phrases += [
+        m.group("phrase")
+        for m in _WHICH_PHRASE_ID.finditer(question or "")
+        if m.group("phrase").split()[-1].casefold() not in _WHICH_ID_STOP
+    ]
+    return phrases
+
+
+def _model_labels(registry: Any, dataset_name: str, key: str) -> list[str]:
+    """What the semantic model itself calls a dimension: its display name and synonyms. "Terminal (TBBM)" gives "terminal" and "tbbm"."""
+    field = ((getattr(registry, "dataset_fields", None) or {}).get(dataset_name) or {}).get(key) or {}
+    context = field.get("ai_context") if isinstance(field.get("ai_context"), dict) else {}
+    labels: list[str] = []
+    for value in [context.get("display_name"), *(context.get("synonyms") or [])]:
+        text = str(value or "")
+        for piece in [re.sub(r"\(.*?\)", " ", text), *re.findall(r"\((.*?)\)", text)]:
+            piece = " ".join(piece.casefold().split())
+            if len(piece) >= 3:
+                labels.append(piece)
+    return labels
+
+
+def _dimension_labels(registry: Any, dataset_name: str, key: str) -> list[str]:
+    """Every phrase that names this dimension in a question: its key words (alone and together), the built-in synonyms of those
+    words, and what the model calls it."""
+    words = _dimension_words(key, dataset_name)
+    labels: list[str] = []
+    if len(words) > 1:
+        labels.append(" ".join(words))
+    for word in words:
+        labels.extend((word, *_DIMENSION_WORD_SYNONYMS.get(word, ())))
+    labels.extend(_model_labels(registry, dataset_name, key))
+    return list(dict.fromkeys(labels))
+
+
+def match_dimensions(question: str, entries: list[tuple[str, str, bool]], *, registry: Any) -> list[tuple[str, str, bool]]:
+    """The dimensions a question names as a breakdown, as (key, dataset, allowed) in the order they are named.
+
+    `entries` are the candidate dimensions: (key, dataset, allowed). The longest phrase wins a stretch of the question, and
+    when two dimensions name it equally well an allowed one wins, so "per tipe SPBU" is the station type, not the station."""
+    phrases = _breakdown_phrases(question)
+    if not phrases:
+        return []
+    time_keys: dict[str, set[str]] = {}
+    accepted: list[tuple[str, str, bool]] = []
+    for phrase in phrases:
+        lowered = phrase.casefold()
+        found: list[tuple[int, int, int, int, str, str, bool]] = []
+        for key, dataset, allowed in entries:
+            if key.endswith(("_id", "_flag")):
+                continue
+            if dataset not in time_keys:
+                time_keys[dataset] = set(_time_dimension_keys(dataset, registry))
+            if key in time_keys[dataset]:
+                continue
+            for label in _dimension_labels(registry, dataset, key):
+                for m in re.finditer(rf"\b{re.escape(label)}(?:s|es)?\b", lowered):
+                    found.append((len(label), 1 if allowed else 0, m.start(), m.end(), key, dataset, allowed))
+        found.sort(key=lambda f: (-f[0], -f[1], f[2], f[4]))
+        taken: list[tuple[int, int]] = []
+        local: list[tuple[int, str, str, bool]] = []
+        for _, _, start, end, key, dataset, allowed in found:
+            if any(start < e and end > s for s, e in taken) or any(key == k and dataset == d for _, k, d, _a in local):
+                continue
+            taken.append((start, end))
+            local.append((start, key, dataset, allowed))
+        for _, key, dataset, allowed in sorted(local):
+            if not any(key == k and dataset == d for k, d, _a in accepted):
+                accepted.append((key, dataset, allowed))
+    return accepted
+
+
 def infer_dimensions_from_question(
     question: str,
     allowed: set[str],
@@ -304,29 +379,24 @@ def infer_dimensions_from_question(
     registry: Any,
 ) -> list[str]:
     """Breakdown dimensions named after "by", "per", "across" or "which <dimension> has the highest"."""
-    phrases = [m.group("phrase") for m in _BREAKDOWN_PHRASE.finditer(question or "")]
-    phrases += [m.group("phrase") for m in _WHICH_PHRASE.finditer(question or "")]
-    phrases += [
-        m.group("phrase")
-        for m in _WHICH_PHRASE_ID.finditer(question or "")
-        if m.group("phrase").split()[-1].casefold() not in _WHICH_ID_STOP
-    ]
-    if not phrases:
-        return []
-    time_keys = set(_time_dimension_keys(dataset_name, registry))
-    found: list[tuple[int, str]] = []
-    for key in sorted(allowed):
-        if key in time_keys or key.endswith(("_id", "_flag")):
-            continue
-        words = _dimension_words(key, dataset_name)
-        candidates = {w for word in words for w in (word, *_DIMENSION_WORD_SYNONYMS.get(word, ()))}
-        for phrase in phrases:
-            lowered = phrase.casefold()
-            hits = [m.start() for w in candidates for m in re.finditer(rf"\b{re.escape(w)}(?:s|es)?\b", lowered)]
-            if hits:
-                found.append((min(hits), key))
-                break
-    return [key for _, key in sorted(found)]
+    entries = [(key, dataset_name, True) for key in sorted(allowed)]
+    return [key for key, _, _ in match_dimensions(question, entries, registry=registry)]
+
+
+def unavailable_dimensions(question: str, allowed: set[str], *, dataset_name: str, registry: Any) -> list[tuple[str, str]]:
+    """Dimensions the question names as a breakdown that exist in the model but not for this metric, as (key, dataset)."""
+    entries: list[tuple[str, str, bool]] = [(key, dataset_name, True) for key in sorted(allowed)]
+    for dataset, fields in (getattr(registry, "dataset_fields", None) or {}).items():
+        for key, field in fields.items():
+            if "dimension" in field and not (dataset == dataset_name and key in allowed):
+                entries.append((key, dataset, False))
+    return [(key, dataset) for key, dataset, ok in match_dimensions(question, entries, registry=registry) if not ok]
+
+
+def dimension_display_name(registry: Any, dataset_name: str, key: str) -> str:
+    field = ((getattr(registry, "dataset_fields", None) or {}).get(dataset_name) or {}).get(key) or {}
+    context = field.get("ai_context") if isinstance(field.get("ai_context"), dict) else {}
+    return str(context.get("display_name") or " ".join(_dimension_words(key, dataset_name)) or key)
 
 
 _SATISFACTION_WORDS = re.compile(r"\b(nps|net\s+promoter|csat|satisfaction|kepuasan)\b", re.I)

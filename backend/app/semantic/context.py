@@ -175,10 +175,13 @@ class SemanticContextService:
         """Resolve a question to a governed metric, its breakdown and its period. With `metric` the metric is already
         chosen (by the language model, from the catalog) and only the rest is worked out."""
         from app.ask_data.intent_satisfaction import (
+            dimension_display_name,
             parse_requested_constraints,
+            unavailable_dimensions,
             validate_registry_resolution,
         )
 
+        chosen_by_model = metric is not None
         if metric is not None:
             resolution: dict[str, Any] = {
                 "status": "resolved",
@@ -214,6 +217,16 @@ class SemanticContextService:
                 )
             resolution["dimensions"] = dimensions
             resolution["dimension_mismatch"] = list(resolution.get("dimension_mismatch") or [])
+            missing = unavailable_dimensions(question, allowed, dataset_name=str(definition["base_dataset"]), registry=self.registry)
+            if missing:
+                if not dimensions and not chosen_by_model:
+                    other = self._alternative_metric(question, metric, missing)
+                    if other:
+                        return self._resolve_registry_runtime(question, metric=other)
+                names = [dimension_display_name(self.registry, dataset, key) for key, dataset in missing]
+                if not dimensions:
+                    return self._unsupported_dimension(question, metric, definition, missing, names)
+                resolution["dimension_mismatch"] = names
             constraints = parse_requested_constraints(question)
             if constraints.explicit_period:
                 resolution["explicit_period"] = {
@@ -237,6 +250,63 @@ class SemanticContextService:
                     "intent_validation": validation.as_metadata(),
                 }
         return resolution
+
+    def _supporting_metrics(self, wanted: set[str], *, skip: str) -> list[str]:
+        return [
+            name for name in self.metrics
+            if name != skip and wanted <= set(self.metric_definition(name).get("allowed_dimensions") or [])
+        ]
+
+    def _alternative_metric(self, question: str, current: str, missing: list[tuple[str, str]]) -> str | None:
+        """Another metric that can be broken down the way the question asks and that the question's other words point to
+        ("pendapatan per loyalty tier": the revenue metric of the customer view, not the one of the transactions)."""
+        from app.ask_data.intent_satisfaction import _dimension_labels
+        from app.semantic.registry import _catalog_tokenize
+
+        wanted = {key for key, _ in missing}
+        candidates = self._supporting_metrics(wanted, skip=current)
+        if not candidates:
+            return None
+        dimension_words = {tok for key, dataset in missing for label in _dimension_labels(self.registry, dataset, key) for tok in _catalog_tokenize(label)}
+        tokens = {tok for tok in _catalog_tokenize(question) if len(tok) >= 4 and tok not in dimension_words}
+        scored = sorted(
+            ((sum(1 for tok in tokens if tok in " ".join(self.registry.metric_aliases(name)).casefold()), name) for name in candidates),
+            key=lambda item: (-item[0], item[1]),
+        )
+        if not scored or scored[0][0] < 1 or (len(scored) > 1 and scored[1][0] == scored[0][0]):
+            return None
+        return scored[0][1]
+
+    def _unsupported_dimension(self, question: str, metric: str, definition: dict[str, Any], missing: list[tuple[str, str]], names: list[str]) -> dict[str, Any]:
+        """Say plainly that the metric cannot be broken down that way, instead of answering with one number."""
+        from app.ask_data.intent_satisfaction import dimension_display_name
+        from app.ask_data.metric_labels import humanize_metric_label
+        from app.core.language import detect_language
+
+        label = humanize_metric_label(name=metric, definition=definition)
+        dataset = str(definition.get("base_dataset") or "")
+        offered = [dimension_display_name(self.registry, dataset, key) for key in definition.get("allowed_dimensions") or []][:8]
+        others = [humanize_metric_label(name=name, definition=self.metric_definition(name)) for name in self._supporting_metrics({key for key, _ in missing}, skip=metric)][:3]
+        if detect_language(question) == "id":
+            text = f"{label} belum bisa dipecah per {' dan '.join(names)}."
+            if offered:
+                text += f" Metrik ini bisa dipecah per: {', '.join(offered)}."
+            if others:
+                text += f" Yang bisa dipecah per {' dan '.join(names)}: {', '.join(others)}."
+        else:
+            text = f"{label} cannot be broken down by {' and '.join(names)}."
+            if offered:
+                text += f" It can be broken down by: {', '.join(offered)}."
+            if others:
+                text += f" Metrics that can be broken down by {' and '.join(names)}: {', '.join(others)}."
+        return {
+            "status": "needs_clarification",
+            "question": text,
+            "reason": "unsupported_dimension",
+            "metric": metric,
+            "definition": definition,
+            "intent_validation": {"intent_complete": False, "unresolved_constraints": [f"dimension:{key}" for key, _ in missing], "reason_code": "UNSUPPORTED_DIMENSION"},
+        }
 
     def _registry_dimension_expression(self, dataset_name: str, dimension_key: str, question: str) -> str:
         field = self.registry.dataset_fields[dataset_name][dimension_key]
