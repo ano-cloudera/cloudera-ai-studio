@@ -51,14 +51,14 @@ def test_the_model_sees_the_catalog_with_real_values_and_no_time_column_as_a_bre
 
 def test_a_valid_reading_becomes_the_resolution_without_a_second_call(ctx) -> None:
     model = Model({
-        "metric": "total_volume", "breakdown": ["fuel_terminal"], "by_month": True,
+        "metric": "total_volume", "breakdown": [], "by_month": True,
         "filters": [{"dimension": "fuel_terminal", "values": ["kertapati"]}],
         "period_start": "2025-07-01", "period_end": "2025-10-01", "language": "id",
     })
     resolution = _understand(ctx, model, "Volume Kertapati per bulan Juli sampai September 2025")
     assert len(model.sent) == 1
     assert resolution["status"] == "resolved" and resolution["metric"] == "total_volume"
-    assert resolution["dimensions"] == ["tanggal_transaksi", "fuel_terminal"]
+    assert resolution["dimensions"] == ["tanggal_transaksi"]
     assert resolution["intent"]["filters"] == [{"dimension": "fuel_terminal", "values": ["Kertapati"]}]  # spelt as the data has it
     payload = json.loads(model.sent[0][1]["content"])
     assert payload["question"].startswith("Volume Kertapati") and payload["catalog"]["metrics"]
@@ -139,3 +139,19 @@ def test_the_compiled_sql_passes_the_governed_sql_check(ctx) -> None:
     }
     checked = validate_ask_data_sql(sql, ctx, state=state)
     assert checked.valid, checked.error
+
+
+def test_a_breakdown_by_the_dimension_filtered_to_one_value_is_sent_back(ctx) -> None:
+    one_row = {"metric": "tingkat_keterlambatan", "breakdown": ["regional"], "filters": [{"dimension": "regional", "values": ["Papua Maluku"]}], "language": "id"}
+    fixed = {"metric": "tingkat_keterlambatan", "breakdown": ["fuel_terminal"], "filters": [{"dimension": "regional", "values": ["Papua Maluku"]}], "language": "id"}
+    model = Model(one_row, fixed)
+    resolution = _understand(ctx, model, "Keterlambatan di Papua Maluku per terminal")
+    assert len(model.sent) == 2 and "single row" in model.sent[1][-1]["content"]
+    assert resolution["dimensions"] == ["fuel_terminal"]
+
+
+def test_comparing_some_values_of_the_breakdown_dimension_is_allowed(ctx) -> None:
+    two = {"metric": "tingkat_keterlambatan", "breakdown": ["regional"], "filters": [{"dimension": "regional", "values": ["Papua Maluku", "Kalimantan"]}], "language": "id"}
+    model = Model(two)
+    resolution = _understand(ctx, model, "Bandingkan keterlambatan Papua Maluku dan Kalimantan")
+    assert len(model.sent) == 1 and resolution["dimensions"] == ["regional"]

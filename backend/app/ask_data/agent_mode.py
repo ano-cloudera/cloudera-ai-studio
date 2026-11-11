@@ -261,14 +261,14 @@ def fallback_steps(
 def _with_breakdown(steps: list[AgentStep], catalog: list[dict[str, Any]], language: str) -> list[AgentStep]:
     """An overview names the group that stands out, so it needs one step by a group. When the plan has none, the main headline rate
     by its first non-time dimension is added, in place of the first step that is not a headline metric (else the last step)."""
-    by_name = {str(m["name"]): m for m in catalog if m.get("name")}
     data = [s for s in steps if s.kind == "data"]
-    if any(re.search(r"\bper\s+(?!bulan\b|month\b|tahun\b|year\b)\w", s.question, re.I) for s in data):
-        return steps
     headline = _headline_metrics(catalog)
     rate = next((m for m in headline if _is_rate(m)), None)
     if rate is None:
         return steps
+    by_group = re.compile(r"\bper\s+(?!bulan\b|month\b|tahun\b|year\b)\w", re.I)
+    if any(s.metric == str(rate["name"]) and by_group.search(s.question) for s in data):
+        return steps  # the main rate is already broken down by a group
     groups = [str(d) for d in rate.get("allowed_dimensions") or [] if not _NOT_A_GROUP.search(str(d))]
     if not groups:
         return steps
@@ -370,6 +370,10 @@ def _step_result(index: int, step: AgentStep, response: AskDataResponse | None, 
         )
         if response.data.overall_value is not None:
             result["overall_value"] = response.data.overall_value
+            filters = list(response.calculation.filters) if response.calculation and response.calculation.filters else []
+            if filters:
+                # Without this the report called the value of two filtered regions "the national average".
+                result["overall_value_covers"] = "only " + "; ".join(filters) + " as a whole, not the national or company-wide figure"
         if response.calculation and response.calculation.scope:
             result["scope"] = response.calculation.scope
     else:

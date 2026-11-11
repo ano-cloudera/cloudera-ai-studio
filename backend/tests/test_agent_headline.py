@@ -73,3 +73,13 @@ def test_a_plan_that_already_breaks_down_by_a_group_is_left_alone() -> None:
     ]
     steps = asyncio.run(plan_steps(Provider(proposed), question=QUESTION, catalog=CATALOG, has_knowledge=False))
     assert [s.question for s in steps] == ["Tingkat Keterlambatan", "Tingkat Keterlambatan per regional"]
+
+
+def test_an_overview_that_breaks_down_only_the_volume_still_gets_the_main_rate_by_a_group() -> None:
+    proposed = [
+        AgentStep(kind="data", question="Total Volume", metric="total_volume"),
+        AgentStep(kind="data", question="Total Volume per regional", metric="total_volume"),
+        AgentStep(kind="data", question="Tingkat Keterlambatan", metric="tingkat_keterlambatan"),
+    ]
+    steps = asyncio.run(plan_steps(Provider(proposed), question=QUESTION, catalog=CATALOG, has_knowledge=False))
+    assert steps[-1].metric == "tingkat_keterlambatan" and steps[-1].question.endswith("per regional")

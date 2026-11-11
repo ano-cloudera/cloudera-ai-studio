@@ -153,6 +153,13 @@ def check(intent: QueryIntent, ctx: Any, values: dict[tuple[str, str], list[str]
     for key in intent.breakdown:
         if key not in supported:
             problems.append(f"breakdown '{key}' is not one '{intent.metric}' supports; its breakdowns are {supported}")
+    single = {f.dimension for f in intent.filters if len(f.values) == 1}
+    for key in intent.breakdown:
+        if key in single:
+            problems.append(
+                f"breakdown '{key}' is also filtered to one value, so it gives a single row; break down by the dimension the question "
+                "compares within that value, or leave the breakdown out"
+            )
     if intent.by_month and not any(k in times for k in allowed):
         problems.append(f"'{intent.metric}' cannot be split by month")
     for flt in intent.filters:

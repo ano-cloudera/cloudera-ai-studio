@@ -232,3 +232,16 @@ def test_a_step_whose_metric_pin_fails_is_asked_again_without_the_pin() -> None:
     events = _collect(AskDataAgent(chat), _request())
     assert events[-1]["type"] == "done" and events[-1]["response"].strategy == "agent"
     assert [m for m, _ in chat.asked].count("pinned") == 2 and [m for m, _ in chat.asked].count("ask_data") == 2
+
+
+def test_the_overall_value_of_a_filtered_step_says_it_covers_only_that_group() -> None:
+    from app.ask_data.agent_mode import _step_result
+
+    note = CalculationNote(kind="governed", summary="s", filters=["regional: Papua Maluku, Kalimantan"])
+    filtered = _response("q", note=note)
+    filtered.data.overall_value = 31.71
+    result = _step_result(1, AgentStep(kind="data", question="Late rate per regional"), filtered)
+    assert result["overall_value"] == 31.71 and "not the national" in result["overall_value_covers"]
+    plain = _response("q")
+    plain.data.overall_value = 16.07
+    assert "overall_value_covers" not in _step_result(1, AgentStep(kind="data", question="Late rate per regional"), plain)
