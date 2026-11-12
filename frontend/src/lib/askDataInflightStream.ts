@@ -40,6 +40,11 @@ export function inflightStreamSessionId(): string | null {
   return snapshot.loading ? snapshot.sessionId : null
 }
 
+/** A finished answer was shown in its session; a later visit to Ask Data must not open that session again. */
+export function clearFinishedStream(): void {
+  if (!snapshot.loading) snapshot = { ...snapshot, sessionId: '' }
+}
+
 export function abortInflightStream(): void {
   abortController?.abort()
 }

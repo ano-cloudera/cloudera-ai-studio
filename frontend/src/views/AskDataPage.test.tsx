@@ -275,6 +275,40 @@ describe('V2 Ask Data page', () => {
     expect(screen.queryByText('Understanding your question')).toBeNull()
   })
 
+  it('keeps one session when the user leaves Ask Data during an answer and comes back', async () => {
+    localStorage.clear()
+    vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
+    vi.mocked(api.chatStream).mockImplementation((async function* () {
+      yield { type: 'progress', stage: 'querying_data', label: 'Querying data' }
+      yield { type: 'done', response: {
+        request_id: 'r-tab', session_id: 's-tab', status: 'SUCCESS', provider: 'qwen', model: 'qwen-model', strategy: 'governed', route: 'ask_data',
+        answer: { direct_answer: 'Tab answer.', executive_summary: 'Tab answer.', insights: [], business_implications: [], caveats: [], data_reference: 't', chart_spec: null },
+        data: { columns: [], rows: [], row_count: 0, execution_ms: 1 }, chart_spec: null,
+        timings: { total_ms: 5 }, retry_count: 0,
+      } }
+    }) as never)
+    const first = renderWithProviders(<AskDataPage />)
+    await submitViaComposer('Top 3 provinsi?')
+    await waitFor(() => expect(screen.getAllByText('Tab answer.').length).toBeGreaterThan(0))
+    first.unmount() // another tab of the app
+
+    renderWithProviders(<AskDataPage />) // back to Ask Data
+    await waitFor(() => expect(screen.getAllByText('Tab answer.').length).toBeGreaterThan(0))
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    })
+    const stored = JSON.parse(localStorage.getItem('ai-studio.ask-data.sessions') || '[]') as { messages: unknown[] }[]
+    expect(stored).toHaveLength(1)
+    expect(stored[0].messages).toHaveLength(2)
+    cleanup()
+
+    renderWithProviders(<AskDataPage />) // and once more: the finished answer is not reopened as a new session
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50))
+    })
+    expect(JSON.parse(localStorage.getItem('ai-studio.ask-data.sessions') || '[]')).toHaveLength(1)
+  })
+
   it('times out a request and clears its loading state after 90 seconds', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })

@@ -31,12 +31,15 @@ import {
   abortInflightStream,
   inflightStreamSessionId,
   startInflightStream,
+  clearFinishedStream,
   subscribeInflightStream,
 } from '../lib/askDataInflightStream'
 import { api } from '../lib/api'
 import { mergeDataNotes, parseDataProvenance } from '../lib/dataProvenance'
 import {
   createSessionId,
+  readCurrentSessionId,
+  writeCurrentSessionId,
   deleteSession,
   loadSessions,
   saveSession,
@@ -236,7 +239,17 @@ export function AskDataPage() {
       )
   }, [libraryPickerOptions])
 
-  useEffect(() => setSessions(loadSessions()), [])
+  useEffect(() => {
+    // Back from another page: continue the session that was open, under its own id.
+    const current = readCurrentSessionId()
+    const open = current && !inflightStreamSessionId() ? loadSessions().find(s => s.id === current) : undefined
+    if (open) {
+      setSessionId(open.id)
+      setMessages(open.messages)
+    }
+    setSessions(loadSessions())
+  }, [])
+  useEffect(() => writeCurrentSessionId(sessionId), [sessionId])
 
   useEffect(() => {
     api
@@ -289,10 +302,14 @@ export function AskDataPage() {
       if (state.error) setError(state.error)
       if (!state.loading) {
         turnInFlightRef.current = false
-        const sess = loadSessions().find(s => s.id === state.sessionId)
+        const sess = state.sessionId ? loadSessions().find(s => s.id === state.sessionId) : undefined
         if (sess) {
+          // Show the answer in its own session: loading its messages under the fresh id this page started with saved them
+          // again as a second session (a duplicate in Recent after switching tabs and back).
+          setSessionId(sess.id)
           setMessages(sess.messages)
           setSessions(loadSessions())
+          clearFinishedStream()
         }
       }
     })

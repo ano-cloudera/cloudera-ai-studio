@@ -27,6 +27,26 @@ export type ChatSession = {
 }
 
 const STORAGE_KEY = 'ai-studio.ask-data.sessions'
+const CURRENT_KEY = 'ai-studio.ask-data.current-session'
+
+/** The session open in this browser tab, so coming back to Ask Data from another page continues it under the same id. */
+export function readCurrentSessionId(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.sessionStorage.getItem(CURRENT_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function writeCurrentSessionId(id: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(CURRENT_KEY, id)
+  } catch {
+    // storage unavailable: a visit to another page starts a new chat, nothing worse
+  }
+}
 const MAX_SESSIONS = 20
 
 export function createSessionId(): string {
