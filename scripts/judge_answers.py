@@ -212,13 +212,17 @@ def done_response(lines: Any) -> dict[str, Any]:
     raise RuntimeError("the stream ended without an answer")
 
 
-def http_ask(base_url: str, provider: str, model: str, understanding: str | None = None, *, stream: bool = True) -> Callable[[str, str], dict[str, Any]]:
+def http_ask(
+    base_url: str, provider: str, model: str, understanding: str | None = None, *, stream: bool = True, agent_loop: str | None = None
+) -> Callable[[str, str], dict[str, Any]]:
     """Asks the way the UI does (/chat/stream) unless `stream` is False (/chat): the two entry points have differed before."""
 
     def ask(question: str, session: str) -> dict[str, Any]:
         body: dict[str, Any] = {"session_id": session, "question": question, "provider": provider, "model": model}
         if understanding:
             body["understanding"] = understanding  # "llm" or "rules" for this run, whatever the Backend's default is
+        if agent_loop:
+            body["agent_loop"] = agent_loop  # "tools" or "plan" for this run, whatever AGENT_LOOP is
         path = "/chat/stream" if stream else "/chat"
         request = urllib.request.Request(
             f"{base_url.rstrip('/')}{path}", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}, method="POST"
@@ -253,6 +257,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--model", help="model id as the Backend lists it under /models")
     parser.add_argument("--out", help="write every answer and check as JSON, to send back for review")
     parser.add_argument("--understanding", choices=("rules", "llm"), help="how the Backend reads each question for this run (default: its own setting)")
+    parser.add_argument("--agent-loop", choices=("tools", "plan"), help="how the agent works for this run (default: the Backend's AGENT_LOOP)")
     parser.add_argument("--no-stream", action="store_true", help="ask through /chat instead of /chat/stream (the UI uses the stream)")
     args, _ = parser.parse_known_args(argv)  # the IPython kernel that runs CAI jobs adds '-f <kernel.json>'
     base_url = args.base_url or default_base_url(dict(os.environ))
@@ -268,9 +273,14 @@ def main(argv: list[str]) -> int:
     if not selection:
         print("No available model is listed by the Backend; pass --provider and --model.", file=sys.stderr)
         return 1
-    print(f"model: {selection[0]} {selection[1]}" + (f"  understanding: {args.understanding}" if args.understanding else ""))
-    result = run_conversation(http_ask(base_url, *selection, args.understanding, stream=not args.no_stream), cases)
+    print(
+        f"model: {selection[0]} {selection[1]}"
+        + (f"  understanding: {args.understanding}" if args.understanding else "")
+        + (f"  agent: {args.agent_loop}" if args.agent_loop else "")
+    )
+    result = run_conversation(http_ask(base_url, *selection, args.understanding, stream=not args.no_stream, agent_loop=args.agent_loop), cases)
     result["understanding"] = args.understanding or "backend default"
+    result["agent_loop"] = args.agent_loop or "backend default"
     result["model"] = {"provider": selection[0], "id": selection[1]}
     print_report(result)
     if args.out:

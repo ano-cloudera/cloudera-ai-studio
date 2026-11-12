@@ -40,6 +40,7 @@ class AskDataState(TypedDict, total=False):
     judge_retry_plan: bool
     judge_plan_hint: str
     turn_reading: dict[str, Any]
+    tool_call: bool  # a query the agent asked for: stop after the rows, checks and chart (no write-up)
     runtime_mode: str
     semantic_version_id: str | None
     workspace_id: str | None

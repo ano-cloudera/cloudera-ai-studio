@@ -1252,6 +1252,54 @@ def build_workflow(deps: WorkflowDependencies):
             "judge_synthesis_hint": "",
         }
 
+    async def tool_result(state: AskDataState) -> AskDataState:
+        """A query the agent asked for (tool query_metric): the rows with the same checks, caveats and chart as an answer, and no
+        write-up, because the agent writes one report from all of its queries."""
+        started = perf_counter()
+        resolution = state.get("semantic_resolution") if isinstance(state.get("semantic_resolution"), dict) else {}
+        result = state.get("query_result") or {}
+        columns_list = list(result.get("columns") or [])
+        rows = list(result.get("rows") or [])
+        from app.ask_data.verification import verify_answer, warning_messages
+        from app.core.models import CalculationCheck
+
+        checks = verify_answer(
+            question=str(state.get("question") or ""),
+            sql=str(state.get("validated_sql") or state.get("sql") or ""),
+            columns=columns_list,
+            rows=rows,
+            definition=resolution.get("definition") if isinstance(resolution.get("definition"), dict) else None,
+            drill=None,
+            truncated=bool(result.get("truncated")),
+        )
+        checks = [*checks, *[CalculationCheck(name="attention", status="warning", message=m) for m in (state.get("attention_notes") or [])]]
+        caveats = list(dict.fromkeys([*(state.get("governed_partial_caveats") or []), *warning_messages(checks)]))
+        chart = None
+        if len(rows) > 1:
+            from app.ask_data.chart_inference import infer_chart_spec_from_result
+            from app.ask_data.column_labels import column_labels
+
+            label = _metric_labels(deps).get(str(resolution.get("metric") or "")) or str(state.get("question") or "")[:80]
+            dims = [str(d) for d in resolution.get("dimensions") or []]
+            by = column_labels(dims[-1:], semantic_context=deps.semantic_context, sql=str(state.get("validated_sql") or "")).get(dims[-1]) if dims else None
+            chart = infer_chart_spec_from_result(columns=columns_list, rows=rows, title=f"{label} by {by}" if by else label, question=str(state.get("question") or ""))
+        answer = AnalysisOutput(
+            direct_answer="",
+            executive_summary="",
+            insights=[],
+            business_implications=[],
+            caveats=caveats,
+            data_reference=_data_reference_from_sql(str(state.get("validated_sql") or "")) or "",
+        )
+        return {
+            **state,
+            "status": "SUCCESS",
+            "answer": answer.model_dump(),
+            "chart_spec": chart.model_dump() if chart else None,
+            "verification_checks": [c.model_dump() for c in checks],
+            "timings": _with_timing(state, "analysis_ms", _elapsed(started)),
+        }
+
     async def judge_answer(state: AskDataState) -> AskDataState:
         if not deps.judge_enabled:
             return state
@@ -1294,7 +1342,9 @@ def build_workflow(deps: WorkflowDependencies):
         return "end" if state.get("status") else "execute_query"
 
     def after_execute(state: AskDataState) -> str:
-        return "end" if state.get("status") else "analyze_result"
+        if state.get("status"):
+            return "end"
+        return "tool_result" if state.get("tool_call") else "analyze_result"
 
     graph = StateGraph(AskDataState)
     graph.add_node("understand_request", understand_request)
@@ -1317,7 +1367,9 @@ def build_workflow(deps: WorkflowDependencies):
     )
     graph.add_conditional_edges("plan_query", after_plan, {"validate_query": "validate_query", "end": END})
     graph.add_conditional_edges("validate_query", after_validate, {"execute_query": "execute_query", "end": END})
-    graph.add_conditional_edges("execute_query", after_execute, {"analyze_result": "analyze_result", "end": END})
+    graph.add_node("tool_result", tool_result)
+    graph.add_conditional_edges("execute_query", after_execute, {"analyze_result": "analyze_result", "tool_result": "tool_result", "end": END})
+    graph.add_edge("tool_result", END)
     graph.add_edge("analyze_result", "judge_answer")
     graph.add_conditional_edges(
         "judge_answer",

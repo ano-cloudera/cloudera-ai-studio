@@ -431,10 +431,11 @@ def assemble_response(
     responses: list[AskDataResponse | None],
     analysis: AnalysisOutput,
     elapsed_ms: float,
+    shown: int | None = None,
 ) -> AskDataResponse:
     done = [(s, r) for s, r in zip(steps, responses) if r is not None and r.status == "SUCCESS"]
     data_done = [(s, r) for s, r in done if s.kind == "data"]
-    index = primary_index(steps, responses)
+    index = shown if shown is not None else primary_index(steps, responses)
     primary = responses[index] if index is not None else None
     citations: list[CitationRecord] = [c for s, r in done if s.kind == "knowledge" for c in (r.citations or [])]
     warnings = list(dict.fromkeys(c.message for _, r in data_done if r.calculation for c in r.calculation.checks if c.status == "warning"))
@@ -557,6 +558,11 @@ class AskDataAgent:
             if hit is not None:
                 yield {"type": "done", "response": hit}
                 return
+            if self._uses_tools(prepared):
+                # Any failure in the tool loop ends here with nothing yielded as done, so the normal pipeline answers.
+                async for event in self._stream_tools(request, prepared, provider, question=question, history=history, language=language, started=started):
+                    yield event
+                return
             catalog = self._chat.metric_catalog()
             library_ids = self._knowledge_library_ids()
             if not catalog:
@@ -668,6 +674,83 @@ class AskDataAgent:
         remember = getattr(self._chat, "remember_agent_answer", None)
         if callable(remember):
             remember(prepared, question, response, frame)
+        yield {"type": "done", "response": response}
+
+    def _uses_tools(self, request: AskDataRequest) -> bool:
+        loop = getattr(self._chat, "agent_loop", None)
+        return callable(loop) and loop(request) == "tools" and callable(getattr(self._chat, "query_metric", None))
+
+    async def _stream_tools(
+        self, request: AskDataRequest, prepared: AskDataRequest, provider: Any, *, question: str, history: list[dict[str, Any]], language: str, started: float
+    ) -> AsyncIterator[dict[str, Any]]:
+        """The agent as a loop over tools (app.ask_data.agent_tools): query, look, decide, and one report in the form the
+        question needs. Yields nothing as done when no query answered, so the normal pipeline answers instead."""
+        from app.ask_data import agent_tools
+        from app.ask_data.answer_context import coverage_label, known_coverage
+        from app.ask_data.conversation import previous_turns
+
+        catalog = await self._chat.agent_catalog(prepared)
+        if not catalog or not catalog.get("metrics"):
+            logger.warning("agent_fallback reason=no_catalog")
+            return
+        library_ids = self._knowledge_library_ids()
+        coverage = coverage_label(known_coverage(), language)
+        run_id = uuid.uuid4().hex[:8]
+        calls: list[agent_tools.Call] = []
+        async for event in agent_tools.explore(
+            self._chat,
+            provider,
+            prepared,
+            question=question,
+            language=language,
+            catalog=catalog,
+            library_ids=library_ids,
+            conversation=previous_turns(history)[-2:] if history else None,
+            data_coverage=coverage,
+            session_prefix=f"agent-{run_id}",
+            calls=calls,
+        ):
+            yield event
+        ran = [c for c in calls if not c.problems and c.response is not None]
+        if not any(c.ok and c.is_data for c in ran):
+            logger.warning("agent_fallback reason=no_query_answered calls=%s", [(c.call.tool, c.problems[:1], getattr(c.response, "status", None)) for c in calls])
+            return
+        yield {"type": "progress", "stage": "agent_report", "label": _labels(language)["report"]}
+        _, provider = self._chat.provider_for(request)
+        report, unverified = await agent_tools.write_report(
+            provider, request=request, question=question, language=language, calls=calls, data_coverage=coverage
+        )
+        steps = [
+            AgentStep(kind="data" if c.is_data else "knowledge", question=c.label(), why=c.label(), metric=(c.call.query.metric if c.call.query else ""))
+            for c in ran
+        ]
+        responses: list[AskDataResponse | None] = [c.response for c in ran]
+        shown = next((i for i, c in enumerate(ran) if c.index == report.show and c.ok and c.is_data and c.response.data.row_count > 0), None)
+        if shown is None:
+            shown = primary_index(steps, responses)
+        reference = responses[shown].answer.data_reference if shown is not None and responses[shown] is not None else ""
+        analysis = agent_tools.report_to_analysis(report, unverified=unverified, language=language, data_reference=reference)
+        frame = ran[shown].frame if shown is not None else None
+        if frame:
+            frame = {**frame, "question": request.question.strip(), "standalone_question": question}
+        discard = getattr(self._chat, "discard_reading", None)
+        if discard is not None:
+            discard(prepared)
+        settle = getattr(self._chat, "settle_follow_ups", None)
+        if settle is not None:
+            try:
+                analysis = settle(analysis, asked=question, metric=(frame or {}).get("metric"), dimensions=(frame or {}).get("dimensions"))
+            except Exception:  # noqa: BLE001
+                logger.exception("agent_follow_ups_failed")
+        response = assemble_response(
+            request=prepared, steps=steps, responses=responses, analysis=analysis, elapsed_ms=round((perf_counter() - started) * 1000, 3), shown=shown
+        )
+        response = self._chat.finalize_response(response)
+        self._chat.record_turn(prepared, response, frame=frame) if frame else self._chat.record_turn(prepared, response)
+        remember = getattr(self._chat, "remember_agent_answer", None)
+        if callable(remember):
+            remember(prepared, question, response, frame)
+        logger.info("agent_tools_done calls=%s shown=%s unverified=%s seconds=%.1f", len(calls), shown, unverified, perf_counter() - started)
         yield {"type": "done", "response": response}
 
     def _step_frames(self, run_id: str, count: int, shown: int | None, *, request: AskDataRequest, question: str) -> dict[str, Any] | None:

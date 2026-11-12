@@ -305,6 +305,12 @@ class Settings(BaseSettings):
         default=True,
         description="Split open questions (why, what should we do) into steps that each run through governed Ask Data, then write one report.",
     )
+    agent_loop: str = Field(
+        default="plan",
+        validation_alias="AGENT_LOOP",
+        description="How the agent works: 'tools' queries governed metrics as tools in a loop (look at each result, decide the next "
+        "check, one report shaped by the question); 'plan' plans its steps once and runs each as a full Ask Data question.",
+    )
     answer_cache: str = Field(
         default="fallback",
         validation_alias="ANSWER_CACHE",

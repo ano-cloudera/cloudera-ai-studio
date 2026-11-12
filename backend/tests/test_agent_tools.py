@@ -1,0 +1,153 @@
+"""The agent as a loop over tools, end to end on the sample data.
+
+Real: ChatService, the workflow (data source, compiler, execution, overall value, checks, chart), the intent checks against the
+real values, the figure check on the report. Stood in: the data source (DuckDB over the sample CSVs) and the language model, which
+returns the turns and the report an agent would write, reading the results it is given.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+from typing import Any
+
+import pytest
+
+from app.ask_data.agent_mode import AskDataAgent
+from app.core.models import AskDataRequest
+from tests.replay_support import Replay, ScriptedModel
+
+REGION = "delivery_shipments_region_name"
+CARRIER = "delivery_shipments_carrier"
+QUESTION = "Kenapa pengiriman di Kalimantan Timur sering terlambat?"
+
+
+def _late(breakdown: list[str], filters: list[dict] | None = None, why: str = "") -> dict[str, Any]:
+    return {"tool": "query_metric", "why": why, "query": {"metric": "late_delivery_rate", "breakdown": breakdown, "filters": filters or []}}
+
+
+class AgentModel(ScriptedModel):
+    """Turn 1: the rate by region and by carrier, at once. Turn 2: carriers within Kalimantan Timur (the value in lower case, as a
+    model may write it) and a call with a breakdown the metric does not have. Then done. The report first quotes a figure that is
+    in no result, then corrects it when told."""
+
+    def __init__(self, *, wrong_figure_first: bool = True) -> None:
+        super().__init__(analysis={QUESTION})
+        self.turn_payloads: list[Any] = []
+        self.reports = 0
+        self.wrong_figure_first = wrong_figure_first
+        self.report_payload: dict[str, Any] = {}
+
+    async def generate_structured(self, messages, model, **kwargs):
+        if model.__name__ == "AgentTurn":
+            self.calls.append("AgentTurn")
+            turn = sum(1 for m in messages if m["role"] == "assistant") + 1
+            self.turn_payloads.append(json.loads(messages[-1]["content"]))
+            if turn == 1:
+                return model.model_validate({"thought": "where", "calls": [_late([REGION], why="Keterlambatan per regional"), _late([CARRIER], why="Per kurir")]})
+            if turn == 2:
+                return model.model_validate({"thought": "drill", "calls": [
+                    _late([CARRIER], [{"dimension": REGION, "values": ["kalimantan timur"]}], why="Kurir di Kalimantan Timur"),
+                    _late(["delivery_shipments_colour"], why="Per warna"),
+                    _late([REGION], why="Lagi per regional"),  # already run: not run again
+                ]})
+            return model.model_validate({"thought": "enough", "calls": [], "done": True})
+        if model.__name__ == "AgentReport":
+            self.calls.append("AgentReport")
+            self.reports += 1
+            if self.reports == 1:
+                self.report_payload = json.loads(messages[1]["content"])
+            drill = next(r for r in self.report_payload["results"] if r["id"] == 3)
+            top = drill["computed"]["highest"]
+            figure = "99,9" if self.wrong_figure_first and self.reports == 1 else f"{top['value']:.1f}".replace(".", ",")
+            return model.model_validate({
+                "headline": f"Di Kalimantan Timur, {top['group']} paling sering terlambat: {figure}%.",
+                "body": "### Temuan\n1. Keterlambatan terkonsentrasi di satu kurir.\n\n| Kurir | Late rate |\n|---|---|\n| x | y |",
+                "follow_up_questions": ["Late delivery rate per bulan di Kalimantan Timur"],
+                "show": 3,
+            })
+        return await super().generate_structured(messages, model, **kwargs)
+
+
+@pytest.fixture()
+def replay(monkeypatch):
+    from app.ask_data import answer_context, value_filters
+
+    value_filters.clear_cache()
+    yield Replay(monkeypatch, AgentModel())
+    answer_context._COVERAGE.clear()
+    value_filters.clear_cache()
+
+
+def _run(replay: Replay, question: str = QUESTION) -> tuple[Any, list[dict[str, Any]]]:
+    request = AskDataRequest(session_id=replay.session_id, question=question, provider="qwen", model="m", agent_loop="tools")
+
+    async def go():
+        return [event async for event in AskDataAgent(replay.service).stream(request)]
+
+    events = asyncio.run(go())
+    return events[-1].get("response"), events
+
+
+def test_the_agent_queries_looks_drills_and_writes_one_report(replay) -> None:
+    response, events = _run(replay)
+    assert response is not None and response.strategy == "agent" and response.status == "SUCCESS"
+    model = replay.model
+    assert model.calls.count("AgentTurn") == 3 and "AnalysisOutput" not in model.calls and "QueryIntent" not in model.calls
+    # The tools ran governed queries with no language-model call inside: the turns, the report and its correction are all.
+    first_results = {r["id"]: r for r in model.turn_payloads[1]["results"]}
+    assert first_results[1]["status"] == "ok" and first_results[1]["row_count"] > 1 and "computed" in first_results[1]
+    assert first_results[1]["overall_value"] is not None  # the value the regions are read against
+    second = {r.get("id", r.get("see_id")): r for r in model.turn_payloads[2]["results"]}
+    assert second[3]["status"] == "ok" and second[3]["overall_value_covers"].startswith("only")  # Kalimantan Timur, not national
+    assert second[4]["status"] == "invalid" and "breakdown" in second[4]["problems"][0]  # told what to correct
+    assert any(r.get("status") == "already_run" for r in model.turn_payloads[2]["results"])
+    assert any("region_name = 'Kalimantan Timur'" in q for q in replay.executor.queries)  # the data's own spelling
+    # The report: shaped by the question, its figures checked; the wrong one was sent back once and corrected.
+    assert model.reports == 2 and "99,9" not in response.answer.direct_answer
+    assert response.answer.executive_summary.startswith("### Temuan") and not response.answer.caveats
+    assert response.data.row_count > 1 and response.chart_spec is not None  # the drill the report chose to show
+    assert response.calculation.kind == "agent" and len(response.calculation.steps) == 3  # the invalid call is not a step
+    labels = [e["label"] for e in events if e["type"] == "progress"]
+    assert "Memeriksa: Keterlambatan per regional" in labels and any(l.startswith("Kurir di Kalimantan Timur:") for l in labels)
+    assert replay.service.history.load(replay.session_id)[-1]["session_frame"]["metric"] == "late_delivery_rate"  # a follow-up continues it
+
+
+def test_a_figure_still_not_in_the_results_is_said(monkeypatch) -> None:
+    from app.ask_data import value_filters
+
+    value_filters.clear_cache()
+
+    class Stubborn(AgentModel):
+        async def generate_structured(self, messages, model, **kwargs):
+            if model.__name__ == "AgentReport":
+                self.calls.append("AgentReport")
+                return model.model_validate({"headline": "Rata-rata 99,9% terlambat.", "body": "", "show": None})
+            return await super().generate_structured(messages, model, **kwargs)
+
+    replay = Replay(monkeypatch, Stubborn())
+    response, _ = _run(replay)
+    assert any("99,9" in c for c in response.answer.caveats)
+
+
+def test_plan_mode_is_unchanged_and_the_tool_loop_is_not_used(replay) -> None:
+    request = AskDataRequest(session_id=replay.session_id, question=QUESTION, provider="qwen", model="m", agent_loop="plan")
+    asyncio.run(AskDataAgent(replay.service).run(request))
+    assert "AgentTurn" not in replay.model.calls
+
+
+def test_when_no_query_answers_the_normal_pipeline_answers(monkeypatch) -> None:
+    from app.ask_data import value_filters
+
+    value_filters.clear_cache()
+
+    class OnlyInvalid(AgentModel):
+        async def generate_structured(self, messages, model, **kwargs):
+            if model.__name__ == "AgentTurn":
+                self.calls.append("AgentTurn")
+                return model.model_validate({"calls": [_late(["nope"])]})
+            return await super().generate_structured(messages, model, **kwargs)
+
+    replay = Replay(monkeypatch, OnlyInvalid())
+    response, events = _run(replay)
+    assert response is None and not any(e["type"] == "done" for e in events)
+    assert "AgentReport" not in replay.model.calls

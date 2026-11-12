@@ -147,6 +147,8 @@ class AskDataRequest(StrictModel):
     context_sources: list[ChatContextSource] | None = None
     # "llm" or "rules" for this request only (the judge compares both); empty uses the ASK_DATA_UNDERSTANDING setting.
     understanding: Literal["rules", "llm"] | None = None
+    # "tools" or "plan" for this request only (the judge compares both); empty uses the AGENT_LOOP setting.
+    agent_loop: Literal["tools", "plan"] | None = None
 
 
 class QueryData(StrictModel):
@@ -265,6 +267,7 @@ class AskDataResponse(StrictModel):
     # When the answer came from the answer cache: when it was computed (ISO), and whether because the data source failed.
     cached_at: str | None = None
     cache_reason: Literal["repeat", "data_source_unavailable"] | None = None
+    language: Literal["id", "en"] | None = None  # the language of the question, so the UI names its sections in it
     context_mode: ContextMode | None = None
     clarification: AskDataClarification | None = None
     presentation_tier: PresentationTier | None = None

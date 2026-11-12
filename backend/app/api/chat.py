@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 
 from app.chat.context_sources import ContextSourceError, context_source_http_error
 from app.ask_data.agent_mode import AskDataAgent
+from app.core.language import detect_language
 from app.core.models import AskDataRequest, AskDataResponse
 from app.llm.registry import ProviderSelectionError
 
@@ -24,6 +25,10 @@ def _validate_selection(request: Request, body: AskDataRequest) -> None:
         request.app.state.provider_registry.resolve(body.provider, body.model)
     except ProviderSelectionError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _language(body: AskDataRequest) -> str:
+    return "id" if detect_language(body.question) == "id" else "en"
 
 
 @router.delete("/chat/sessions/{session_id}")
@@ -47,8 +52,9 @@ async def chat(request: Request, body: AskDataRequest) -> AskDataResponse:
     if agent.applicable(body):
         answered = await agent.run(body)
         if answered is not None:
-            return answered
-    return await request.app.state.chat_service.run(body)
+            return answered.model_copy(update={"language": _language(body)})
+    response = await request.app.state.chat_service.run(body)
+    return response.model_copy(update={"language": _language(body)})
 
 
 @router.post("/chat/stream")
@@ -95,7 +101,7 @@ async def chat_stream(request: Request, body: AskDataRequest) -> StreamingRespon
                     raise event
                 payload = event.model_dump(mode="json") if hasattr(event, "model_dump") else event
                 if isinstance(payload, dict) and hasattr(payload.get("response"), "model_dump"):
-                    payload = {**payload, "response": payload["response"].model_dump(mode="json")}
+                    payload = {**payload, "response": {**payload["response"].model_dump(mode="json"), "language": _language(body)}}
                 yield "data: " + json.dumps(payload, ensure_ascii=False, default=str) + "\n\n"
         finally:
             if not producer.done():

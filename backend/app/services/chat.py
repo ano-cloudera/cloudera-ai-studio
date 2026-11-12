@@ -1380,7 +1380,7 @@ class ChatService:
             "understanding": self._understanding_mode(request),
             "llm": f"{request.provider}/{request.model}",
             "mode": request.mode,
-            "agent": agent,
+            "agent": self.agent_loop(request) if agent else False,
             "sources": [s.model_dump(mode="json") for s in request.context_sources or []],
         }
         return AnswerCache.key(question, scope)
@@ -1442,6 +1442,59 @@ class ChatService:
             return None
         return self._finalize_response(self._serve_cached(request, value, request_id=str(uuid.uuid4()), started=perf_counter(), reason="repeat"))
 
+    async def agent_catalog(self, request: AskDataRequest) -> dict[str, Any] | None:
+        """For the agent's tools: the published model as the understanding reads it (metrics, their breakdowns, dimensions with
+        their real values). None when no published model is loaded."""
+        from app.ask_data.understanding import build_catalog
+
+        self._sync_runtime_for_request(request)
+        bundle = self._runtime_bundle
+        if bundle is None or bundle.mode != "runtime":
+            return None
+        ctx = bundle.context
+        values = await self._dimension_values(ctx, bundle, str(uuid.uuid4()))
+        catalog = build_catalog(ctx, values)
+        headline = {str(m.get("name")): m.get("headline") for m in self.metric_catalog() if m.get("headline")}
+        for metric in catalog["metrics"]:
+            if headline.get(metric["name"]):
+                metric["headline"] = headline[metric["name"]]
+        return catalog
+
+    async def query_metric(
+        self, request: AskDataRequest, intent: Any, *, label: str
+    ) -> tuple[AskDataResponse | None, dict[str, Any] | None, list[str]]:
+        """The agent's tool query_metric: a governed query compiled from an intent the agent wrote, through the same workflow
+        (data source, compiler, SQL check, execution, overall value, coverage, checks, chart) with no language-model call.
+
+        Returns the response, the turn memory it leaves (so a follow-up can continue it), and what is not valid in the intent;
+        when something is not valid no query runs, and the agent is told what to correct."""
+        from app.ask_data.understanding import _sanitise, check, to_resolution
+
+        request_id = str(uuid.uuid4())
+        started = perf_counter()
+        self._sync_runtime_for_request(request)
+        bundle = self._runtime_bundle
+        if bundle is None or bundle.mode != "runtime":
+            return None, None, ["no published semantic model is loaded"]
+        ctx = bundle.context
+        values = await self._dimension_values(ctx, bundle, request_id)
+        problems = check(intent, ctx, values)
+        if problems:
+            return None, None, problems
+        intent, notes = _sanitise(intent, ctx, values)
+        resolution = to_resolution(intent, ctx, notes)
+        if resolution.get("status") != "resolved":
+            return None, None, ["no metric was chosen"]
+        initial = self._build_initial_state(request, request_id=request_id, question=label, resolution=resolution, conversation_history=[])
+        initial["tool_call"] = True
+        try:
+            state = await self.workflow.ainvoke(initial)
+        except DataBackendError as exc:
+            return None, None, [f"the data source could not run the query ({exc.code})"]
+        response = self._response_from_state(request, request_id=request_id, state=state, started=started)
+        frame = self._session_frame_for_turn(request.model_copy(update={"question": label}), response, state) if response.status == "SUCCESS" else None
+        return response, frame, []
+
     def remember_agent_answer(self, request: AskDataRequest, question: str, response: AskDataResponse, frame: dict[str, Any] | None) -> None:
         self._remember(request, self._answer_cache_key(request, question, agent=True), response, frame)
 
@@ -1471,6 +1524,10 @@ class ChatService:
                 self.apply_runtime_bundle(bundle)
         except Exception:  # noqa: BLE001 - the per-question resolution still loads the model a data question needs
             logger.exception("default_semantic_model_failed")
+
+    def agent_loop(self, request: AskDataRequest) -> str:
+        """'tools' (the agent queries metrics as tools in a loop) or 'plan' (steps planned once), per request or AGENT_LOOP."""
+        return (request.agent_loop or str(getattr(self.settings, "agent_loop", "") or "plan")).strip().lower()
 
     def _understanding_mode(self, request: AskDataRequest) -> str:
         return (request.understanding or str(getattr(self.settings, "ask_data_understanding", "") or "rules")).strip().lower()
