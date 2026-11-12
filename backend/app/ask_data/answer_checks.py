@@ -98,6 +98,8 @@ def allowed_figures(rows: list[dict[str, Any]], question: str, extras: list[floa
             allowed.update(number / scale for scale in _SCALES)
         for extra in extras or []:
             allowed.add(extra)
+            if extra:
+                allowed.update({total / extra * 100, extra - total})  # what several rows together are of the whole
             for v in values:
                 allowed.update({v - extra, extra - v})
                 if extra:
@@ -118,6 +120,44 @@ def allowed_figures(rows: list[dict[str, Any]], question: str, extras: list[floa
         except ValueError:
             continue
     return allowed
+
+
+def computed_figures(rows: list[dict[str, Any]], overall: float | None = None, *, additive: bool = False) -> dict[str, Any]:
+    """Comparisons worked out from the rows, so the answer quotes them instead of the model doing the arithmetic (it wrote
+    "1.26 times" for 714,496 / 574,904, which is 1.24). `additive` metrics (a sum or a count) also get shares of the whole."""
+    values: list[tuple[str, float]] = []
+    for row in rows:
+        value = _as_float(row.get("metric_value"))
+        if value is None:
+            continue
+        label = " / ".join(str(v) for k, v in row.items() if k != "metric_value" and not isinstance(v, (int, float, Decimal)))
+        values.append((label or str(len(values) + 1), value))
+    if not values:
+        return {}
+    ordered = sorted(values, key=lambda item: item[1], reverse=True)
+    (top, high), (bottom, low) = ordered[0], ordered[-1]
+    out: dict[str, Any] = {"highest": {"group": top, "value": round(high, 4)}, "lowest": {"group": bottom, "value": round(low, 4)}}
+    if len(ordered) > 1:
+        out["gap_highest_minus_lowest"] = round(high - low, 4)
+        if low:
+            out["ratio_highest_to_lowest"] = round(high / low, 4)
+        if ordered[1][1]:
+            out["ratio_highest_to_second"] = {"second": ordered[1][0], "ratio": round(high / ordered[1][1], 4)}
+    if overall is not None:
+        picked = list(dict.fromkeys([*ordered[:3], ordered[-1]]))
+        out["difference_from_overall"] = [{"group": g, "difference": round(v - overall, 4)} for g, v in picked]
+        if additive and overall:
+            total = sum(v for _, v in values)
+            if 0 <= total <= overall * 1.0001:
+                out["these_rows_share_of_overall_pct"] = round(total / overall * 100, 2)
+            out["share_of_overall_pct"] = [{"group": g, "share": round(v / overall * 100, 2)} for g, v in ordered[:5]]
+    return out
+
+
+def is_additive(definition: dict[str, Any] | None) -> bool:
+    """A sum or a count adds up across groups; a rate or an average does not."""
+    expression = str((definition or {}).get("expression") or "").strip().upper()
+    return expression.startswith(("SUM(", "COUNT(")) and "/" not in expression and "AVG(" not in expression
 
 
 def unverified_figures(texts: list[str], rows: list[dict[str, Any]], question: str = "", extras: list[float] | None = None) -> list[str]:

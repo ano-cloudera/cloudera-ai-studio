@@ -93,3 +93,22 @@ def test_the_rules_path_still_answers_when_understanding_is_not_asked_for(replay
     request = AskDataRequest(session_id=replay.session_id, question="What is the late delivery rate by carrier?", provider="qwen", model="m")
     response = asyncio.run(replay.service.run(request))
     assert response.status == "SUCCESS" and "QueryIntent" not in replay.model.calls
+
+
+def test_top_n_by_month_runs_on_the_data_as_n_full_series(monkeypatch) -> None:
+    from app.ask_data import value_filters
+
+    value_filters.clear_cache()
+    question = "Tren keterlambatan bulanan untuk 2 kurir terburuk"
+    replay = Replay(monkeypatch, ReadingModel({question: {"metric": "late_delivery_rate", "breakdown": [CARRIER], "by_month": True, "limit": 2, "language": "id"}}))
+    response, queries = _ask(replay, question)
+    assert response.status == "SUCCESS" and "IN (SELECT" not in queries[-1]
+    import re
+
+    picked = [q for q in replay.executor.context_queries if re.search(r"LIMIT 2$", q)]
+    assert picked and "GROUP BY d.carrier" in picked[-1]  # first: which 2 carriers
+    assert "d.carrier IN (" in queries[-1]  # then: every month of those 2
+    carriers = {r[CARRIER] for r in response.data.rows}
+    months = {str(r["delivery_shipments_ship_date"]) for r in response.data.rows}
+    assert len(carriers) == 2 and "NusaCargo" in carriers
+    assert len(months) >= 6 and len(response.data.rows) == len(carriers) * len(months)

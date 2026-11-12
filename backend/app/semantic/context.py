@@ -484,18 +484,24 @@ class SemanticContextService:
             if key in allowed and values:
                 predicates.append(ValueFilter(key, self._registry_dimension_expression(dataset_name, key, ""), values).predicate())
         source = from_source or self.datasets[dataset_name]["source"]
+        direction = "ASC" if intent.get("sort") == "asc" else "DESC"
+        cap = get_settings().sql_max_rows
+        limit = int(intent["limit"]) if intent.get("limit") and not overall else None
+        monthly = bool(time_key and groups and groups[0].startswith("DATE_TRUNC"))
+        if limit and monthly:
+            # A LIMIT on monthly rows would cut the series after its first months. "Top 3 provinces by month" is resolved before
+            # compiling (the workflow first asks which 3, then filters to them), so here the series is never cut.
+            limit = None
         sql = ["SELECT", "  " + ",\n  ".join(projections), f"FROM {source} d"]
         if predicates:
             sql.append("WHERE " + "\n  AND ".join(predicates))
         if groups:
             sql.append("GROUP BY " + ", ".join(groups))
-        if time_key and groups and groups[0].startswith("DATE_TRUNC"):
-            sql.append(f"ORDER BY {groups[0]} ASC")
+        if monthly:
+            sql.append(f"ORDER BY {', '.join(groups)} ASC")
         else:
-            sql.append(f"ORDER BY metric_value {'ASC' if intent.get('sort') == 'asc' else 'DESC'}")
-        cap = get_settings().sql_max_rows
-        limit = intent.get("limit")
-        sql.append(f"LIMIT {min(int(limit), cap) if limit and not overall else cap}")
+            sql.append(f"ORDER BY metric_value {direction}")
+        sql.append(f"LIMIT {min(limit, cap) if limit else cap}")
         return "\n".join(sql)
 
     def planner_context(self, domains: list[str] | None = None) -> dict[str, Any]:

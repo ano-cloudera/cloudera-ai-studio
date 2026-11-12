@@ -155,3 +155,30 @@ def test_comparing_some_values_of_the_breakdown_dimension_is_allowed(ctx) -> Non
     model = Model(two)
     resolution = _understand(ctx, model, "Bandingkan keterlambatan Papua Maluku dan Kalimantan")
     assert len(model.sent) == 1 and resolution["dimensions"] == ["regional"]
+
+
+def test_top_n_by_month_keeps_n_groups_and_every_month(ctx) -> None:
+    intent = {"breakdown": ["provinsi"], "time_key": "tanggal_transaksi", "limit": 3, "sort": "desc"}
+    sql = ctx.compile_intent("total_volume", intent, from_source='"iceberg"."default"."fuel_deliveries"')
+    assert "SELECT" in sql and not sql.rstrip().endswith("LIMIT 3")  # the series itself is not cut; the workflow picks the 3 first
+    alone = ctx.compile_intent("total_volume", {"time_key": "tanggal_transaksi", "limit": 3})
+    assert not alone.rstrip().endswith("LIMIT 3")
+
+
+def test_the_top_n_by_month_sql_passes_the_governed_sql_check(ctx) -> None:
+    from app.ask_data.validation import validate_ask_data_sql
+
+    source = '"iceberg"."default"."fuel_deliveries"'
+    top = ctx.compile_intent("total_volume", {"breakdown": ["provinsi"], "time_key": None, "limit": 3}, from_source=source)
+    series = ctx.compile_intent("total_volume", {"breakdown": ["provinsi"], "time_key": "tanggal_transaksi", "filters": [{"dimension": "provinsi", "values": ["Jawa Tengah", "Jawa Timur"]}]}, from_source=source)
+    state = {
+        "datasource_context": {
+            "legacy_fallback": False, "connector_id": "00000000-0000-0000-0000-000000000001", "connector_type": "trino", "connector_name": "t",
+            "dialect": "trino", "semantic_version_id": "00000000-0000-0000-0000-000000000002", "semantic_entity_keys": ["penyaluran"],
+            "qualified_sources": {"penyaluran": source}, "allowed_physical_tables": ["iceberg.default.fuel_deliveries"],
+        },
+        "semantic_resolution": {"status": "resolved", "metric": "total_volume", "dimensions": ["tanggal_transaksi", "provinsi"]},
+    }
+    for sql in (top, series):  # the two queries the workflow runs for "top 3 by month"
+        checked = validate_ask_data_sql(sql, ctx, state=state)
+        assert checked.valid, checked.error

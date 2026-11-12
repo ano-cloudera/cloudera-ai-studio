@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from app.ask_data.answer_checks import review_answer, strip_calculation_label, unverified_figures
 from app.core.models import AnalysisOutput
 
@@ -53,3 +55,22 @@ def test_a_figure_spoken_in_billions_or_as_a_ratio_is_derivable() -> None:
     rows = [{"channel": "App", "revenue": 19753449000}, {"channel": "Website", "revenue": 13042320000}]
     assert unverified_figures(["App menghasilkan 19,75 miliar, hampir 1,5 kali lipat dari Website."], rows) == []
     assert unverified_figures(["App menghasilkan 25,50 miliar."], rows) == ["25,50"]
+
+
+def test_comparisons_are_worked_out_by_code_for_the_answer_to_quote() -> None:
+    from app.ask_data.answer_checks import computed_figures, is_additive
+
+    rows = [{"provinsi": "Jawa Tengah", "metric_value": 714496}, {"provinsi": "Jawa Timur", "metric_value": 574904}, {"provinsi": "Jawa Barat", "metric_value": 447832}]
+    out = computed_figures(rows, 4996168, additive=True)
+    assert out["highest"]["group"] == "Jawa Tengah" and out["ratio_highest_to_second"]["ratio"] == pytest.approx(1.2428, abs=1e-4)
+    assert out["ratio_highest_to_lowest"] == pytest.approx(1.5955, abs=1e-4)
+    assert out["these_rows_share_of_overall_pct"] == pytest.approx(34.77, abs=0.01)
+    rates = computed_figures([{"regional": "Papua Maluku", "metric_value": 34.54}, {"regional": "Jatimbalinus", "metric_value": 11.4}], 16.07)
+    assert "share_of_overall_pct" not in rates and rates["difference_from_overall"][0]["difference"] == pytest.approx(18.47, abs=1e-6)
+    assert is_additive({"expression": "SUM(volume_kl)"}) and not is_additive({"expression": "COUNT(CASE WHEN x THEN 1 END) * 100.0 / COUNT(id)"})
+
+
+def test_what_several_rows_together_are_of_the_whole_is_derivable() -> None:
+    rows = [{"p": "A", "metric_value": 714496}, {"p": "B", "metric_value": 574904}, {"p": "C", "metric_value": 447832}]
+    assert unverified_figures(["Ketiganya sekitar 34,8% dari total."], rows, "", [4996168]) == []
+    assert unverified_figures(["A sekitar 1,26 kali B."], rows, "", [4996168]) == ["1,26"]  # 1,24 is right; the check still catches it

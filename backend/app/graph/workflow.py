@@ -92,6 +92,33 @@ def _data_reference_from_sql(sql: str) -> str | None:
     return ", ".join(seen)
 
 
+async def _top_groups_first(intent: dict[str, Any], metric: str, from_source: str | None, state: dict[str, Any], deps: Any) -> dict[str, Any]:
+    """'Top 3 provinces by month': first ask which 3 (one governed query by province, ordered and limited), then return the
+    intent filtered to them and without the limit, so every month of each is shown. Two plain queries, each one the SQL check
+    accepts; when the first cannot run, the series is shown for all groups rather than cut."""
+    breakdown = [str(k) for k in intent.get("breakdown") or []]
+    if not (intent.get("limit") and intent.get("time_key") and len(breakdown) == 1 and from_source):
+        return intent
+    import inspect
+
+    top_sql = deps.semantic_context.compile_intent(metric, {**intent, "time_key": None}, from_source=from_source)
+    try:
+        checked = deps.sql_validator(top_sql, state)
+        if not getattr(checked, "valid", False):
+            return {**intent, "limit": None}
+        result = deps.query_executor.execute(getattr(checked, "sql", None) or top_sql, {**state, "context_query": True})
+        if inspect.isawaitable(result):
+            result = await result
+    except Exception:  # noqa: BLE001 - the full series is still a right answer
+        logger.warning("top_groups_query_failed metric=%s", metric)
+        return {**intent, "limit": None}
+    values = [str(row.get(breakdown[0])) for row in (result.get("rows") or []) if row.get(breakdown[0]) is not None]
+    if not values:
+        return {**intent, "limit": None}
+    filters = [f for f in intent.get("filters") or [] if f.get("dimension") != breakdown[0]]
+    return {**intent, "filters": [*filters, {"dimension": breakdown[0], "values": values}], "limit": None}
+
+
 def _overall_figures(value: Any) -> list[float]:
     """The overall value the analyst was given beside the breakdown, as figures the answer may quote."""
     try:
@@ -505,6 +532,8 @@ def build_workflow(deps: WorkflowDependencies):
 
             ds_ctx = DatasourceExecutionContext.from_dict(state.get("datasource_context"))
             from_source = ds_ctx.qualified_sources.get(dataset_name) if ds_ctx and ds_ctx.qualified_sources else None
+            intent = await _top_groups_first(intent, metric, from_source, state, deps)
+            resolution = {**resolution, "intent": intent}
             governed_sql = deps.semantic_context.compile_intent(metric, intent, from_source=from_source)
             plan = QueryPlan(strategy="governed", domains=[dataset_name], metrics=[metric], sql=governed_sql)
             if from_source:
@@ -1051,6 +1080,15 @@ def build_workflow(deps: WorkflowDependencies):
                 "value": state["overall_value"],
                 "meaning": "the same metric over the same filters and period, without the breakdown",
             }
+        from app.ask_data.answer_checks import computed_figures, is_additive
+
+        computed = computed_figures(
+            list((state.get("query_result") or {}).get("rows") or []),
+            _overall_figures(state.get("overall_value"))[0] if _overall_figures(state.get("overall_value")) else None,
+            additive=is_additive(resolution.get("definition") if isinstance(resolution.get("definition"), dict) else None),
+        )
+        if computed:
+            user_payload["computed"] = computed
         coverage_text = answer_context.coverage_label(state.get("data_coverage"), language)
         if coverage_text and answer_context.asks_about_time(str(state.get("original_question") or state.get("question") or "")):
             user_payload["data_coverage"] = coverage_text

@@ -17,8 +17,10 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import threading
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +28,25 @@ logger = logging.getLogger(__name__)
 
 STALE_LIMIT_SECONDS = 7 * 24 * 3600  # how old an answer may be to stand in when the data source fails
 CACHEABLE_STRATEGIES = {"governed", "agent", "sql_fallback"}
+
+
+@lru_cache(maxsize=1)
+def code_version() -> str:
+    """The commit the Backend runs, so an update (the 'Update from GitHub' job) never serves an answer an older version made."""
+    root = Path(__file__).resolve().parents[3]
+    try:
+        head = (root / ".git" / "HEAD").read_text(encoding="utf-8").strip()
+        if head.startswith("ref: "):
+            ref = root / ".git" / head[5:]
+            if ref.exists():
+                return ref.read_text(encoding="utf-8").strip()
+            packed = root / ".git" / "packed-refs"
+            for line in packed.read_text(encoding="utf-8").splitlines() if packed.exists() else []:
+                if line.endswith(head[5:]):
+                    return line.split()[0]
+        return head
+    except OSError:
+        return os.environ.get("ACCELERATOR_VERSION", "")
 
 
 def _normalise(question: str) -> str:
@@ -55,7 +76,7 @@ class AnswerCache:
 
     @staticmethod
     def key(question: str, scope: dict[str, Any]) -> str:
-        raw = json.dumps({"q": _normalise(question), **scope}, sort_keys=True, ensure_ascii=False, default=str)
+        raw = json.dumps({"q": _normalise(question), "code": code_version(), **scope}, sort_keys=True, ensure_ascii=False, default=str)
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     def _get(self, key: str) -> dict[str, Any] | None:

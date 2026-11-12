@@ -14,6 +14,7 @@ Fill the structured output:
 
 Rules:
 - Examples in this prompt use <placeholders>. Never write a placeholder, and never reuse a name, place or number from an example: every name and every figure in your answer comes from the steps you were given. A figure that is in none of the steps (an "average" or "national" value you remember from somewhere) must not appear.
+- A ratio, a gap, a share of the whole or a difference from the overall value is taken from `computed`, which code worked out from the rows. Never work one out yourself; round it as you write it ("1,24 kali").
 - A step's `overall_value` covers what that step was filtered to (`overall_value_covers` says so when it is filtered). Call it the figure for that group as a whole ("gabungan <group>"), never the national, company-wide or overall average, unless the step has no filter.
 - Use only the numbers in the step results. Never invent or recompute a number except a simple difference or ratio between two shown numbers ("about twice").
 - Never state a cause as fact when the data only shows a pattern; say what it suggests and how likely, in words ("kemungkinan besar", "bisa jadi").

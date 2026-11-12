@@ -368,6 +368,11 @@ def _step_result(index: int, step: AgentStep, response: AskDataResponse | None, 
             rows=list(response.data.rows[:MAX_ROWS_PER_STEP]),
             row_count=response.data.row_count,
         )
+        from app.ask_data.answer_checks import computed_figures
+
+        computed = computed_figures(list(response.data.rows[:MAX_ROWS_PER_STEP]), response.data.overall_value)
+        if computed:
+            result["computed"] = computed  # ratios and gaps worked out by code, for the report to quote
         if response.data.overall_value is not None:
             result["overall_value"] = response.data.overall_value
             filters = list(response.calculation.filters) if response.calculation and response.calculation.filters else []

@@ -109,3 +109,20 @@ def test_fallback_mode_still_answers_live_when_the_data_source_is_up(replay, tmp
     queried = len(replay.executor.queries)
     again = _ask(replay, "s2")
     assert again.cached_at is None and len(replay.executor.queries) > queried
+
+
+def test_an_answer_made_by_another_version_of_the_code_is_not_served(tmp_path, monkeypatch) -> None:
+    from app.ask_data import answer_cache
+
+    scope = {"semantic": "v3"}
+    before = AnswerCache.key("q", scope)
+    monkeypatch.setattr(answer_cache, "code_version", lambda: "another-commit")
+    assert AnswerCache.key("q", scope) != before
+    assert answer_cache.code_version() == "another-commit"
+
+
+def test_the_code_version_is_the_commit_of_the_checkout() -> None:
+    from app.ask_data.answer_cache import code_version
+
+    code_version.cache_clear()
+    assert len(code_version()) >= 7
