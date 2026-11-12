@@ -227,8 +227,13 @@ class ChatService:
                     bundle = active
         self.apply_runtime_bundle(bundle)
 
-    def _sync_runtime_for_request(self) -> None:
+    def _sync_runtime_for_request(self, request: AskDataRequest | None = None) -> None:
+        """The semantic model for this request: the one Ask Data answers from (pinned in Settings, else the only or the last
+        published), not the process-wide bundle loaded at startup, which can be any active model. Every entry point (the
+        streaming one the UI uses, the plain one, the agent's reading) goes through here."""
         self.apply_runtime_bundle(SemanticRuntimeLoader.get(self.settings).get_bundle())
+        if request is not None and request.mode != "rag":
+            self.use_default_semantic_model(request)
 
     def _resolve_provider(self, request: AskDataRequest, request_id: str):
         provider = self.dependencies.provider_registry.resolve(request.provider, request.model)
@@ -731,7 +736,7 @@ class ChatService:
     async def read_conversation(self, request: AskDataRequest) -> tuple[TurnReading, list[dict[str, Any]]]:
         """The question read in the light of the conversation, for the agent. The reading is kept so the normal
         pipeline reuses it when the agent does not answer."""
-        self._sync_runtime_for_request()
+        self._sync_runtime_for_request(request)
         history = self.history.load(request.session_id, limit=8)
         reading = await read_turn(
             provider=self.dependencies.provider_registry.resolve(request.provider, request.model),
@@ -1587,7 +1592,7 @@ class ChatService:
     async def run(self, request: AskDataRequest, *, force_ossie: bool = False) -> AskDataResponse:
         request_id = str(uuid.uuid4())
         start_request_usage(request_id)
-        self._sync_runtime_for_request()
+        self._sync_runtime_for_request(request)
         self._active_resolution = None
         reg = self.dependencies.provider_registry
         if isinstance(reg, HybridProviderRegistry):
@@ -1607,8 +1612,6 @@ class ChatService:
                 )
                 return self._registry_error_response(request, request_id=request_id, exc=exc, started=started)
             try:
-                if request.mode != "rag":
-                    self.use_default_semantic_model(request)
                 if request.mode == "rag":
                     logger.info("ask_data_route=rag request_id=%s session_id=%s", request_id, request.session_id)
                     out = await self._run_rag(request, request_id=request_id)
@@ -1681,7 +1684,7 @@ class ChatService:
     async def stream(self, request: AskDataRequest):
         request_id = str(uuid.uuid4())
         start_request_usage(request_id)
-        self._sync_runtime_for_request()
+        self._sync_runtime_for_request(request)
         self._active_resolution = None
         reg = self.dependencies.provider_registry
         if isinstance(reg, HybridProviderRegistry):

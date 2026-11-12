@@ -165,7 +165,7 @@ async def test_chat_reports_impala_auth_failure_without_exposing_driver_details(
         return TurnReading(kind="data", standalone_question=_request.question)
 
     service._read_turn = _turn  # type: ignore[method-assign]
-    service._sync_runtime_for_request = lambda: None  # type: ignore[method-assign]
+    service._sync_runtime_for_request = lambda request=None: None  # type: ignore[method-assign]
     service._persist_turn = lambda *_a, **_k: None  # type: ignore[method-assign]
     service._attach_usage = lambda _req, resp: resp  # type: ignore[method-assign]
     service._runtime_bundle = None

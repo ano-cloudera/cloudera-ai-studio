@@ -54,3 +54,29 @@ def test_one_or_no_published_model(monkeypatch) -> None:
     only = _model("fuel_distribution", uuid.uuid4())
     assert scr.default_semantic_model(_setup(monkeypatch, None, (only, None)), workspace_id=WS, project_id=PROJ) is only
     assert scr.default_semantic_model(_setup(monkeypatch, None), workspace_id=WS, project_id=PROJ) is None
+
+
+def test_every_entry_point_answers_from_the_default_model(monkeypatch) -> None:
+    """The judge calls /chat (run) and the UI /chat/stream (stream): both, and the agent's reading, load the default model
+    first. Only run did, so the judge's greeting was right while the UI's greeting described another published model."""
+    import asyncio
+
+    from app.core.models import AskDataRequest
+    from app.services.chat import ChatService
+    from tests.replay_support import Replay
+
+    replay = Replay(monkeypatch)
+    called: list[str] = []
+    monkeypatch.setattr(ChatService, "use_default_semantic_model", lambda self, request: called.append(request.question))
+
+    def ask(question: str) -> AskDataRequest:
+        return AskDataRequest(session_id="s", question=question, provider="qwen", model="m")
+
+    async def stream_all() -> None:
+        async for _ in replay.service.stream(ask("via stream")):
+            pass
+
+    asyncio.run(stream_all())
+    asyncio.run(replay.service.run(ask("via run")))
+    asyncio.run(replay.service.read_conversation(ask("via the agent")))
+    assert called == ["via stream", "via run", "via the agent"]
