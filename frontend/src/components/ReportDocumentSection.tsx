@@ -1,6 +1,7 @@
 'use client'
 
 import { rememberColumnLabels } from '../lib/businessPresentation'
+import { answerSectionLabels } from '../lib/answerSectionLabels'
 
 import { useMemo, useState } from 'react'
 import { ArrowLeftRight, BarChart3, Briefcase, FileText, Lightbulb } from 'lucide-react'
@@ -77,6 +78,7 @@ function WorkspaceTabBar({
 
 export function ReportDocumentSection({ response }: Props) {
   rememberColumnLabels(response.data.column_labels)
+  const sectionLabels = answerSectionLabels(response.language)
   const rag = isRagResponse(response)
   const [tab, setTab] = useState<WorkspaceTab>(rag ? 'summary' : 'summary')
   const visualChartTypes = ['bar', 'line', 'area', 'scatter', 'pie']
@@ -108,18 +110,18 @@ export function ReportDocumentSection({ response }: Props) {
       {tab === 'summary' && (
         <div className="mt-6" role="tabpanel">
           <WorkspaceSection>
-            <WorkspaceSectionHeader icon={FileText} tone="sky" title="Executive summary" />
+            <WorkspaceSectionHeader icon={FileText} tone="sky" title={sectionLabels.executiveSummary} />
             <WorkspaceSectionContent>
               <AnswerProse text={response.answer.direct_answer} omitTables={hasTable} variant="main" />
               {!summarySame && (
-                <AnswerProse text={response.answer.executive_summary} omitTables variant="support" />
+                <AnswerProse text={response.answer.executive_summary} omitTables={response.strategy !== 'agent'} variant="support" />
               )}
             </WorkspaceSectionContent>
           </WorkspaceSection>
 
           {comparison && (
             <WorkspaceSection>
-              <WorkspaceSectionHeader icon={ArrowLeftRight} tone="violet" title="Comparison" />
+              <WorkspaceSectionHeader icon={ArrowLeftRight} tone="violet" title={sectionLabels.comparison} />
               <WorkspaceSectionContent>
                 <ComparisonSummary response={response} />
               </WorkspaceSectionContent>
@@ -131,7 +133,7 @@ export function ReportDocumentSection({ response }: Props) {
               <WorkspaceSectionHeader
                 icon={Lightbulb}
                 tone="amber"
-                title="Key findings"
+                title={sectionLabels.keyFindings}
                 action={
                   hasTable ? (
                     <button
@@ -195,7 +197,7 @@ export function ReportDocumentSection({ response }: Props) {
 
           {response.answer.business_implications.length > 0 && (
             <WorkspaceSection className="!mt-5 !pt-9 pb-8">
-              <WorkspaceSectionHeader icon={Briefcase} tone="violet" title="Business implications" />
+              <WorkspaceSectionHeader icon={Briefcase} tone="violet" title={sectionLabels.implications} />
               <WorkspaceSectionContent>
                 <ul className="workspace-section-body space-y-2.5">
                   {response.answer.business_implications.map(item => (

@@ -532,6 +532,8 @@ export type ChatResponse = {
   /** Set when the answer came from the answer cache: when it was computed, and why it was served. */
   cached_at?: string | null
   cache_reason?: 'repeat' | 'data_source_unavailable' | null
+  /** The language of the question, so the sections of the answer are named in it. */
+  language?: 'id' | 'en' | null
   strategy:
     | 'governed'
     | 'sql_fallback'

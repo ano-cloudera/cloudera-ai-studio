@@ -1,6 +1,7 @@
 'use client'
 
 import { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { answerSectionLabels } from '../lib/answerSectionLabels'
 import { useSearchParams } from 'next/navigation'
 import { BarChart3, ChevronDown, Lightbulb, Table2 } from 'lucide-react'
 import { ContextAwareChatComposer } from '../components/chat/ContextAwareChatComposer'
@@ -862,7 +863,9 @@ function StructuredAnswer({
     hideInternalCodes: isExecutiveAudience(),
     scope: response.calculation?.scope,
   })
-  const omitTablesInProse = response.data.rows.length > 0
+  // The agent's report writes its own small comparison table; a normal answer's table would repeat the data grid.
+  const omitTablesInProse = response.data.rows.length > 0 && response.strategy !== 'agent'
+  const sectionLabels = answerSectionLabels(response.language)
 
   const showEvidenceBlock =
     response.chart_spec?.type === 'kpi' ||
@@ -944,7 +947,7 @@ function StructuredAnswer({
   const followUpBlock =
     onFollowUp && followUps.length > 0 ? (
       <div className="answer-section-divider !pt-3" role="group" aria-label="Suggested next questions" data-testid="follow-up-questions">
-        <div className="type-section-label mb-2">You could ask next</div>
+        <div className="type-section-label mb-2">{sectionLabels.askNext}</div>
         <div className="flex flex-wrap gap-2">
           {followUps.map(question => (
             <button
@@ -966,7 +969,7 @@ function StructuredAnswer({
       <div className="answer-section-divider space-y-3">
         <div className="type-section-label flex items-center gap-2">
           <Lightbulb size={14} className="text-cloudera-orange" aria-hidden />
-          Insights
+          {sectionLabels.insights}
         </div>
         <ul className="answer-prose-secondary space-y-2.5">
           {response.answer.insights.map(item => (
@@ -984,7 +987,7 @@ function StructuredAnswer({
   const implicationsBlock =
     !ragProseOnly && response.answer.business_implications.length > 0 ? (
       <div className="answer-section-divider space-y-3">
-        <div className="type-section-label">Business implications</div>
+        <div className="type-section-label">{sectionLabels.implications}</div>
         <div className="rounded-lg border border-slate-200/90 bg-slate-50/50 p-4 shadow-[inset_3px_0_0_0_rgba(154,140,255,0.55)]">
           <ul className="answer-implication-card space-y-2.5">
             {response.answer.business_implications.map(item => (
