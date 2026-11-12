@@ -115,3 +115,12 @@ def test_the_judge_reads_the_answer_from_the_stream_the_ui_uses() -> None:
     assert ja.done_response(lines)["answer"]["direct_answer"] == "16,07%"
     with pytest.raises(RuntimeError):
         ja.done_response([b": keep-alive\n"])
+
+
+def test_recommendations_count_in_the_implications_or_as_a_list_in_the_report() -> None:
+    def actions(answer: dict) -> bool:
+        return dict((name, ok) for name, ok, _ in ja.judge({"needs_actions": True}, _response("", answer=answer)))["actions"]
+
+    assert actions({"direct_answer": "x", "business_implications": ["Audit armada"]})
+    assert actions({"direct_answer": "x", "executive_summary": "### Rekomendasi\n1. Audit armada di Sorong\n2. Tambah slot muat"})
+    assert not actions({"direct_answer": "x", "executive_summary": "Papua Maluku 34,5%, tertinggi."})

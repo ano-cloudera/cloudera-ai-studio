@@ -279,6 +279,9 @@ async def explore(
             logger.exception("agent_turn_failed turn=%s", turn_number)
             return
         logger.info("agent_turn turn=%s thought=%r calls=%s done=%s", turn_number, turn.thought[:300], len(turn.calls), turn.done)
+        if turn.thought.strip() and turn.calls:
+            # What the agent concluded and checks next, shown as it works (the way Genie shows its reasoning).
+            yield {"type": "progress", "stage": "agent_plan", "label": " ".join(turn.thought.split())[:240]}
         fresh: list[Call] = []
         repeated: list[dict[str, Any]] = []
         for call in turn.calls[:MAX_CALLS_PER_TURN]:

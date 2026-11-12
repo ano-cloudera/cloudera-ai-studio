@@ -152,7 +152,10 @@ def judge(expect: dict[str, Any], response: dict[str, Any], *, language: str = "
         bad = any(abs(v - float(number)) < 1e-9 for v in numbers_in(re.sub(r"20\d\d", "", direct)))
         checks.append((f"does not answer {number}", not bad, "ok" if not bad else "answered with it"))
     if expect.get("needs_actions"):
-        actions = (response.get("answer") or {}).get("business_implications") or []
+        answer = response.get("answer") or {}
+        actions = list(answer.get("business_implications") or [])
+        # The agent's report writes its recommendations as a numbered or bulleted list in the body.
+        actions += [line for line in str(answer.get("executive_summary") or "").splitlines() if re.match(r"^\s*(\d+[.)]|[-*•])\s+\S", line)]
         checks.append(("actions", len(actions) >= 1, f"{len(actions)} actions"))
     if language == "id" and text.strip():
         count = english_words(text)
