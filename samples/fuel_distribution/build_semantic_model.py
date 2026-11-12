@@ -15,7 +15,11 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import semantic_api  # noqa: E402
+from generate_data import TERMINAL_PLACES  # noqa: E402  (the coordinates the data was generated with)
+
+_TERMINAL_GEO = {name: [lat, lon] for name, (_city, lat, lon) in TERMINAL_PLACES.items()}
 
 _LATE = "COUNT(CASE WHEN status_pengiriman = 'Terlambat' THEN 1 END)"
 _FINISHED = "NULLIF(COUNT(CASE WHEN status_pengiriman <> 'Dalam_Perjalanan' THEN 1 END), 0)"
@@ -25,6 +29,8 @@ SPEC = {
     "description": "Penyaluran BBM dari terminal ke SPBU dan pelanggan industri: volume, ketepatan pengiriman, dan realisasi BBM subsidi terhadap kuota.",
     # What an overview answer starts with, most important first: how late deliveries are, how much was delivered, and the quota.
     "headline": ["tingkat_keterlambatan", "total_volume", "pencapaian_kuota"],
+    # Where each terminal is, so a result by terminal (and the Home map) puts it on the map.
+    "geo": {"fuel_terminal": _TERMINAL_GEO, "pelanggan_terminal": _TERMINAL_GEO},
     "entities": [
         {"key": "penyaluran", "name": "Penyaluran (Loading Order)", "table": "fuel_deliveries", "kind": "table", "primary_key": "id_lo",
          "description": "Satu baris per Loading Order (LO): pengiriman BBM dari terminal ke SPBU atau pelanggan industri, dengan produk, volume dalam KL, nilai, jarak, durasi, SLA, dan status. Dipakai untuk volume, nilai, ketepatan dan keterlambatan pengiriman."},

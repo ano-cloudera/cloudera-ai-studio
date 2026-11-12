@@ -169,6 +169,8 @@ class QueryData(StrictModel):
     column_labels: dict[str, str] = {}
     # The same metric over the same filters and period without the breakdown, when the answer is a breakdown.
     overall_value: float | None = None
+    # Where the values of a result column are, when its dimension carries coordinates: {column: {value: [latitude, longitude]}}.
+    geo_points: dict[str, dict[str, list[float]]] = {}
     # The first and last date the dataset holds ({"first": "2026-01-01", "last": "2026-08-31"}).
     data_coverage: dict[str, str] | None = None
 

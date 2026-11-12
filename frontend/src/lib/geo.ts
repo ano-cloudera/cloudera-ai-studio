@@ -16,6 +16,8 @@ export type GeoDetection = {
   matched: number
   /** Distinct names that matched nothing (shown as a note, never guessed). */
   unmatched: string[]
+  /** Set when the column's values are places with coordinates (from the semantic model): value -> [latitude, longitude]. */
+  points?: Record<string, [number, number]>
 }
 
 /** The 33 provinces of the bundled boundary file (Natural Earth names). */
@@ -77,8 +79,42 @@ function numericValue(value: unknown): number | null {
 }
 
 /** A province column plus a numeric column, when the result has them. */
-export function detectGeo(columns: string[], rows: Record<string, unknown>[]): GeoDetection | null {
+/** A column whose values the semantic model places on the map (`geo_points` of the result), plus a numeric column. */
+function detectPoints(
+  columns: string[],
+  rows: Record<string, unknown>[],
+  geoPoints: Record<string, Record<string, number[]>> | null | undefined,
+): GeoDetection | null {
+  for (const column of columns) {
+    const places = geoPoints?.[column]
+    if (!places) continue
+    const distinct = new Set(rows.map(row => row[column]).filter((v): v is string => typeof v === 'string' && v.trim() !== ''))
+    const matched = [...distinct].filter(name => Array.isArray(places[name]) && places[name].length === 2)
+    if (matched.length < 2) continue
+    const numeric = columns.filter(other => other !== column && rows.some(row => numericValue(row[other]) !== null))
+    const valueColumn = numeric.includes('metric_value') ? 'metric_value' : numeric[0]
+    if (!valueColumn) return null
+    const points: Record<string, [number, number]> = {}
+    for (const name of matched) points[name] = [Number(places[name][0]), Number(places[name][1])]
+    return {
+      geoColumn: column,
+      valueColumn,
+      matched: rows.filter(row => matched.includes(String(row[column]))).length,
+      unmatched: [...distinct].filter(name => !points[name]),
+      points,
+    }
+  }
+  return null
+}
+
+export function detectGeo(
+  columns: string[],
+  rows: Record<string, unknown>[],
+  geoPoints?: Record<string, Record<string, number[]>> | null,
+): GeoDetection | null {
   if (rows.length === 0) return null
+  const placed = detectPoints(columns, rows, geoPoints)
+  if (placed) return placed
   let best: { column: string; matched: number; unmatched: string[] } | null = null
   for (const column of columns) {
     const distinct = new Set<string>()
@@ -105,6 +141,15 @@ export function detectGeo(columns: string[], rows: Record<string, unknown>[]): G
 /** value per province name (rows of the same province are summed only if the model returned duplicates). */
 export function valuesByProvince(rows: Record<string, unknown>[], detection: GeoDetection): Map<string, number> {
   const out = new Map<string, number>()
+  if (detection.points) {
+    // Places with coordinates: one value per place, never summed (a rate of two rows does not add up).
+    for (const row of rows) {
+      const name = String(row[detection.geoColumn] ?? '')
+      const value = numericValue(row[detection.valueColumn])
+      if (detection.points[name] && value !== null && !out.has(name)) out.set(name, value)
+    }
+    return out
+  }
   for (const row of rows) {
     const name = provinceName(row[detection.geoColumn])
     const value = numericValue(row[detection.valueColumn])

@@ -83,6 +83,10 @@ class OssieRuntimeAdapter(SemanticRuntimeAdapter):
                 context: dict[str, Any] = {"display_name": dim.name} if dim.name else {}
                 if dim.synonyms:
                     context["synonyms"] = list(dim.synonyms)
+                geo = (dim.metadata_ or {}).get("geo")
+                if isinstance(geo, dict) and geo:
+                    # Where each value is ({value: [latitude, longitude]}), so a result by this dimension can be put on a map.
+                    context["geo"] = {str(k): [float(v[0]), float(v[1])] for k, v in geo.items() if isinstance(v, (list, tuple)) and len(v) == 2}
                 if context:
                     field["ai_context"] = context
                 fields.append(field)

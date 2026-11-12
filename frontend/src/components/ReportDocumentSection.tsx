@@ -96,7 +96,7 @@ export function ReportDocumentSection({ response }: Props) {
   const hasQuery = Boolean(sql || response.data.governed_metric || response.answer.data_reference.trim())
   const citations = response.citations ?? []
   const hasSources = rag && citations.length > 0
-  const geo = useMemo(() => (rag ? null : detectGeo(response.data.columns, response.data.rows)), [rag, response.data.columns, response.data.rows])
+  const geo = useMemo(() => (rag ? null : detectGeo(response.data.columns, response.data.rows, response.data.geo_points)), [rag, response.data.columns, response.data.rows, response.data.geo_points])
   const calculation = rag ? null : response.calculation ?? null
   const comparison = !rag && comparisonKind(response.data.columns) !== null && hasTable
   const tabs = workspaceTabs(hasTable, hasQuery || Boolean(calculation), hasSources, Boolean(geo))

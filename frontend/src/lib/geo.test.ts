@@ -98,3 +98,20 @@ describe('colour and size scales', () => {
     expect(bubbleRadius(2.5, 10)).toBeLessThan(bubbleRadius(10, 10))
   })
 })
+
+describe('places with coordinates', () => {
+  it('uses the coordinates the semantic model gives a column, and never sums a value per place', () => {
+    const rows = [
+      { terminal: 'Sorong', metric_value: 36.3 },
+      { terminal: 'Wayame', metric_value: 30.1 },
+      { terminal: 'Nowhere', metric_value: 1 },
+    ]
+    const geo = { terminal: { Sorong: [-0.88, 131.26], Wayame: [-3.63, 128.17] } }
+    const found = detectGeo(['terminal', 'metric_value'], rows, geo)!
+    expect(found.geoColumn).toBe('terminal')
+    expect(found.points?.Sorong).toEqual([-0.88, 131.26])
+    expect(found.unmatched).toEqual(['Nowhere'])
+    expect(valuesByProvince(rows, found).get('Sorong')).toBe(36.3)
+    expect(detectGeo(['terminal', 'metric_value'], rows)).toBeNull()
+  })
+})

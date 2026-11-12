@@ -48,6 +48,29 @@ describe('ResultMap', () => {
     expect(Number(big.getAttribute('r'))).toBeGreaterThan(Number(small.getAttribute('r')))
   })
 
+  it('puts places with coordinates where they are, one bubble each', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => boundaries }))
+    const { ResultMap: Fresh } = await import('./ResultMap')
+    const placed = {
+      geoColumn: 'terminal',
+      valueColumn: 'metric_value',
+      matched: 2,
+      unmatched: [],
+      points: { Surabaya: [-7.2, 112.7] as [number, number], Balikpapan: [-1.3, 116.8] as [number, number] },
+    }
+    const terminalRows = [
+      { terminal: 'Surabaya', metric_value: 11.4 },
+      { terminal: 'Balikpapan', metric_value: 29.7 },
+    ]
+    render(<Fresh columns={['terminal', 'metric_value']} rows={terminalRows} detection={placed} />)
+    await waitFor(() => expect(screen.getByTestId('result-map')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: 'Areas' })).toBeNull()
+    const east = document.querySelector('circle[data-bubble="Balikpapan"]')!
+    const west = document.querySelector('circle[data-bubble="Surabaya"]')!
+    expect(Number(east.getAttribute('cx'))).toBeGreaterThan(Number(west.getAttribute('cx')))
+    expect(Number(east.getAttribute('cy'))).toBeLessThan(Number(west.getAttribute('cy'))) // further north
+  })
+
   it('says so when the boundaries cannot be loaded', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }))
     const { ResultMap: Fresh } = await import('./ResultMap')

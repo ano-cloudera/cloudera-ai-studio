@@ -564,6 +564,8 @@ export type ChatResponse = {
     /** Business names for the result columns ("delivery_shipments_region_name" -> "Region"). */
     column_labels?: Record<string, string> | null
     overall_value?: number | null
+    /** Coordinates of the values of a column, when its dimension carries them: {column: {value: [latitude, longitude]}}. */
+    geo_points?: Record<string, Record<string, number[]>>
     data_coverage?: { first: string; last: string } | null
   }
   chart_spec: ChartSpec | null

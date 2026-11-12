@@ -38,9 +38,12 @@ def entity_payload(spec: dict, entity: dict, connector_id: str) -> dict:
     }
 
 
-def dimension_payload(row: tuple) -> dict:
+def dimension_payload(row: tuple, geo: dict[str, dict[str, list[float]]] | None = None) -> dict:
     key, name, entity, column, data_type, synonyms, description = row
-    return {"key": key, "name": name, "source_entity_key": entity, "source_column": column, "data_type": data_type, "synonyms": synonyms, "description": description}
+    payload = {"key": key, "name": name, "source_entity_key": entity, "source_column": column, "data_type": data_type, "synonyms": synonyms, "description": description}
+    if (geo or {}).get(key):
+        payload["metadata"] = {"geo": geo[key]}  # value -> [latitude, longitude], for maps
+    return payload
 
 
 def metric_payload(row: tuple, dimension_keys: dict[str, list[str]], headline: list[str] | None = None) -> dict:
@@ -66,7 +69,7 @@ def plan(spec: dict, connector_id: str) -> dict[str, list[dict]]:
         keys[row[2]].append(row[0])
     return {
         "entities": [entity_payload(spec, e, connector_id) for e in spec["entities"]],
-        "dimensions": [dimension_payload(r) for r in spec["dimensions"]],
+        "dimensions": [dimension_payload(r, spec.get("geo")) for r in spec["dimensions"]],
         "metrics": [metric_payload(r, keys, spec.get("headline")) for r in spec["metrics"]],
         "terms": [term_payload(r) for r in spec["terms"]],
     }

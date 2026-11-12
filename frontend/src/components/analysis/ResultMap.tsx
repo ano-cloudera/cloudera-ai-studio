@@ -104,6 +104,12 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
   }
 
   const { projection, items } = geometry
+  // Places with coordinates (terminals, depots) are drawn as bubbles where they are; provinces as areas or bubbles.
+  const placed = Boolean(detection.points)
+  const shownMode: Mode = placed ? 'bubbles' : mode
+  const bubbles = placed
+    ? Object.entries(detection.points ?? {}).map(([name, [lat, lon]]) => ({ name, centre: projection.project(lon, lat) }))
+    : items
   const zoom = (factor: number) =>
     setView(current => {
       const k = Math.min(8, Math.max(1, current.k * factor))
@@ -132,6 +138,7 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
     <div className="space-y-4" data-testid="result-map">
       <div>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          {placed ? <div /> : (
           <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-semibold" role="group" aria-label="Map style">
             {(['areas', 'bubbles'] as const).map(option => (
               <button
@@ -147,6 +154,7 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
               </button>
             ))}
           </div>
+          )}
           <div className="inline-flex gap-1" role="group" aria-label="Zoom">
             <button type="button" aria-label="Zoom in" onClick={() => zoom(1.5)} className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-cloudera-navy"><Plus className="h-4 w-4" /></button>
             <button type="button" aria-label="Zoom out" onClick={() => zoom(1 / 1.5)} className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-cloudera-navy"><Minus className="h-4 w-4" /></button>
@@ -159,7 +167,7 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
             viewBox={`0 0 ${projection.width} ${projection.height}`}
             className="block h-auto w-full cursor-grab touch-none select-none active:cursor-grabbing"
             role="img"
-            aria-label={`Map of ${label} by province`}
+            aria-label={`Map of ${label} by ${placed ? 'location' : 'province'}`}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={() => (drag.current = null)}
@@ -173,8 +181,8 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
           >
             <g transform={`translate(${view.x} ${view.y}) scale(${view.k})`}>
               {items.map(item => {
-                const value = values.get(item.name)
-                const filled = mode === 'areas' && value !== undefined
+                const value = placed ? undefined : values.get(item.name)
+                const filled = shownMode === 'areas' && value !== undefined
                 return (
                   <path
                     key={item.name}
@@ -183,14 +191,14 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
                     fill={filled ? rampColor(value, stats.min, stats.max) : '#e8ebf3'}
                     stroke="#ffffff"
                     strokeWidth={0.7 / view.k}
-                    onPointerMove={event => track(item.name, event)}
+                    onPointerMove={event => (placed ? setHover(null) : track(item.name, event))}
                   >
-                    <title>{value === undefined ? `${item.name}: no data` : `${item.name}: ${format(value)}`}</title>
+                    <title>{placed ? item.name : value === undefined ? `${item.name}: no data` : `${item.name}: ${format(value)}`}</title>
                   </path>
                 )
               })}
-              {mode === 'bubbles' &&
-                items.map(item => {
+              {shownMode === 'bubbles' &&
+                bubbles.map(item => {
                   const value = values.get(item.name)
                   if (value === undefined) return null
                   return (

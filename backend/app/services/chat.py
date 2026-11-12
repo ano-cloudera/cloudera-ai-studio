@@ -1051,6 +1051,9 @@ class ChatService:
             logger.exception("column_labels_failed request_id=%s", request_id)
         if isinstance(state.get("overall_value"), (int, float)):
             raw_data["overall_value"] = float(state["overall_value"])
+        geo = self._geo_points(list(raw_data.get("columns") or []))
+        if geo:
+            raw_data["geo_points"] = geo
         if isinstance(state.get("data_coverage"), dict):
             raw_data["data_coverage"] = dict(state["data_coverage"])
         query_result = state.get("query_result") if isinstance(state.get("query_result"), dict) else {}
@@ -1524,6 +1527,18 @@ class ChatService:
                 self.apply_runtime_bundle(bundle)
         except Exception:  # noqa: BLE001 - the per-question resolution still loads the model a data question needs
             logger.exception("default_semantic_model_failed")
+
+    def _geo_points(self, columns: list[str]) -> dict[str, dict[str, list[float]]]:
+        """Coordinates of the values of each result column whose dimension carries them (dimension metadata `geo`)."""
+        fields = getattr(getattr(self.dependencies.semantic_context, "registry", None), "dataset_fields", None) or {}
+        out: dict[str, dict[str, list[float]]] = {}
+        for column in columns:
+            for dataset_fields in fields.values():
+                geo = ((dataset_fields.get(column) or {}).get("ai_context") or {}).get("geo")
+                if isinstance(geo, dict) and geo:
+                    out[column] = geo
+                    break
+        return out
 
     def agent_loop(self, request: AskDataRequest) -> str:
         """'tools' (the agent queries metrics as tools in a loop) or 'plan' (steps planned once), per request or AGENT_LOOP."""
