@@ -7,6 +7,7 @@ steps (or a failed plan call) is completed from the metric catalog; only when no
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import uuid
@@ -74,8 +75,8 @@ def _headline_metrics(catalog: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _labels(language: str) -> dict[str, str]:
     if language == "id":
-        return {"plan": "Merencanakan analisis", "step": "Langkah {i} dari {n}: {what}", "report": "Menyusun jawaban"}
-    return {"plan": "Planning the analysis", "step": "Step {i} of {n}: {what}", "report": "Writing the report"}
+        return {"plan": "Merencanakan analisis", "step": "Langkah {i} dari {n}: {what}", "done": "Langkah {i} dari {n} selesai ({s} dtk)", "report": "Menyusun jawaban"}
+    return {"plan": "Planning the analysis", "step": "Step {i} of {n}: {what}", "done": "Step {i} of {n} done ({s} s)", "report": "Writing the report"}
 
 
 class _Lenient(BaseModel):
@@ -497,6 +498,43 @@ class AskDataAgent:
         logger.info("agent_mode_taken kind=%s question=%r", getattr(reading, "kind", None), question[:200])
         return question, history
 
+    async def _run_step(
+        self, prepared: AskDataRequest, step: AgentStep, index: int, *, run_id: str, catalog: list[dict[str, Any]], library_ids: list[str]
+    ) -> AskDataResponse | None:
+        """One step as an ordinary question in a session of its own; None when it fails, so one step never stops the others."""
+        pinned = (
+            [ChatContextSource(type="semantic_metric", id=step.metric, name=step.metric)]
+            if step.kind == "data" and step.metric and step.metric in _metric_names(catalog)
+            else prepared.context_sources
+        )
+        sub = prepared.model_copy(
+            update={
+                "session_id": f"agent-{run_id}-{index}",
+                "question": step.question,
+                "mode": "rag" if step.kind == "knowledge" else "ask_data",
+                "library_ids": library_ids if step.kind == "knowledge" else None,
+                "context_sources": pinned,
+            }
+        )
+        response: AskDataResponse | None = None
+        try:
+            response = await self._chat.run(sub)
+        except Exception:  # noqa: BLE001
+            logger.exception("agent_step_failed step=%s", index)
+        failed = response is None or response.status not in ("SUCCESS", "NO_DATA")
+        if failed and step.kind == "data" and pinned is not prepared.context_sources:
+            # The pin is a help, not a requirement: the same question without it goes through the normal metric choice.
+            logger.warning("agent_step_unpinned step=%s metric=%s", index, step.metric)
+            try:
+                response = await self._chat.run(sub.model_copy(update={"context_sources": prepared.context_sources}))
+            except Exception:  # noqa: BLE001
+                logger.exception("agent_step_failed step=%s unpinned", index)
+        logger.info(
+            "agent_step step=%s status=%s strategy=%s rows=%s question=%r",
+            index, getattr(response, "status", None), getattr(response, "strategy", None), getattr(getattr(response, "data", None), "row_count", None), step.question[:120],
+        )
+        return response
+
     async def stream(self, request: AskDataRequest) -> AsyncIterator[dict[str, Any]]:
         """Progress events, then {"type": "done", "response": ...}; yields nothing at all when agent mode does not apply."""
         if not self.applicable(request):
@@ -550,48 +588,33 @@ class AskDataAgent:
         if len(steps) < 2:
             logger.warning("agent_fallback reason=plan_has_%s_step", len(steps))
             return
-        responses: list[AskDataResponse | None] = []
+        # The first step runs alone, because its result may change the rest of the plan (refine_steps); the steps after
+        # it do not depend on each other, so they run at the same time and the slowest one sets the wait, not their sum.
         run_id = uuid.uuid4().hex[:8]
-        index = 0
-        while index < len(steps):
-            step = steps[index]
-            index += 1
-            yield {"type": "progress", "stage": "agent_step", "label": labels["step"].format(i=index, n=len(steps), what=step.why or step.question), "detail": step.question}
-            pinned = (
-                [ChatContextSource(type="semantic_metric", id=step.metric, name=step.metric)]
-                if step.kind == "data" and step.metric and step.metric in _metric_names(catalog)
-                else prepared.context_sources
-            )
-            sub = prepared.model_copy(
-                update={
-                    "session_id": f"agent-{run_id}-{index}",
-                    "question": step.question,
-                    "mode": "rag" if step.kind == "knowledge" else "ask_data",
-                    "library_ids": library_ids if step.kind == "knowledge" else None,
-                    "context_sources": pinned,
-                }
-            )
-            try:
-                responses.append(await self._chat.run(sub))
-            except Exception:  # noqa: BLE001 - one failing step must not stop the others
-                logger.exception("agent_step_failed step=%s", index)
-                responses.append(None)
-            failed = responses[-1] is None or responses[-1].status not in ("SUCCESS", "NO_DATA")
-            if failed and step.kind == "data" and pinned is not prepared.context_sources:
-                # The pin is a help, not a requirement: the same question without it goes through the normal metric choice.
-                logger.warning("agent_step_unpinned step=%s metric=%s", index, step.metric)
-                try:
-                    responses[-1] = await self._chat.run(sub.model_copy(update={"context_sources": prepared.context_sources}))
-                except Exception:  # noqa: BLE001
-                    logger.exception("agent_step_failed step=%s unpinned", index)
-            last = responses[-1]
-            logger.info(
-                "agent_step step=%s status=%s strategy=%s rows=%s question=%r",
-                index, getattr(last, "status", None), getattr(last, "strategy", None), getattr(getattr(last, "data", None), "row_count", None), step.question[:120],
-            )
-            first = responses[0]
-            if index == 1 and len(steps) > 2 and first is not None and first.status == "SUCCESS" and step.kind == "data":
-                steps = [step, *await refine_steps(provider, question=question, catalog=catalog, has_knowledge=bool(library_ids), done=[_step_result(1, step, first)], remaining=steps[1:])]
+        n = len(steps)
+        yield {"type": "progress", "stage": "agent_step", "label": labels["step"].format(i=1, n=n, what=steps[0].why or steps[0].question), "detail": steps[0].question}
+        first = await self._run_step(prepared, steps[0], 1, run_id=run_id, catalog=catalog, library_ids=library_ids)
+        if n > 2 and first is not None and first.status == "SUCCESS" and steps[0].kind == "data":
+            steps = [steps[0], *await refine_steps(provider, question=question, catalog=catalog, has_knowledge=bool(library_ids), done=[_step_result(1, steps[0], first)], remaining=steps[1:])]
+            n = len(steps)
+        responses: list[AskDataResponse | None] = [first] + [None] * (n - 1)
+        for index, step in enumerate(steps[1:], start=2):
+            yield {"type": "progress", "stage": "agent_step", "label": labels["step"].format(i=index, n=n, what=step.why or step.question), "detail": step.question}
+
+        async def timed(index: int, step: AgentStep) -> tuple[int, AskDataResponse | None, float]:
+            began = perf_counter()
+            got = await self._run_step(prepared, step, index, run_id=run_id, catalog=catalog, library_ids=library_ids)
+            return index, got, perf_counter() - began
+
+        pending = [asyncio.create_task(timed(index, step)) for index, step in enumerate(steps[1:], start=2)]
+        try:
+            for finished in asyncio.as_completed(pending):
+                index, got, seconds = await finished
+                responses[index - 1] = got
+                yield {"type": "progress", "stage": "agent_step", "label": labels["done"].format(i=index, n=n, s=round(seconds))}
+        finally:
+            for task in pending:
+                task.cancel()  # the client went away: no step keeps running for nobody
         if not any(r is not None and r.status == "SUCCESS" and s.kind == "data" for s, r in zip(steps, responses)):
             logger.warning("agent_fallback reason=no_step_answered statuses=%s", [getattr(r, "status", None) for r in responses])
             return  # nothing to report: let the normal pipeline answer

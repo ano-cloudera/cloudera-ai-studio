@@ -112,7 +112,9 @@ def test_each_step_runs_through_the_normal_pipeline_and_one_report_is_written() 
     provider = Provider([AgentStep(kind="data", question="Late rate for Kalimantan Timur by carrier", why="Find where it comes from"), AgentStep(kind="data", question="Late rate for Kalimantan Timur by month"), AgentStep(kind="knowledge", question="When is a carrier review triggered?")])
     chat = Chat(provider, libraries=["lib1"])
     events = _collect(AskDataAgent(chat), _request())
-    assert [e["stage"] for e in events if e["type"] == "progress"] == ["agent_plan", "agent_step", "agent_step", "agent_step", "agent_report"]
+    progress = [e for e in events if e["type"] == "progress"]
+    assert [e["stage"] for e in progress] == ["agent_plan", "agent_step", "agent_step", "agent_step", "agent_step", "agent_step", "agent_report"]
+    assert sum("done" in e["label"] for e in progress) == 2  # each step that ran alongside the others says when it finished
     done = events[-1]["response"]
     assert done.strategy == "agent" and done.status == "SUCCESS" and done.answer.direct_answer.startswith("Kalimantan Timur")
     assert [mode for mode, _ in chat.asked] == ["ask_data", "ask_data", "rag"]
@@ -122,6 +124,38 @@ def test_each_step_runs_through_the_normal_pipeline_and_one_report_is_written() 
     assert done.usage and done.usage.llm_calls == 3
     assert chat.recorded == [done]
     assert provider.calls == ["AgentPlan", "AgentRefinement", "AnalysisOutput"]  # the refinement failed here, so the plan stood
+
+
+class SlowChat(Chat):
+    """Each step takes a while, as a step against the warehouse and the language model does."""
+
+    def __init__(self, provider: Provider) -> None:
+        super().__init__(provider)
+        self.running = 0
+        self.most_at_once = 0
+
+    async def run(self, request):
+        self.running += 1
+        self.most_at_once = max(self.most_at_once, self.running)
+        try:
+            await asyncio.sleep(0.2)
+            return await super().run(request)
+        finally:
+            self.running -= 1
+
+
+def test_the_steps_after_the_first_run_at_the_same_time_so_the_slowest_sets_the_wait() -> None:
+    from time import perf_counter
+
+    plan = [AgentStep(kind="data", question=f"Late rate by {what}") for what in ("carrier", "month", "region", "terminal")]
+    chat = SlowChat(Provider(plan))
+    began = perf_counter()
+    events = _collect(AskDataAgent(chat), _request())
+    elapsed = perf_counter() - began
+    assert events[-1]["type"] == "done" and len(events[-1]["response"].calculation.steps) == 4
+    assert chat.most_at_once == 3  # steps 2, 3 and 4 together; step 1 alone, since the rest may be adjusted to it
+    assert elapsed < 0.2 * 4 - 0.1  # one step, then the other three side by side: about two step times, not four
+    assert [q for _, q in chat.asked][0] == "Late rate by carrier"
 
 
 def test_a_one_step_plan_is_completed_from_the_catalog_and_nothing_changes_when_steps_fail_or_the_mode_differs() -> None:
