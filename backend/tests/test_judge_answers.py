@@ -103,3 +103,15 @@ def test_numbers_are_read_whole_whatever_their_separators() -> None:
     assert 11716.55 in numbers_in("Rp 11.716,55") and 11716.55 in numbers_in("11,716.55")
     assert numbers_in("34,54% dan 23.15%") == [34.54, 23.15]
     assert ja.states_number("Jumlah SPBU kita adalah 3000.", 3000)
+
+
+def test_the_judge_reads_the_answer_from_the_stream_the_ui_uses() -> None:
+    lines = [
+        b": keep-alive\n",
+        b'data: {"type": "progress", "stage": "understanding", "label": "Reading"}\n',
+        b"\n",
+        b'data: {"type": "done", "response": {"status": "SUCCESS", "strategy": "governed", "answer": {"direct_answer": "16,07%"}}}\n',
+    ]
+    assert ja.done_response(lines)["answer"]["direct_answer"] == "16,07%"
+    with pytest.raises(RuntimeError):
+        ja.done_response([b": keep-alive\n"])

@@ -196,16 +196,35 @@ def run_conversation(ask: Callable[[str, str], dict[str, Any]], cases: dict[str,
     return {"name": cases.get("name"), "session": session, "passed": passed, "total": len(turns), "turns": turns}
 
 
-def http_ask(base_url: str, provider: str, model: str, understanding: str | None = None) -> Callable[[str, str], dict[str, Any]]:
+def done_response(lines: Any) -> dict[str, Any]:
+    """The answer in a /chat/stream reply: the `response` of its "done" event (server-sent events, one JSON per data line)."""
+    for raw in lines:
+        line = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw)
+        line = line.strip()
+        if not line.startswith("data:"):
+            continue  # keep-alive comments and blank separators
+        try:
+            event = json.loads(line[5:].strip())
+        except ValueError:
+            continue
+        if isinstance(event, dict) and event.get("type") == "done" and isinstance(event.get("response"), dict):
+            return event["response"]
+    raise RuntimeError("the stream ended without an answer")
+
+
+def http_ask(base_url: str, provider: str, model: str, understanding: str | None = None, *, stream: bool = True) -> Callable[[str, str], dict[str, Any]]:
+    """Asks the way the UI does (/chat/stream) unless `stream` is False (/chat): the two entry points have differed before."""
+
     def ask(question: str, session: str) -> dict[str, Any]:
         body: dict[str, Any] = {"session_id": session, "question": question, "provider": provider, "model": model}
         if understanding:
             body["understanding"] = understanding  # "llm" or "rules" for this run, whatever the Backend's default is
+        path = "/chat/stream" if stream else "/chat"
         request = urllib.request.Request(
-            f"{base_url.rstrip('/')}/chat", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}, method="POST"
+            f"{base_url.rstrip('/')}{path}", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}, method="POST"
         )
         with urllib.request.urlopen(request, timeout=600) as response:  # noqa: S310 - the Backend URL the operator passes
-            return json.loads(response.read().decode())
+            return done_response(response) if stream else json.loads(response.read().decode())
 
     return ask
 
@@ -234,6 +253,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--model", help="model id as the Backend lists it under /models")
     parser.add_argument("--out", help="write every answer and check as JSON, to send back for review")
     parser.add_argument("--understanding", choices=("rules", "llm"), help="how the Backend reads each question for this run (default: its own setting)")
+    parser.add_argument("--no-stream", action="store_true", help="ask through /chat instead of /chat/stream (the UI uses the stream)")
     args, _ = parser.parse_known_args(argv)  # the IPython kernel that runs CAI jobs adds '-f <kernel.json>'
     base_url = args.base_url or default_base_url(dict(os.environ))
     if not base_url:
@@ -249,7 +269,7 @@ def main(argv: list[str]) -> int:
         print("No available model is listed by the Backend; pass --provider and --model.", file=sys.stderr)
         return 1
     print(f"model: {selection[0]} {selection[1]}" + (f"  understanding: {args.understanding}" if args.understanding else ""))
-    result = run_conversation(http_ask(base_url, *selection, args.understanding), cases)
+    result = run_conversation(http_ask(base_url, *selection, args.understanding, stream=not args.no_stream), cases)
     result["understanding"] = args.understanding or "backend default"
     result["model"] = {"provider": selection[0], "id": selection[1]}
     print_report(result)
