@@ -4,6 +4,7 @@ import { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'r
 import { chartMetric } from '../lib/chartMetric'
 import { answerSectionLabels } from '../lib/answerSectionLabels'
 import { ProposedActions } from '../components/ProposedActions'
+import { AgentSteps } from '../components/AgentSteps'
 import { useSearchParams } from 'next/navigation'
 import { BarChart3, ChevronDown, Lightbulb, Table2 } from 'lucide-react'
 import { ContextAwareChatComposer } from '../components/chat/ContextAwareChatComposer'
@@ -988,9 +989,11 @@ function StructuredAnswer({
       </div>
     ) : null
   // What to do next: the actions the agent proposes (each approved before it runs), then the questions to ask next.
+  const agentSteps = response.status === 'SUCCESS' ? response.agent_steps ?? [] : []
   const followUpBlock =
-    proposedActions.length > 0 || nextQuestionsBlock ? (
+    agentSteps.length > 0 || proposedActions.length > 0 || nextQuestionsBlock ? (
       <>
+        {agentSteps.length > 0 && <AgentSteps steps={agentSteps} language={response.language} />}
         {proposedActions.length > 0 && <ProposedActions actions={proposedActions} language={response.language} />}
         {nextQuestionsBlock}
       </>

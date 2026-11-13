@@ -110,6 +110,16 @@ def test_the_agent_queries_looks_drills_and_writes_one_report(replay) -> None:
     labels = [e["label"] for e in events if e["type"] == "progress"]
     assert "Checking: Keterlambatan per regional" in labels and any(l.startswith("Kurir di Kalimantan Timur:") for l in labels)
     assert replay.service.history.load(replay.session_id)[-1]["session_frame"]["metric"] == "late_delivery_rate"  # a follow-up continues it
+    # The checks behind the answer are shown as cards, and what they found travels with the turn.
+    cards = response.agent_steps
+    assert [c.title for c in cards] == ["Keterlambatan per regional", "Per kurir", "Kurir di Kalimantan Timur"]
+    assert all(c.status == "ok" and c.rows and c.sql for c in cards) and cards[2].overall_value is not None
+    frame = replay.service.history.load(replay.session_id)[-1]["session_frame"]
+    assert [f["check"] for f in frame["agent_findings"]] == [c.title for c in cards] and frame["agent_findings"][0]["top_rows"]
+    from app.ask_data.conversation import previous_turns
+
+    turn = previous_turns(replay.service.history.load(replay.session_id))[-1]
+    assert turn["kind"] == "analysis" and turn["findings"][0]["check"] == "Keterlambatan per regional"
 
 
 def test_a_figure_still_not_in_the_results_is_said(monkeypatch) -> None:

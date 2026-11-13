@@ -152,6 +152,12 @@ def previous_turns(history: list[dict[str, Any]], *, labels: dict[str, str] | No
             turn["filters_and_period"] = _short(frame["scope"], 300)
         if answer.get("direct_answer"):
             turn["answer"] = _short(answer["direct_answer"], 300)
+        if entry.get("strategy") == "agent":
+            # An investigation: what it found, so a follow-up on another group or period continues it.
+            turn["kind"] = "analysis"
+            findings = frame.get("agent_findings") if isinstance(frame.get("agent_findings"), list) else []
+            if findings:
+                turn["findings"] = findings[:6]
         rows = entry.get("rows") if isinstance(entry.get("rows"), list) else []
         if rows:
             turn["first_rows"] = [

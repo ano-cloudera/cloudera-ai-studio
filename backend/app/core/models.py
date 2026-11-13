@@ -259,6 +259,22 @@ class ProposedAction(StrictModel):
     arguments: dict[str, Any] = {}
 
 
+class AgentStepCard(StrictModel):
+    """One check the agent made, shown in the chat as it works and after: what it looked at, how it went, a few rows."""
+
+    title: str
+    tool: str
+    status: Literal["ok", "no_data", "failed"]
+    row_count: int = 0
+    columns: list[str] = []
+    column_labels: dict[str, str] = {}
+    rows: list[dict[str, Any]] = []
+    unit_format: str | None = None
+    overall_value: float | None = None
+    sql: str | None = None
+    sources: list[dict[str, Any]] = []
+
+
 class AskDataResponse(StrictModel):
     request_id: str
     session_id: str
@@ -283,7 +299,8 @@ class AskDataResponse(StrictModel):
     cached_at: str | None = None
     cache_reason: Literal["repeat", "data_source_unavailable"] | None = None
     language: Literal["id", "en"] | None = None  # the language of the question, so the UI names its sections in it
-    proposed_actions: list[ProposedAction] | None = None  # actions the agent proposes, each approved by the user before it runs
+    proposed_actions: list[ProposedAction] | None = None
+    agent_steps: list[AgentStepCard] | None = None  # the checks behind an agent's answer, in the order they ran  # actions the agent proposes, each approved by the user before it runs
     context_mode: ContextMode | None = None
     clarification: AskDataClarification | None = None
     presentation_tier: PresentationTier | None = None

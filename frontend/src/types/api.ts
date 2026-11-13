@@ -536,6 +536,8 @@ export type ChatResponse = {
   language?: 'id' | 'en' | null
   /** Actions the agent proposes (MCP tools that change something); each runs only when the user approves it. */
   proposed_actions?: ProposedAction[] | null
+  /** The checks behind an agent's answer, in the order they ran. */
+  agent_steps?: AgentStepCard[] | null
   strategy:
     | 'governed'
     | 'sql_fallback'
@@ -1042,4 +1044,19 @@ export type ActionRecord = {
   status: 'ok' | 'failed'
   result: string
   error: string
+}
+
+/** One check an agent made: what it looked at, how it went, a few rows and the governed SQL. */
+export type AgentStepCard = {
+  title: string
+  tool: string
+  status: 'ok' | 'no_data' | 'failed'
+  row_count: number
+  columns?: string[]
+  column_labels?: Record<string, string>
+  rows?: Record<string, unknown>[]
+  unit_format?: string | null
+  overall_value?: number | null
+  sql?: string | null
+  sources?: { file?: string | null; page?: number | null }[]
 }

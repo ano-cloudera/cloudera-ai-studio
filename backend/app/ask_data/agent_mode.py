@@ -739,8 +739,9 @@ class AskDataAgent:
         reference = responses[shown].answer.data_reference if shown is not None and responses[shown] is not None else ""
         analysis = agent_tools.report_to_analysis(report, unverified=unverified, language=language, data_reference=reference)
         frame = ran[shown].frame if shown is not None else None
-        if frame:
-            frame = {**frame, "question": request.question.strip(), "standalone_question": question}
+        # What the investigation found travels with the turn, so "and Kalimantan?" continues it rather than starting over.
+        findings = [f for f in (agent_tools.finding(c) for c in ran) if f][:6]
+        frame = {**(frame or {}), "question": request.question.strip(), "standalone_question": question, "agent_findings": findings}
         discard = getattr(self._chat, "discard_reading", None)
         if discard is not None:
             discard(prepared)
@@ -760,8 +761,11 @@ class AskDataAgent:
             proposed = proposals(report.actions, action_tools)
             if proposed:
                 response = response.model_copy(update={"proposed_actions": [ProposedAction(**p) for p in proposed]})
+        from app.core.models import AgentStepCard
+
+        response = response.model_copy(update={"agent_steps": [AgentStepCard(**agent_tools.step_card(c)) for c in ran]})
         response = self._chat.finalize_response(response)
-        self._chat.record_turn(prepared, response, frame=frame) if frame else self._chat.record_turn(prepared, response)
+        self._chat.record_turn(prepared, response, frame=frame)
         remember = getattr(self._chat, "remember_agent_answer", None)
         if callable(remember):
             remember(prepared, question, response, frame)

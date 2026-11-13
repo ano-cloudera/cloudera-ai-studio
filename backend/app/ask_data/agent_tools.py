@@ -36,6 +36,8 @@ MAX_CALLS_PER_TURN = 4
 MAX_CALLS = 10
 EXPLORE_SECONDS = 75.0  # after this no new turn starts; the report is written from what was found
 MAX_ROWS_SHOWN = 30
+STEP_ROWS = 8  # rows of a check shown in its card
+FINDING_ROWS = 5  # rows of a check carried into the next turn
 
 
 class _Lenient(BaseModel):
@@ -398,6 +400,45 @@ async def write_report(
         except Exception:  # noqa: BLE001 - the first report stands, with its figures said to be unverified
             logger.warning("agent_report_repair_failed")
     return report, bad
+
+
+def step_card(item: Call) -> dict[str, Any]:
+    """One check the agent made, as the chat shows it: what it looked at, how it went, a few rows and the governed SQL."""
+    response = item.response
+    card: dict[str, Any] = {"title": item.label(), "tool": item.call.tool, "status": "failed", "row_count": 0}
+    if response is None:
+        return card
+    card["status"] = "ok" if response.status == "SUCCESS" else "no_data" if response.status == "NO_DATA" else "failed"
+    if item.is_data:
+        data = response.data
+        card.update(
+            row_count=data.row_count,
+            columns=list(data.columns),
+            column_labels=dict(data.column_labels or {}),
+            rows=list(data.rows[:STEP_ROWS]),
+            unit_format=data.unit_format,
+            overall_value=data.overall_value,
+            sql=response.governed_sql,
+        )
+    else:
+        card["sources"] = [{"file": c.filename, "page": c.page_number} for c in (response.citations or [])[:4]]
+        card["row_count"] = len(response.citations or [])
+    return card
+
+
+def finding(item: Call) -> dict[str, Any] | None:
+    """What a check found, short enough to carry into the next turn of the conversation."""
+    shown = observation(item)
+    if shown.get("status") != "ok":
+        return None
+    out = {"check": item.label(), "metric": shown.get("metric")}
+    if shown.get("rows"):
+        out["top_rows"] = shown["rows"][:FINDING_ROWS]
+    if shown.get("overall_value") is not None:
+        out["overall_value"] = shown["overall_value"]
+    if shown.get("answer"):
+        out["document_answer"] = str(shown["answer"])[:400]
+    return out
 
 
 def report_to_analysis(report: AgentReport, *, unverified: list[str], language: str, data_reference: str) -> AnalysisOutput:
