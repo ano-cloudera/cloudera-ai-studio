@@ -1047,6 +1047,9 @@ export type ActionRecord = {
   status: 'ok' | 'failed'
   result: string
   error: string
+  /** How long the server took to answer, and the answer that proposed the action; older records have neither. */
+  duration_ms?: number | null
+  request_id?: string
 }
 
 /** One check an agent made: what it looked at, how it went, a few rows and the governed SQL. */

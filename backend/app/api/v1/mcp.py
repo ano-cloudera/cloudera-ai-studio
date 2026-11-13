@@ -88,6 +88,11 @@ class RunActionRequest(BaseModel):
     tool: str = Field(min_length=1, max_length=120)
     arguments: dict[str, Any] = Field(default_factory=dict)
     title: str | None = Field(default=None, max_length=200)  # what the agent said the action does, kept with its record
+    request_id: str | None = Field(default=None, max_length=80)  # the answer that proposed it
+
+
+class DeleteActionsRequest(BaseModel):
+    ids: list[str] = Field(min_length=1, max_length=500)
 
 
 @router.post("/actions/run")
@@ -101,19 +106,26 @@ async def run_mcp_action(body: RunActionRequest, request: Request) -> dict:
     entry = next((s for s in request.app.state.chat_service.mcp_servers() if s.id == body.server_id), None)
     if entry is None:
         raise HTTPException(status_code=404, detail="That MCP server is not enabled in this workspace.")
-    recorded = dict(server_id=entry.id, server=entry.name, tool=body.tool, title=body.title, arguments=body.arguments)
+    from time import perf_counter
+
+    recorded = dict(server_id=entry.id, server=entry.name, tool=body.tool, title=body.title, arguments=body.arguments, request_id=body.request_id or "")
+    began = perf_counter()
+
+    def took() -> int:
+        return int((perf_counter() - began) * 1000)
+
     try:
         result = await run_action(entry, body.tool, body.arguments)
     except ValueError as exc:
-        action_log.record(settings, ok=False, error=str(exc), **recorded)
+        action_log.record(settings, ok=False, error=str(exc), duration_ms=took(), **recorded)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 - reported to the user, who can retry
         from app.mcp.client import describe_exception
 
         message = f"The action could not run: {describe_exception(exc)[:300]}"
-        action_log.record(settings, ok=False, error=message, **recorded)
+        action_log.record(settings, ok=False, error=message, duration_ms=took(), **recorded)
         raise HTTPException(status_code=502, detail=message) from exc
-    logged = action_log.record(settings, ok=True, result=result, **recorded)
+    logged = action_log.record(settings, ok=True, result=result, duration_ms=took(), **recorded)
     return {"ok": True, "server": entry.name, "tool": body.tool, "result": result, "record_id": logged["id"]}
 
 
@@ -123,6 +135,14 @@ def mcp_action_history(request: Request, limit: int = Query(200, ge=1, le=1000))
     from app.mcp import action_log
 
     return {"actions": action_log.history(request.app.state.settings, limit=limit)}
+
+
+@router.post("/actions/delete")
+def delete_mcp_actions(body: DeleteActionsRequest, request: Request) -> dict:
+    """Remove records from the Actions log. Only the record goes; what the action already did on its server stays."""
+    from app.mcp import action_log
+
+    return {"deleted": action_log.delete(request.app.state.settings, body.ids)}
 
 
 @router.get("/actions/status")

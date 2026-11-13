@@ -33,7 +33,7 @@ function argumentLines(action: ProposedAction): [string, string][] {
     .map(([key, value]) => [key.replaceAll('_', ' '), typeof value === 'string' ? value : JSON.stringify(value)])
 }
 
-export function ProposedActions({ actions, language }: { actions: ProposedAction[]; language?: string | null }) {
+export function ProposedActions({ actions, requestId }: { actions: ProposedAction[]; language?: string | null; requestId?: string }) {
   const text = TEXT.en
   const [states, setStates] = useState<Record<string, State>>({})
   if (!actions.length) return null
@@ -41,7 +41,7 @@ export function ProposedActions({ actions, language }: { actions: ProposedAction
   const run = async (action: ProposedAction) => {
     setStates(current => ({ ...current, [action.id]: { status: 'running' } }))
     try {
-      const reply = await api.runMcpAction({ server_id: action.server_id, tool: action.tool, arguments: action.arguments, title: action.title })
+      const reply = await api.runMcpAction({ server_id: action.server_id, tool: action.tool, arguments: action.arguments, title: action.title, request_id: requestId })
       setStates(current => ({ ...current, [action.id]: { status: 'done', message: summarise(reply.result) } }))
     } catch (error) {
       const message = (error as { message?: string })?.message || ''

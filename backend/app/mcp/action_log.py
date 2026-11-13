@@ -57,6 +57,8 @@ def record(
     ok: bool,
     result: str = "",
     error: str = "",
+    duration_ms: int | None = None,
+    request_id: str = "",
 ) -> dict[str, Any]:
     now = datetime.now(timezone.utc)
     entry = {
@@ -70,6 +72,8 @@ def record(
         "status": "ok" if ok else "failed",
         "result": result[:RESULT_LIMIT],
         "error": error[:600],
+        "duration_ms": duration_ms,  # how long the server took to answer
+        "request_id": request_id[:80],  # the answer that proposed it, so a record can be traced back to the question
     }
     try:
         _store(settings)[f"{now.strftime('%Y%m%d%H%M%S%f')}-{entry['id']}"] = entry  # sorts by time
@@ -87,6 +91,21 @@ def history(settings: Any, *, limit: int = 200) -> list[dict[str, Any]]:
     except Exception:  # noqa: BLE001
         logger.exception("action_log_read_failed")
         return []
+
+
+def delete(settings: Any, ids: list[str]) -> int:
+    """Remove records by id; the number removed. A record is removed for good: the page it is shown on is a log people can tidy."""
+    wanted = {i.strip() for i in ids if i and i.strip()}
+    removed = 0
+    try:
+        store = _store(settings)
+        for key in list(store.keys()):
+            if key.rsplit("-", 1)[-1] in wanted:
+                del store[key]
+                removed += 1
+    except Exception:  # noqa: BLE001
+        logger.exception("action_log_delete_failed")
+    return removed
 
 
 def count(settings: Any) -> int:

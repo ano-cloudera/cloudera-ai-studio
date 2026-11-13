@@ -994,7 +994,7 @@ function StructuredAnswer({
   const followUpBlock =
     proposedActions.length > 0 || nextQuestionsBlock ? (
       <>
-        {proposedActions.length > 0 && <ProposedActions actions={proposedActions} language={response.language} />}
+        {proposedActions.length > 0 && <ProposedActions actions={proposedActions} language={response.language} requestId={response.request_id} />}
         {nextQuestionsBlock}
       </>
     ) : null

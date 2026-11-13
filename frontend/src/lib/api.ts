@@ -65,7 +65,8 @@ export const api = {
   askDataStarters: () => request<import('../types/api').AskDataStartersResponse>('/v1/ask-data/starters'),
   mcpActionStatus: () => request<{ visible: boolean; recorded: number; action_tools_available: boolean }>('/v1/mcp/actions/status'),
   mcpActionHistory: () => request<{ actions: import('../types/api').ActionRecord[] }>('/v1/mcp/actions/history'),
-  runMcpAction: (body: { server_id: string; tool: string; arguments: Record<string, unknown>; title?: string }) =>
+  deleteMcpActions: (ids: string[]) => request<{ deleted: number }>('/v1/mcp/actions/delete', { method: 'POST', body: JSON.stringify({ ids }) }),
+  runMcpAction: (body: { server_id: string; tool: string; arguments: Record<string, unknown>; title?: string; request_id?: string }) =>
     request<{ ok: boolean; server: string; tool: string; result: string; record_id: string }>('/v1/mcp/actions/run', { method: 'POST', body: JSON.stringify(body) }),
   home: (selection: { provider: string; model: string } | null, refresh = false) =>
     request<import('../types/api').HomePayload>(`/v1/home?${homeQuery(selection, refresh)}`),

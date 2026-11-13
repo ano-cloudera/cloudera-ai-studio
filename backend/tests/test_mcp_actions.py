@@ -124,3 +124,20 @@ def test_the_endpoints_run_record_and_say_when_the_actions_page_has_something_to
     listed = client.get("/api/v1/mcp/actions/history").json()["actions"]
     assert [e["status"] for e in listed] == ["failed", "ok"] and listed[1]["title"] == "Open a ticket for Sorong"
     assert client.get("/api/v1/mcp/actions/status").json()["recorded"] == 2
+
+
+def test_a_record_can_be_deleted_and_keeps_how_long_it_took_and_which_answer_proposed_it(tmp_path) -> None:
+    from types import SimpleNamespace
+
+    from app.mcp import action_log
+
+    settings = SimpleNamespace(project_storage_dir=None, answer_cache_dir=str(tmp_path / "answers"))
+    action_log.clear_memory()
+    one = action_log.record(settings, server_id="ops", server="Operations Desk", tool="create_ticket", title="A", arguments={}, ok=True, duration_ms=830, request_id="req-1")
+    two = action_log.record(settings, server_id="ops", server="Operations Desk", tool="create_ticket", title="B", arguments={}, ok=False, error="down")
+    kept = {row["id"]: row for row in action_log.history(settings)}
+    assert kept[one["id"]]["duration_ms"] == 830 and kept[one["id"]]["request_id"] == "req-1"
+    assert action_log.delete(settings, [one["id"], "nope"]) == 1
+    assert [row["id"] for row in action_log.history(settings)] == [two["id"]]
+    assert action_log.delete(settings, [one["id"]]) == 0  # already gone
+    action_log.clear_memory()

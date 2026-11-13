@@ -28,13 +28,13 @@ describe('ProposedActions', () => {
       tool: 'create_ticket',
       result: JSON.stringify({ created: { id: 'OPS-261113-AB12', title: 'Keterlambatan Sorong', due_date: '2026-11-16' } }),
     })
-    render(<ProposedActions actions={[action]} language="id" />)
+    render(<ProposedActions actions={[action]} language="id" requestId="req-1" />)
     expect(screen.getByText('Proposed actions')).toBeTruthy()
     expect(screen.getByText('36,3% vs 16,1%')).toBeTruthy()
     expect(api.runMcpAction).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: /Run/ }))
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('OPS-261113-AB12'))
-    expect(api.runMcpAction).toHaveBeenCalledWith({ server_id: 'ops', tool: 'create_ticket', arguments: action.arguments, title: action.title })
+    expect(api.runMcpAction).toHaveBeenCalledWith({ server_id: 'ops', tool: 'create_ticket', arguments: action.arguments, title: action.title, request_id: 'req-1' })
     expect(screen.queryByRole('button', { name: /Run/ })).toBeNull()
   })
 
