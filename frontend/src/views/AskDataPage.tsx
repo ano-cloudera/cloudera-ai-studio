@@ -124,6 +124,8 @@ export function AskDataPage() {
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [pdfExportPreview, setPdfExportPreview] = useState(false)
   const [reportPanelOpen, setReportPanelOpen] = useState(false)
+  const reportPanelOpenRef = useRef(false)
+  reportPanelOpenRef.current = reportPanelOpen
   const [activeReportSectionId, setActiveReportSectionId] = useState<string | null>(null)
   const [pinnedReportIds, setPinnedReportIds] = useState<string[]>([])
   const end = useRef<HTMLDivElement>(null)
@@ -431,8 +433,8 @@ export function AskDataPage() {
           response.status === 'SUCCESS' &&
           responseQualifiesForReportPanel(response)
         ) {
-          setReportPanelOpen(true)
-          setActiveReportSectionId(response.request_id)
+          // The answer shows a card; the panel opens only when the person clicks it. One that is already open follows the newest answer.
+          if (reportPanelOpenRef.current) setActiveReportSectionId(response.request_id)
         }
       },
     })

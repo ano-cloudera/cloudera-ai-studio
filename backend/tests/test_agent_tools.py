@@ -330,3 +330,25 @@ def test_with_agent_all_a_plain_data_question_is_answered_by_the_agent_and_witho
     assert replay.model.calls.count("AgentTurn") == 2  # one query, then done: a narrow question stays short
     off = AskDataRequest(session_id="other", question=question, provider="qwen", model="m", agent_all=False)
     assert asyncio.run(AskDataAgent(replay.service).run(off)) is None  # the governed pipeline answers it
+
+
+def test_a_follow_up_after_an_investigation_continues_it_but_after_a_plain_answer_it_does_not() -> None:
+    from types import SimpleNamespace
+
+    from app.ask_data.conversation import TurnReading
+
+    reading = TurnReading(kind="data", uses_previous=True, standalone_question="Tingkat keterlambatan di Sulawesi")
+
+    def chat_with(history):
+        async def read_conversation(request):
+            return reading, history
+
+        return SimpleNamespace(read_conversation=read_conversation)
+
+    request = AskDataRequest(session_id="s", question="Kalau Sulawesi bagaimana?", provider="qwen", model="m")
+    after_investigation = [{"question": "Kenapa Papua Maluku setinggi itu?", "strategy": "agent"}]
+    after_plain_answer = [{"question": "Tingkat keterlambatan per regional", "strategy": "governed"}]
+    taken, _ = asyncio.run(AskDataAgent(chat_with(after_investigation))._read(request))
+    assert taken == "Tingkat keterlambatan di Sulawesi"
+    left, _ = asyncio.run(AskDataAgent(chat_with(after_plain_answer))._read(request))
+    assert left is None

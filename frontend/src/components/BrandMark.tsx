@@ -24,7 +24,7 @@ export function BrandMark() {
           onError={() => setFailed(true)}
         />
       )}
-      <span className="min-w-0 truncate text-[1.0625rem] font-medium leading-none text-cloudera-navy">
+      <span title={branding.sidebarBrandTitle} className="min-w-0 text-base font-medium leading-tight text-cloudera-navy">
         {branding.sidebarBrandTitle}
       </span>
     </div>

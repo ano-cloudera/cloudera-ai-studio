@@ -205,7 +205,7 @@ export function UsagePage() {
                       formatter={value => [formatCompactTokens(Number(value ?? 0)), 'Tokens']}
                       labelFormatter={label => String(label)}
                     />
-                    <Bar dataKey="tokens" fill="#5351F6" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                    <Bar dataKey="tokens" fill="#FF5A14" radius={[4, 4, 0, 0]} maxBarSize={48} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

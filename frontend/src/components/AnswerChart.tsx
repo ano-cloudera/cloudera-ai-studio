@@ -11,7 +11,7 @@ import {
 import { ASSISTANT_CHART_CLASS } from './ConversationInner'
 
 // Cloudera palette: electric indigo draws the data, then blue, orange and dark navy for further series.
-const COLORS = ['#5351F6', '#3779D6', '#FF5A14', '#17113F']
+const COLORS = ['#FF5A14', '#5351F6', '#3779D6', '#17113F']
 const tick = { fontSize: 11, fill: '#64748B' }
 const CHART_MARGIN_DENSE_BOTTOM = 88
 const CHART_MARGIN_DENSE_BOTTOM_EMBEDDED = 44

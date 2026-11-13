@@ -466,6 +466,11 @@ def assemble_response(
     )
 
 
+def _continues_investigation(history: list[dict[str, Any]]) -> bool:
+    """Whether the turn before this one was the agent's own: a follow-up that leans on it carries the investigation on."""
+    return bool(history) and isinstance(history[-1], dict) and history[-1].get("strategy") == "agent"
+
+
 class AskDataAgent:
     def __init__(self, chat_service: Any) -> None:
         self._chat = chat_service
@@ -495,6 +500,8 @@ class AskDataAgent:
         wanted = (reading is not None and reading.kind == "analysis") or is_open_question(question) or is_open_question(request.question)
         if not wanted and reading is not None and reading.kind == "data" and self._answers_all(request):
             wanted = True  # one agent for every data question; a narrow one takes a single query and a short answer
+        if not wanted and reading is not None and reading.kind == "data" and reading.uses_previous and _continues_investigation(history):
+            wanted = True  # "and Sulawesi?" after an investigation is the same investigation on another group, not one number
         if not wanted:
             return None, history
         logger.info("agent_mode_taken kind=%s question=%r", getattr(reading, "kind", None), question[:200])
