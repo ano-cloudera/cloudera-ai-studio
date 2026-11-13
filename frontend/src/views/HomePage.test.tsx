@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -34,16 +34,19 @@ describe('HomePage', () => {
     vi.clearAllMocks()
   })
 
-  it('shows the KPIs, the briefing with questions that open Ask Data, the trend and the breakdown', async () => {
+  it('shows the briefing band, KPIs coloured only by what the model declares, the briefing detail, what stands out, the trend and the breakdown', async () => {
     vi.mocked(api.home).mockResolvedValue({
       status: 'ok',
-      language: 'id',
+      language: 'en',
       data_coverage: { first: '2025-01-01', last: '2026-10-31' },
-      kpis: [kpi('tingkat_keterlambatan', 'Tingkat Keterlambatan (%)', 16.07, 'percent'), { ...kpi('total_volume', 'Total Volume', 4996168, 'quantity'), unit: 'KL' }, kpi('pencapaian_kuota', 'Pencapaian Kuota', 93.7, 'percent')],
-      trend: kpi('tingkat_keterlambatan', 'Tingkat Keterlambatan (%)', 16.07, 'percent'),
+      kpis: [
+        { ...kpi('late', 'Late rate', 16.07, 'percent'), change: -0.2, better: 'down', target: 15 },
+        { ...kpi('volume', 'Total Volume', 4996168, 'quantity'), unit: 'KL', change: 11224, change_pct: 4.8, better: 'up' },
+        { ...kpi('quota', 'Quota attainment', 93.7, 'percent'), change: -0.6, target: 100 },
+      ],
       breakdown: {
-        metric: 'tingkat_keterlambatan',
-        label: 'Tingkat Keterlambatan (%)',
+        metric: 'late',
+        label: 'Late rate',
         dimension: 'regional',
         columns: ['regional', 'metric_value'],
         rows: [{ regional: 'Papua Maluku', metric_value: 34.54 }, { regional: 'Jatimbalinus', metric_value: 11.4 }],
@@ -51,29 +54,51 @@ describe('HomePage', () => {
         overall_value: 16.07,
         unit_format: 'percent',
       },
+      standout: {
+        metric: 'late', label: 'Late rate', by: 'Terminal', overall_value: 16.07, unit_format: 'percent', better: 'down',
+        groups: [{ group: 'Sorong', value: 36.31, difference: 20.24 }, { group: 'Wayame', value: 35.2, difference: 19.13 }],
+      },
       map: null,
     })
     vi.mocked(api.homeBriefing).mockResolvedValue({
       status: 'ok',
-      headline: 'Keterlambatan 16,1% secara keseluruhan.',
-      points: ['Papua Maluku tertinggi di 34,5%.'],
-      ask_next: ['Kenapa Papua Maluku paling sering terlambat?'],
+      headline: 'Late deliveries improved 0.2 points, but Sorong is still the main outlier.',
+      what_happened: 'The late rate fell to 15.6% in October 2026.',
+      why_it_matters: 'Sorong at 36.3% holds the national rate up.',
+      look_next: ['Sorong at 36.3%.'],
+      ask_next: ['Why is Sorong so late?'],
     })
     render(<HomePage />)
     await waitFor(() => expect(screen.getAllByTestId('home-kpi')).toHaveLength(3))
-    expect(screen.getByText('Ringkasan Bisnis')).toBeTruthy()
-    expect(screen.getByText('16,1%')).toBeTruthy() // the language of the model: a decimal comma
-    expect(screen.getByText('4.996.168 KL')).toBeTruthy() // with the unit the metric declares
-    expect(screen.getAllByText(/\+1,0 poin/).length).toBeGreaterThan(0) // a percent moves in points
+    expect(screen.getByText('Business Overview')).toBeTruthy()
+    expect(screen.getByText('16.1%')).toBeTruthy()
+    expect(screen.getByText('4,996,168 KL')).toBeTruthy() // with the unit the metric declares
+    // status: against the target when there is one; coloured only when the model says which way is good
+    expect(screen.getByText('Above target').className).toContain('rose') // lower is better, 16.1% > 15%
+    expect(screen.getByText('Below target').className).toContain('slate') // quota: no direction declared, so neutral
+    expect(screen.getByText('Improving').className).toContain('emerald') // volume rose and higher is better
+    expect(screen.getByText('0.2 pts').closest('span')?.className).toContain('emerald') // the late rate fell: good
     const sizes = screen.getAllByTestId('home-kpi').map(tile => tile.className)
     expect(new Set(sizes).size).toBe(1) // one size and one structure, so the tiles compare at a glance
-    expect(screen.getByTestId('home-page').querySelector('.lg\\:grid-cols-3')).toBeTruthy() // three tiles fill the row
-    await waitFor(() => expect(screen.getByText('Keterlambatan 16,1% secara keseluruhan.')).toBeTruthy())
-    const question = screen.getByText('Kenapa Papua Maluku paling sering terlambat?')
-    expect(question.closest('a')?.getAttribute('href')).toBe(`/?ask=${encodeURIComponent('Kenapa Papua Maluku paling sering terlambat?')}`)
-    expect(screen.getByText(/Tren bulanan/)).toBeTruthy()
-    expect(screen.getByText(/per Regional/)).toBeTruthy()
+    await waitFor(() => expect(screen.getByText(/Sorong is still the main outlier/)).toBeTruthy())
+    const question = screen.getByText('Why is Sorong so late?')
+    expect(question.closest('a')?.getAttribute('href')).toBe(`/?ask=${encodeURIComponent('Why is Sorong so late?')}`)
+    expect(screen.getByText('What happened')).toBeTruthy()
+    expect(screen.getByTestId('home-standout').textContent).toContain('Sorong')
+    expect(screen.getByTestId('home-standout').textContent).toContain('+20.2 pts')
+    expect(screen.getAllByRole('tab')).toHaveLength(3) // the trend switches between the KPIs
+    fireEvent.click(screen.getByRole('tab', { name: 'Total Volume' }))
+    expect(screen.getByText(/Monthly trend: Total Volume/)).toBeTruthy()
+    expect(screen.getByText(/Late rate by Regional/)).toBeTruthy()
     expect(api.home).toHaveBeenCalledWith({ provider: 'qwen', model: 'm' }, false)
+  })
+
+  it('asks for metrics to be marked when the model marks none, instead of showing any', async () => {
+    vi.mocked(api.home).mockResolvedValue({ status: 'no_home_metrics', kpis: [], language: 'en', metric_count: 12 })
+    vi.mocked(api.homeBriefing).mockResolvedValue({ status: 'no_data' })
+    render(<HomePage />)
+    await waitFor(() => expect(screen.getByText(/No metric is marked for Home yet/)).toBeTruthy())
+    expect(screen.queryAllByTestId('home-kpi')).toHaveLength(0)
   })
 
   it('says so when no model is published', async () => {
@@ -87,7 +112,7 @@ describe('HomePage', () => {
 
   it('shows the figures this browser saw last at once, then the fresh ones', async () => {
     const stored = { home: { status: 'ok', language: 'en', kpis: [kpi('late', 'Late rate', 12.5, 'percent')] }, briefing: null }
-    localStorage.setItem('ai-studio.home.v3', JSON.stringify(stored))
+    localStorage.setItem('ai-studio.home.v4', JSON.stringify(stored))
     let resolve: (value: unknown) => void = () => {}
     vi.mocked(api.home).mockReturnValue(new Promise(r => (resolve = r)) as never)
     vi.mocked(api.homeBriefing).mockResolvedValue({ status: 'no_data' })

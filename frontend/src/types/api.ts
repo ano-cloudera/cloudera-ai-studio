@@ -969,6 +969,9 @@ export type HomeKpi = {
   previous_month?: HomeMonthValue
   change?: number
   change_pct?: number
+  /** Which way is good, as the model's author declared it; null when the model does not say. */
+  better?: 'up' | 'down' | null
+  target?: number | null
 }
 export type HomeRows = {
   metric: string
@@ -982,8 +985,20 @@ export type HomeRows = {
   unit?: string | null
   geo_points?: Record<string, Record<string, number[]>>
 }
+export type HomeStandout = {
+  metric: string
+  label: string
+  by: string
+  overall_value: number
+  unit_format?: string | null
+  unit?: string | null
+  better?: 'up' | 'down' | null
+  groups: { group: string; value: number; difference: number }[]
+}
 export type HomePayload = {
-  status: 'ok' | 'no_data' | 'no_model'
+  status: 'ok' | 'no_data' | 'no_model' | 'no_home_metrics'
+  metric_count?: number
+  standout?: HomeStandout | null
   language?: 'id' | 'en'
   data_coverage?: { first?: string; last?: string } | null
   kpis: HomeKpi[]
@@ -995,7 +1010,9 @@ export type HomePayload = {
 export type HomeBriefing = {
   status: 'ok' | 'no_data' | 'unverified' | 'failed'
   headline?: string
-  points?: string[]
+  what_happened?: string
+  why_it_matters?: string
+  look_next?: string[]
   ask_next?: string[]
   language?: 'id' | 'en'
 }
