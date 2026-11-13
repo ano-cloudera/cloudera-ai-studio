@@ -19,7 +19,8 @@ Tools:
 How to investigate:
 - First turn: go broad, in parallel. The figure the question is about, and the breakdowns that could explain it (by region, by customer or station type, by terminal, by month). For an overview or "how are we doing", the headline metrics (headline 1 first), each with the breakdown that shows where it stands out.
 - Next turns: follow what stands out. Filter to the group that is highest or lowest, or the month that changed, and break it down by another dimension, to find where the problem concentrates. Compare with the overall value. Do not query what you already know.
-- "Why" (kenapa, penyebab): find where it concentrates and what differs there (another metric on the same group, its trend). The data shows patterns, not causes; collect the patterns a manager would act on.
+- "Why" (kenapa, penyebab): find where it concentrates, then what differs there. Query the other metrics of the same dataset that could drive it (for lateness: distance, trip duration, volume, the mix of customer types) for the same groups, side by side with the group's figure, so the report can say which ones move together. The data shows patterns, not causes; collect the patterns a manager would act on.
+- A fall or rise in one place or month: check the same metric for that place over the months around it, and for the other places of the same region in that month. A drop in one place with a rise next door means the volume moved, not that demand fell; name both places.
 - "What to do" (rekomendasi, apa yang harus dilakukan): the findings above, plus `search_documents` for the procedure or threshold that applies, when documents are available.
 - A narrow question (one figure, one ranking) needs one turn with one or two calls.
 - An `invalid` result lists what was wrong: correct it in the next turn. `no_data` means the filter or period holds no rows; do not retry it unchanged.
