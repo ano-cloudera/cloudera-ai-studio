@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from app.security.path_token import PathTokenMiddleware
 from app.api import chat, models, usage
 from app.api.v1 import documents as v1_documents
+from app.api.v1 import home as v1_home
 from app.api.v1 import libraries as v1_libraries
 from app.api.v1 import rag as v1_rag
 from app.api.v1 import retrieval as v1_retrieval
@@ -169,6 +170,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(v1_chat_context.router, prefix="/api/v1")
     application.include_router(v1_mcp.router, prefix="/api/v1")
     application.include_router(v1_features.router, prefix="/api/v1")
+    application.include_router(v1_home.router, prefix="/api/v1")
     application.include_router(v1_semantic_quality.router, prefix="/api/v1")
     return application
 

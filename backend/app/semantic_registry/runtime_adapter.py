@@ -22,6 +22,23 @@ from app.semantic_registry.metric_metadata import resolve_allowed_dimension_keys
 from app.semantic_registry.types import RuntimeArtifact
 
 
+_UNIT_FORMATS = {
+    "percent": "percent", "%": "percent", "pct": "percent", "persen": "percent",
+    "idr": "currency_idr", "rp": "currency_idr", "rupiah": "currency_idr", "currency_idr": "currency_idr",
+    "minutes": "minutes", "minute": "minutes", "menit": "minutes",
+    "ratio": "ratio",
+}
+
+
+def _unit_format(unit: str | None) -> str | None:
+    """The display format of a metric's unit: percent, currency_idr, minutes or ratio by name; any other unit (KL, km,
+    stations) is a quantity shown as a number, with the unit in the metric's name."""
+    text = str(unit or "").strip()
+    if not text:
+        return None
+    return _UNIT_FORMATS.get(text.casefold(), "quantity")
+
+
 class SemanticRuntimeAdapter:
     adapter_name: str = "base"
 
@@ -129,6 +146,11 @@ class OssieRuntimeAdapter(SemanticRuntimeAdapter):
                 "base_dataset": metric.metadata_.get("ossie_dataset") or metric.source_entity_key,
                 "allowed_dimensions": allowed_dimension_keys,
             }
+            unit_format = _unit_format(metric.format or metric.unit)
+            if unit_format:
+                reference_payload["unit_format"] = unit_format  # how the figures are shown (percent, currency, minutes, quantity)
+            if metric.unit:
+                reference_payload["unit"] = str(metric.unit)
             if metric.metadata_ and isinstance(metric.metadata_.get("reference_extension"), dict):
                 reference_payload.update(metric.metadata_["reference_extension"])
             doc["custom_extensions"] = [{"vendor_name": "REFERENCE", "data": __import__("json").dumps(reference_payload)}]
