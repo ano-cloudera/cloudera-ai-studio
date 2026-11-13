@@ -538,6 +538,8 @@ export type ChatResponse = {
   proposed_actions?: ProposedAction[] | null
   /** The checks behind an agent's answer, in the order they ran. */
   agent_steps?: AgentStepCard[] | null
+  /** The agent's full analysis (markdown), shown in the panel; the chat shows its short summary. */
+  analysis_report?: string | null
   strategy:
     | 'governed'
     | 'sql_fallback'

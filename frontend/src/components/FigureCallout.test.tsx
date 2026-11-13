@@ -14,14 +14,19 @@ const answer = (data: Partial<ChatResponse['data']>, extra: Partial<ChatResponse
 describe('FigureCallout', () => {
   afterEach(cleanup)
 
-  it('shows one figure large, with how far it is from the target and whether that is bad when lower is better', () => {
+  it('adds only how the figure stands against its target, not the figure again, red when lower is better and it is above', () => {
     const response = answer({ metric_target: 15, metric_better: 'down' })
     render(<FigureCallout response={response} value={singleFigure(response)!} />)
-    const box = screen.getByTestId('figure-callout')
-    expect(box.textContent).toContain('Tingkat Keterlambatan')
-    expect(box.textContent).toContain('16.07%')
-    expect(box.textContent).toContain('Target 15%')
+    const line = screen.getByTestId('figure-callout')
+    expect(line.textContent).toContain('Target 15%')
+    expect(line.textContent).not.toContain('16.07') // the answer sentence already says it
     expect(screen.getByText('1.07 pts above target').className).toContain('text-rose-700')
+  })
+
+  it('shows nothing when the model declares no target', () => {
+    const response = answer({})
+    const { container } = render(<FigureCallout response={response} value={singleFigure(response)!} />)
+    expect(container.textContent).toBe('')
   })
 
   it('states the gap without judging it when the model does not say which way is better', () => {

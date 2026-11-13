@@ -303,6 +303,7 @@ class AskDataResponse(StrictModel):
     cache_reason: Literal["repeat", "data_source_unavailable"] | None = None
     language: Literal["id", "en"] | None = None  # the language of the question, so the UI names its sections in it
     proposed_actions: list[ProposedAction] | None = None
+    analysis_report: str | None = None  # the agent's full analysis (markdown), shown in the panel; the chat shows its summary
     agent_steps: list[AgentStepCard] | None = None  # the checks behind an agent's answer, in the order they ran  # actions the agent proposes, each approved by the user before it runs
     context_mode: ContextMode | None = None
     clarification: AskDataClarification | None = None

@@ -5,6 +5,7 @@ export type ReportSection = {
   id: string
   userQuestion: string
   response: ChatResponse
+  chatDocumentSplit: boolean
 }
 
 export function reportSectionTitle(response: ChatResponse): string {
@@ -38,6 +39,7 @@ export function reportSectionsFromMessages(
       id,
       userQuestion: lastUser,
       response: message.response,
+      chatDocumentSplit: tier === 3,
     })
   }
   return sections

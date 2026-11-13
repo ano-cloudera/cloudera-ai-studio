@@ -1337,7 +1337,6 @@ function StructuredAnswer({
           enableFeedback
           variant="inline"
           metadataClassName="answer-response-metadata"
-          hideTelemetry={executiveView && presentationTier <= 2}
         />
       </div>
     </div>

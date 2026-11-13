@@ -92,7 +92,15 @@ export function AnalysisReportPanel({
           {!activeSection ? (
             <p className="text-sm text-slate-500">Complete an analysis turn to populate this workspace.</p>
           ) : (
-            <ReportDocumentSection key={activeSection.id} response={activeSection.response} />
+            <ReportDocumentSection
+              key={activeSection.id}
+              response={activeSection.response}
+              chatNarrativeShown
+              chatInsightCount={
+                activeSection.chatDocumentSplit ? 2 : activeSection.response.answer.insights.length
+              }
+              chartShownInChat={activeSection.response.data.rows.length <= 15}
+            />
           )}
         </div>
       </aside>

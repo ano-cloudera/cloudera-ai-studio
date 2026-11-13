@@ -779,6 +779,9 @@ class AskDataAgent:
         from app.core.models import AgentStepCard
 
         response = response.model_copy(update={"agent_steps": [AgentStepCard(**agent_tools.step_card(c)) for c in ran]})
+        if report.summary.strip() and report.body.strip():
+            # The chat shows the headline and the summary; the panel opens on the whole analysis, not on a copy of the chat.
+            response = response.model_copy(update={"analysis_report": report.body.strip()})
         response = self._chat.finalize_response(response)
         self._chat.record_turn(prepared, response, frame=frame)
         remember = getattr(self._chat, "remember_agent_answer", None)

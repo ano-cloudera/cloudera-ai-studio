@@ -97,6 +97,11 @@ def test_the_agent_queries_looks_drills_and_writes_one_report(replay) -> None:
     first_results = {r["id"]: r for r in model.turn_payloads[1]["results"]}
     assert first_results[1]["status"] == "ok" and first_results[1]["row_count"] > 1 and "computed" in first_results[1]
     assert first_results[1]["overall_value"] is not None  # the value the regions are read against
+    comparison = first_results[1]["computed"]
+    assert comparison["above_overall"]["count"] + comparison["below_overall"]["count"] == comparison["above_overall"]["of"]
+    assert set(comparison["above_overall"]["groups"] + comparison["below_overall"]["groups"]) == {
+        row[REGION] for row in first_results[1]["rows"]
+    }
     second = {r.get("id", r.get("see_id")): r for r in model.turn_payloads[2]["results"]}
     assert second[3]["status"] == "ok" and second[3]["overall_value_covers"].startswith("only")  # Kalimantan Timur, not national
     assert second[4]["status"] == "invalid" and "breakdown" in second[4]["problems"][0]  # told what to correct
@@ -330,3 +335,43 @@ def test_with_agent_all_a_plain_data_question_is_answered_by_the_agent_and_witho
     assert replay.model.calls.count("AgentTurn") == 2  # one query, then done: a narrow question stays short
     off = AskDataRequest(session_id="other", question=question, provider="qwen", model="m", agent_all=False)
     assert asyncio.run(AskDataAgent(replay.service).run(off)) is None  # the governed pipeline answers it
+
+
+def test_the_chat_gets_the_summary_and_the_panel_gets_the_full_analysis(monkeypatch) -> None:
+    from app.ask_data import value_filters
+
+    value_filters.clear_cache()
+    question = "Late delivery rate per carrier"
+
+    class TwoDepths(AgentModel):
+        async def generate_structured(self, messages, model, **kwargs):
+            if model.__name__ == "AgentTurn":
+                if sum(1 for m in messages if m["role"] == "assistant") == 0:
+                    return model.model_validate({"calls": [_late([CARRIER], why="Per kurir")]})
+                return model.model_validate({"done": True})
+            if model.__name__ == "AgentReport":
+                return model.model_validate(
+                    {
+                        "headline": "NusaCargo paling sering terlambat.",
+                        "summary": "Keterlambatan terpusat di satu kurir.",
+                        "body": "### Di mana terpusat\n\nSatu kurir menanggung sebagian besar keterlambatan.",
+                        "show": 1,
+                    }
+                )
+            return await super().generate_structured(messages, model, **kwargs)
+
+    replay = Replay(monkeypatch, TwoDepths())
+    request = AskDataRequest(session_id=replay.session_id, question=question, provider="qwen", model="m", agent_all=True)
+    response = asyncio.run(AskDataAgent(replay.service).run(request))
+    assert response is not None and response.strategy == "agent"
+    assert response.answer.executive_summary == "Keterlambatan terpusat di satu kurir."  # the chat
+    assert response.analysis_report.startswith("### Di mana terpusat")  # the panel, not a copy of the chat
+
+
+def test_a_report_without_a_summary_keeps_its_body_in_the_chat() -> None:
+    from app.ask_data.agent_tools import AgentReport, report_to_analysis
+
+    old = report_to_analysis(AgentReport(headline="H", body="B"), unverified=[], language="id", data_reference="")
+    assert old.executive_summary == "B"
+    new = report_to_analysis(AgentReport(headline="H", summary="S", body="B"), unverified=[], language="id", data_reference="")
+    assert new.executive_summary == "S"

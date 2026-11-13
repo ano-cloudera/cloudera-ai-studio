@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 import pytest
@@ -120,6 +121,63 @@ async def test_governed_path_uses_deterministic_plan_and_grounded_analysis() -> 
     assert provider.calls == ["AnalysisOutput"]
     assert state["chart_spec"]["x"] == "material"
     assert state["timings"]["validation_ms"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_analysis_payload_carries_every_group_above_and_below_overall(monkeypatch) -> None:
+    from app.ask_data.types import DatasourceExecutionContext
+
+    rows = [
+        {"region": "A", "metric_value": 34.538},
+        {"region": "B", "metric_value": 23.15},
+        {"region": "C", "metric_value": 18.24},
+        {"region": "D", "metric_value": 12.11},
+        {"region": "E", "metric_value": 10.02},
+        {"region": "F", "metric_value": 9.01},
+        {"region": "G", "metric_value": 8.0},
+        {"region": "H", "metric_value": 7.0},
+    ]
+
+    class BreakdownContext(FakeContext):
+        def compile_governed(self, metric: str, question: str, requested_dimensions=None, extra_predicates=None, **kwargs):
+            return "SELECT overall" if requested_dimensions == [] else "SELECT breakdown"
+
+    class BreakdownExecutor(FakeExecutor):
+        def execute(self, sql: str, state):
+            self.queries.append(sql)
+            if sql == "SELECT overall":
+                return {"columns": ["metric_value"], "rows": [{"metric_value": 20.0}], "row_count": 1, "execution_ms": 1}
+            return {"columns": ["region", "metric_value"], "rows": rows, "row_count": len(rows), "execution_ms": 1}
+
+    provider = FakeProvider([analysis()])
+    context = BreakdownContext({
+        "status": "resolved",
+        "metric": "late_rate",
+        "dimensions": ["region"],
+        "definition": {"base_dataset": "shipments", "from": "gold.shipments"},
+    })
+    context.registry.dataset_fields["shipments"] = {}
+    dependencies = deps(context, provider, rows)
+    dependencies.query_executor = BreakdownExecutor(rows)
+    routed = DatasourceExecutionContext(
+        legacy_fallback=False,
+        qualified_sources={"shipments": "gold.shipments"},
+        allowed_physical_tables=frozenset({"gold.shipments"}),
+    )
+    monkeypatch.setattr(DatasourceExecutionContext, "from_dict", classmethod(lambda cls, raw: routed))
+
+    request = AskDataRequest(session_id="s1", question="Late rate per region", provider="qwen", model="qwen-model").model_dump()
+    await build_workflow(dependencies).ainvoke(request)
+
+    assert dependencies.query_executor.queries == ["SELECT breakdown", "SELECT overall"]
+    payload = json.loads(provider.messages[1]["content"])
+    assert payload["computed"]["above_overall"] == {"count": 2, "of": 8, "groups": ["A", "B"]}
+    assert payload["computed"]["below_overall"] == {
+        "count": 6,
+        "of": 8,
+        "groups": ["C", "D", "E", "F", "G", "H"],
+    }
+    assert payload["computed"]["highest"] == {"group": "A", "value": 34.538}
 
 
 @pytest.mark.asyncio

@@ -98,7 +98,8 @@ class ProposedAction(_Lenient):
 
 class AgentReport(_Lenient):
     headline: str
-    body: str = ""
+    summary: str = ""  # what the chat shows under the headline: the why, in a few conversational sentences
+    body: str = ""  # the full analysis, shown in the analysis panel
     follow_up_questions: list[str] = Field(default_factory=list)
     show: int | None = None
     actions: list[ProposedAction] = Field(default_factory=list)
@@ -497,7 +498,7 @@ async def write_report(
     )
     allowed = _allowed_figures(calls, f"{question} {documents}".strip())
     has_data = any(item.ok and item.is_data for item in calls)
-    bad = figures_outside([report.headline, report.body], allowed) if has_data else []
+    bad = figures_outside([report.headline, report.summary, report.body], allowed) if has_data else []
     if bad:
         logger.info("agent_report_figures_unverified figures=%s", bad)
         messages += [
@@ -511,7 +512,7 @@ async def write_report(
         ]
         try:
             report = await provider.generate_structured(messages, AgentReport, temperature=0.1, max_tokens=2200)
-            bad = figures_outside([report.headline, report.body], allowed) if has_data else []
+            bad = figures_outside([report.headline, report.summary, report.body], allowed) if has_data else []
         except Exception:  # noqa: BLE001 - the first report stands, with its figures said to be unverified
             logger.warning("agent_report_repair_failed")
     return report, bad
@@ -572,7 +573,8 @@ def report_to_analysis(report: AgentReport, *, unverified: list[str], language: 
     ]
     return AnalysisOutput(
         direct_answer=report.headline.strip(),
-        executive_summary=report.body.strip(),
+        # The chat carries the short version when there is one; the full analysis goes to the panel (analysis_report).
+        executive_summary=(report.summary.strip() or report.body.strip()),
         insights=[],
         business_implications=[],
         caveats=warnings,

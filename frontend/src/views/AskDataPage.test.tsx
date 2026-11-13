@@ -207,6 +207,29 @@ describe('V2 Ask Data page', () => {
     expect(screen.getByTestId('follow-up-questions').textContent).toContain('Late rate per bulan')
   })
 
+  it('shows the model, the time and the tokens under a simple answer too, not only under a big one', async () => {
+    vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
+    vi.mocked(api.chatStream).mockImplementation((async function* () {
+      yield { type: 'done', response: {
+        request_id: 'r9', session_id: 's9', status: 'SUCCESS', provider: 'qwen', model: 'nemotron-3-super-120b-a12b', strategy: 'governed',
+        answer: {
+          direct_answer: 'Tingkat keterlambatan pengiriman secara keseluruhan adalah 16,07%.', executive_summary: 'Tingkat keterlambatan pengiriman secara keseluruhan adalah 16,07%.',
+          insights: [], business_implications: [], caveats: [], data_reference: 'fuel_deliveries', follow_up_questions: [], chart_spec: null,
+        },
+        data: { columns: ['metric_value'], rows: [{ metric_value: 16.07 }], row_count: 1, execution_ms: 1 }, chart_spec: null,
+        timings: { context_ms: 1, planning_ms: 1, validation_ms: 1, query_ms: 1, analysis_ms: 1, total_ms: 5700 }, retry_count: 0,
+        usage: { prompt_tokens: 4000, completion_tokens: 200, total_tokens: 4200, llm_calls: 1 },
+      } }
+    }) as never)
+    renderWithProviders(<AskDataPage />)
+
+    await submitViaComposer('Berapa tingkat keterlambatan pengiriman secara keseluruhan?')
+
+    const line = await screen.findByText(/nemotron-3-super-120b-a12b/)
+    expect(line.textContent).toContain('5.7s')
+    expect(line.textContent).toContain('4.2K tok')
+  })
+
   it('collapses the primary sidebar from the sidebar toggle', async () => {
     vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
     renderWithProviders(
