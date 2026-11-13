@@ -31,10 +31,11 @@ async def home(
     provider: Literal["qwen", "gemini", "openai"] | None = None,
     model: str | None = Query(default=None, max_length=256),
     refresh: bool = False,
+    language: Literal["en", "id"] = "en",
 ) -> dict:
     from app.home.dashboard import build_home
 
-    return await build_home(request.app.state.chat_service, _request(request, provider, model), refresh=refresh)
+    return await build_home(request.app.state.chat_service, _request(request, provider, model), refresh=refresh, language=language)
 
 
 @router.get("/briefing")
@@ -43,11 +44,12 @@ async def briefing(
     provider: Literal["qwen", "gemini", "openai"] | None = None,
     model: str | None = Query(default=None, max_length=256),
     refresh: bool = False,
+    language: Literal["en", "id"] = "en",
 ) -> dict:
     from app.home.dashboard import build_briefing
 
     try:
-        return await build_briefing(request.app.state.chat_service, _request(request, provider, model), refresh=refresh)
+        return await build_briefing(request.app.state.chat_service, _request(request, provider, model), refresh=refresh, language=language)
     except HTTPException:
         raise
     except Exception:  # noqa: BLE001 - Home shows its figures without a briefing

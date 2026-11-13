@@ -65,7 +65,9 @@ describe('HomePage', () => {
     expect(screen.getByText('16,1%')).toBeTruthy() // the language of the model: a decimal comma
     expect(screen.getByText('4.996.168 KL')).toBeTruthy() // with the unit the metric declares
     expect(screen.getAllByText(/\+1,0 poin/).length).toBeGreaterThan(0) // a percent moves in points
-    expect(screen.getAllByTestId('home-kpi')[0].className).toContain('sm:col-span-2') // the headline tile leads
+    const sizes = screen.getAllByTestId('home-kpi').map(tile => tile.className)
+    expect(new Set(sizes).size).toBe(1) // one size and one structure, so the tiles compare at a glance
+    expect(screen.getByTestId('home-page').querySelector('.lg\\:grid-cols-3')).toBeTruthy() // three tiles fill the row
     await waitFor(() => expect(screen.getByText('Keterlambatan 16,1% secara keseluruhan.')).toBeTruthy())
     const question = screen.getByText('Kenapa Papua Maluku paling sering terlambat?')
     expect(question.closest('a')?.getAttribute('href')).toBe(`/?ask=${encodeURIComponent('Kenapa Papua Maluku paling sering terlambat?')}`)
@@ -85,7 +87,7 @@ describe('HomePage', () => {
 
   it('shows the figures this browser saw last at once, then the fresh ones', async () => {
     const stored = { home: { status: 'ok', language: 'en', kpis: [kpi('late', 'Late rate', 12.5, 'percent')] }, briefing: null }
-    localStorage.setItem('ai-studio.home.v2', JSON.stringify(stored))
+    localStorage.setItem('ai-studio.home.v3', JSON.stringify(stored))
     let resolve: (value: unknown) => void = () => {}
     vi.mocked(api.home).mockReturnValue(new Promise(r => (resolve = r)) as never)
     vi.mocked(api.homeBriefing).mockResolvedValue({ status: 'no_data' })

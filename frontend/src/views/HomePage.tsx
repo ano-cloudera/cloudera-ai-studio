@@ -3,17 +3,18 @@
 /*
  * Home: the headline figures of the published semantic model for directors and managers.
  * Design read: business overview, calm data-product language. Dial ENERGY 1 / RHYTHM 2 / MOTION 1.
- * - One focal point: the headline KPI tile is wider and its figure larger; the other KPIs defer to it.
- * - One accent: the product orange marks the trend line, the top group and the headline tile border, nothing else.
+ * - KPI tiles are one size and one structure, so they compare at a glance; the focal point is the navy briefing below them.
+ * - One accent: the product orange marks the latest point of each sparkline, the trend line and the top group, nothing else.
  * - Flat bordered cards (no shadow): the page is read, not stacked; elevation would say nothing here.
  * - Motion: each section rises once as its figures arrive, so late sections do not jump the page; none under reduced motion.
- * - Figures are written in the language of the model (Indonesian: 16,1%, 4.996.168 KL), with the unit the metric declares.
+ * - The page is in English unless the Backend is asked for another language; figures follow that language and carry the unit
+ *   the metric declares (16.1%, 4,996,168 KL). Metric and group names are the semantic model's own words.
  */
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { ResultMap } from '../components/analysis/ResultMap'
 import { pageCenterClassName } from '../components/PageCenter'
 import { api } from '../lib/api'
@@ -25,7 +26,8 @@ type Language = 'id' | 'en'
 
 const ACCENT = '#FF5A1F'
 const MUTED_BAR = '#cbd5e1'
-const STORAGE_KEY = 'ai-studio.home.v2'
+const NAVY = '#15084A'
+const STORAGE_KEY = 'ai-studio.home.v3'
 const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cloudera-orange'
 
 const TEXT = {
@@ -40,7 +42,7 @@ const TEXT = {
     briefingNote: 'Ditulis AI dari angka di halaman ini; setiap angkanya sudah dicek.',
     briefingLoading: 'Menyusun briefing dari angka di bawah…',
     briefingNone: 'Briefing belum tersedia. Angka di bawah tetap terbaru.',
-    vsPrevious: 'dibanding bulan sebelumnya',
+    vsPrevious: 'vs bulan sebelumnya',
     overall: 'Seluruh periode data',
     trend: 'Tren bulanan',
     by: 'per',
@@ -70,7 +72,7 @@ const TEXT = {
     briefingNote: 'Written by AI from the figures on this page; every figure in it was checked.',
     briefingLoading: 'Writing the briefing from the figures below…',
     briefingNone: 'No briefing yet. The figures below are current.',
-    vsPrevious: 'against the month before',
+    vsPrevious: 'vs previous month',
     overall: 'Whole data period',
     trend: 'Monthly trend',
     by: 'by',
@@ -177,21 +179,29 @@ function Change({ kpi, language }: { kpi: HomeKpi; language: Language }) {
   )
 }
 
-function Sparkline({ kpi, tall }: { kpi: HomeKpi; tall: boolean }) {
-  if (kpi.series.length < 3) return null
+/** The latest month is the one the change is about, so it alone carries the accent. */
+function lastPoint(total: number) {
+  return function Dot(props: { cx?: number; cy?: number; index?: number }) {
+    if (props.index !== total - 1 || props.cx === undefined || props.cy === undefined) return <g />
+    return <circle cx={props.cx} cy={props.cy} r={4} fill={ACCENT} stroke="#ffffff" strokeWidth={2} />
+  }
+}
+
+function Sparkline({ kpi }: { kpi: HomeKpi }) {
+  if (kpi.series.length < 3) return <div className="mt-4 h-16" aria-hidden />
   return (
-    <div className={`mt-4 ${tall ? 'h-16' : 'h-10'}`} aria-hidden>
+    <div className="mt-4 h-16" aria-hidden>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={kpi.series} margin={{ top: 4, right: 2, bottom: 2, left: 2 }}>
+        <AreaChart data={kpi.series} margin={{ top: 8, right: 8, bottom: 2, left: 8 }}>
           <YAxis hide domain={['dataMin', 'dataMax']} />
-          <Line type="monotone" dataKey="value" stroke={tall ? ACCENT : '#64748b'} strokeWidth={tall ? 2.5 : 1.75} dot={false} isAnimationActive={false} />
-        </LineChart>
+          <Area type="monotone" dataKey="value" stroke={NAVY} strokeWidth={1.75} fill="#eceef7" dot={lastPoint(kpi.series.length)} isAnimationActive={false} />
+        </AreaChart>
       </ResponsiveContainer>
     </div>
   )
 }
 
-function KpiTile({ kpi, language, main, className }: { kpi: HomeKpi; language: Language; main: boolean; className: string }) {
+function KpiTile({ kpi, language }: { kpi: HomeKpi; language: Language }) {
   const text = TEXT[language]
   const value = formatFigure(kpi.value, kpi.unit_format, kpi.unit, language)
   const change = changeText(kpi, language)
@@ -204,65 +214,67 @@ function KpiTile({ kpi, language, main, className }: { kpi: HomeKpi; language: L
       href={askHref(question)}
       aria-label={name}
       title={kpi.description || undefined}
-      className={`group block rounded-2xl border bg-white p-5 transition-colors hover:border-slate-400 active:bg-slate-50 ${FOCUS} ${
-        main ? 'border-cloudera-orange/60' : 'border-slate-200'
-      } ${className}`}
+      className={`flex min-h-[15rem] flex-col rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-slate-400 active:bg-slate-50 ${FOCUS}`}
       data-testid="home-kpi"
     >
       <div className="text-sm font-semibold text-slate-700">{kpi.label}</div>
-      <div className={`mt-2 font-black tracking-tight tabular-nums text-cloudera-navy ${main ? 'text-4xl' : 'text-3xl'}`}>{value}</div>
-      <div className="mt-0.5 text-xs text-slate-600">{text.overall}</div>
-      <Change kpi={kpi} language={language} />
-      <Sparkline kpi={kpi} tall={main} />
+      <div className="mt-3 text-4xl font-black tracking-tight tabular-nums text-cloudera-navy">{value}</div>
+      <div className="mt-1 text-xs text-slate-600">{text.overall}</div>
+      <div className="min-h-[2.5rem]">
+        <Change kpi={kpi} language={language} />
+      </div>
+      <div className="mt-auto">
+        <Sparkline kpi={kpi} />
+      </div>
     </Link>
   )
 }
 
-/** Columns follow the number of KPIs, so the row is always full; with three, the headline tile takes two of four. */
-function tileLayout(count: number): { grid: string; first: string } {
-  if (count >= 4) return { grid: 'sm:grid-cols-2 xl:grid-cols-4', first: '' }
-  if (count === 3) return { grid: 'sm:grid-cols-2 lg:grid-cols-4', first: 'sm:col-span-2' }
-  if (count === 2) return { grid: 'sm:grid-cols-2', first: '' }
-  return { grid: '', first: '' }
+/** Columns follow the number of KPIs, so the row is always full and every tile is the same size. */
+function tileGrid(count: number): string {
+  if (count >= 4) return 'sm:grid-cols-2 xl:grid-cols-4'
+  if (count === 3) return 'lg:grid-cols-3'
+  if (count === 2) return 'sm:grid-cols-2'
+  return ''
 }
 
 function BriefingCard({ briefing, loading, language }: { briefing: HomeBriefing | null; loading: boolean; language: Language }) {
   const text = TEXT[language]
   return (
-    <section className="home-rise home-rise-1 rounded-2xl border border-slate-200 bg-white" aria-labelledby="home-briefing-title" data-testid="home-briefing">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-slate-100 px-5 py-3">
-        <h2 id="home-briefing-title" className="text-base font-bold text-cloudera-navy">
+    <section className="home-rise home-rise-1 rounded-2xl bg-cloudera-navy text-white" aria-labelledby="home-briefing-title" data-testid="home-briefing">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-6 pt-5">
+        <h2 id="home-briefing-title" className="text-sm font-semibold text-white/90">
           {text.briefing}
         </h2>
-        <p className="text-xs text-slate-600">{text.briefingNote}</p>
+        <p className="text-xs text-white/80">{text.briefingNote}</p>
       </div>
-      <div className="space-y-3 px-5 py-4">
+      <div className="space-y-4 px-6 pb-6 pt-3">
         {loading && !briefing && (
           <div role="status" className="space-y-2">
-            <p className="text-sm text-slate-600">{text.briefingLoading}</p>
-            <div className="home-placeholder h-4 w-3/4 rounded bg-slate-100" />
-            <div className="home-placeholder h-4 w-2/3 rounded bg-slate-100" />
+            <p className="text-sm text-white/90">{text.briefingLoading}</p>
+            <div className="home-placeholder h-4 w-3/4 rounded bg-white/15" />
+            <div className="home-placeholder h-4 w-2/3 rounded bg-white/15" />
           </div>
         )}
-        {!loading && briefing?.status !== 'ok' && <p className="text-sm text-slate-600">{text.briefingNone}</p>}
+        {!loading && briefing?.status !== 'ok' && <p className="text-sm text-white/90">{text.briefingNone}</p>}
         {briefing?.status === 'ok' && (
           <>
-            <p className="text-base font-semibold leading-relaxed text-slate-900">{briefing.headline}</p>
-            <ul className="space-y-2">
+            <p className="max-w-4xl text-balance text-xl font-semibold leading-snug">{briefing.headline}</p>
+            <ul className="grid gap-x-8 gap-y-3 lg:grid-cols-2">
               {(briefing.points ?? []).map(point => (
-                <li key={point} className="flex gap-2.5 text-sm leading-relaxed text-slate-700">
-                  <span className="mt-[0.55em] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-500" aria-hidden />
+                <li key={point} className="flex gap-3 text-sm leading-relaxed text-white/90">
+                  <span className="mt-[0.5em] h-1.5 w-1.5 shrink-0 rounded-full bg-cloudera-orange" aria-hidden />
                   <span>{point}</span>
                 </li>
               ))}
             </ul>
             {(briefing.ask_next ?? []).length > 0 && (
-              <div className="flex flex-wrap gap-2 pt-1">
+              <div className="flex flex-wrap gap-2 border-t border-white/15 pt-4">
                 {(briefing.ask_next ?? []).map(question => (
                   <Link
                     key={question}
                     href={askHref(question)}
-                    className={`rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-xs font-medium text-slate-700 transition-colors hover:border-cloudera-orange/60 hover:bg-orange-50 active:bg-orange-100 ${FOCUS}`}
+                    className="rounded-lg border border-white/30 px-3 py-2 text-left text-xs font-medium text-white transition-colors hover:bg-white/10 active:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                   >
                     {question}
                   </Link>
@@ -276,12 +288,12 @@ function BriefingCard({ briefing, loading, language }: { briefing: HomeBriefing 
   )
 }
 
-function TrendCard({ kpi, language }: { kpi: HomeKpi; language: Language }) {
+function TrendCard({ kpi, language, className }: { kpi: HomeKpi; language: Language; className: string }) {
   const text = TEXT[language]
   const data = kpi.series.map(point => ({ ...point, label: monthLabel(point.month, language) }))
   const format = (value: number) => formatFigure(value, kpi.unit_format, kpi.unit, language)
   return (
-    <section className="home-rise home-rise-2 rounded-2xl border border-slate-200 bg-white p-5" aria-labelledby="home-trend-title">
+    <section className={`home-rise home-rise-2 rounded-2xl border border-slate-200 bg-white p-5 ${className}`} aria-labelledby="home-trend-title">
       <h2 id="home-trend-title" className="text-base font-bold text-cloudera-navy">
         {text.trend}: {kpi.label}
       </h2>
@@ -289,8 +301,8 @@ function TrendCard({ kpi, language }: { kpi: HomeKpi; language: Language }) {
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
             <CartesianGrid stroke="#eef0f5" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#475569' }} tickLine={false} axisLine={false} interval="preserveStartEnd" />
-            <YAxis tick={{ fontSize: 11, fill: '#475569' }} tickLine={false} axisLine={false} width={72} domain={['auto', 'auto']} tickFormatter={value => format(Number(value))} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#475569' }} tickLine={false} axisLine={false} interval="preserveStartEnd" tickMargin={10} height={32} />
+            <YAxis tick={{ fontSize: 11, fill: '#475569' }} tickLine={false} axisLine={false} width={64} domain={['auto', 'auto']} padding={{ top: 8, bottom: 8 }} tickFormatter={value => format(Number(value))} />
             <Tooltip formatter={value => format(Number(value))} />
             <ReferenceLine y={kpi.value} stroke="#64748b" strokeDasharray="4 4" />
             <Line type="monotone" dataKey="value" name={kpi.label} stroke={ACCENT} strokeWidth={2.5} dot={{ r: 2 }} isAnimationActive={false} />
@@ -308,7 +320,7 @@ function groupColumn(block: HomeRows): string | null {
   return block.columns.find(column => column !== 'metric_value') ?? null
 }
 
-function BreakdownCard({ block, language }: { block: HomeRows; language: Language }) {
+function BreakdownCard({ block, language, className }: { block: HomeRows; language: Language; className: string }) {
   const text = TEXT[language]
   const column = groupColumn(block)
   const rows = useMemo(
@@ -326,7 +338,7 @@ function BreakdownCard({ block, language }: { block: HomeRows; language: Languag
   const top = rows[0]?.value ?? 0
   const format = (value: number) => formatFigure(value, block.unit_format, block.unit, language)
   return (
-    <section className="home-rise home-rise-3 rounded-2xl border border-slate-200 bg-white p-5" aria-labelledby="home-breakdown-title">
+    <section className={`home-rise home-rise-3 rounded-2xl border border-slate-200 bg-white p-5 ${className}`} aria-labelledby="home-breakdown-title">
       <h2 id="home-breakdown-title" className="text-base font-bold text-cloudera-navy">
         {block.label} {text.by} {by}
       </h2>
@@ -334,7 +346,7 @@ function BreakdownCard({ block, language }: { block: HomeRows; language: Languag
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} layout="vertical" margin={{ top: 0, right: 56, bottom: 0, left: 8 }}>
             <XAxis type="number" hide domain={[0, 'auto']} />
-            <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 12, fill: '#334155' }} tickLine={false} axisLine={false} />
+            <YAxis type="category" dataKey="name" width={124} tick={{ fontSize: 12, fill: '#334155' }} tickLine={false} axisLine={false} />
             <Tooltip formatter={value => format(Number(value))} />
             {typeof block.overall_value === 'number' && <ReferenceLine x={block.overall_value} stroke="#64748b" strokeDasharray="4 4" />}
             <Bar
@@ -387,14 +399,14 @@ function Placeholder({ language }: { language: Language }) {
   return (
     <div role="status" aria-live="polite" className="space-y-5">
       <p className="text-sm text-slate-600">{TEXT[language].loading}</p>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" aria-hidden>
-        <div className={`${block} h-48 sm:col-span-2`} />
-        <div className={`${block} h-48`} />
-        <div className={`${block} h-48`} />
+      <div className="grid gap-4 lg:grid-cols-3" aria-hidden>
+        <div className={`${block} h-60`} />
+        <div className={`${block} h-60`} />
+        <div className={`${block} h-60`} />
       </div>
       <div className={`${block} h-40`} aria-hidden />
-      <div className="grid gap-4 lg:grid-cols-2" aria-hidden>
-        <div className={`${block} h-72`} />
+      <div className="grid gap-4 lg:grid-cols-3" aria-hidden>
+        <div className={`${block} h-72 lg:col-span-2`} />
         <div className={`${block} h-72`} />
       </div>
     </div>
@@ -466,7 +478,7 @@ export function HomePage() {
     home?.data_coverage?.first && home?.data_coverage?.last
       ? `${dayLabel(home.data_coverage.first, language)} – ${dayLabel(home.data_coverage.last, language)}`
       : null
-  const layout = tileLayout(home?.kpis.length ?? 0)
+  const grid = tileGrid(home?.kpis.length ?? 0)
 
   return (
     <div className={pageCenterClassName('space-y-5')} data-testid="home-page">
@@ -550,15 +562,15 @@ export function HomePage() {
 
       {home?.status === 'ok' && (
         <>
-          <div className={`home-rise grid gap-4 ${layout.grid}`}>
-            {home.kpis.map((kpi, index) => (
-              <KpiTile key={kpi.metric} kpi={kpi} language={language} main={index === 0} className={index === 0 ? layout.first : ''} />
+          <div className={`home-rise grid gap-4 ${grid}`}>
+            {home.kpis.map(kpi => (
+              <KpiTile key={kpi.metric} kpi={kpi} language={language} />
             ))}
           </div>
           <BriefingCard briefing={briefing} loading={briefingLoading} language={language} />
-          <div className="grid gap-4 lg:grid-cols-2">
-            {home.trend && <TrendCard kpi={home.trend} language={language} />}
-            {home.breakdown && <BreakdownCard block={home.breakdown} language={language} />}
+          <div className="grid gap-4 lg:grid-cols-3">
+            {home.trend && <TrendCard kpi={home.trend} language={language} className="lg:col-span-2" />}
+            {home.breakdown && <BreakdownCard block={home.breakdown} language={language} className={home.trend ? '' : 'lg:col-span-3'} />}
           </div>
           {home.map && <MapCard block={home.map} language={language} />}
         </>

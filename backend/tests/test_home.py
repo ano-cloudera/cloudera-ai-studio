@@ -123,3 +123,24 @@ def test_a_kpi_carries_the_unit_its_metric_declares() -> None:
 
     chat = type("Chat", (), {"dependencies": type("D", (), {"semantic_context": Context()})()})()
     assert dashboard._unit(chat, "total_volume") == "KL" and dashboard._unit(chat, "other") is None
+
+
+def test_the_breakdown_shown_is_the_one_where_the_groups_differ_most(replay) -> None:
+    home = asyncio.run(dashboard.build_home(replay.service, REQUEST))
+    chosen = home["breakdown"]["dimension"]
+    catalog = asyncio.run(replay.service.agent_catalog(REQUEST))
+    main = dashboard._headline_metrics(catalog)[0]
+    candidates = dashboard._compact_breakdowns(main, catalog)
+    assert chosen in candidates and len(candidates) <= dashboard.MAX_CANDIDATES
+    spreads = {}
+    for key in candidates:
+        response, _, _ = asyncio.run(replay.service.query_metric(REQUEST, dashboard.QueryIntent(metric=main["name"], breakdown=[key]), label="x"))
+        spreads[key] = dashboard._spread(response)
+    assert spreads[chosen] == max(spreads.values())
+
+
+def test_the_language_of_home_is_asked_for_not_guessed_and_is_part_of_what_is_kept(replay) -> None:
+    english = asyncio.run(dashboard.build_home(replay.service, REQUEST))
+    indonesian = asyncio.run(dashboard.build_home(replay.service, REQUEST, language="id"))
+    assert english["language"] == "en" and indonesian["language"] == "id"
+    assert dashboard._key(replay.service, "home", "en") != dashboard._key(replay.service, "home", "id")

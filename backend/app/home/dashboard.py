@@ -25,7 +25,6 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.ask_data.understanding import QueryIntent
-from app.core.language import detect_language
 from app.core.models import AskDataRequest, AskDataResponse
 
 logger = logging.getLogger(__name__)
@@ -37,6 +36,7 @@ KEEP_SECONDS = 14 * 24 * 3600
 MAX_KPIS = 4
 SPARK_MONTHS = 12
 COMPACT_GROUPS = (3, 15)  # a breakdown worth charting on Home has this many groups
+MAX_CANDIDATES = 3  # breakdowns tried for the main KPI; the one where the groups differ most is shown
 
 _memory: dict[str, dict[str, Any]] = {}
 _store: Any = None
@@ -80,10 +80,10 @@ def _disk(chat: Any) -> Any:
     return None if _store is False else _store
 
 
-def _key(chat: Any, kind: str) -> str:
+def _key(chat: Any, kind: str, language: str = "en") -> str:
     bundle = getattr(chat, "_runtime_bundle", None)
     version = str(getattr(bundle, "semantic_version_id", "") or getattr(bundle, "artifact_checksum", "") or "")
-    return f"{kind}:{SCHEMA}:{version}"
+    return f"{kind}:{SCHEMA}:{language}:{version}"
 
 
 def _read(chat: Any, key: str) -> dict[str, Any] | None:
@@ -224,14 +224,27 @@ def _kpi(metric: dict[str, Any], response: AskDataResponse | None, unit: str | N
     return kpi
 
 
-def _compact_breakdown(metric: dict[str, Any], catalog: dict[str, Any]) -> str | None:
-    """The first breakdown of the metric with a handful of groups (by the real values the model knows)."""
+def _compact_breakdowns(metric: dict[str, Any], catalog: dict[str, Any]) -> list[str]:
+    """The breakdowns of the metric with a handful of groups (by the real values the model knows), at most MAX_CANDIDATES."""
     entries = {e["key"]: e for e in (catalog.get("dimensions") or {}).get(metric.get("dataset") or "", [])}
+    found = []
     for key in metric.get("breakdowns") or []:
         values = (entries.get(key) or {}).get("values") or []
         if COMPACT_GROUPS[0] <= len(values) <= COMPACT_GROUPS[1] and not (entries.get(key) or {}).get("more_values"):
-            return key
-    return None
+            found.append(key)
+    return found[:MAX_CANDIDATES]
+
+
+def _spread(response: AskDataResponse | None) -> float:
+    """How much the groups of a breakdown differ, relative to the overall value: the breakdown worth showing is the one where
+    something stands out. 0 when it cannot be told."""
+    if response is None or response.status != "SUCCESS":
+        return 0.0
+    values = [v for v in (_float(row.get("metric_value")) for row in response.data.rows) if v is not None]
+    if len(values) < COMPACT_GROUPS[0]:
+        return 0.0
+    scale = abs(_float(response.data.overall_value) or 0.0) or (sum(abs(v) for v in values) / len(values)) or 1.0
+    return (max(values) - min(values)) / scale
 
 
 def _rows(response: AskDataResponse | None, unit: str | None) -> dict[str, Any] | None:
@@ -249,36 +262,36 @@ def _rows(response: AskDataResponse | None, unit: str | None) -> dict[str, Any] 
     }
 
 
-async def build_home(chat: Any, request: AskDataRequest, *, refresh: bool = False) -> dict[str, Any]:
-    """KPIs, the main KPI's trend, breakdown and map, from governed queries only; a kept result is served at once."""
+async def build_home(chat: Any, request: AskDataRequest, *, refresh: bool = False, language: str = "en") -> dict[str, Any]:
+    """KPIs, the main KPI's trend, breakdown and map, from governed queries only; a kept result is served at once.
+    `language` is the language of the page and of the briefing; the labels come from the semantic model as its author wrote them."""
     chat._sync_runtime_for_request(request)  # the model Ask Data answers from, so the key names its version
-    key = _key(chat, "home")
+    key = _key(chat, "home", language)
     kept = None if refresh else _read(chat, key)
     if kept is not None:
         if _age(kept) > FRESH_SECONDS:
-            _in_background(key, _compute_and_keep(chat, request, key))
+            _in_background(key, _compute_and_keep(chat, request, key, language))
         return kept["payload"]
     lock = _locks.setdefault(key, asyncio.Lock())
     async with lock:  # many viewers opening Home at once run the queries once
         kept = None if refresh else _read(chat, key)
         if kept is not None:
             return kept["payload"]
-        return await _compute_and_keep(chat, request, key)
+        return await _compute_and_keep(chat, request, key, language)
 
 
-async def _compute_and_keep(chat: Any, request: AskDataRequest, key: str) -> dict[str, Any]:
+async def _compute_and_keep(chat: Any, request: AskDataRequest, key: str, language: str = "en") -> dict[str, Any]:
     catalog = await chat.agent_catalog(request)
     if not catalog or not catalog.get("metrics"):
         return {"status": "no_model", "kpis": []}
-    payload = await _compute(chat, request, catalog)
+    payload = await _compute(chat, request, catalog, language)
     if payload.get("kpis"):
         _write(chat, key, payload)
     return payload
 
 
-async def _compute(chat: Any, request: AskDataRequest, catalog: dict[str, Any]) -> dict[str, Any]:
+async def _compute(chat: Any, request: AskDataRequest, catalog: dict[str, Any], language: str = "en") -> dict[str, Any]:
     headline = _headline_metrics(catalog)
-    language = "id" if detect_language(" ".join(str(m.get("label") or "") for m in headline)) == "id" else "en"
 
     async def ask(metric: str, label: str, **intent: Any) -> AskDataResponse | None:
         try:
@@ -294,11 +307,16 @@ async def _compute(chat: Any, request: AskDataRequest, catalog: dict[str, Any]) 
         ask(m["name"], m.get("label") or m["name"], by_month=bool(m.get("can_split_by_month"))) for m in headline
     ]
     main = headline[0]
-    by = _compact_breakdown(main, catalog)
+    candidates = _compact_breakdowns(main, catalog)
     geo_dimension = next((k for k in main.get("breakdowns") or [] if chat._geo_points([k])), None)
-    jobs.append(ask(main["name"], main.get("label") or main["name"], breakdown=[by]) if by else asyncio.sleep(0, result=None))
+    jobs += [ask(main["name"], main.get("label") or main["name"], breakdown=[key]) for key in candidates]
     jobs.append(ask(main["name"], main.get("label") or main["name"], breakdown=[geo_dimension]) if geo_dimension else asyncio.sleep(0, result=None))
-    results = await asyncio.gather(*jobs)
+    results = list(await asyncio.gather(*jobs))
+    place_response = results.pop()
+    tried = results[len(headline):]
+    best = max(range(len(tried)), key=lambda i: _spread(tried[i]), default=None)
+    by = candidates[best] if best is not None and _spread(tried[best]) > 0 else None
+    results = results[: len(headline)] + [tried[best] if by else None, place_response]
     units = {m["name"]: _unit(chat, m["name"]) for m in headline}
     kpis = [k for k in (_kpi(m, r, units[m["name"]]) for m, r in zip(headline, results)) if k]
     first = results[0]
@@ -351,13 +369,13 @@ def _briefing_figures(home: dict[str, Any]) -> tuple[list[dict[str, Any]], list[
     return rows, extras
 
 
-async def build_briefing(chat: Any, request: AskDataRequest, *, refresh: bool = False) -> dict[str, Any]:
+async def build_briefing(chat: Any, request: AskDataRequest, *, refresh: bool = False, language: str = "en") -> dict[str, Any]:
     """Three or four points a director should know, from the Home figures; a point whose figures are not in them is left out.
     Kept like Home, and rewritten when the figures it was written from were recomputed."""
-    home = await build_home(chat, request)
+    home = await build_home(chat, request, language=language)
     if not home.get("kpis"):
         return {"status": "no_data"}
-    key = _key(chat, "briefing")
+    key = _key(chat, "briefing", language)
     kept = None if refresh else _read(chat, key)
     if kept is not None:
         if kept["payload"].get("for") != home.get("computed_at") or _age(kept) > FRESH_SECONDS:

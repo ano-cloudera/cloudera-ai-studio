@@ -7,6 +7,8 @@ Return JSON:
 - `points`: three or four short points, each one finding a director would act on: which KPI moved last month and by how much, which group or place stands out against the overall value, where a quota or target is over or under. Each point names the group and the figure.
 - `ask_next`: two or three questions to ask next, each standalone (metric, group, period), in the user's language, that the app can answer from these metrics (for example why a group stands out, or what to do about it).
 
+Names: the labels of KPIs, groups and places are the semantic model's own words and may be in another language than `language`; copy them exactly, and write everything around them in `language`.
+
 Units: write each figure with its KPI's `unit` (for example KL for a volume, % for a rate, Rp for money), never "unit". A change of a percent KPI is in percentage points ("turun 0,2 poin"), not "poin persen".
 
 Figures: quote only figures in the input (rounded as a reader expects: one decimal for a percent, thousands separators for volumes). Never compute a new figure; `change`, `change_pct` and `computed` have them. Name months as the reader says them ("Oktober 2026"). Use the labels, never column keys.
