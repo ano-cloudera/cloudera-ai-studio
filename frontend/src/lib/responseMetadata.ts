@@ -26,7 +26,9 @@ export function formatDurationSeconds(totalMs: number | undefined): string | nul
 export function answeringModelLabel(response: ChatResponse): string {
   const named = (response.model_resolution?.model_name || response.model_resolution?.model_key || '').trim()
   if (named) return named.split('/').filter(Boolean).pop() || named
-  return titleCaseProvider(response.provider)
+  // Without a registry name, the model id still names the model; the provider id is only the endpoint it came through.
+  const model = (response.model || '').trim()
+  return model ? model.split('/').filter(Boolean).pop() || model : titleCaseProvider(response.provider)
 }
 
 /** Human-readable footer line — no milliseconds. */

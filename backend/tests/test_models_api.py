@@ -35,7 +35,7 @@ def test_models_reports_configured_availability_without_secrets() -> None:
             {
                 "provider": "qwen",
                 "id": "/models/Qwen3.8-27B-AWQ",
-                "label": "Qwen Private",
+                "label": "Qwen3.8-27B-AWQ",
                 "available": True,
                 "reason": None,
                 "assigned": False,

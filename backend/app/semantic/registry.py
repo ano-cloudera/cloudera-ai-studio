@@ -41,6 +41,14 @@ def _stems(tokens: set[str]) -> set[str]:
     return {t[:-1] if len(t) > 3 and t.endswith("s") else t for t in tokens}
 
 
+
+
+def _number(value: Any) -> float | None:
+    try:
+        return None if value is None or value == "" or isinstance(value, bool) else float(value)
+    except (TypeError, ValueError):
+        return None
+
 class OssieRegistry:
     """Read-only registry of one published Apache Ossie semantic model."""
 
@@ -251,6 +259,9 @@ class OssieRegistry:
                     "description": str(metric.get("description") or ""),
                     "allowed_dimensions": config.get("allowed_dimensions", []),
                     "headline": int(config.get("headline") or 0),  # 1 is the metric the business watches most; 0 is not a headline
+                    # Declared by the model's author for Home: which way is good ("up", "down" or none) and a target, if any.
+                    "better": config.get("better") if config.get("better") in ("up", "down") else None,
+                    "target": _number(config.get("target")),
                 }
             )
         return result

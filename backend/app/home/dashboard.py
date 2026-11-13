@@ -30,7 +30,7 @@ from app.core.models import AskDataRequest, AskDataResponse
 logger = logging.getLogger(__name__)
 
 PROMPT = Path(__file__).resolve().parents[2] / "prompts" / "home_briefing.md"
-SCHEMA = 2  # raise when the payload's shape changes, so an older kept payload is not served
+SCHEMA = 3  # raise when the payload's shape changes, so an older kept payload is not served
 FRESH_SECONDS = 15 * 60
 KEEP_SECONDS = 14 * 24 * 3600
 MAX_KPIS = 4
@@ -49,7 +49,9 @@ _tasks: set[asyncio.Task] = set()
 class Briefing(BaseModel):
     model_config = ConfigDict(extra="ignore")
     headline: str
-    points: list[str] = Field(default_factory=list)
+    what_happened: str = ""
+    why_it_matters: str = ""
+    look_next: list[str] = Field(default_factory=list)
     ask_next: list[str] = Field(default_factory=list)
 
 
@@ -146,9 +148,10 @@ def _in_background(key: str, work: Any) -> None:
 
 
 def _headline_metrics(catalog: dict[str, Any]) -> list[dict[str, Any]]:
+    """The metrics the model's author marked "Show on Home", in their order. None marked: none shown (Home never picks
+    metrics by itself, so what it shows is always what the model says matters)."""
     metrics = list(catalog.get("metrics") or [])
-    ranked = sorted((m for m in metrics if m.get("headline")), key=lambda m: int(m["headline"]))
-    return (ranked or metrics)[:MAX_KPIS]
+    return sorted((m for m in metrics if m.get("headline")), key=lambda m: int(m["headline"]))[:MAX_KPIS]
 
 
 def _float(value: Any) -> float | None:
@@ -213,6 +216,8 @@ def _kpi(metric: dict[str, Any], response: AskDataResponse | None, unit: str | N
         "unit": unit,
         "value": value,
         "series": series[-SPARK_MONTHS:],
+        "better": metric.get("better"),  # "up", "down" or None, as the model's author declared it
+        "target": metric.get("target"),
     }
     if len(series) >= 2:
         last, previous = series[-1], series[-2]
@@ -262,6 +267,41 @@ def _rows(response: AskDataResponse | None, unit: str | None) -> dict[str, Any] 
     }
 
 
+def _standout(block: dict[str, Any] | None, metric: dict[str, Any]) -> dict[str, Any] | None:
+    """The groups (or places) furthest from the overall value of the main KPI, in the direction the model calls worse when it
+    says which way is good, else either way; the most detailed block is used (places before groups)."""
+    if not block or not isinstance(block.get("overall_value"), (int, float)):
+        return None
+    column = next((c for c in block.get("columns") or [] if c != "metric_value"), None)
+    if not column:
+        return None
+    overall = float(block["overall_value"])
+    better = metric.get("better")
+    rows = []
+    for row in block.get("rows") or []:
+        value = _float(row.get("metric_value"))
+        if value is None or row.get(column) in (None, ""):
+            continue
+        gap = value - overall
+        worse = -gap if better == "up" else gap if better == "down" else abs(gap)
+        rows.append({"group": str(row[column]), "value": value, "difference": round(gap, 4), "_worse": worse})
+    rows = [r for r in sorted(rows, key=lambda r: r["_worse"], reverse=True) if r["_worse"] > 0][:3]
+    if not rows:
+        return None
+    for r in rows:
+        r.pop("_worse")
+    return {
+        "metric": metric["name"],
+        "label": metric.get("label") or metric["name"],
+        "by": (block.get("column_labels") or {}).get(column) or column,
+        "overall_value": overall,
+        "unit_format": block.get("unit_format"),
+        "unit": block.get("unit"),
+        "better": better,
+        "groups": rows,
+    }
+
+
 async def build_home(chat: Any, request: AskDataRequest, *, refresh: bool = False, language: str = "en") -> dict[str, Any]:
     """KPIs, the main KPI's trend, breakdown and map, from governed queries only; a kept result is served at once.
     `language` is the language of the page and of the briefing; the labels come from the semantic model as its author wrote them."""
@@ -284,6 +324,8 @@ async def _compute_and_keep(chat: Any, request: AskDataRequest, key: str, langua
     catalog = await chat.agent_catalog(request)
     if not catalog or not catalog.get("metrics"):
         return {"status": "no_model", "kpis": []}
+    if not _headline_metrics(catalog):
+        return {"status": "no_home_metrics", "kpis": [], "language": language, "metric_count": len(catalog["metrics"])}
     payload = await _compute(chat, request, catalog, language)
     if payload.get("kpis"):
         _write(chat, key, payload)
@@ -331,6 +373,7 @@ async def _compute(chat: Any, request: AskDataRequest, catalog: dict[str, Any], 
         "trend": kpis[0] if kpis and kpis[0].get("series") else None,
         "breakdown": {"metric": main["name"], "label": main.get("label"), "dimension": by, **breakdown} if breakdown else None,
         "map": {"metric": main["name"], "label": main.get("label"), "dimension": geo_dimension, **place} if place else None,
+        "standout": _standout(place or breakdown, main),
         "computed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }
     logger.info("home_built kpis=%s breakdown=%s map=%s", len(kpis), by, geo_dimension)
@@ -360,6 +403,13 @@ def _briefing_figures(home: dict[str, Any]) -> tuple[list[dict[str, Any]], list[
     for kpi in home.get("kpis") or []:
         extras += [v for v in (kpi.get("value"), kpi.get("change"), kpi.get("change_pct")) if isinstance(v, (int, float))]
         rows += [{"month": p["month"], "metric_value": p["value"]} for p in kpi.get("series") or []]
+    standout = home.get("standout") or {}
+    extras += [float(g["difference"]) for g in standout.get("groups") or []] + [abs(float(g["difference"])) for g in standout.get("groups") or []]
+    for kpi in home.get("kpis") or []:
+        if isinstance(kpi.get("target"), (int, float)):
+            extras += [float(kpi["target"]), kpi["value"] - float(kpi["target"]), float(kpi["target"]) - kpi["value"]]
+        if kpi.get("previous_month"):
+            extras.append(float(kpi["previous_month"]["value"]))
     for part in ("breakdown", "map"):
         block = home.get(part) or {}
         rows += list(block.get("rows") or [])
@@ -399,6 +449,8 @@ async def _write_briefing(chat: Any, request: AskDataRequest, home: dict[str, An
         "data_coverage": home.get("data_coverage"),
         "kpis": [{k: v for k, v in kpi.items() if k != "description"} for kpi in home["kpis"]],
     }
+    if home.get("standout"):
+        facts["standout"] = home["standout"]
     for part in ("breakdown", "map"):
         block = home.get(part)
         if block:
@@ -415,18 +467,25 @@ async def _write_briefing(chat: Any, request: AskDataRequest, home: dict[str, An
         {"role": "system", "content": PROMPT.read_text(encoding="utf-8")},
         {"role": "user", "content": json.dumps(facts, ensure_ascii=False, default=str)},
     ]
-    briefing = await provider.generate_structured(messages, Briefing, temperature=0.2, max_tokens=900)
+    briefing = await provider.generate_structured(messages, Briefing, temperature=0.2, max_tokens=1000)
     rows, extras = _briefing_figures(home)
-    if unverified_figures([briefing.headline], rows, "", extras):
+
+    def checked(text: str) -> bool:
+        return bool(text.strip()) and not unverified_figures([text], rows, "", extras)
+
+    if not checked(briefing.headline):
         logger.warning("home_briefing_headline_unverified")
         return {"status": "unverified"}
-    points = [p for p in briefing.points if p.strip() and not unverified_figures([p], rows, "", extras)][:4]
-    if len(points) < len(briefing.points):
-        logger.info("home_briefing_points_dropped count=%s", len(briefing.points) - len(points))
+    look_next = [t for t in briefing.look_next if checked(t)][:3]
+    dropped = (bool(briefing.what_happened) and not checked(briefing.what_happened)) + (bool(briefing.why_it_matters) and not checked(briefing.why_it_matters)) + (len(briefing.look_next) - len(look_next))
+    if dropped:
+        logger.info("home_briefing_parts_dropped count=%s", dropped)
     payload = {
         "status": "ok",
         "headline": briefing.headline.strip(),
-        "points": points,
+        "what_happened": briefing.what_happened.strip() if checked(briefing.what_happened) else "",
+        "why_it_matters": briefing.why_it_matters.strip() if checked(briefing.why_it_matters) else "",
+        "look_next": look_next,
         "ask_next": [q for q in briefing.ask_next if q.strip()][:3],
         "language": language,
         "for": home.get("computed_at"),

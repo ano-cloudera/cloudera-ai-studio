@@ -29,10 +29,19 @@ class BriefingModel(WorstCaseModel):
             value = f"{kpi['value']:.1f}"
             return model.model_validate({
                 "headline": f"{kpi['label']} {value} overall.",
-                "points": [f"{kpi['label']} is {value} across all data.", "Something grew 987.6 percent."],
+                "what_happened": f"{kpi['label']} is {value} across all data.",
+                "why_it_matters": "Something grew 98765.4 percent.",
+                "look_next": [f"{kpi['label']} at {value}.", "A made-up 412.7 figure."],
                 "ask_next": ["Why is the late rate highest in Kalimantan Timur?"],
             })
         return await super().generate_structured(messages, model, **kwargs)
+
+
+def _mark_home(replay, monkeypatch, marks: dict | None = None) -> None:
+    """What the model's author declares in the metric editor: Show on Home (order), which way is good, a target."""
+    marks = marks if marks is not None else {"late_delivery_rate": {"headline": 1, "better": "down", "target": 10}, "total_shipments": {"headline": 2, "better": "up"}}
+    for name, config in marks.items():
+        monkeypatch.setitem(replay.context.registry.metric_configs, name, {**replay.context.registry.metric_configs[name], **config})
 
 
 @pytest.fixture()
@@ -41,7 +50,9 @@ def replay(monkeypatch):
 
     value_filters.clear_cache()
     dashboard.clear_cache()
-    yield Replay(monkeypatch, BriefingModel())
+    replay = Replay(monkeypatch, BriefingModel())
+    _mark_home(replay, monkeypatch)
+    yield replay
     dashboard.clear_cache()
     answer_context._COVERAGE.clear()
     value_filters.clear_cache()
@@ -78,8 +89,9 @@ def _add_geo(replay, monkeypatch) -> None:
 
 def test_the_briefing_keeps_only_points_whose_figures_are_in_the_home_figures(replay) -> None:
     briefing = asyncio.run(dashboard.build_briefing(replay.service, REQUEST))
-    assert briefing["status"] == "ok" and briefing["headline"]
-    assert len(briefing["points"]) == 1 and "987" not in briefing["points"][0]
+    assert briefing["status"] == "ok" and briefing["headline"] and briefing["what_happened"]
+    assert briefing["why_it_matters"] == ""  # its figure is in none of the Home figures, so it is left out
+    assert len(briefing["look_next"]) == 1 and "412" not in briefing["look_next"][0]
     assert briefing["ask_next"]
     assert replay.model.facts["kpis"][0]["series"]  # the model was given the figures, not asked to find them
 
@@ -144,3 +156,25 @@ def test_the_language_of_home_is_asked_for_not_guessed_and_is_part_of_what_is_ke
     indonesian = asyncio.run(dashboard.build_home(replay.service, REQUEST, language="id"))
     assert english["language"] == "en" and indonesian["language"] == "id"
     assert dashboard._key(replay.service, "home", "en") != dashboard._key(replay.service, "home", "id")
+
+
+def test_home_shows_only_what_the_model_marks_and_says_so_when_nothing_is_marked(monkeypatch) -> None:
+    from app.ask_data import value_filters
+
+    value_filters.clear_cache()
+    dashboard.clear_cache()
+    replay = Replay(monkeypatch, BriefingModel())
+    home = asyncio.run(dashboard.build_home(replay.service, REQUEST))
+    assert home["status"] == "no_home_metrics" and home["kpis"] == [] and home["metric_count"] > 0
+    assert not [q for q in replay.executor.queries if "metric_value" in q]  # no KPI is computed when nobody chose one
+
+
+def test_the_kpis_carry_what_the_author_declared_and_the_standout_is_the_worse_group(replay) -> None:
+    home = asyncio.run(dashboard.build_home(replay.service, REQUEST))
+    assert [k["metric"] for k in home["kpis"]] == ["late_delivery_rate", "total_shipments"]  # in the declared order
+    first = home["kpis"][0]
+    assert first["better"] == "down" and first["target"] == 10 and first["previous_month"]
+    standout = home["standout"]
+    assert standout and standout["better"] == "down"
+    differences = [g["difference"] for g in standout["groups"]]
+    assert all(d > 0 for d in differences) and differences == sorted(differences, reverse=True)  # above the overall rate is worse

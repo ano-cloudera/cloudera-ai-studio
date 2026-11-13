@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { modelDisplayName, providerDisplayName } from '../lib/modelLabels'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { TablePagination } from '../components/knowledge/TablePagination'
 import { TableHeaderCheckbox, TableRowCheckbox } from '../components/table/TableSelectionCheckbox'
@@ -218,9 +219,9 @@ export function UsagePage() {
                 {summary.by_model.map(row => (
                   <li key={`${row.provider}-${row.model}`} className="flex items-center justify-between py-2 text-sm">
                     <span className="text-slate-700">
-                      <span className="font-medium capitalize">{row.provider}</span>
-                      <span className="text-slate-400"> · </span>
-                      <span className="text-slate-600">{row.model}</span>
+                      <span className="font-medium" title={row.model}>{modelDisplayName(row.model)}</span>
+                      <span className="text-slate-500"> · </span>
+                      <span className="text-slate-600">{providerDisplayName(row.provider)}</span>
                     </span>
                     <span className="font-medium text-cloudera-navy">{formatCompactTokens(row.tokens)}</span>
                   </li>
@@ -306,8 +307,8 @@ export function UsagePage() {
                           {formatUsageTimestampWib(ev.created_at)}
                         </td>
                         <td>
-                          <span className="capitalize">{ev.provider}</span>
-                          <span className="block text-sm text-slate-500">{ev.model}</span>
+                          <span title={ev.model}>{modelDisplayName(ev.model)}</span>
+                          <span className="block text-sm text-slate-500">{providerDisplayName(ev.provider)}</span>
                         </td>
                         <td>{ev.strategy || '–'}</td>
                         <td className="text-right font-medium">{formatCompactTokens(ev.total_tokens)}</td>

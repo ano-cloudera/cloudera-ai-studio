@@ -103,7 +103,7 @@ export function MetricsTab({ versionId, readOnly, entityKeys, onChanged, focusOb
   )
   useSelectionListClear(selection, list)
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState<(SemanticMetricRecord & { synonymsText: string; calcType: string; column: string }) | null>(null)
+  const [form, setForm] = useState<(SemanticMetricRecord & { synonymsText: string; calcType: string; column: string } & HomeFields) | null>(null)
   const [baseline, setBaseline] = useState('')
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
@@ -278,6 +278,7 @@ export function MetricsTab({ versionId, readOnly, entityKeys, onChanged, focusOb
         source_entity_key: form.source_entity_key,
         synonyms: parseSynonyms(form.synonymsText),
         allowed_dimension_keys: form.allowed_dimension_keys ?? [],
+        metadata: withHomeFields(form.metadata ?? {}, form),
       }
       if (form.id) await api.patchSemanticMetric(versionId, form.id, body)
       else
@@ -325,6 +326,7 @@ export function MetricsTab({ versionId, readOnly, entityKeys, onChanged, focusOb
       synonymsText: '',
       calcType: 'sum',
       column: 'amount',
+      ...homeFieldsOf({}),
     }
     setForm(seed)
     setBaseline(JSON.stringify(seed))
@@ -338,6 +340,7 @@ export function MetricsTab({ versionId, readOnly, entityKeys, onChanged, focusOb
       synonymsText: synonymsText(m.synonyms),
       calcType: m.aggregation ?? 'formula',
       column: parseColumnFromExpression(m.expression),
+      ...homeFieldsOf(m.metadata ?? {}),
     }
     setForm(seed)
     setBaseline(JSON.stringify(seed))
@@ -571,11 +574,83 @@ export function MetricsTab({ versionId, readOnly, entityKeys, onChanged, focusOb
               ) : null}
             </fieldset>
             <input className="rounded-lg border px-3 py-2" placeholder="Synonyms (comma-separated)" value={form.synonymsText} onChange={e => setForm({ ...form, synonymsText: e.target.value })} />
+            <fieldset className="rounded-lg border border-slate-200 px-3 py-2" data-testid="metric-home-fields">
+              <legend className="px-1 text-xs font-semibold text-slate-700">Home</legend>
+              <p className="mb-2 text-xs text-slate-600">
+                Home shows the metrics marked here, in this order. A change is coloured, and a target compared, only when you say which way is good and what the target is.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Show on Home
+                  <select
+                    className="mt-1 w-full rounded-lg border px-3 py-2 text-sm font-normal"
+                    value={form.homeOrder}
+                    onChange={e => setForm({ ...form, homeOrder: Number(e.target.value) })}
+                  >
+                    <option value={0}>Not shown</option>
+                    {[1, 2, 3, 4].map(position => (
+                      <option key={position} value={position}>
+                        {position === 1 ? 'Position 1 (main KPI)' : `Position ${position}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Which way is good?
+                  <select
+                    className="mt-1 w-full rounded-lg border px-3 py-2 text-sm font-normal"
+                    value={form.better}
+                    onChange={e => setForm({ ...form, better: e.target.value as HomeFields['better'] })}
+                  >
+                    <option value="">Not set</option>
+                    <option value="up">Higher is better</option>
+                    <option value="down">Lower is better</option>
+                  </select>
+                </label>
+                <label className="block text-xs font-semibold text-slate-700">
+                  Target (optional)
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    className="mt-1 w-full rounded-lg border px-3 py-2 text-sm font-normal"
+                    placeholder="For example 15"
+                    value={form.target}
+                    onChange={e => setForm({ ...form, target: e.target.value })}
+                  />
+                </label>
+              </div>
+            </fieldset>
           </div>
         ) : null}
       </SemanticDrawer>
     </>
   )
+}
+
+/** What Home reads from a metric: whether it is shown (and where), which way is good, and its target. */
+type HomeFields = { homeOrder: number; better: '' | 'up' | 'down'; target: string }
+
+function homeFieldsOf(metadata: Record<string, unknown>): HomeFields {
+  const extension = (metadata.reference_extension ?? {}) as Record<string, unknown>
+  const better = extension.better === 'up' || extension.better === 'down' ? extension.better : ''
+  const target = typeof extension.target === 'number' ? String(extension.target) : ''
+  return { homeOrder: Number(extension.headline) || 0, better, target }
+}
+
+/** The metric's metadata with the Home fields written into its reference extension; everything else is kept as it was. */
+export function withHomeFields(metadata: Record<string, unknown>, fields: HomeFields): Record<string, unknown> {
+  const extension = { ...((metadata.reference_extension ?? {}) as Record<string, unknown>) }
+  delete extension.headline
+  delete extension.better
+  delete extension.target
+  if (fields.homeOrder > 0) extension.headline = fields.homeOrder
+  if (fields.better) extension.better = fields.better
+  const target = fields.target.trim() === '' ? null : Number(fields.target)
+  if (target !== null && Number.isFinite(target)) extension.target = target
+  const next = { ...metadata }
+  if (Object.keys(extension).length) next.reference_extension = extension
+  else delete next.reference_extension
+  return next
 }
 
 function entityColumnOptions(

@@ -40,6 +40,12 @@ SPEC = {
     "description": "Penyaluran BBM dari terminal ke SPBU dan pelanggan industri: volume, ketepatan pengiriman, dan realisasi BBM subsidi terhadap kuota.",
     # What an overview answer starts with, most important first: how late deliveries are, how much was delivered, and the quota.
     "headline": ["tingkat_keterlambatan", "total_volume", "pencapaian_kuota"],
+    # How Home reads each one: which way is good, and the target (the delivery SOP's national target; the quota itself).
+    "home": {
+        "tingkat_keterlambatan": {"better": "down", "target": 15},
+        "total_volume": {"better": "up"},
+        "pencapaian_kuota": {"target": 100},
+    },
     # Where each terminal is, so a result by terminal (and the Home map) puts it on the map.
     "geo": {"fuel_terminal": _TERMINAL_GEO, "pelanggan_terminal": _TERMINAL_GEO},
     "entities": [

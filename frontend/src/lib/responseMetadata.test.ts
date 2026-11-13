@@ -27,7 +27,7 @@ const base = {
 
 describe('responseMetadata', () => {
   it('formats human-readable metadata without raw ms', () => {
-    expect(formatResponseMetadata(base)).toBe('Gemini · Governed · 36s')
+    expect(formatResponseMetadata(base)).toBe('gemini-3.8-flash · Governed · 36s')
   })
 
   it('names the model assigned in AI Models, not the provider bucket it runs through', () => {
@@ -40,13 +40,13 @@ describe('responseMetadata', () => {
     } satisfies ChatResponse
     expect(formatResponseMetadata(viaRegistry)).toBe('nemotron-3-super-120b-a12b · Governed · 7.2s')
     expect(formatResponseMetadata({ ...viaRegistry, model_resolution: { model_key: 'qwen3.5-9b' } })).toBe('qwen3.5-9b · Governed · 7.2s')
-    expect(formatResponseMetadata({ ...viaRegistry, model_resolution: null })).toBe('Qwen · Governed · 7.2s')
+    expect(formatResponseMetadata({ ...viaRegistry, model_resolution: null })).toBe('nemotron-3-super-120b-a12b · Governed · 7.2s')
   })
 
   it('says when an answer came from the answer cache', () => {
     const cached = { ...base, timings: { total_ms: 900 }, cached_at: '2026-11-12T03:00:00+00:00', cache_reason: 'repeat' as const } satisfies ChatResponse
-    expect(formatResponseMetadata(cached)).toBe('Gemini · Governed · 0.9s · Cached')
-    expect(formatResponseMetadata({ ...cached, cache_reason: 'data_source_unavailable' })).toBe('Gemini · Governed · 0.9s · Saved answer')
+    expect(formatResponseMetadata(cached)).toBe('gemini-3.8-flash · Governed · 0.9s · Cached')
+    expect(formatResponseMetadata({ ...cached, cache_reason: 'data_source_unavailable' })).toBe('gemini-3.8-flash · Governed · 0.9s · Saved answer')
   })
 
   it('formats sub-10s durations with one decimal', () => {

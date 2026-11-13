@@ -46,15 +46,16 @@ def dimension_payload(row: tuple, geo: dict[str, dict[str, list[float]]] | None 
     return payload
 
 
-def metric_payload(row: tuple, dimension_keys: dict[str, list[str]], headline: list[str] | None = None) -> dict:
+def metric_payload(row: tuple, dimension_keys: dict[str, list[str]], headline: list[str] | None = None, home: dict | None = None) -> dict:
     key, name, entity, expression, unit, synonyms, definition = row
     payload = {
         "key": key, "name": name, "expression": expression, "source_entity_key": entity, "description": definition,
         "business_definition": definition, "unit": unit, "synonyms": synonyms, "allowed_dimension_keys": dimension_keys[entity],
     }
     if key in (headline or []):
-        # The figures an overview starts with, most important first.
-        payload["metadata"] = {"reference_extension": {"headline": (headline or []).index(key) + 1}}
+        # Show on Home, most important first; with which way is good and a target when the spec says so.
+        extension = {"headline": (headline or []).index(key) + 1, **{k: v for k, v in ((home or {}).get(key) or {}).items() if k in ("better", "target")}}
+        payload["metadata"] = {"reference_extension": extension}
     return payload
 
 
@@ -70,7 +71,7 @@ def plan(spec: dict, connector_id: str) -> dict[str, list[dict]]:
     return {
         "entities": [entity_payload(spec, e, connector_id) for e in spec["entities"]],
         "dimensions": [dimension_payload(r, spec.get("geo")) for r in spec["dimensions"]],
-        "metrics": [metric_payload(r, keys, spec.get("headline")) for r in spec["metrics"]],
+        "metrics": [metric_payload(r, keys, spec.get("headline"), spec.get("home")) for r in spec["metrics"]],
         "terms": [term_payload(r) for r in spec["terms"]],
     }
 

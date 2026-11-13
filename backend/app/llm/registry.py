@@ -33,7 +33,7 @@ class ProviderRegistry:
         elif not self.settings.openai_api_key.get_secret_value():
             openai_reason = "API key not configured"
         return [
-            ModelInfo(provider="qwen", id=self.settings.qwen_model, label="Qwen Private", available=qwen_reason is None, reason=qwen_reason),
+            ModelInfo(provider="qwen", id=self.settings.qwen_model, label=_model_name(self.settings.qwen_model) or "Private endpoint", available=qwen_reason is None, reason=qwen_reason),
             ModelInfo(provider="gemini", id=self.settings.gemini_model, label="Gemini", available=gemini_reason is None, reason=gemini_reason),
             ModelInfo(provider="openai", id=self.settings.openai_model, label="ChatGPT", available=openai_reason is None, reason=openai_reason),
         ]
@@ -52,3 +52,10 @@ class ProviderRegistry:
             "openai": OpenAIProvider,
         }
         return implementations[provider](self.settings)
+
+
+def _model_name(model: str | None) -> str:
+    """The model's own name for the picker ("nvidia/nemotron-3-super-120b-a12b" -> "nemotron-3-super-120b-a12b"): the private
+    endpoint is called 'qwen' internally, whatever model it serves."""
+    text = (model or "").strip()
+    return text.split("/")[-1] if text else ""

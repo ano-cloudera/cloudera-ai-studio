@@ -4,7 +4,8 @@ export function providerDisplayName(provider: string): string {
   const key = provider.trim().toLowerCase()
   if (key === 'gemini') return 'Gemini'
   if (key === 'openai') return 'OpenAI'
-  if (key === 'qwen') return 'Qwen'
+  // 'qwen' is the internal id of the private, OpenAI-compatible endpoint, whatever model it serves (Nemotron, Llama, Qwen).
+  if (key === 'qwen') return 'Private endpoint'
   if (key === 'anthropic') return 'Anthropic'
   return provider.charAt(0).toUpperCase() + provider.slice(1)
 }
@@ -24,7 +25,7 @@ export function friendlyUnavailableMessage(reason: string | null | undefined): s
 export function providerDeploymentHint(provider: string): string {
   const name = providerDisplayName(provider)
   const key = provider.trim().toLowerCase()
-  if (key === 'qwen') return `${name} · Private AI`
+  if (key === 'qwen') return 'OpenAI-compatible · runs in your environment'
   return `${name} · External API`
 }
 
@@ -52,4 +53,10 @@ export function uniqueProviders(models: ModelInfo[]): string[] {
     }
   }
   return order
+}
+
+/** The model's own name, without the publisher path ("nvidia/nemotron-3-super-120b-a12b" -> "nemotron-3-super-120b-a12b"). */
+export function modelDisplayName(model: string | null | undefined): string {
+  const text = (model ?? '').trim()
+  return text.split('/').filter(Boolean).pop() || text
 }

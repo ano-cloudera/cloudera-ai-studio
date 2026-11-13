@@ -1483,10 +1483,15 @@ class ChatService:
         ctx = bundle.context
         values = await self._dimension_values(ctx, bundle, str(uuid.uuid4()))
         catalog = build_catalog(ctx, values)
-        headline = {str(m.get("name")): m.get("headline") for m in self.metric_catalog() if m.get("headline")}
+        declared = {str(m.get("name")): m for m in self.metric_catalog()}
         for metric in catalog["metrics"]:
-            if headline.get(metric["name"]):
-                metric["headline"] = headline[metric["name"]]
+            config = declared.get(metric["name"]) or {}
+            if config.get("headline"):
+                metric["headline"] = config["headline"]
+            if config.get("better"):
+                metric["better"] = config["better"]
+            if config.get("target") is not None:
+                metric["target"] = config["target"]
         return catalog
 
     async def query_metric(
