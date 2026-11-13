@@ -1,0 +1,179 @@
+{
+  "name": "pov-fuel-demo-acan",
+  "description": "The ten questions of the demo, in the order they are asked in one session. Same answer key as judge_conversation.json (these are its turns 2, 3, 4, 5, 6, 9, 12, 11, 14, 16); run it before the demo with: python scripts/judge_answers.py --cases samples/fuel_distribution/judge_demo.json --out /home/cdsw/j_demo.json",
+  "language": "id",
+  "turns": [
+    {
+      "question": "Berapa total volume penyaluran BBM kita?",
+      "expect": {
+        "route": "data",
+        "metric": [
+          "total_volume"
+        ],
+        "numbers_any": [
+          [
+            4996168
+          ],
+          [
+            4.99
+          ],
+          [
+            5.0
+          ]
+        ]
+      }
+    },
+    {
+      "question": "Berapa tingkat keterlambatan pengiriman secara keseluruhan?",
+      "expect": {
+        "route": "data",
+        "metric": [
+          "tingkat_keterlambatan"
+        ],
+        "numbers": [
+          16.07
+        ]
+      }
+    },
+    {
+      "question": "Regional mana yang paling sering terlambat, dan seberapa jauh bedanya dengan yang lain?",
+      "expect": {
+        "route": "data",
+        "metric": [
+          "tingkat_keterlambatan"
+        ],
+        "first_row": "Papua Maluku",
+        "min_rows": 8,
+        "overall_value": 16.07,
+        "numbers": [
+          34.54,
+          16.07
+        ],
+        "mentions": [
+          "Papua Maluku"
+        ]
+      }
+    },
+    {
+      "question": "Kenapa Papua Maluku dan Kalimantan bisa setinggi itu?",
+      "expect": {
+        "route": "agent",
+        "min_steps": 2,
+        "numbers": [
+          34.54
+        ],
+        "mentions": [
+          "Papua Maluku",
+          "Kalimantan",
+          [
+            "jarak",
+            "km"
+          ],
+          [
+            "kemungkinan",
+            "bisa jadi",
+            "diduga",
+            "mengindikasikan",
+            "menunjukkan"
+          ]
+        ],
+        "metric": [
+          "tingkat_keterlambatan"
+        ]
+      }
+    },
+    {
+      "question": "Bandingkan keterlambatan per tipe SPBU (COCO, CODO, DODO)",
+      "expect": {
+        "route": "data",
+        "metric": [
+          "tingkat_keterlambatan"
+        ],
+        "first_row": "SPBU_DODO",
+        "min_rows": 3,
+        "numbers": [
+          19.53,
+          14.95,
+          9.22
+        ],
+        "mentions": [
+          "DODO"
+        ]
+      }
+    },
+    {
+      "question": "Bagaimana pencapaian kuota BBM subsidi per regional?",
+      "expect": {
+        "route": "data",
+        "metric": [
+          "pencapaian_kuota"
+        ],
+        "first_row": "Kalimantan",
+        "min_rows": 8,
+        "numbers": [
+          101.9,
+          80.7
+        ],
+        "mentions": [
+          "Kalimantan",
+          "Papua Maluku"
+        ]
+      }
+    },
+    {
+      "question": "Tampilkan volume penyaluran per provinsi",
+      "expect": {
+        "route": "data",
+        "metric": [
+          "total_volume"
+        ],
+        "first_row": "Jawa Tengah",
+        "min_rows": 30,
+        "numbers": [
+          714496
+        ]
+      }
+    },
+    {
+      "question": "Kenapa volume terminal Kertapati turun di Agustus 2025?",
+      "expect": {
+        "route": "agent",
+        "min_steps": 2,
+        "numbers": [
+          2056
+        ],
+        "mentions": [
+          "Kertapati",
+          "Panjang"
+        ]
+      }
+    },
+    {
+      "question": "Berapa volume penyaluran di November 2026?",
+      "expect": {
+        "status": [
+          "NO_DATA"
+        ],
+        "mentions": [
+          [
+            "di luar data",
+            "tidak ada data",
+            "belum ada data",
+            "tidak tersedia"
+          ]
+        ],
+        "forbids_numbers": [
+          0
+        ]
+      }
+    },
+    {
+      "question": "Apa yang sebaiknya kita lakukan untuk Papua Maluku?",
+      "expect": {
+        "mentions": [
+          "Papua Maluku"
+        ]
+      }
+    }
+  ]
+}
