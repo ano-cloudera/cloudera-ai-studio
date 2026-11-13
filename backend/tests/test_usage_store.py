@@ -42,3 +42,23 @@ def test_prior_totals_are_the_stretch_of_the_same_length_just_before(tmp_path: P
     prior, length = _prior_totals(store, days=7, mtd=False, current=current)
     assert current["total_tokens"] == 100 and length == 7
     assert prior["total_tokens"] == 40 and prior["turns"] == 1  # the event 10 days ago, not the one 30 days ago
+
+
+def test_a_month_to_date_window_is_the_same_for_totals_days_models_events_and_the_export(tmp_path: Path) -> None:
+    import sqlite3
+    from datetime import datetime, timezone
+
+    store = UsageStore(tmp_path / "usage.sqlite")
+    for request_id in ("this_month", "last_month"):
+        store.record(request_id=request_id, session_id="s", provider="p", model="m", strategy="governed", status="SUCCESS", prompt_tokens=10, completion_tokens=0, llm_calls=1)
+    now = datetime.now(timezone.utc)
+    last_month_end = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).replace(microsecond=0)
+    before = (last_month_end.replace(day=1) - __import__("datetime").timedelta(hours=2)).isoformat()  # two hours before this month began
+    with sqlite3.connect(store.path) as connection:
+        connection.execute("UPDATE llm_usage_events SET created_at = ? WHERE request_id = 'last_month'", (before,))
+    assert store.totals(mtd=True)["turns"] == 1
+    assert [row["tokens"] for row in store.by_model(mtd=True)] == [10]
+    assert sum(row["tokens"] for row in store.daily_totals(mtd=True)) == 10
+    assert [e["request_id"] for e in store.list_events(mtd=True)] == ["this_month"]
+    assert store.export_csv(mtd=True).count("this_month") == 1 and "last_month" not in store.export_csv(mtd=True)
+    assert len(store.list_events(days=31)) == 2  # a rolling 31 days is not the month to date

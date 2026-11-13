@@ -42,8 +42,8 @@ def usage_summary(
         "prior_totals": prior,
         "prior_period_days": prior_days,
         "mtd_totals": store.totals(mtd=True),
-        "daily": store.daily_totals(days=window_days),
-        "by_model": store.by_model(days=window_days),
+        "daily": store.daily_totals(days=window_days, mtd=mtd),
+        "by_model": store.by_model(days=window_days, mtd=mtd),
         "monthly_token_budget": budget,
     }
 
@@ -54,17 +54,19 @@ def usage_events(
     days: int = Query(7, ge=1, le=90),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    mtd: bool = Query(False),
 ) -> dict:
     store = _store(request)
-    return {"events": store.list_events(days=days, limit=limit, offset=offset)}
+    return {"events": store.list_events(days=days, limit=limit, offset=offset, mtd=mtd)}
 
 
 @router.get("/export.csv")
-def usage_export_csv(request: Request, days: int = Query(30, ge=1, le=365)) -> PlainTextResponse:
+def usage_export_csv(request: Request, days: int = Query(30, ge=1, le=365), mtd: bool = Query(False)) -> PlainTextResponse:
     store = _store(request)
-    body = store.export_csv(days=days)
+    body = store.export_csv(days=days, mtd=mtd)
+    label = "mtd" if mtd else str(days) + "d"
     return PlainTextResponse(
         body,
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="llm-usage-{days}d.csv"'},
+        headers={"Content-Disposition": f'attachment; filename="llm-usage-{label}.csv"'},
     )

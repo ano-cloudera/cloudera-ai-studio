@@ -105,8 +105,8 @@ class PostgresUsageStore:
             "turns": int(row[4]),
         }
 
-    def daily_totals(self, *, days: int = 7) -> list[dict[str, Any]]:
-        since = self._since(days, False)
+    def daily_totals(self, *, days: int = 7, mtd: bool = False) -> list[dict[str, Any]]:
+        since = self._since(days, mtd)
         with self._session_factory() as session:
             day_col = _usage_day_bucket(session, UsageEventRow.created_at)
             stmt = select(day_col, func.sum(UsageEventRow.total_tokens)).group_by(day_col).order_by(day_col)
@@ -115,8 +115,8 @@ class PostgresUsageStore:
             rows = session.execute(stmt).all()
         return [{"day": _usage_day_iso(r[0]), "tokens": int(r[1])} for r in rows]
 
-    def by_model(self, *, days: int = 7) -> list[dict[str, Any]]:
-        since = self._since(days, False)
+    def by_model(self, *, days: int = 7, mtd: bool = False) -> list[dict[str, Any]]:
+        since = self._since(days, mtd)
         with self._session_factory() as session:
             stmt = (
                 select(
@@ -136,8 +136,8 @@ class PostgresUsageStore:
             for r in rows
         ]
 
-    def list_events(self, *, days: int = 7, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
-        since = self._since(days, False)
+    def list_events(self, *, days: int = 7, limit: int = 100, offset: int = 0, mtd: bool = False) -> list[dict[str, Any]]:
+        since = self._since(days, mtd)
         with self._session_factory() as session:
             stmt = select(UsageEventRow).order_by(UsageEventRow.created_at.desc()).limit(limit).offset(offset)
             if since:
@@ -160,8 +160,8 @@ class PostgresUsageStore:
             for r in rows
         ]
 
-    def export_csv(self, *, days: int = 30) -> str:
-        events = self.list_events(days=days, limit=10_000, offset=0)
+    def export_csv(self, *, days: int = 30, mtd: bool = False) -> str:
+        events = self.list_events(days=days, limit=10_000, offset=0, mtd=mtd)
         buf = io.StringIO()
         writer = csv.DictWriter(buf, fieldnames=list(events[0].keys()) if events else ["created_at"])
         writer.writeheader()

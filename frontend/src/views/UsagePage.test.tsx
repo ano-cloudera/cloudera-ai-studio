@@ -1,5 +1,5 @@
 import React from 'react'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { api } from '../lib/api'
@@ -166,5 +166,50 @@ describe('Usage page', () => {
     vi.mocked(api.usageEvents).mockResolvedValue({ events: [] })
     render(<UsagePage />)
     expect((await screen.findByTestId('usage-summary-line')).textContent).toContain('30 tokens across 1 Ask Data turns')
+  })
+
+  const summaryOf = (tokens: number, extra: Record<string, unknown> = {}) => {
+    const totals = { prompt_tokens: tokens, completion_tokens: 0, total_tokens: tokens, llm_calls: 1, turns: 1 }
+    const none = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, llm_calls: 0, turns: 0 }
+    return { period_days: 7, mtd: false, totals, prior_totals: none, prior_period_days: 7, mtd_totals: totals, daily: [], by_model: [], monthly_token_budget: 0, ...extra } as never
+  }
+
+  it('asks for the period that was chosen, and for the month to date as such', async () => {
+    vi.mocked(api.usageSummary).mockResolvedValue(summaryOf(1_000))
+    vi.mocked(api.usageEvents).mockResolvedValue({ events: [] })
+    vi.mocked(api.usageExportCsvUrl).mockClear()
+    render(<UsagePage />)
+    await screen.findByTestId('usage-summary-line')
+    expect(api.usageSummary).toHaveBeenLastCalledWith({ days: 7 })
+    expect(api.usageEvents).toHaveBeenLastCalledWith(7, 80, false)
+
+    fireEvent.click(screen.getByRole('button', { name: '30d' }))
+    await waitFor(() => expect(api.usageSummary).toHaveBeenLastCalledWith({ days: 30 }))
+    expect(api.usageEvents).toHaveBeenLastCalledWith(30, 80, false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'MTD' }))
+    await waitFor(() => expect(api.usageSummary).toHaveBeenLastCalledWith({ mtd: true }))
+    expect(api.usageEvents).toHaveBeenLastCalledWith(31, 80, true)
+    expect(vi.mocked(api.usageExportCsvUrl)).toHaveBeenLastCalledWith(31, true)
+    expect(screen.getByRole('button', { name: 'MTD' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: '7d' }).getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('does not let a slow earlier answer overwrite the period chosen last', async () => {
+    let releaseSlow: (value: never) => void = () => {}
+    vi.mocked(api.usageEvents).mockResolvedValue({ events: [] })
+    vi.mocked(api.usageSummary)
+      .mockResolvedValueOnce(summaryOf(1_000)) // 7d, on arrival
+      .mockImplementationOnce(() => new Promise(resolve => { releaseSlow = resolve as never })) // 30d, slow
+      .mockResolvedValueOnce(summaryOf(2_000)) // MTD, quick
+    render(<UsagePage />)
+    await screen.findByText(/1\.0K tokens across/)
+    fireEvent.click(screen.getByRole('button', { name: '30d' }))
+    fireEvent.click(screen.getByRole('button', { name: 'MTD' }))
+    await screen.findByText(/2\.0K tokens across/)
+    releaseSlow(summaryOf(3_000))
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(screen.queryByText(/3\.0K tokens across/)).toBeNull()
+    expect(screen.getByText(/2\.0K tokens across/)).toBeTruthy()
   })
 })

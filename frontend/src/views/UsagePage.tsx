@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { modelDisplayName, providerDisplayName } from '../lib/modelLabels'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { TablePagination } from '../components/knowledge/TablePagination'
@@ -61,21 +61,26 @@ export function UsagePage() {
 
   const periodConfig = PERIODS.find(p => p.key === period) ?? PERIODS[0]
 
+  // Only the newest request may fill the page: switching 7d, 30d and MTD quickly must not let a slow earlier answer overwrite the later one.
+  const latest = useRef(0)
   const load = useCallback(async () => {
+    const mine = ++latest.current
     setLoading(true)
     setLoadError(null)
     try {
-      const days = periodConfig.mtd ? 31 : periodConfig.days ?? 7
+      const days = periodConfig.days ?? 31
+      const mtd = Boolean(periodConfig.mtd)
       const [sum, ev] = await Promise.all([
-        api.usageSummary(periodConfig.mtd ? { mtd: true } : { days: periodConfig.days }),
-        api.usageEvents(days, 80),
+        api.usageSummary(mtd ? { mtd: true } : { days: periodConfig.days }),
+        api.usageEvents(days, 80, mtd),
       ])
+      if (mine !== latest.current) return
       setSummary(sum)
       setEvents(ev.events)
     } catch (e) {
-      setLoadError(toAppApiError(e))
+      if (mine === latest.current) setLoadError(toAppApiError(e))
     } finally {
-      setLoading(false)
+      if (mine === latest.current) setLoading(false)
     }
   }, [periodConfig])
 
@@ -147,7 +152,7 @@ export function UsagePage() {
             ))}
           </div>
           <a
-            href={api.usageExportCsvUrl(periodConfig.mtd ? 31 : periodConfig.days ?? 7)}
+            href={api.usageExportCsvUrl(periodConfig.days ?? 31, Boolean(periodConfig.mtd))}
             className="inline-flex min-h-11 sm:min-h-9 items-center rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cloudera-orange"
           >
             Export CSV
@@ -166,7 +171,7 @@ export function UsagePage() {
       {loading && !summary && <p className="text-sm text-slate-500">Loading usage…</p>}
 
       {summary && (
-        <>
+        <div aria-busy={loading} className={loading ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
           <section aria-label="Summary" className="mb-5 rounded-xl bg-cloudera-mist px-5 py-4" data-testid="usage-summary-line">
             <p className="text-xl font-semibold tracking-tight text-cloudera-navy">
               {totalChange ? (
@@ -389,7 +394,7 @@ export function UsagePage() {
               />
             ) : null}
           </div>
-        </>
+        </div>
       )}
     </PageCenter>
   )

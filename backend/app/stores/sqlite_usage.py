@@ -122,8 +122,8 @@ class SQLiteUsageStore:
             rows = connection.execute(sql, params).fetchall()
         return [{"day": r[0], "label": r[1], "tokens": int(r[2])} for r in rows]
 
-    def daily_totals(self, *, days: int = 7) -> list[dict[str, Any]]:
-        where, params = self._since_clause(days, False)
+    def daily_totals(self, *, days: int = 7, mtd: bool = False) -> list[dict[str, Any]]:
+        where, params = self._since_clause(days, mtd)
         with sqlite3.connect(self.path) as connection:
             rows = connection.execute(
                 f"""SELECT substr(created_at, 1, 10) AS day, SUM(total_tokens) AS tokens
@@ -133,8 +133,8 @@ class SQLiteUsageStore:
             ).fetchall()
         return [{"day": r[0], "tokens": int(r[1])} for r in rows]
 
-    def by_model(self, *, days: int = 7) -> list[dict[str, Any]]:
-        where, params = self._since_clause(days, False)
+    def by_model(self, *, days: int = 7, mtd: bool = False) -> list[dict[str, Any]]:
+        where, params = self._since_clause(days, mtd)
         with sqlite3.connect(self.path) as connection:
             rows = connection.execute(
                 f"""SELECT provider, model, SUM(total_tokens) AS tokens, COUNT(*) AS turns
@@ -147,8 +147,8 @@ class SQLiteUsageStore:
             for r in rows
         ]
 
-    def list_events(self, *, days: int = 7, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
-        where, params = self._since_clause(days, False)
+    def list_events(self, *, days: int = 7, limit: int = 100, offset: int = 0, mtd: bool = False) -> list[dict[str, Any]]:
+        where, params = self._since_clause(days, mtd)
         params.extend([limit, offset])
         with sqlite3.connect(self.path) as connection:
             rows = connection.execute(
@@ -173,8 +173,8 @@ class SQLiteUsageStore:
         )
         return [dict(zip(keys, row)) for row in rows]
 
-    def export_csv(self, *, days: int = 30) -> str:
-        events = self.list_events(days=days, limit=10_000, offset=0)
+    def export_csv(self, *, days: int = 30, mtd: bool = False) -> str:
+        events = self.list_events(days=days, limit=10_000, offset=0, mtd=mtd)
         buf = io.StringIO()
         writer = csv.DictWriter(buf, fieldnames=list(events[0].keys()) if events else ["created_at"])
         writer.writeheader()

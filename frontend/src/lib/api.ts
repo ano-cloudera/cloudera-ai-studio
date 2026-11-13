@@ -122,9 +122,9 @@ export const api = {
     const suffix = q.toString() ? `?${q}` : ''
     return request<UsageSummary>(`/usage/summary${suffix}`)
   },
-  usageEvents: (days = 7, limit = 50) =>
-    request<{ events: import('../types/api').UsageEvent[] }>(`/usage/events?days=${days}&limit=${limit}`),
-  usageExportCsvUrl: (days = 30) => `/api/usage/export.csv?days=${days}`,
+  usageEvents: (days = 7, limit = 50, mtd = false) =>
+    request<{ events: import('../types/api').UsageEvent[] }>(`/usage/events?days=${days}&limit=${limit}${mtd ? '&mtd=true' : ''}`),
+  usageExportCsvUrl: (days = 30, mtd = false) => `/api/usage/export.csv?days=${days}${mtd ? '&mtd=true' : ''}`,
   listLibraries: () => request<{ libraries: LibraryRecord[] }>('/v1/libraries'),
   listLibrariesPaginated: (params: {
     page?: number
