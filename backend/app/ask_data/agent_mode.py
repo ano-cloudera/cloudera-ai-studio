@@ -696,6 +696,7 @@ class AskDataAgent:
         coverage = coverage_label(known_coverage(), language)
         run_id = uuid.uuid4().hex[:8]
         calls: list[agent_tools.Call] = []
+        outcome: dict[str, Any] = {}
         # The actions the user could approve (MCP tools that change something) are listed while the agent explores.
         lister = getattr(self._chat, "agent_actions", None)
         actions_task = asyncio.create_task(lister()) if callable(lister) else None
@@ -711,8 +712,13 @@ class AskDataAgent:
             data_coverage=coverage,
             session_prefix=f"agent-{run_id}",
             calls=calls,
+            outcome=outcome,
         ):
             yield event
+        if outcome.get("clarify"):
+            # A choice only the user can make: asked back, each option a full question that is sent when clicked.
+            yield {"type": "done", "response": self._clarification(request, prepared, question, outcome["clarify"], started)}
+            return
         ran = [c for c in calls if not c.problems and c.response is not None]
         if not any(c.ok and c.is_data for c in ran):
             logger.warning("agent_fallback reason=no_query_answered calls=%s", [(c.call.tool, c.problems[:1], getattr(c.response, "status", None)) for c in calls])
@@ -771,6 +777,33 @@ class AskDataAgent:
             remember(prepared, question, response, frame)
         logger.info("agent_tools_done calls=%s shown=%s unverified=%s seconds=%.1f", len(calls), shown, unverified, perf_counter() - started)
         yield {"type": "done", "response": response}
+
+    def _clarification(self, request: AskDataRequest, prepared: AskDataRequest, question: str, clarify: dict[str, Any], started: float) -> AskDataResponse:
+        analysis = AnalysisOutput(
+            direct_answer=clarify["question"],
+            executive_summary="",
+            insights=[],
+            business_implications=[],
+            caveats=[],
+            data_reference="",
+            follow_up_questions=list(clarify["options"]),
+        )
+        response = AskDataResponse(
+            request_id=str(uuid.uuid4()),
+            session_id=request.session_id,
+            status="SUCCESS",
+            provider=prepared.provider,
+            model=prepared.model,
+            strategy="agent",
+            answer=analysis,
+            data=QueryData(),
+            chart_spec=None,
+            timings=Timings(total_ms=round((perf_counter() - started) * 1000, 3)),
+            route="ask_data",
+        )
+        response = self._chat.finalize_response(response)
+        self._chat.record_turn(prepared, response, frame={"question": request.question.strip(), "standalone_question": question})
+        return response
 
     def _step_frames(self, run_id: str, count: int, shown: int | None, *, request: AskDataRequest, question: str) -> dict[str, Any] | None:
         """The turn memory of the step whose table is shown, so a follow-up ("and per carrier?") continues it; the

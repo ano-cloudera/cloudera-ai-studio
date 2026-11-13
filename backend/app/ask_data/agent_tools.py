@@ -55,10 +55,28 @@ class MetricQuery(_Lenient):
     limit: int | None = None
 
 
+class CompareSpec(_Lenient):
+    """Two periods of one metric, or two or three metrics, side by side by the same breakdown: each side is one governed
+    query, and code joins them and works out the change."""
+
+    mode: Literal["periods", "metrics"] = "periods"
+    metric: str = Field(default="", description="periods: the metric compared.")
+    metrics: list[str] = Field(default_factory=list, description="metrics: two or three metric names from the catalog.")
+    breakdown: list[str] = Field(default_factory=list)
+    filters: list[IntentFilter] = Field(default_factory=list)
+    period_a_start: str | None = None
+    period_a_end: str | None = None
+    period_b_start: str | None = None
+    period_b_end: str | None = None
+    period_start: str | None = Field(default=None, description="metrics: the period for every metric, or null for all data.")
+    period_end: str | None = None
+
+
 class ToolCall(_Lenient):
-    tool: Literal["query_metric", "search_documents"]
+    tool: Literal["query_metric", "compare", "search_documents"]
     why: str = Field(default="", description="A short phrase in the question's language, shown to the user while the call runs.")
     query: MetricQuery | None = None
+    compare: CompareSpec | None = None
     search: str = ""
 
 
@@ -66,6 +84,9 @@ class AgentTurn(_Lenient):
     thought: str = ""
     calls: list[ToolCall] = Field(default_factory=list)
     done: bool = False
+    # Asked only before any call, when no sensible default can stand in for a choice the user must make.
+    clarify_question: str = ""
+    clarify_options: list[str] = Field(default_factory=list)
 
 
 class ProposedAction(_Lenient):
@@ -93,6 +114,7 @@ class Call:
         self.frame: dict[str, Any] | None = None
         self.problems: list[str] = []
         self.seconds = 0.0
+        self.compare_overall: dict[str, float] = {}  # a comparison's overall value of each side
 
     @property
     def ok(self) -> bool:
@@ -100,13 +122,15 @@ class Call:
 
     @property
     def is_data(self) -> bool:
-        return self.call.tool == "query_metric"
+        return self.call.tool in ("query_metric", "compare")
 
     def label(self) -> str:
         if self.call.why.strip():
             return " ".join(self.call.why.split())[:120]
         if self.call.query is not None:
             return self.call.query.metric
+        if self.call.compare is not None:
+            return " vs ".join(self.call.compare.metrics) or self.call.compare.metric
         return self.call.search[:120]
 
 
@@ -120,6 +144,8 @@ def _signature(call: ToolCall) -> str:
         q["breakdown"] = sorted(q["breakdown"])
         q["filters"] = sorted((f["dimension"], sorted(f["values"])) for f in q["filters"])
         return "q:" + json.dumps(q, sort_keys=True, default=str)
+    if call.tool == "compare" and call.compare is not None:
+        return "c:" + call.compare.model_dump_json()
     return "s:" + " ".join(call.search.casefold().split())
 
 
@@ -141,6 +167,8 @@ def observation(item: Call) -> dict[str, Any]:
     base: dict[str, Any] = {"id": item.index, "tool": item.call.tool, "why": item.label()}
     if item.call.tool == "query_metric" and item.call.query is not None:
         base["query"] = item.call.query.model_dump(exclude_defaults=True)
+    if item.call.tool == "compare" and item.call.compare is not None:
+        base["compare"] = item.call.compare.model_dump(exclude_defaults=True)
     if item.problems:
         return {**base, "status": "invalid", "problems": item.problems}
     response = item.response
@@ -175,6 +203,8 @@ def observation(item: Call) -> dict[str, Any]:
     computed = computed_figures(rows, data.overall_value, additive=is_additive({"expression": data.governed_metric_expression or ""}))
     if computed:
         out["computed"] = computed
+    if item.compare_overall:
+        out["overall_values"] = item.compare_overall  # each side over all groups, from the governed query
     if data.overall_value is not None:
         out["overall_value"] = data.overall_value
         filters = list(response.calculation.filters) if response.calculation and response.calculation.filters else []
@@ -198,10 +228,86 @@ def _allowed_figures(calls: list[Call], context: str) -> set[float]:
             continue
         shown = observation(item)
         rows = list(shown.get("rows") or [])
-        extras = _numbers(shown.get("overall_value")) + _numbers(shown.get("computed") or {})
+        extras = _numbers(shown.get("overall_value")) + _numbers(shown.get("computed") or {}) + _numbers(shown.get("overall_values") or {})
         additive = is_additive({"expression": item.response.data.governed_metric_expression or ""})
         allowed |= allowed_figures(rows or [{}], context, extras, means=additive)
     return allowed
+
+
+def _group_key(row: dict[str, Any]) -> tuple:
+    return tuple((k, row[k]) for k in sorted(row) if not str(k).startswith("metric_value"))
+
+
+async def _run_compare(chat: Any, request: AskDataRequest, item: Call, language: str) -> None:
+    """Each side is one governed query (ChatService.query_metric); code joins the rows by their groups and adds the change, so
+    the agent never works out a difference itself. The joined table becomes this call's result."""
+    spec = item.call.compare
+    lang = "id" if language == "id" else "en"
+    if spec is None:
+        item.problems = ["compare needs a `compare` object"]
+        return
+    if spec.mode == "periods":
+        if not spec.metric or not (spec.period_a_start and spec.period_a_end and spec.period_b_start and spec.period_b_end):
+            item.problems = ["compare periods needs `metric` and both periods (period_a_start/end, period_b_start/end)"]
+            return
+        sides = [
+            ("a", QueryIntent(metric=spec.metric, breakdown=spec.breakdown, filters=spec.filters, period_start=spec.period_a_start, period_end=spec.period_a_end, language=lang)),
+            ("b", QueryIntent(metric=spec.metric, breakdown=spec.breakdown, filters=spec.filters, period_start=spec.period_b_start, period_end=spec.period_b_end, language=lang)),
+        ]
+    else:
+        names = list(dict.fromkeys(spec.metrics))[:3]
+        if len(names) < 2:
+            item.problems = ["compare metrics needs two or three names in `metrics`"]
+            return
+        sides = [(name, QueryIntent(metric=name, breakdown=spec.breakdown, filters=spec.filters, period_start=spec.period_start, period_end=spec.period_end, language=lang)) for name in names]
+    results = await asyncio.gather(*(chat.query_metric(request, intent, label=f"{item.label()} ({side})") for side, intent in sides))
+    problems = [f"{side}: {p}" for (side, _), (_r, _f, ps) in zip(sides, results) for p in ps]
+    if problems:
+        item.problems = problems
+        return
+    responses = [r for r, _f, _p in results]
+    if any(r is None or r.status not in ("SUCCESS", "NO_DATA") for r in responses):
+        item.response = next((r for r in responses if r is not None and r.status not in ("SUCCESS", "NO_DATA")), None)
+        return
+    first = responses[0]
+    labels = dict(first.data.column_labels or {})
+    joined: dict[tuple, dict[str, Any]] = {}
+    columns = [c for c in first.data.columns if c != "metric_value"]
+    value_columns: list[str] = []
+    for (side, intent), response in zip(sides, responses):
+        column = f"value_{side}"
+        value_columns.append(column)
+        name = (response.data.column_labels or {}).get("metric_value") or intent.metric
+        labels[column] = f"{name} ({intent.period_start} to {intent.period_end})" if spec.mode == "periods" else name
+        for row in response.data.rows:
+            key = _group_key(row)
+            joined.setdefault(key, {k: v for k, v in row.items() if not str(k).startswith("metric_value")})[column] = row.get("metric_value")
+    rows = list(joined.values())
+    extra_columns: list[str] = []
+    if spec.mode == "periods":
+        for row in rows:
+            a, b = row.get("value_a"), row.get("value_b")
+            if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+                row["change"] = round(b - a, 4)
+                row["change_pct"] = round((b - a) / abs(a) * 100, 2) if a else None
+        extra_columns = ["change", "change_pct"]
+        labels.update(change="Change", change_pct="Change (%)")
+        rows.sort(key=lambda r: abs(r.get("change") or 0), reverse=True)
+    overall = {column: r.data.overall_value for column, r in zip(value_columns, responses) if r.data.overall_value is not None}
+    data = first.data.model_copy(update={
+        "columns": columns + value_columns + extra_columns,
+        "rows": rows,
+        "row_count": len(rows),
+        "column_labels": labels,
+        "overall_value": None,
+    })
+    item.response = first.model_copy(update={
+        "status": "SUCCESS" if rows else "NO_DATA",
+        "data": data,
+        "chart_spec": None,
+        "governed_sql": "\n\n".join(r.governed_sql or "" for r in responses).strip() or None,
+    })
+    item.compare_overall = overall
 
 
 async def _run_call(chat: Any, request: AskDataRequest, item: Call, *, library_ids: list[str], language: str, session_prefix: str) -> Call:
@@ -214,6 +320,8 @@ async def _run_call(chat: Any, request: AskDataRequest, item: Call, *, library_i
             else:
                 intent = QueryIntent(**call.query.model_dump(), language="id" if language == "id" else "en")
                 item.response, item.frame, item.problems = await chat.query_metric(request, intent, label=item.label())
+        elif call.tool == "compare":
+            await _run_compare(chat, request, item, language)
         elif not library_ids:
             item.problems = ["no documents are available"]
         else:
@@ -263,8 +371,10 @@ async def explore(
     data_coverage: str | None,
     session_prefix: str,
     calls: list[Call],
+    outcome: dict[str, Any] | None = None,
 ) -> AsyncIterator[dict[str, Any]]:
-    """The tool loop. Progress events are yielded; the executed calls are appended to `calls`."""
+    """The tool loop. Progress events are yielded; the executed calls are appended to `calls`. When the agent needs a choice
+    only the user can make, `outcome["clarify"]` holds its question and options and the loop stops before any query."""
     labels = _labels()
     payload: dict[str, Any] = {
         "question": question,
@@ -293,6 +403,11 @@ async def explore(
             logger.exception("agent_turn_failed turn=%s", turn_number)
             return
         logger.info("agent_turn turn=%s thought=%r calls=%s done=%s", turn_number, turn.thought[:300], len(turn.calls), turn.done)
+        options = [" ".join(o.split()) for o in turn.clarify_options if o.strip()][:3]
+        if turn_number == 1 and not turn.calls and turn.clarify_question.strip() and len(options) >= 2 and outcome is not None:
+            outcome["clarify"] = {"question": " ".join(turn.clarify_question.split()), "options": options}
+            logger.info("agent_clarify question=%r options=%s", outcome["clarify"]["question"][:200], len(options))
+            return
         if turn.thought.strip() and turn.calls:
             # What the agent concluded and checks next, shown as it works (the way Genie shows its reasoning).
             yield {"type": "progress", "stage": "agent_plan", "label": " ".join(turn.thought.split())[:240]}

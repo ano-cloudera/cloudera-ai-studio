@@ -243,3 +243,63 @@ def test_the_mean_of_group_rates_is_not_a_valid_comparison_point_but_the_mean_of
     assert figures_outside(["The regional average is 25.3%."], allowed) == ["25.3"]  # the mean of two rates
     assert figures_outside(["Average volume per region is 150.6 KL."], allowed) == []  # the mean of volumes adds up
     assert figures_outside(["A is 30.5%, B is 20.1%."], allowed) == []
+
+
+def test_compare_joins_two_governed_periods_and_works_out_the_change(monkeypatch) -> None:
+    from app.ask_data import value_filters
+
+    value_filters.clear_cache()
+
+    class Comparing(AgentModel):
+        def __init__(self, periods) -> None:
+            super().__init__(wrong_figure_first=False)
+            self.periods = periods
+            self.seen: dict = {}
+
+        async def generate_structured(self, messages, model, **kwargs):
+            if model.__name__ == "AgentTurn":
+                self.calls.append("AgentTurn")
+                if sum(1 for m in messages if m["role"] == "assistant") == 0:
+                    a, b, c = self.periods
+                    return model.model_validate({"calls": [{"tool": "compare", "why": "Kurir: paruh pertama vs kedua", "compare": {
+                        "mode": "periods", "metric": "late_delivery_rate", "breakdown": [CARRIER],
+                        "period_a_start": a, "period_a_end": b, "period_b_start": b, "period_b_end": c}}]})
+                self.seen = json.loads(messages[-1]["content"])
+                return model.model_validate({"done": True})
+            if model.__name__ == "AgentReport":
+                self.calls.append("AgentReport")
+                return model.model_validate({"headline": "Perbandingan kurir.", "body": "", "show": 1})
+            return await super().generate_structured(messages, model, **kwargs)
+
+    probe = Replay(monkeypatch, AgentModel())
+    first, last = probe.executor.con.execute("SELECT MIN(CAST(ship_date AS DATE)), MAX(CAST(ship_date AS DATE)) FROM delivery_shipments").fetchone()
+    middle = first + (last - first) / 2
+    periods = (first.isoformat(), middle.isoformat(), (last + __import__("datetime").timedelta(days=1)).isoformat())
+    replay = Replay(monkeypatch, Comparing(periods))
+    response, _ = _run(replay)
+    card = response.agent_steps[0]
+    assert card.tool == "compare" and card.status == "ok" and {"value_a", "value_b", "change", "change_pct"} <= set(card.columns)
+    row = card.rows[0]
+    assert abs(row["change"] - (row["value_b"] - row["value_a"])) < 1e-3  # worked out by code (rounded), not the model
+    assert card.sql and card.sql.count("SELECT") >= 2  # two governed queries, one per period
+    assert response.data.row_count == len({r[CARRIER] for r in card.rows}) or response.data.row_count >= 2
+
+
+def test_the_agent_asks_back_when_only_the_user_can_choose_and_runs_no_query(monkeypatch) -> None:
+    from app.ask_data import value_filters
+
+    value_filters.clear_cache()
+
+    class Asking(AgentModel):
+        async def generate_structured(self, messages, model, **kwargs):
+            if model.__name__ == "AgentTurn":
+                self.calls.append("AgentTurn")
+                return model.model_validate({"clarify_question": "Dibandingkan dengan periode mana?", "clarify_options": [
+                    "Bandingkan keterlambatan Juni 2026 dengan Mei 2026", "Bandingkan keterlambatan 2026 dengan 2025"]})
+            return await super().generate_structured(messages, model, **kwargs)
+
+    replay = Replay(monkeypatch, Asking())
+    response, _ = _run(replay)
+    assert response.strategy == "agent" and response.answer.direct_answer == "Dibandingkan dengan periode mana?"
+    assert response.answer.follow_up_questions == ["Bandingkan keterlambatan Juni 2026 dengan Mei 2026", "Bandingkan keterlambatan 2026 dengan 2025"]
+    assert not [q for q in replay.executor.queries if "metric_value" in q] and "AgentReport" not in replay.model.calls  # no metric was queried
