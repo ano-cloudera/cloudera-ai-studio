@@ -57,8 +57,16 @@ applications:
       EMBEDDING_MODEL: /home/cdsw/models/bge-m3
       HF_HUB_OFFLINE: "1"
       APP_STARTUP_TIMEOUT_MINUTES: "10"
+      # The language model reads each data question against the published model (16 of 16 paraphrases, against 9 of 16 for
+      # the keyword reader); a project value of ASK_DATA_UNDERSTANDING still wins.
+      ASK_DATA_UNDERSTANDING: llm
     forward_env:
       - STUDIO_API_TOKEN
+      - ASK_DATA_UNDERSTANDING
+      - ANSWER_CACHE
+      - ANSWER_CACHE_TTL_SECONDS
+      - AGENT_LOOP
+      - AGENT_ANSWERS_ALL
       - RERANKER_PROVIDER
       - RERANKER_MODEL
       - RETRIEVAL_TOP_K

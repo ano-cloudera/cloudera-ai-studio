@@ -303,3 +303,30 @@ def test_the_agent_asks_back_when_only_the_user_can_choose_and_runs_no_query(mon
     assert response.strategy == "agent" and response.answer.direct_answer == "Dibandingkan dengan periode mana?"
     assert response.answer.follow_up_questions == ["Bandingkan keterlambatan Juni 2026 dengan Mei 2026", "Bandingkan keterlambatan 2026 dengan 2025"]
     assert not [q for q in replay.executor.queries if "metric_value" in q] and "AgentReport" not in replay.model.calls  # no metric was queried
+
+
+def test_with_agent_all_a_plain_data_question_is_answered_by_the_agent_and_without_it_is_not(monkeypatch) -> None:
+    from app.ask_data import value_filters
+
+    value_filters.clear_cache()
+    question = "Late delivery rate per carrier"
+
+    class Narrow(AgentModel):
+        async def generate_structured(self, messages, model, **kwargs):
+            if model.__name__ == "AgentTurn":
+                self.calls.append("AgentTurn")
+                if sum(1 for m in messages if m["role"] == "assistant") == 0:
+                    return model.model_validate({"calls": [_late([CARRIER], why="Per kurir")]})
+                return model.model_validate({"done": True})
+            if model.__name__ == "AgentReport":
+                self.calls.append("AgentReport")
+                return model.model_validate({"headline": "NusaCargo paling sering terlambat.", "body": "", "show": 1})
+            return await super().generate_structured(messages, model, **kwargs)
+
+    replay = Replay(monkeypatch, Narrow())
+    request = AskDataRequest(session_id=replay.session_id, question=question, provider="qwen", model="m", agent_all=True)
+    response = asyncio.run(AskDataAgent(replay.service).run(request))
+    assert response is not None and response.strategy == "agent" and response.data.governed_metric == "late_delivery_rate"
+    assert replay.model.calls.count("AgentTurn") == 2  # one query, then done: a narrow question stays short
+    off = AskDataRequest(session_id="other", question=question, provider="qwen", model="m", agent_all=False)
+    assert asyncio.run(AskDataAgent(replay.service).run(off)) is None  # the governed pipeline answers it

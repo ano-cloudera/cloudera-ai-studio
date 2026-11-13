@@ -493,6 +493,8 @@ class AskDataAgent:
             return None, history
         question = (reading.standalone_question if reading else "") or request.question
         wanted = (reading is not None and reading.kind == "analysis") or is_open_question(question) or is_open_question(request.question)
+        if not wanted and reading is not None and reading.kind == "data" and self._answers_all(request):
+            wanted = True  # one agent for every data question; a narrow one takes a single query and a short answer
         if not wanted:
             return None, history
         logger.info("agent_mode_taken kind=%s question=%r", getattr(reading, "kind", None), question[:200])
@@ -674,6 +676,13 @@ class AskDataAgent:
         if callable(remember):
             remember(prepared, question, response, frame)
         yield {"type": "done", "response": response}
+
+    def _answers_all(self, request: AskDataRequest) -> bool:
+        from app.core.config import get_settings
+
+        if request.agent_all is not None:
+            return bool(request.agent_all) and self._uses_tools(request)
+        return bool(getattr(get_settings(), "agent_answers_all", False)) and self._uses_tools(request)
 
     def _uses_tools(self, request: AskDataRequest) -> bool:
         loop = getattr(self._chat, "agent_loop", None)

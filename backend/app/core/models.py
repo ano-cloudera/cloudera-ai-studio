@@ -149,6 +149,8 @@ class AskDataRequest(StrictModel):
     understanding: Literal["rules", "llm"] | None = None
     # "tools" or "plan" for this request only (the judge compares both); empty uses the AGENT_LOOP setting.
     agent_loop: Literal["tools", "plan"] | None = None
+    # True for this request only: the agent answers every data question (AGENT_ANSWERS_ALL); the judge compares both.
+    agent_all: bool | None = None
 
 
 class QueryData(StrictModel):

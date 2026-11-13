@@ -1,7 +1,8 @@
 name: Anywhere AI Studio
 description: >-
-  Governed credit risk intelligence: ask questions of Trino data through a governed semantic layer,
-  answer from policy documents with page-level citations, and call an approval-likelihood model through MCP.
+  Governed analytics with an analyst agent: ask questions of your warehouse through a published semantic layer, let an agent
+  investigate why and recommend what to do, see the figures the model marks as important on a Home page, and answer from
+  documents with page-level citations. Actions through MCP run only after a person approves them.
 author: Cloudera
 date: "2026-10-30"
 specification_version: 1.0

@@ -111,9 +111,10 @@ to save a variable with an empty value.
 | `ENABLE_VLLM` | You serve your own model ([PoC guide](docs/POC-GUIDE.md#optional-vllm-your-own-model-on-a-gpu)) | `true` |
 | `ENABLE_RERANKER` | Knowledge search over many or similar documents ([PoC guide](docs/POC-GUIDE.md#better-knowledge-search-optional-reranker)); adds a download of about 2 GB and raises the Backend to 16 GB | `true` |
 | `TRINO_CATALOG`, `TRINO_SCHEMA` | Your tables are not in `hive` / `default` | `hive`, `default` |
-| `ASK_DATA_UNDERSTANDING` | You want the language model to read each data question against the published model (metric, breakdown, filters, period), checked by code. Add it to `AMP_FORWARD_ENV` too | `llm` (default `rules`) |
-| `AGENT_LOOP` | `tools` (default) lets the agent query governed metrics as tools in a loop (look at each result, drill into what stands out, one report shaped by the question with its figures checked, proposed MCP actions); `plan` plans its steps once and runs each as a whole question. Add it to `AMP_FORWARD_ENV` too | `plan` to go back |
-| `ANSWER_CACHE` | `first` serves a recent answer to a repeated question at once (warm the demo questions by asking them once); `fallback` (default) answers live and serves the last answer only when the data source is down; `off` keeps nothing. Add it to `AMP_FORWARD_ENV` too | `first` |
+| `ASK_DATA_UNDERSTANDING` | How each data question is read: `llm` (the AMP's default) reads it against the published model (metric, breakdown, filters, period), checked by code; `rules` is the keyword reader | `llm` |
+| `AGENT_LOOP` | `tools` (default) lets the agent query governed metrics as tools in a loop (look at each result, drill into what stands out, compare periods or metrics, ask back when only you can choose, one report shaped by the question with its figures checked, proposed MCP actions); `plan` plans its steps once and runs each as a whole question | `plan` to go back |
+| `AGENT_ANSWERS_ALL` | `true` lets the agent answer every data question, not only analysis questions (a narrow one takes one query and a short answer). Run both judges with `--agent-all` before turning it on | `false` (default) |
+| `ANSWER_CACHE` | `first` serves a recent answer to a repeated question at once (warm the demo questions by asking them once); `fallback` (default) answers live and serves the last answer only when the data source is down; `off` keeps nothing | `first` |
 | `AMP_SUBDOMAIN_PREFIX` | Another `anywhere-*` Application already exists in the workspace (set before the first deploy) | `anywhere2` |
 
 For `AMP_FORWARD_ENV`, also add each listed name as its own variable; the Data Source then refers to it as `env://NAME`.

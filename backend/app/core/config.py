@@ -305,6 +305,12 @@ class Settings(BaseSettings):
         default=True,
         description="Split open questions (why, what should we do) into steps that each run through governed Ask Data, then write one report.",
     )
+    agent_answers_all: bool = Field(
+        default=False,
+        validation_alias="AGENT_ANSWERS_ALL",
+        description="One agent for every data question (a narrow one takes one query and a short answer), not only for "
+        "analysis questions; the conversation reader still sends greetings to chat. Off: the governed pipeline answers data questions.",
+    )
     agent_loop: str = Field(
         default="tools",
         validation_alias="AGENT_LOOP",

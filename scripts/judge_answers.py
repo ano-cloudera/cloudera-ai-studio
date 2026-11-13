@@ -216,7 +216,8 @@ def done_response(lines: Any) -> dict[str, Any]:
 
 
 def http_ask(
-    base_url: str, provider: str, model: str, understanding: str | None = None, *, stream: bool = True, agent_loop: str | None = None
+    base_url: str, provider: str, model: str, understanding: str | None = None, *, stream: bool = True, agent_loop: str | None = None,
+    agent_all: bool = False,
 ) -> Callable[[str, str], dict[str, Any]]:
     """Asks the way the UI does (/chat/stream) unless `stream` is False (/chat): the two entry points have differed before."""
 
@@ -226,6 +227,8 @@ def http_ask(
             body["understanding"] = understanding  # "llm" or "rules" for this run, whatever the Backend's default is
         if agent_loop:
             body["agent_loop"] = agent_loop  # "tools" or "plan" for this run, whatever AGENT_LOOP is
+        if agent_all:
+            body["agent_all"] = True  # the agent answers every data question in this run, whatever AGENT_ANSWERS_ALL is
         path = "/chat/stream" if stream else "/chat"
         request = urllib.request.Request(
             f"{base_url.rstrip('/')}{path}", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}, method="POST"
@@ -261,8 +264,12 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--out", help="write every answer and check as JSON, to send back for review")
     parser.add_argument("--understanding", choices=("rules", "llm"), help="how the Backend reads each question for this run (default: its own setting)")
     parser.add_argument("--agent-loop", choices=("tools", "plan"), help="how the agent works for this run (default: the Backend's AGENT_LOOP)")
+    parser.add_argument("--agent-all", action="store_true", help="let the agent answer every data question in this run (AGENT_ANSWERS_ALL)")
     parser.add_argument("--no-stream", action="store_true", help="ask through /chat instead of /chat/stream (the UI uses the stream)")
     args, _ = parser.parse_known_args(argv)  # the IPython kernel that runs CAI jobs adds '-f <kernel.json>'
+    if args.agent_all:
+        # The agent answers the data questions too: their route is the agent; metric, rows and figures are still checked.
+        _ROUTES["data"] = _ROUTES["data"] | {"agent"}
     base_url = args.base_url or default_base_url(dict(os.environ))
     if not base_url:
         print("Pass --base-url (the Backend URL with its secret), or run this inside a Cloudera AI project.", file=sys.stderr)
@@ -281,7 +288,7 @@ def main(argv: list[str]) -> int:
         + (f"  understanding: {args.understanding}" if args.understanding else "")
         + (f"  agent: {args.agent_loop}" if args.agent_loop else "")
     )
-    result = run_conversation(http_ask(base_url, *selection, args.understanding, stream=not args.no_stream, agent_loop=args.agent_loop), cases)
+    result = run_conversation(http_ask(base_url, *selection, args.understanding, stream=not args.no_stream, agent_loop=args.agent_loop, agent_all=args.agent_all), cases)
     result["understanding"] = args.understanding or "backend default"
     result["agent_loop"] = args.agent_loop or "backend default"
     result["model"] = {"provider": selection[0], "id": selection[1]}
