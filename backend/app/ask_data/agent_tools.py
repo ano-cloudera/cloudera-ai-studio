@@ -226,9 +226,9 @@ async def _run_call(chat: Any, request: AskDataRequest, item: Call, *, library_i
     return item
 
 
-def _labels(language: str) -> dict[str, str]:
-    if language == "id":
-        return {"think": "Menganalisis", "run": "Memeriksa: {what}", "done": "{what}: {result} ({s} dtk)", "rows": "{n} baris", "invalid": "diperbaiki", "none": "tidak ada data", "failed": "gagal", "report": "Menyusun jawaban"}
+def _labels() -> dict[str, str]:
+    """The fixed words of the progress lines are the app's own, so they are in the app's language (English); the model's own
+    phrases (its reasoning, what each check is for) follow the language of the question."""
     return {"think": "Analysing", "run": "Checking: {what}", "done": "{what}: {result} ({s} s)", "rows": "{n} rows", "invalid": "being corrected", "none": "no data", "failed": "failed", "report": "Writing the answer"}
 
 
@@ -259,7 +259,7 @@ async def explore(
     calls: list[Call],
 ) -> AsyncIterator[dict[str, Any]]:
     """The tool loop. Progress events are yielded; the executed calls are appended to `calls`."""
-    labels = _labels(language)
+    labels = _labels()
     payload: dict[str, Any] = {
         "question": question,
         "language": language,

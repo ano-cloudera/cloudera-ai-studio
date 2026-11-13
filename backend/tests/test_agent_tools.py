@@ -108,7 +108,7 @@ def test_the_agent_queries_looks_drills_and_writes_one_report(replay) -> None:
     assert response.data.row_count > 1 and response.chart_spec is not None  # the drill the report chose to show
     assert response.calculation.kind == "agent" and len(response.calculation.steps) == 3  # the invalid call is not a step
     labels = [e["label"] for e in events if e["type"] == "progress"]
-    assert "Memeriksa: Keterlambatan per regional" in labels and any(l.startswith("Kurir di Kalimantan Timur:") for l in labels)
+    assert "Checking: Keterlambatan per regional" in labels and any(l.startswith("Kurir di Kalimantan Timur:") for l in labels)
     assert replay.service.history.load(replay.session_id)[-1]["session_frame"]["metric"] == "late_delivery_rate"  # a follow-up continues it
 
 

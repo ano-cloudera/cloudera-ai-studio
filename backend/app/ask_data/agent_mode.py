@@ -73,9 +73,8 @@ def _headline_metrics(catalog: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted((m for m in catalog if m.get("name") and m.get("headline")), key=lambda m: int(m["headline"]))
 
 
-def _labels(language: str) -> dict[str, str]:
-    if language == "id":
-        return {"plan": "Merencanakan analisis", "step": "Langkah {i} dari {n}: {what}", "done": "Langkah {i} dari {n} selesai ({s} dtk)", "report": "Menyusun jawaban"}
+def _labels() -> dict[str, str]:
+    """The fixed words of the progress lines are the app's own, so they are in the app's language (English)."""
     return {"plan": "Planning the analysis", "step": "Step {i} of {n}: {what}", "done": "Step {i} of {n} done ({s} s)", "report": "Writing the report"}
 
 
@@ -542,7 +541,7 @@ class AskDataAgent:
             return
         started = perf_counter()
         language = detect_language(request.question)
-        labels = _labels(language)
+        labels = _labels()
         catalog: list[dict[str, Any]] = []
         question = None
         try:
@@ -718,7 +717,7 @@ class AskDataAgent:
         if not any(c.ok and c.is_data for c in ran):
             logger.warning("agent_fallback reason=no_query_answered calls=%s", [(c.call.tool, c.problems[:1], getattr(c.response, "status", None)) for c in calls])
             return
-        yield {"type": "progress", "stage": "agent_report", "label": _labels(language)["report"]}
+        yield {"type": "progress", "stage": "agent_report", "label": _labels()["report"]}
         action_tools: list[dict[str, Any]] = []
         if actions_task is not None:
             try:
