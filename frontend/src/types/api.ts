@@ -573,6 +573,8 @@ export type ChatResponse = {
     /** What the metric measures, as its author wrote it, and which way is good when declared: shown under a chart. */
     metric_description?: string | null
     metric_better?: 'up' | 'down' | null
+    /** The target the author declared for the metric, in its own unit. */
+    metric_target?: number | null
     data_coverage?: { first: string; last: string } | null
   }
   chart_spec: ChartSpec | null

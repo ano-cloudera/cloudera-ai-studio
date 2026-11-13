@@ -148,8 +148,13 @@ def computed_figures(rows: list[dict[str, Any]], overall: float | None = None, *
         if ordered[1][1]:
             out["ratio_highest_to_second"] = {"second": ordered[1][0], "ratio": round(high / ordered[1][1], 4)}
     if overall is not None:
-        picked = list(dict.fromkeys([*ordered[:3], ordered[-1]]))
-        out["difference_from_overall"] = [{"group": g, "difference": round(v - overall, 4)} for g, v in picked]
+        # Every group, not only the extremes: "the only one below", "both above" and "3 of 8" are counted here, never guessed.
+        shown = ordered[:30]
+        out["difference_from_overall"] = [{"group": g, "difference": round(v - overall, 4)} for g, v in shown]
+        above = [g for g, v in ordered if v > overall]
+        below = [g for g, v in ordered if v < overall]
+        out["above_overall"] = {"count": len(above), "of": len(ordered), "groups": above[:30]}
+        out["below_overall"] = {"count": len(below), "of": len(ordered), "groups": below[:30]}
         if additive and overall:
             total = sum(v for _, v in values)
             if 0 <= total <= overall * 1.0001:

@@ -74,3 +74,17 @@ def test_what_several_rows_together_are_of_the_whole_is_derivable() -> None:
     rows = [{"p": "A", "metric_value": 714496}, {"p": "B", "metric_value": 574904}, {"p": "C", "metric_value": 447832}]
     assert unverified_figures(["Ketiganya sekitar 34,8% dari total."], rows, "", [4996168]) == []
     assert unverified_figures(["A sekitar 1,26 kali B."], rows, "", [4996168]) == ["1,26"]  # 1,24 is right; the check still catches it
+
+
+def test_every_group_is_placed_above_or_below_the_overall_value_so_only_and_both_are_counted_not_guessed() -> None:
+    from app.ask_data.answer_checks import computed_figures
+
+    # The rates by regional of the fuel sample: an answer said Jatimbalinus was the only one below 16.07, but five are.
+    regional = {"Papua Maluku": 34.54, "Kalimantan": 29.66, "Sulawesi": 19.45, "Sumbagut": 15.69, "Sumbagsel": 13.88, "Jawa Bagian Barat": 13.18, "Jawa Bagian Tengah": 11.84, "Jatimbalinus": 11.4}
+    out = computed_figures([{"regional": k, "metric_value": v} for k, v in regional.items()], 16.07)
+    assert out["above_overall"] == {"count": 3, "of": 8, "groups": ["Papua Maluku", "Kalimantan", "Sulawesi"]}
+    assert out["below_overall"]["count"] == 5 and "Sumbagut" in out["below_overall"]["groups"]
+    assert len(out["difference_from_overall"]) == 8  # every group, not only the extremes
+    # and by customer type: an answer said DODO and CODO were both above, but CODO is below
+    types = computed_figures([{"tipe": "SPBU_DODO", "metric_value": 19.53}, {"tipe": "SPBU_CODO", "metric_value": 14.95}, {"tipe": "SPBU_COCO", "metric_value": 9.22}], 16.07)
+    assert types["above_overall"]["groups"] == ["SPBU_DODO"] and types["below_overall"]["groups"] == ["SPBU_CODO", "SPBU_COCO"]

@@ -178,6 +178,12 @@ def _title_is_the_question(title: str | None, *questions: str) -> bool:
     return any(text == " ".join(q.casefold().split())[: len(text)] and len(text) > 20 for q in questions if q)
 
 
+def _titled(label: str, by: str | None, question: str) -> str:
+    """A chart's title in the words of the question: "Tingkat Keterlambatan per Regional", "Late rate by Region"."""
+    if not by:
+        return label
+    return f"{label} {'per' if detect_language(question) == 'id' else 'by'} {by}"
+
 def _metric_labels(deps: WorkflowDependencies) -> dict[str, str]:
     try:
         from app.ask_data.follow_up_suggestions import metric_labels
@@ -1203,7 +1209,7 @@ def build_workflow(deps: WorkflowDependencies):
                 from app.ask_data.column_labels import column_labels
 
                 by = column_labels([chart.x], semantic_context=deps.semantic_context, sql=str(state.get("validated_sql") or "")).get(chart.x)
-                label = f"{label} by {by}" if by else label
+                label = _titled(label, by, str(state.get("original_question") or state.get("question") or ""))
             if label:
                 chart = chart.model_copy(update={"title": label})
         if chart is not None:
@@ -1282,7 +1288,7 @@ def build_workflow(deps: WorkflowDependencies):
             label = _metric_labels(deps).get(str(resolution.get("metric") or "")) or str(state.get("question") or "")[:80]
             dims = [str(d) for d in resolution.get("dimensions") or []]
             by = column_labels(dims[-1:], semantic_context=deps.semantic_context, sql=str(state.get("validated_sql") or "")).get(dims[-1]) if dims else None
-            chart = infer_chart_spec_from_result(columns=columns_list, rows=rows, title=f"{label} by {by}" if by else label, question=str(state.get("question") or ""))
+            chart = infer_chart_spec_from_result(columns=columns_list, rows=rows, title=_titled(label, by, str(state.get("original_question") or state.get("question") or "")), question=str(state.get("question") or ""))
         answer = AnalysisOutput(
             direct_answer="",
             executive_summary="",

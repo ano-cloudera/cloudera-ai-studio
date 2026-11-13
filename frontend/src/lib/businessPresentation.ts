@@ -172,7 +172,7 @@ export function formatBusinessValue(field: string, value: unknown, metric?: stri
 
   if (resolvedUnit === 'percent') {
     const scaled = Math.abs(value) <= 1 && value !== 0 ? value * 100 : value
-    return `${scaled.toFixed(1)}%`
+    return `${scaled.toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
   }
   if (resolvedUnit === 'quantity' || resolvedUnit === 'count') return Math.round(value).toLocaleString('en-US')
   if (resolvedUnit === 'ratio') return value.toFixed(2)

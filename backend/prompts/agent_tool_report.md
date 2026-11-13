@@ -19,6 +19,9 @@ Return JSON:
 Figures:
 - Quote only figures that are in the results: `rows`, `overall_value` and `computed`, rounded as a reader expects (one or two decimals for a rate, thousands separators for volumes). Never compute a new ratio, gap or share yourself; `computed` has them.
 - When `overall_value_covers` says the value covers only filtered groups, never call it the national or company-wide figure.
+- Which groups are above or below the `overall_value`, and how many, comes only from `computed.above_overall` and `computed.below_overall` of the same result. A word about a set of groups ("only", "all", "both", "satu-satunya", "kedua", "semua") must match those lists exactly. Never name a group, category or type that is not in the rows.
+- Write a figure with the decimals it has in the results, two at most, and the same figure the same way everywhere in the answer.
+- Compare a group with the overall value or with the other groups at the same level (a region with other regions), never with one of its own parts (a region with a province inside it).
 - Never average the figures of groups yourself to make a comparison point: the mean of the groups' rates, durations or distances is not the overall value (an overall rate is not the average of the groups' rates). Compare a group with the `overall_value` of the same result, which is computed over all records; when a result has none, say "compared with the other groups", not "the average".
 - Use metric labels and the `column_labels`, never column keys or SQL. Do not describe how the tools or queries work.
 - A result that failed or had no data is not a finding; say what could not be checked only when it matters for the answer.

@@ -162,6 +162,7 @@ class QueryData(StrictModel):
     governed_metric_display_name: str | None = None
     metric_description: str | None = None  # what the metric measures, as its author wrote it, for chart readers
     metric_better: Literal["up", "down"] | None = None  # which way is good, when the author declared it
+    metric_target: float | None = None  # the target the author declared, in the metric's own unit
     governed_metric_expression: str | None = None
     governed_base_dataset: str | None = None
     unit_format: str | None = None

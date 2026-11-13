@@ -4,7 +4,7 @@ import { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'r
 import { chartMetric } from '../lib/chartMetric'
 import { answerSectionLabels } from '../lib/answerSectionLabels'
 import { ProposedActions } from '../components/ProposedActions'
-import { AgentSteps } from '../components/AgentSteps'
+import { FigureCallout, singleFigure } from '../components/FigureCallout'
 import { useSearchParams } from 'next/navigation'
 import { BarChart3, ChevronDown, Lightbulb, Table2 } from 'lucide-react'
 import { ContextAwareChatComposer } from '../components/chat/ContextAwareChatComposer'
@@ -100,7 +100,9 @@ import { useHydrated } from '../lib/useHydrated'
 
 const STARTER_QUESTION_COUNT = 3
 /** Findings shown in the chat bubble of a big answer; the rest are in the analysis panel. */
-const CHAT_TOP_INSIGHTS = 3
+const CHAT_TOP_INSIGHTS = 2
+/** Above this many categories a chart in the chat is unreadable; the panel shows the table, the map and the full chart. */
+const INLINE_CHART_MAX_ROWS = 15
 
 export function AskDataPage() {
   const searchParams = useSearchParams()
@@ -866,6 +868,7 @@ function StructuredAnswer({
   const presentation = answerPresentation(response)
   const presentationTier = computePresentationTier(response)
   const chatInlineEvidence = presentationTier === 1 || presentationTier === 2
+  const figure = singleFigure(response)
   const missingGovernedEvidence = response.status === 'SUCCESS' && response.strategy === 'governed' && !hasGovernedEvidence(response)
   const kpiField = response.chart_spec?.type === 'kpi' ? response.chart_spec.y || response.data.columns[0] : null
   const kpiValue = kpiField ? response.data.rows[0]?.[kpiField] : undefined
@@ -1046,6 +1049,8 @@ function StructuredAnswer({
     // A big answer keeps its story in the chat (the answer, what it means, the top findings); the full analysis,
     // the table and the chart stay in the panel behind the card.
     const answerText = response.answer.direct_answer.trim()
+    // A long category list (32 provinces) is a table or a map, not a chart to read in the chat: the panel has it.
+    const inlineChart = hasVisualChart && !ragProseOnly && response.data.rows.length <= INLINE_CHART_MAX_ROWS
     const topInsights = ragProseOnly ? [] : response.answer.insights.filter(item => item.trim()).slice(0, CHAT_TOP_INSIGHTS)
     const moreInsights = ragProseOnly ? 0 : Math.max(0, response.answer.insights.length - topInsights.length)
     return (
@@ -1053,12 +1058,15 @@ function StructuredAnswer({
         <section className="answer-surface space-y-3">
           {headerRow}
           {governedWarning}
-          <div className="space-y-2">
-            <AnswerProse text={answerText} omitTables={omitTablesInProse} variant="main" />
-            {showExecutiveSummary && (
-              <AnswerProse text={response.answer.executive_summary} omitTables={omitTablesInProse} variant="support" />
-            )}
-          </div>
+          <AnswerProse text={answerText} omitTables={omitTablesInProse} variant="main" />
+          {inlineChart && (
+            <div data-testid="chat-inline-chart">
+              <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded className="!mb-0" exportId={response.request_id} metric={chartMetric(response)} />
+            </div>
+          )}
+          {showExecutiveSummary && (
+            <AnswerProse text={response.answer.executive_summary} omitTables={omitTablesInProse} variant="support" />
+          )}
           {topInsights.length > 0 && (
             <ul className="answer-prose-secondary space-y-2" data-testid="chat-top-insights">
               {topInsights.map(item => (
@@ -1229,6 +1237,7 @@ function StructuredAnswer({
             omitTables={omitTablesInProse}
             variant={ragProseOnly && response.status === 'SUCCESS' ? 'secondary' : 'main'}
           />
+          {figure !== null && !ragProseOnly ? <FigureCallout response={response} value={figure} /> : null}
           {!chartFirst && showExecutiveSummary && !ragProseOnly && (
             <AnswerProse text={response.answer.executive_summary} omitTables={omitTablesInProse} variant="support" />
           )}

@@ -1058,6 +1058,11 @@ class ChatService:
                     raw_data["metric_description"] = description[:300]
                 if definition.get("better") in ("up", "down"):
                     raw_data["metric_better"] = definition["better"]
+                try:
+                    if definition.get("target") not in (None, ""):
+                        raw_data["metric_target"] = float(definition["target"])
+                except (TypeError, ValueError):
+                    pass
         if unit_format:
             raw_data["unit_format"] = str(unit_format)
         try:
