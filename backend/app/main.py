@@ -83,6 +83,12 @@ async def _lifespan(application: FastAPI):
         scan_and_enqueue_startup_recovery(settings)
     except Exception:
         logger.exception("knowledge ingestion startup recovery failed")
+    try:
+        from app.home.dashboard import warm_soon
+
+        warm_soon(chat_service)  # Home is computed before the first viewer opens it
+    except Exception:
+        logger.exception("home warm-up could not start")
     yield
 
 

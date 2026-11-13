@@ -82,3 +82,44 @@ def test_the_briefing_keeps_only_points_whose_figures_are_in_the_home_figures(re
     assert len(briefing["points"]) == 1 and "987" not in briefing["points"][0]
     assert briefing["ask_next"]
     assert replay.model.facts["kpis"][0]["series"]  # the model was given the figures, not asked to find them
+
+
+def test_home_is_served_from_disk_after_a_restart_and_refreshed_in_the_background_when_old(replay, monkeypatch, tmp_path) -> None:
+    import diskcache
+
+    dashboard._store = diskcache.Cache(str(tmp_path / "home"))  # the project storage
+
+    async def scenario():
+        first = await dashboard.build_home(replay.service, REQUEST)
+        ran = len(replay.executor.queries)
+        dashboard._memory.clear()  # a restart: the process memory is gone, the disk store is not
+        again = await dashboard.build_home(replay.service, REQUEST)
+        assert again == first and len(replay.executor.queries) == ran
+        key = dashboard._key(replay.service, "home")
+        kept = dashboard._read(replay.service, key)
+        dashboard._write(replay.service, key, kept["payload"])
+        monkeypatch.setattr(dashboard, "FRESH_SECONDS", -1)  # now everything kept counts as old
+        served = await dashboard.build_home(replay.service, REQUEST)
+        assert served == first  # served at once, not after the queries
+        await asyncio.gather(*list(dashboard._tasks))
+        assert len(replay.executor.queries) > ran  # and recomputed for the next viewer
+        assert dashboard._read(replay.service, key)["payload"]["computed_at"]
+
+    asyncio.run(scenario())
+
+
+def test_warm_computes_home_before_the_first_viewer(replay) -> None:
+    asyncio.run(dashboard.warm(replay.service))
+    ran = len(replay.executor.queries)
+    assert ran > 0
+    home = asyncio.run(dashboard.build_home(replay.service, REQUEST))
+    assert home["kpis"] and len(replay.executor.queries) == ran
+
+
+def test_a_kpi_carries_the_unit_its_metric_declares() -> None:
+    class Context:
+        def metric_definition(self, name):
+            return {"unit": "KL"} if name == "total_volume" else {}
+
+    chat = type("Chat", (), {"dependencies": type("D", (), {"semantic_context": Context()})()})()
+    assert dashboard._unit(chat, "total_volume") == "KL" and dashboard._unit(chat, "other") is None

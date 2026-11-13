@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from pydantic import Field
 from sqlalchemy.orm import Session
 
@@ -443,9 +443,17 @@ def delete_model(
     return result
 
 
+async def _warm_home(chat_service) -> None:
+    from app.home.dashboard import warm
+
+    await warm(chat_service)
+
+
 @router.post("/models/{model_id}/publish-to-ask-data")
 def publish_to_ask_data(
     model_id: uuid.UUID,
+    request: Request,
+    background: BackgroundTasks,
     body: PublishToAskDataRequest | None = None,
     session: Session = Depends(postgres_session),
     ctx=Depends(default_project_context),
@@ -471,6 +479,9 @@ def publish_to_ask_data(
         raise HTTPException(status_code=422, detail=result)
     if result.get("status") == "activation_failed":
         raise HTTPException(status_code=502, detail=result)
+    chat_service = getattr(request.app.state, "chat_service", None)
+    if chat_service is not None:
+        background.add_task(_warm_home, chat_service)  # the new version's Home is ready before anyone opens it
     return result
 
 
