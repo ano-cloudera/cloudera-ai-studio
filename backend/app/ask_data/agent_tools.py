@@ -369,6 +369,13 @@ async def write_report(
     ]
     report = await provider.generate_structured(messages, AgentReport, temperature=0.2, max_tokens=2200)
     rows, extras = _figure_rows_and_extras(calls)
+    # A figure quoted from a document (a threshold in the SOP) is as good as one from a query.
+    documents = " ".join(
+        " ".join([item.response.answer.direct_answer, *(c.snippet for c in (item.response.citations or []))])
+        for item in calls
+        if item.ok and not item.is_data and item.response is not None
+    )
+    question = f"{question} {documents}".strip()
     bad = unverified_figures([report.headline, report.body], rows, question, extras)
     if bad:
         logger.info("agent_report_figures_unverified figures=%s", bad)

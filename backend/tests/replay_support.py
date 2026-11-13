@@ -199,7 +199,8 @@ class Turn:
 class Replay:
     """One conversation: `ask` sends a question in the same session and returns the response."""
 
-    def __init__(self, monkeypatch: Any, model: Any = None) -> None:
+    def __init__(self, monkeypatch: Any, model: Any = None, *, agent_loop: str | None = None) -> None:
+        self.agent_loop = agent_loop  # 'plan' for a script written as the planner's steps
         from app.ask_data import datasource_router as router_module
         from app.ask_data.types import DatasourceExecutionContext
         from app.graph.workflow import WorkflowDependencies
@@ -246,7 +247,7 @@ class Replay:
     async def ask(self, question: str, *, agent: bool = False) -> Any:
         """`agent=True` sends the question the way the chat API does: to the agent first, then the normal pipeline."""
         before = len(self.executor.queries)
-        request = AskDataRequest(session_id=self.session_id, question=question, provider="qwen", model="/models/Qwen3.8-27B-AWQ")
+        request = AskDataRequest(session_id=self.session_id, question=question, provider="qwen", model="/models/Qwen3.8-27B-AWQ", agent_loop=self.agent_loop)  # type: ignore[arg-type]
         response = None
         if agent:
             from app.ask_data.agent_mode import AskDataAgent

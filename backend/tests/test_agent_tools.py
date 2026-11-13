@@ -184,3 +184,31 @@ def test_the_report_may_propose_actions_and_only_valid_ones_reach_the_user(monke
     assert replay.model.saw_tools
     assert [a.title for a in response.proposed_actions] == ["Buat tiket"]  # the invalid one never reaches the user
     assert response.proposed_actions[0].arguments["priority"] == "high"
+
+
+def test_a_figure_quoted_from_a_document_counts_as_found_but_a_made_up_one_does_not() -> None:
+    from app.ask_data import agent_tools
+    from app.core.models import AnalysisOutput, AskDataResponse, CitationRecord, QueryData, Timings
+
+    def response(rows, citations=None, text=""):
+        answer = AnalysisOutput(direct_answer=text, executive_summary="", insights=[], business_implications=[], caveats=[], data_reference="x")
+        return AskDataResponse(request_id="r", session_id="s", status="SUCCESS", provider="qwen", model="m", strategy="governed", answer=answer,
+                               data=QueryData(columns=["terminal", "metric_value"], rows=rows, row_count=len(rows)), chart_spec=None, timings=Timings(), citations=citations)
+
+    data = agent_tools.Call(1, agent_tools.ToolCall(tool="query_metric", query={"metric": "late"}))
+    data.response = response([{"terminal": "Sorong", "metric_value": 36.31}, {"terminal": "Wayame", "metric_value": 30.12}])
+    doc = agent_tools.Call(2, agent_tools.ToolCall(tool="search_documents", search="ambang"))
+    doc.response = response([], citations=[CitationRecord(document_id="d", filename="SOP.pdf", page_number=1, chunk_id="c", snippet="rute dengan jarak di atas 300 km dijadwalkan malam", score=0.9)], text="Level 2 di atas 30%.")
+
+    class Writer:
+        def __init__(self, body):
+            self.body = body
+
+        async def generate_structured(self, messages, model, **kwargs):
+            return model.model_validate({"headline": "Sorong 36,3%.", "body": self.body})
+
+    request = AskDataRequest(session_id="s", question="Apa yang harus dilakukan?", provider="qwen", model="m")
+    _, bad = asyncio.run(agent_tools.write_report(Writer("Jadwalkan malam untuk rute di atas 300 km."), request=request, question=request.question, language="id", calls=[data, doc], data_coverage=None))
+    assert bad == []
+    _, bad = asyncio.run(agent_tools.write_report(Writer("Turunkan ke 412 LO per minggu."), request=request, question=request.question, language="id", calls=[data, doc], data_coverage=None))
+    assert bad == ["412"]

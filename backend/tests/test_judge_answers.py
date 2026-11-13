@@ -85,7 +85,7 @@ async def test_the_pov_conversation_takes_the_right_route_metric_and_rows(monkey
             ]
         },
     )
-    replay = Replay(monkeypatch, model)
+    replay = Replay(monkeypatch, model, agent_loop="plan")  # the script gives the planner's steps
     report = []
     for turn in CASES["turns"]:
         response = await replay.ask(turn["question"], agent=True)

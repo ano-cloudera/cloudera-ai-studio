@@ -87,7 +87,7 @@ async def test_a_why_follow_up_is_investigated_and_the_next_follow_up_keeps_the_
             ]
         },
     )
-    replay = Replay(monkeypatch, model=model)
+    replay = Replay(monkeypatch, model=model, agent_loop="plan")  # the script gives the planner's steps
     await replay.ask("Wilayah mana yang late delivery rate-nya paling tinggi?", agent=True)
     r = await replay.ask(why, agent=True)
     assert r.strategy == "agent" and r.answer.direct_answer == "report"

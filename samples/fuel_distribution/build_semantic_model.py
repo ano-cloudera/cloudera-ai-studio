@@ -14,10 +14,21 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import importlib.util
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 import semantic_api  # noqa: E402
-from generate_data import TERMINAL_PLACES  # noqa: E402  (the coordinates the data was generated with)
+
+
+def _generator():
+    """The data generator of this sample, under its own module name (another sample has a generate_data too)."""
+    spec = importlib.util.spec_from_file_location("fuel_distribution_generate_data", Path(__file__).resolve().parent / "generate_data.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+TERMINAL_PLACES = _generator().TERMINAL_PLACES  # the coordinates the data was generated with
 
 _TERMINAL_GEO = {name: [lat, lon] for name, (_city, lat, lon) in TERMINAL_PLACES.items()}
 

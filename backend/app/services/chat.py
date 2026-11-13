@@ -1568,7 +1568,7 @@ class ChatService:
 
     def agent_loop(self, request: AskDataRequest) -> str:
         """'tools' (the agent queries metrics as tools in a loop) or 'plan' (steps planned once), per request or AGENT_LOOP."""
-        return (request.agent_loop or str(getattr(self.settings, "agent_loop", "") or "plan")).strip().lower()
+        return (request.agent_loop or str(getattr(self.settings, "agent_loop", "") or "tools")).strip().lower()
 
     def _understanding_mode(self, request: AskDataRequest) -> str:
         return (request.understanding or str(getattr(self.settings, "ask_data_understanding", "") or "rules")).strip().lower()
