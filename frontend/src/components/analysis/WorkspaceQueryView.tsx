@@ -4,9 +4,11 @@ import { useState } from 'react'
 import { Check, Copy, ExternalLink } from 'lucide-react'
 import { appConfig } from '../../config/appConfig'
 import { mergeDataNotes, parseDataProvenance } from '../../lib/dataProvenance'
-import type { CalculationNote, ChatResponse } from '../../types/api'
+import type { AgentStepCard, CalculationNote, ChatResponse } from '../../types/api'
+import { AgentSteps } from '../AgentSteps'
 import { CalculationNoteRows } from '../chat/CalculationNoteBlock'
 import { CollapsibleDataNote } from './CollapsibleDataNote'
+import { formatSql } from '../../lib/formatSql'
 import { WorkspaceSqlBlock } from './WorkspaceSqlBlock'
 
 function resolveSources(dataReference: string, provenanceSources: string[]): string[] {
@@ -26,6 +28,8 @@ function lineageUrlForSource(source: string): string | null {
 type Props = {
   response: ChatResponse
   calculation?: CalculationNote | null
+  /** The steps of an agent answer: shown as cards with their rows and queries, in place of the plain list. */
+  steps?: AgentStepCard[]
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -38,7 +42,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 /** The Query tab: what was computed and how (one card), then the SQL that ran. */
-export function WorkspaceQueryView({ response, calculation = null }: Props) {
+export function WorkspaceQueryView({ response, calculation = null, steps = [] }: Props) {
   const [wrapLines, setWrapLines] = useState(true)
   const [copied, setCopied] = useState(false)
   const sql = response.governed_sql?.trim() ?? ''
@@ -53,7 +57,7 @@ export function WorkspaceQueryView({ response, calculation = null }: Props) {
   async function copySql() {
     if (!sql) return
     try {
-      await navigator.clipboard.writeText(sql)
+      await navigator.clipboard.writeText(formatSql(sql))
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
     } catch {
@@ -71,7 +75,7 @@ export function WorkspaceQueryView({ response, calculation = null }: Props) {
       ) : null}
       <dl className="divide-y divide-slate-100 rounded-xl border border-slate-200/90 px-4 py-2">
         {calculation ? (
-          <CalculationNoteRows note={calculation} />
+          <CalculationNoteRows note={calculation} hideSteps={steps.length > 0} />
         ) : (
           <>
             {governedLabel ? <Row label="Metric">{governedLabel}</Row> : null}
@@ -90,10 +94,17 @@ export function WorkspaceQueryView({ response, calculation = null }: Props) {
         ) : null}
       </dl>
 
+      {steps.length > 0 ? (
+        <div data-testid="query-steps">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Steps</p>
+          <AgentSteps steps={steps} />
+        </div>
+      ) : null}
+
       {sql ? (
         <div>
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">SQL</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{steps.length > 0 ? 'SQL of the chart shown' : 'SQL'}</p>
             <div className="flex items-center gap-2">
               <label className="inline-flex cursor-pointer items-center gap-1.5 text-xs font-medium text-slate-600">
                 <input

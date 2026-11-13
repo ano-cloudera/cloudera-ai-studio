@@ -96,7 +96,7 @@ export function AgentSteps({ steps }: { steps: AgentStepCard[] }) {
   if (!steps.length) return null
   return (
     <div data-testid="agent-steps">
-      <p className="mb-3 text-sm text-slate-600">{TEXT.checks(steps.length)} the agent ran to reach this answer. Open one to see its rows and the governed query.</p>
+      <p className="mb-3 text-sm text-slate-600">The agent ran {steps.length} {steps.length === 1 ? 'step' : 'steps'} to reach this answer. Open one to see its rows and its query.</p>
       <ol className="space-y-2">
         {steps.map((step, index) => (
           <StepCard key={`${index}-${step.title}`} step={step} index={index} words={TEXT} />

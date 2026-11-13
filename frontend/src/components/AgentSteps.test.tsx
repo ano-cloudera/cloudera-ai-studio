@@ -19,7 +19,7 @@ describe('AgentSteps', () => {
         ]}
       />,
     )
-    expect(screen.getByText(/3 checks the agent ran/)).toBeTruthy()
+    expect(screen.getByText(/The agent ran 3 steps/)).toBeTruthy()
     expect(screen.getByText('8 rows')).toBeTruthy()
     expect(screen.getByText('2 sources')).toBeTruthy()
     expect(screen.getByText('no data')).toBeTruthy()

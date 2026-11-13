@@ -14,7 +14,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 /** The rows of the calculation note, shared by the chat block and the workspace panel. */
-export function CalculationNoteRows({ note }: { note: CalculationNote }) {
+export function CalculationNoteRows({ note, hideSteps = false }: { note: CalculationNote; hideSteps?: boolean }) {
   return (
     <>
       {note.metric ? <Row label="Metric">{note.metric}</Row> : null}
@@ -24,11 +24,11 @@ export function CalculationNoteRows({ note }: { note: CalculationNote }) {
       {note.filters.length ? <Row label="Filters">{note.filters.join('; ')}</Row> : null}
       {note.source.length ? <Row label="Source">{note.source.join(', ')}</Row> : null}
       {note.comparison ? <Row label="Comparison">{note.comparison}</Row> : null}
-      {note.steps.length ? (
+      {note.steps.length && !hideSteps ? (
         <Row label="Steps">
           <ol className="list-decimal space-y-0.5 pl-4">
             {note.steps.map((step, index) => (
-              <li key={index}>{step}</li>
+              <li key={index}>{step.replace(/^\s*\d+[.)]\s*/, '')}</li>
             ))}
           </ol>
         </Row>

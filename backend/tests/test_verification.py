@@ -22,8 +22,10 @@ def test_a_monthly_question_needs_a_month_split() -> None:
     assert not warning_messages(_checks("orders per month", "SELECT DATE_TRUNC('month', CAST(d.x AS TIMESTAMP)) FROM t d"))
 
 
-def test_percentages_outside_zero_to_hundred_are_flagged() -> None:
-    assert warning_messages(_checks("late rate", rows=[{"metric_value": 140}], definition=PCT))
+def test_a_percentage_is_flagged_only_when_no_percentage_could_take_that_value() -> None:
+    # A quota attainment of 101.9% is real; 14,000% is a rate scaled twice.
+    assert not warning_messages(_checks("quota attainment", rows=[{"metric_value": 101.9}], definition=PCT))
+    assert warning_messages(_checks("late rate", rows=[{"metric_value": 14000}], definition=PCT))
     ok = _checks("late rate", rows=[{"metric_value": 23.1}], definition=PCT)
     assert [c.status for c in ok if c.name == "range"] == ["ok"]
     assert not _checks("orders", rows=[{"metric_value": 8000}], definition={"expression": "COUNT(x)"})

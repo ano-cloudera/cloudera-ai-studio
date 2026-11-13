@@ -1,7 +1,7 @@
 'use client'
 
-import { formatBusinessValue, rememberColumnLabels } from '../lib/businessPresentation'
-import { answerLocale, chartMetric } from '../lib/chartMetric'
+import { rememberColumnLabels } from '../lib/businessPresentation'
+import { chartMetric } from '../lib/chartMetric'
 import { answerSectionLabels } from '../lib/answerSectionLabels'
 
 import { useMemo, useState } from 'react'
@@ -12,7 +12,6 @@ import {
   WorkspaceSectionContent,
   WorkspaceSectionHeader,
 } from './analysis/WorkspaceSectionParts'
-import { AgentSteps } from './AgentSteps'
 import { AnswerChart } from './AnswerChart'
 import { AnswerProse } from './AnswerProse'
 import { WorkspaceDataTable } from './analysis/WorkspaceDataTable'
@@ -23,62 +22,7 @@ import { detectGeo } from '../lib/geo'
 import { formatCitationLabel, isRagResponse } from '../lib/ragReport'
 import type { ChatResponse } from '../types/api'
 
-type WorkspaceTab = 'summary' | 'chart' | 'map' | 'table' | 'query' | 'sources' | 'checks'
-
-type GroupStanding = { group: string; value: number; difference: number }
-
-/**
- * Where every group stands against the overall value, worked out from the rows (not written by the model): the detail the
- * chat leaves out ("3 of 8 above"), and the same facts the answer's words are checked against.
- */
-export function standingsAgainstOverall(response: ChatResponse): { overall: number; above: GroupStanding[]; below: GroupStanding[] } | null {
-  const overall = response.data.overall_value
-  const rows = response.data.rows
-  if (typeof overall !== 'number' || rows.length < 2 || !response.data.columns.includes('metric_value')) return null
-  const labelColumn = response.data.columns.find(column => column !== 'metric_value' && rows.every(row => typeof row[column] !== 'number'))
-  if (!labelColumn) return null
-  const standings = rows
-    .filter(row => typeof row.metric_value === 'number')
-    .map(row => ({ group: String(row[labelColumn] ?? ''), value: row.metric_value as number, difference: (row.metric_value as number) - overall }))
-    .sort((a, b) => b.value - a.value)
-  if (standings.length < 2) return null
-  return { overall, above: standings.filter(s => s.difference > 0), below: standings.filter(s => s.difference < 0) }
-}
-
-function GroupStandings({ response, standings }: { response: ChatResponse; standings: NonNullable<ReturnType<typeof standingsAgainstOverall>> }) {
-  const unit = response.data.unit_format ?? undefined
-  const locale = answerLocale(response)
-  const show = (n: number) => formatBusinessValue('metric_value', n, response.data.governed_metric ?? undefined, unit, locale)
-  const gap = (n: number) => (unit === 'percent' ? `${n > 0 ? '+' : '-'}${Number(Math.abs(n).toFixed(2)).toLocaleString(locale)} pts` : `${n > 0 ? '+' : '-'}${show(Math.abs(n))}`)
-  const total = standings.above.length + standings.below.length
-  const list = (title: string, items: GroupStanding[]) =>
-    items.length > 0 ? (
-      <div>
-        <p className="text-sm font-semibold text-cloudera-navy">
-          {title} <span className="font-normal text-slate-600">({items.length} of {total})</span>
-        </p>
-        <ul className="mt-1.5 divide-y divide-slate-100 rounded-lg border border-slate-200">
-          {items.map(item => (
-            <li key={item.group} className="flex items-baseline justify-between gap-3 px-3 py-1.5 text-sm">
-              <span className="min-w-0 truncate text-slate-700">{item.group}</span>
-              <span className="shrink-0 tabular-nums text-slate-600">
-                {show(item.value)} <span className="font-semibold text-slate-800">{gap(item.difference)}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    ) : null
-  return (
-    <div className="space-y-3" data-testid="group-standings">
-      <p className="workspace-body-text">Overall value across all groups: <strong className="font-semibold text-cloudera-navy">{show(standings.overall)}</strong></p>
-      <div className="grid gap-4 xl:grid-cols-2">
-        {list('Above overall', standings.above)}
-        {list('Below overall', standings.below)}
-      </div>
-    </div>
-  )
-}
+type WorkspaceTab = 'summary' | 'chart' | 'map' | 'table' | 'query' | 'sources'
 
 type Props = {
   response: ChatResponse
@@ -92,7 +36,6 @@ function workspaceTabs(
   hasQuery: boolean,
   hasSources: boolean,
   hasMap = false,
-  hasChecks = false,
   hasAnalysis = true,
   hasChart = false,
 ): { id: WorkspaceTab; label: string; disabled?: boolean }[] {
@@ -100,7 +43,6 @@ function workspaceTabs(
   if (hasChart) tabs.push({ id: 'chart', label: 'Chart' })
   if (hasSources) tabs.push({ id: 'sources', label: 'Sources' })
   if (hasMap) tabs.push({ id: 'map', label: 'Map' })
-  if (hasChecks) tabs.push({ id: 'checks', label: 'Checks' })
   tabs.push({ id: 'table', label: 'Table', disabled: !hasTable })
   tabs.push({ id: 'query', label: 'Query', disabled: !hasQuery })
   return tabs
@@ -167,13 +109,12 @@ export function ReportDocumentSection({
   const comparison = !rag && comparisonKind(response.data.columns) !== null && hasTable
   const checks = response.status === 'SUCCESS' ? response.agent_steps ?? [] : []
   const report = response.analysis_report?.trim() ?? ''
-  const standings = rag || report ? null : standingsAgainstOverall(response)
   const workspaceInsightsFirst = response.answer.insights.filter(item => item.trim()).slice(chatInsightCount)
   // The chart has its own tab (Chart): larger than in the chat, with values on the bars and a second view when the data allows one.
   const hasAnalysis = Boolean(
-    report || standings || !chatNarrativeShown || comparison || workspaceInsightsFirst.length || response.answer.business_implications.length,
+    report || !chatNarrativeShown || comparison || workspaceInsightsFirst.length || response.answer.business_implications.length,
   )
-  const tabs = workspaceTabs(hasTable, hasQuery || Boolean(calculation), hasSources, Boolean(geo), checks.length > 0, hasAnalysis, hasVisualChart)
+  const tabs = workspaceTabs(hasTable, hasQuery || Boolean(calculation) || checks.length > 0, hasSources, Boolean(geo), hasAnalysis, hasVisualChart)
   // Opens on what the chat does not show: the fuller analysis, else the map, else the rows. The chart is one click away.
   const [tab, setTab] = useState<WorkspaceTab>(() => {
     const open = (id: WorkspaceTab) => tabs.some(item => item.id === id && !item.disabled)
@@ -187,12 +128,6 @@ export function ReportDocumentSection({
     <div>
       <WorkspaceTabBar tab={tab} tabs={tabs} onSelect={setTab} />
 
-      {tab === 'checks' && (
-        <div className="mt-6" role="tabpanel">
-          <AgentSteps steps={checks} />
-        </div>
-      )}
-
       {tab === 'summary' && (
         <div className="mt-6" role="tabpanel">
           {report && (
@@ -202,15 +137,6 @@ export function ReportDocumentSection({
                 <div data-testid="analysis-report">
                   <AnswerProse text={report} variant="support" />
                 </div>
-              </WorkspaceSectionContent>
-            </WorkspaceSection>
-          )}
-
-          {standings && (
-            <WorkspaceSection>
-              <WorkspaceSectionHeader icon={ArrowLeftRight} tone="violet" title="How each group compares" />
-              <WorkspaceSectionContent>
-                <GroupStandings response={response} standings={standings} />
               </WorkspaceSectionContent>
             </WorkspaceSection>
           )}
@@ -333,7 +259,7 @@ export function ReportDocumentSection({
 
       {tab === 'query' && (
         <div role="tabpanel">
-          <WorkspaceQueryView response={response} calculation={calculation} />
+          <WorkspaceQueryView response={response} calculation={calculation} steps={checks} />
         </div>
       )}
 

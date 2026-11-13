@@ -88,3 +88,19 @@ def test_every_group_is_placed_above_or_below_the_overall_value_so_only_and_both
     # and by customer type: an answer said DODO and CODO were both above, but CODO is below
     types = computed_figures([{"tipe": "SPBU_DODO", "metric_value": 19.53}, {"tipe": "SPBU_CODO", "metric_value": 14.95}, {"tipe": "SPBU_COCO", "metric_value": 9.22}], 16.07)
     assert types["above_overall"]["groups"] == ["SPBU_DODO"] and types["below_overall"]["groups"] == ["SPBU_CODO", "SPBU_COCO"]
+
+
+def test_a_follow_up_in_a_stray_script_is_left_out_and_the_fuller_analysis_is_checked_like_the_rest() -> None:
+    from app.core.models import AnalysisOutput
+    from app.ask_data.answer_checks import review_answer
+
+    out = AnalysisOutput(
+        direct_answer="Papua Maluku 34,54%.", executive_summary="", insights=[], business_implications=[], caveats=[], data_reference="",
+        follow_up_questions=["Bagaimana rata-rata durasi di Papua Maluku dibandingkan dengan Kalimantan dalam c\u00f9ng periode?", "Tingkat Keterlambatan per bulan"],
+        detailed_analysis="### Cara membacanya\n\nTiga dari delapan regional di atas 16,07%, dengan selisih 98,76 poin.",
+    )
+    assert out.follow_up_questions == ["Tingkat Keterlambatan per bulan"]  # "cùng" is not Indonesian
+    rows = [{"regional": "Papua Maluku", "metric_value": 34.54}, {"regional": "Jatimbalinus", "metric_value": 11.4}]
+    reviewed, warnings = review_answer(out, rows=rows, question="regional mana paling terlambat", language="id", extra_figures=[16.07])
+    assert any("98,76" in w or "98.76" in w for w in warnings)  # a figure in the fuller analysis that is in no result
+    assert reviewed.detailed_analysis.startswith("### Cara membacanya")

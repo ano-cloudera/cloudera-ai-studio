@@ -204,7 +204,8 @@ def review_answer(
     """The answer without a calculation label and with a caveat for each figure that cannot be verified."""
     summary = strip_calculation_label(analysis.executive_summary)
     insights = [item for item in (strip_calculation_label(i) for i in analysis.insights) if item]
-    bad = unverified_figures([analysis.direct_answer, summary, *insights], rows, question, extra_figures)
+    detailed = strip_calculation_label(analysis.detailed_analysis) if analysis.detailed_analysis else ""
+    bad = unverified_figures([analysis.direct_answer, summary, *insights, detailed], rows, question, extra_figures)
     warnings = [
         (
             f"Angka {token} pada ringkasan tidak ada di hasil dan tidak dapat diturunkan darinya, jadi gunakan dengan hati-hati."
@@ -214,4 +215,4 @@ def review_answer(
         for token in bad
     ]
     caveats = [*analysis.caveats, *[w for w in warnings if w not in analysis.caveats]]
-    return analysis.model_copy(update={"executive_summary": summary, "insights": insights, "caveats": caveats}), warnings
+    return analysis.model_copy(update={"executive_summary": summary, "insights": insights, "detailed_analysis": detailed, "caveats": caveats}), warnings

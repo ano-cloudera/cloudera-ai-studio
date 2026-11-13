@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -65,6 +67,10 @@ class QueryPlan(StrictModel):
     clarification_question: str | None = None
 
 
+# Grave-accented vowels and the Vietnamese letters: not used by Indonesian or English text.
+_STRAY_SCRIPT = re.compile("[\u00c0\u00c8\u00cc\u00d2\u00d9\u00e0\u00e8\u00ec\u00f2\u00f9\u0102\u0103\u0110\u0111\u01a0\u01a1\u01af\u01b0\u1ea0-\u1ef9]")
+
+
 class AnalysisOutput(StrictModel):
     direct_answer: str
     executive_summary: str
@@ -74,6 +80,9 @@ class AnalysisOutput(StrictModel):
     data_reference: str
     chart_spec: ChartSpec | None = None
     follow_up_questions: list[str] = Field(default_factory=list)  # what the reader could ask next, shown as chips
+    # A fuller analysis of a breakdown, ranking or trend, written with the answer: it goes to the analysis panel (the response's
+    # analysis_report), so the panel adds to the chat instead of repeating it. Empty for a single figure.
+    detailed_analysis: str = ""
 
     @field_validator("follow_up_questions", mode="before")
     @classmethod
@@ -81,11 +90,15 @@ class AnalysisOutput(StrictModel):
         if not isinstance(value, list):
             return []
         cleaned = [without_em_dash(" ".join(item.split())) for item in value if isinstance(item, str) and item.strip()]
+        # A question carrying letters that Indonesian and English never use (a model that slipped into Vietnamese wrote
+        # "cùng periode") would be sent as written when clicked: it is left out, and the suggestions are completed elsewhere.
+        cleaned = [item for item in cleaned if not _STRAY_SCRIPT.search(item)]
         return list(dict.fromkeys(cleaned))[:3]
 
     @field_validator(
         "direct_answer",
         "executive_summary",
+        "detailed_analysis",
         "data_reference",
         mode="before",
     )

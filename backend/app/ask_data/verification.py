@@ -79,9 +79,11 @@ def verify_answer(
     if definition and rows and _is_percentage(definition):
         metric_columns = [c for c in columns if c in {"metric_value", "overall_value"}] or ["metric_value"]
         values = [v for column in metric_columns for v in _numbers(rows, column)]
-        if values and (min(values) < 0 or max(values) > 100):
-            checks.append(CalculationCheck(name="range", status="warning", message=f"A percentage metric returned values from {min(values):g} to {max(values):g}, outside 0 to 100."))
-        elif values:
+        # An attainment (101.9% of a quota), a growth or a margin can lawfully pass 100 or fall below 0, so only a value no
+        # percentage would take (a rate scaled twice) is warned about.
+        if values and (min(values) < -1000 or max(values) > 1000):
+            checks.append(CalculationCheck(name="range", status="warning", message=f"A percentage metric returned values from {min(values):g} to {max(values):g}, which looks like a scaling error."))
+        elif values and 0 <= min(values) and max(values) <= 100:
             checks.append(CalculationCheck(name="range", status="ok", message="Percentage values stay between 0 and 100."))
 
     if truncated:

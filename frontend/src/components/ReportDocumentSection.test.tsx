@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { ReportDocumentSection, standingsAgainstOverall } from './ReportDocumentSection'
+import { ReportDocumentSection } from './ReportDocumentSection'
 import type { ChatResponse } from '../types/api'
 
 function response(rowCount: number): ChatResponse {
@@ -63,21 +63,36 @@ describe('Analysis workspace summary', () => {
     expect(screen.queryByText('The gap is concentrated in the first two regions.')).toBeNull() // that is the chat's
   })
 
-  it('places every group above or below the overall value for a governed breakdown, counted from the rows', () => {
-    const regional = { 'Papua Maluku': 34.54, Kalimantan: 29.66, Sulawesi: 19.45, Sumbagut: 15.69, Sumbagsel: 13.88, 'Jawa Bagian Barat': 13.18, 'Jawa Bagian Tengah': 11.84, Jatimbalinus: 11.4 }
+  it('opens on the LLM-written analysis of a governed breakdown, not on a table the Table tab already has', () => {
     const governed = {
-      ...response(0),
+      ...response(8),
       strategy: 'governed',
-      answer: { ...response(0).answer, insights: [], business_implications: [] },
-      data: { columns: ['regional', 'metric_value'], rows: Object.entries(regional).map(([regional, metric_value]) => ({ regional, metric_value })), row_count: 8, overall_value: 16.07, unit_format: 'percent', governed_metric: 'tingkat_keterlambatan' },
-    } as unknown as ChatResponse
-    const standings = standingsAgainstOverall(governed)!
-    expect(standings.above.map(s => s.group)).toEqual(['Papua Maluku', 'Kalimantan', 'Sulawesi'])
-    expect(standings.below).toHaveLength(5) // not "Jatimbalinus is the only one below"
+      answer: { ...response(8).answer, insights: [], business_implications: [] },
+      analysis_report: '### Cara membacanya\n\nTiga dari delapan regional berada di atas nilai keseluruhan.',
+    } as ChatResponse
     render(<ReportDocumentSection response={governed} chatNarrativeShown chatInsightCount={2} chartShownInChat />)
-    const box = screen.getByTestId('group-standings')
-    expect(box.textContent).toContain('Below overall (5 of 8)')
-    expect(box.textContent).toContain('+18.47 pts')
+    expect(screen.getByRole('tab', { name: 'Analysis' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByTestId('analysis-report').textContent).toContain('Tiga dari delapan regional')
+    expect(screen.queryByTestId('group-standings')).toBeNull()
+  })
+
+  it('puts the steps of an agent answer in the Query tab, numbered once, with no separate Checks tab', () => {
+    const agent = {
+      ...response(8),
+      agent_steps: [
+        { title: 'Late rate per regional', tool: 'query_metric', status: 'ok', row_count: 8, sql: 'SELECT regional FROM t' },
+        { title: 'SOP thresholds', tool: 'search_documents', status: 'ok', row_count: 2, sources: [{ file: 'SOP.pdf', page: 2 }] },
+      ],
+      calculation: { summary: 'x', metric: 'Late rate', formula: null, breakdown: [], period: null, filters: [], source: [], comparison: null, steps: ['1. Data: late rate - by regional', '2. Documents: SOP'], checks: [], scope: null },
+    } as unknown as ChatResponse
+    render(<ReportDocumentSection response={agent} chatNarrativeShown chatInsightCount={2} chartShownInChat />)
+    expect(screen.queryByRole('tab', { name: 'Checks' })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'Query' }))
+    const steps = screen.getByTestId('query-steps')
+    expect(steps.textContent).toContain('Late rate per regional')
+    expect(steps.textContent).toContain('The agent ran 2 steps')
+    expect(screen.getByText('SQL of the chart shown')).toBeTruthy()
+    expect(document.body.textContent).not.toContain('1. Data: late rate') // the plain list is replaced by the cards, so no "1. 1."
   })
 
   it('leaves the Analysis tab out when the chat already said everything, and opens on the table', () => {

@@ -1124,7 +1124,7 @@ def build_workflow(deps: WorkflowDependencies):
                     ],
                     AnalysisOutput,
                     temperature=0.1,
-                    max_tokens=1800,
+                    max_tokens=2800,
                 )
                 break
             except ProviderError as exc:

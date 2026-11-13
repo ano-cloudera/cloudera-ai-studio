@@ -268,6 +268,14 @@ class ChatService:
         *,
         inquiry_brief: dict[str, Any] | None = None,
     ) -> AskDataResponse:
+        if response.analysis_report is None and response.answer.detailed_analysis.strip():
+            # The fuller analysis belongs to the panel; the chat keeps the answer and its summary.
+            response = response.model_copy(
+                update={
+                    "analysis_report": response.answer.detailed_analysis.strip(),
+                    "answer": response.answer.model_copy(update={"detailed_analysis": ""}),
+                }
+            )
         response = attach_presentation_tier(
             response,
             inquiry_brief=inquiry_brief,
