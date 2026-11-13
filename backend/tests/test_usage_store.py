@@ -23,3 +23,22 @@ def test_usage_store_record_and_totals(tmp_path: Path) -> None:
     events = store.list_events(days=7, limit=10)
     assert len(events) == 1
     assert events[0]["model"] == "gemini-test"
+
+
+def test_prior_totals_are_the_stretch_of_the_same_length_just_before(tmp_path: Path) -> None:
+    import sqlite3
+    from datetime import datetime, timedelta, timezone
+
+    from app.api.usage import _prior_totals
+
+    store = UsageStore(tmp_path / "usage.sqlite")
+    for request_id, tokens in (("now", 100), ("last_week", 40), ("long_ago", 900)):
+        store.record(request_id=request_id, session_id="s", provider="p", model="m", strategy="governed", status="SUCCESS", prompt_tokens=tokens, completion_tokens=0, llm_calls=1)
+    with sqlite3.connect(store.path) as connection:
+        for request_id, days_ago in (("last_week", 10), ("long_ago", 30)):
+            when = (datetime.now(timezone.utc) - timedelta(days=days_ago)).replace(microsecond=0).isoformat()
+            connection.execute("UPDATE llm_usage_events SET created_at = ? WHERE request_id = ?", (when, request_id))
+    current = store.totals(days=7)
+    prior, length = _prior_totals(store, days=7, mtd=False, current=current)
+    assert current["total_tokens"] == 100 and length == 7
+    assert prior["total_tokens"] == 40 and prior["turns"] == 1  # the event 10 days ago, not the one 30 days ago

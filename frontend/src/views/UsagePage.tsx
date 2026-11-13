@@ -41,6 +41,13 @@ const ANSWER_PATH_LABELS: Record<string, string> = {
   agent: 'Agent analysis',
 }
 
+/** How much a figure moved against the stretch before it; null when there was nothing before to compare with. */
+function change(current: number, prior: number | undefined): { pct: number; text: string } | null {
+  if (prior === undefined || prior <= 0) return null
+  const pct = ((current - prior) / prior) * 100
+  return { pct, text: `${pct >= 0 ? '+' : '-'}${Math.abs(pct).toFixed(1)}%` }
+}
+
 export function UsagePage() {
   const [period, setPeriod] = useState<PeriodKey>('7d')
   const [summary, setSummary] = useState<UsageSummary | null>(null)
@@ -107,36 +114,45 @@ export function UsagePage() {
   const mtdTokens = summary?.mtd_totals.total_tokens ?? 0
   const budgetPct = budget > 0 ? Math.min(100, (mtdTokens / budget) * 100) : 0
 
+  const prior = summary?.prior_totals
+  const total = summary?.totals.total_tokens ?? 0
+  const totalChange = change(total, prior?.total_tokens)
+  const busiest = chartData.length > 1 ? chartData.reduce((a, b) => (b.tokens > a.tokens ? b : a)) : null
+  const modelTotal = (summary?.by_model ?? []).reduce((sum, row) => sum + row.tokens, 0)
+  const priorLabel = `${summary?.prior_period_days ?? ''} days before`
+
   return (
     <PageCenter>
-      <div className="mb-6">
-        <h1 className="type-app-title text-2xl">{appConfig.navigationUsage}</h1>
-        <p className="type-chat-body mt-1 text-slate-500">
-          LLM token usage for this workspace (recorded on the backend).
-        </p>
-      </div>
-
-      <div className="mb-4 flex flex-wrap gap-2">
-        {PERIODS.map(item => (
-          <button
-            key={item.key}
-            type="button"
-            onClick={() => setPeriod(item.key)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
-              period === item.key
-                ? 'bg-cloudera-navy text-white'
-                : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-            }`}
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div>
+          <h1 className="type-app-title text-2xl">{appConfig.navigationUsage}</h1>
+          <p className="type-chat-body mt-1 text-slate-500">
+            LLM token usage for this workspace (recorded on the backend).
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div role="group" aria-label="Period" className="flex rounded-lg border border-slate-200 bg-white p-0.5">
+            {PERIODS.map(item => (
+              <button
+                key={item.key}
+                type="button"
+                aria-pressed={period === item.key}
+                onClick={() => setPeriod(item.key)}
+                className={`min-h-11 sm:min-h-9 rounded-md px-3.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cloudera-orange ${
+                  period === item.key ? 'bg-cloudera-navy text-white' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <a
+            href={api.usageExportCsvUrl(periodConfig.mtd ? 31 : periodConfig.days ?? 7)}
+            className="inline-flex min-h-11 sm:min-h-9 items-center rounded-lg border border-slate-200 bg-white px-3.5 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cloudera-orange"
           >
-            {item.label}
-          </button>
-        ))}
-        <a
-          href={api.usageExportCsvUrl(periodConfig.mtd ? 31 : periodConfig.days ?? 7)}
-          className="ml-auto inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:border-cloudera-orange/40 hover:bg-orange-50/50"
-        >
-          Export CSV
-        </a>
+            Export CSV
+          </a>
+        </div>
       </div>
 
       {loadError && !summary ? (
@@ -151,45 +167,68 @@ export function UsagePage() {
 
       {summary && (
         <>
+          <section aria-label="Summary" className="mb-5 rounded-xl bg-cloudera-mist px-5 py-4" data-testid="usage-summary-line">
+            <p className="text-xl font-semibold tracking-tight text-cloudera-navy">
+              {totalChange ? (
+                Math.abs(totalChange.pct) < 2 ? (
+                  'Usage is about the same as the period before'
+                ) : (
+                  <>
+                    Usage is {totalChange.pct > 0 ? 'up' : 'down'} <span className="text-cloudera-orange">{Math.abs(totalChange.pct).toFixed(0)}%</span> on the period before
+                  </>
+                )
+              ) : (
+                `${formatCompactTokens(total)} tokens across ${summary.totals.turns} Ask Data turns`
+              )}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              {totalChange && prior ? `${formatCompactTokens(total)} tokens in this period, against ${formatCompactTokens(prior.total_tokens)} in the ${priorLabel}.` : null}
+              {busiest ? `${totalChange ? ' ' : ''}Busiest day: ${busiest.label} (${formatCompactTokens(busiest.tokens)}).` : null}
+            </p>
+          </section>
+
           {budget > 0 && (
-            <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-sm font-medium text-cloudera-navy">Monthly token budget</span>
                 <span className="text-sm text-slate-600">
                   {formatCompactTokens(mtdTokens)} / {formatCompactTokens(budget)}
                 </span>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full bg-cloudera-orange transition-all"
-                  style={{ width: `${budgetPct}%` }}
-                />
+              <div className="mt-2 h-2 overflow-hidden rounded-sm bg-slate-100">
+                <div className="h-full rounded-sm bg-cloudera-orange transition-all" style={{ width: `${budgetPct}%` }} />
               </div>
             </div>
           )}
 
-          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { label: 'Total tokens', value: summary.totals.total_tokens },
-              { label: 'Prompt', value: summary.totals.prompt_tokens },
-              { label: 'Completion', value: summary.totals.completion_tokens },
-              { label: 'LLM calls', value: summary.totals.llm_calls },
-            ].map(card => (
-              <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{card.label}</div>
-                <div className="mt-1 text-2xl font-semibold text-cloudera-navy">
-                  {typeof card.value === 'number' && card.label !== 'LLM calls'
-                    ? formatCompactTokens(card.value)
-                    : card.value}
+              { label: 'Total tokens', value: summary.totals.total_tokens, prior: prior?.total_tokens, tokens: true, lead: true },
+              { label: 'Prompt', value: summary.totals.prompt_tokens, prior: prior?.prompt_tokens, tokens: true },
+              { label: 'Completion', value: summary.totals.completion_tokens, prior: prior?.completion_tokens, tokens: true },
+              { label: 'LLM calls', value: summary.totals.llm_calls, prior: prior?.llm_calls, tokens: false },
+            ].map(card => {
+              const moved = change(card.value, card.prior)
+              const show = (n: number) => (card.tokens ? formatCompactTokens(n) : String(n))
+              return (
+                <div key={card.label} className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="text-xs font-medium uppercase tracking-wide text-slate-500">{card.label}</div>
+                  <div className={`mt-1 font-semibold text-cloudera-navy ${card.lead ? 'text-3xl' : 'text-2xl'}`}>{show(card.value)}</div>
+                  <div className="mt-1 min-h-4 text-xs text-slate-600">
+                    {moved ? (
+                      <>
+                        <span className="font-semibold text-slate-800">{moved.text}</span> vs {show(card.prior ?? 0)} before
+                      </>
+                    ) : card.lead ? (
+                      `${summary.totals.turns} Ask Data turns`
+                    ) : null}
+                  </div>
                 </div>
-                {card.label === 'Total tokens' && (
-                  <div className="mt-0.5 text-xs text-slate-500">{summary.totals.turns} Ask Data turns</div>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
 
-          <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="mb-5 rounded-xl border border-slate-200 bg-white p-4">
             <h2 className="text-sm font-semibold text-cloudera-navy">Usage per day</h2>
             <p className="mb-3 text-xs text-slate-500">Total tokens across all models</p>
             {chartData.length === 0 ? (
@@ -202,56 +241,74 @@ export function UsagePage() {
                     <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }} />
                     <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={v => formatCompactTokens(Number(v))} />
                     <Tooltip
+                      cursor={{ fill: '#F6F7F9' }}
                       formatter={value => [formatCompactTokens(Number(value ?? 0)), 'Tokens']}
                       labelFormatter={label => String(label)}
                     />
-                    <Bar dataKey="tokens" fill="#FF5A14" radius={[4, 4, 0, 0]} maxBarSize={48} />
+                    <Bar dataKey="tokens" fill="#FF5A14" radius={[4, 4, 0, 0]} maxBarSize={48} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             )}
           </div>
 
-          {summary.by_model.length > 0 && (
-            <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="text-sm font-semibold text-cloudera-navy">By model</h2>
-              <ul className="mt-2 divide-y divide-slate-100">
-                {summary.by_model.map(row => (
-                  <li key={`${row.provider}-${row.model}`} className="flex items-center justify-between py-2 text-sm">
-                    <span className="text-slate-700">
-                      <span className="font-medium" title={row.model}>{modelDisplayName(row.model)}</span>
-                      <span className="text-slate-500"> · </span>
-                      <span className="text-slate-600">{providerDisplayName(row.provider)}</span>
-                    </span>
-                    <span className="font-medium text-cloudera-navy">{formatCompactTokens(row.tokens)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <div className="mb-5 grid gap-5 lg:grid-cols-2">
+            {summary.by_model.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <h2 className="text-sm font-semibold text-cloudera-navy">By model</h2>
+                <ul className="mt-3 space-y-3">
+                  {summary.by_model.map((row, index) => {
+                    const share = modelTotal ? (row.tokens / modelTotal) * 100 : 0
+                    return (
+                      <li key={`${row.provider}-${row.model}`} className="text-sm">
+                        <div className="flex items-baseline justify-between gap-3">
+                          <span className="min-w-0 truncate text-slate-700">
+                            <span className="font-medium" title={row.model}>{modelDisplayName(row.model)}</span>
+                            <span className="text-slate-500"> · {providerDisplayName(row.provider)}</span>
+                          </span>
+                          <span className="shrink-0 text-slate-600">
+                            <span className="font-medium text-cloudera-navy">{formatCompactTokens(row.tokens)}</span>
+                            <span className="text-slate-500"> · {share.toFixed(0)}%</span>
+                          </span>
+                        </div>
+                        <div className="mt-1.5 h-2 overflow-hidden rounded-sm bg-slate-100" aria-hidden>
+                          <div className={`h-full rounded-sm ${index === 0 ? 'bg-cloudera-orange' : 'bg-cloudera-indigo'}`} style={{ width: `${share}%` }} />
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
 
-          {answerPaths.length > 0 && (
-            <div className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm" data-testid="answer-paths">
-              <h2 className="text-sm font-semibold text-cloudera-navy">How questions were answered</h2>
-              <p className="mb-2 text-xs text-slate-500">
-                From the last {events.length} turns. “Controlled SQL” means no governed metric matched, so the model wrote the query.
-              </p>
-              <ul className="divide-y divide-slate-100">
-                {answerPaths.map(row => (
-                  <li key={row.strategy} className="flex items-center justify-between py-2 text-sm">
-                    <span className={row.strategy === 'sql_fallback' ? 'font-medium text-amber-700' : 'text-slate-700'}>
-                      {ANSWER_PATH_LABELS[row.strategy] ?? row.strategy}
-                    </span>
-                    <span className="text-slate-600">
-                      {row.count} <span className="text-slate-400">· {row.share.toFixed(0)}%</span>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+            {answerPaths.length > 0 && (
+              <div className="rounded-xl border border-slate-200 bg-white p-4" data-testid="answer-paths">
+                <h2 className="text-sm font-semibold text-cloudera-navy">How questions were answered</h2>
+                <p className="text-xs text-slate-500">
+                  From the last {events.length} turns. “Controlled SQL” means no governed metric matched, so the model wrote the query.
+                </p>
+                <ul className="mt-3 space-y-3">
+                  {answerPaths.map((row, index) => (
+                    <li key={row.strategy} className="text-sm">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className={row.strategy === 'sql_fallback' ? 'font-medium text-amber-700' : 'text-slate-700'}>
+                          {ANSWER_PATH_LABELS[row.strategy] ?? row.strategy}
+                        </span>
+                        <span className="shrink-0 text-slate-600">
+                          {row.count} <span className="text-slate-500">· {row.share.toFixed(0)}%</span>
+                        </span>
+                      </div>
+                      <div className="mt-1.5 h-2 overflow-hidden rounded-sm bg-slate-100" aria-hidden>
+                        <div className={`h-full rounded-sm ${index === 0 ? 'bg-cloudera-orange' : 'bg-cloudera-indigo'}`} style={{ width: `${row.share}%` }} />
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="rounded-xl border border-slate-200 bg-white">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
               <h2 className="text-sm font-semibold text-cloudera-navy">Recent turns</h2>
               <TableSelectionActionBar

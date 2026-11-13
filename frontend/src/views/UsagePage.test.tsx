@@ -122,4 +122,49 @@ describe('Usage page', () => {
     expect(panel.textContent).toContain('Controlled SQL (fallback)')
     expect(panel.textContent).toContain('25%')
   })
+
+  it('says how usage moved against the period before, and shows the move on each card without judging it', async () => {
+    const totals = { prompt_tokens: 1_000, completion_tokens: 200, total_tokens: 1_200, llm_calls: 12, turns: 6 }
+    vi.mocked(api.usageSummary).mockResolvedValue({
+      period_days: 7,
+      mtd: false,
+      totals,
+      prior_totals: { prompt_tokens: 800, completion_tokens: 200, total_tokens: 1_000, llm_calls: 10, turns: 5 },
+      prior_period_days: 7,
+      mtd_totals: totals,
+      daily: [
+        { day: '2026-11-11', tokens: 800 },
+        { day: '2026-11-12', tokens: 400 },
+      ],
+      by_model: [],
+      monthly_token_budget: 0,
+    })
+    vi.mocked(api.usageEvents).mockResolvedValue({ events: [] })
+    render(<UsagePage />)
+    const line = await screen.findByTestId('usage-summary-line')
+    expect(line.textContent).toContain('Usage is up 20% on the period before')
+    expect(line.textContent).toContain('against 1.0K in the 7 days before')
+    expect(line.textContent).toContain('Busiest day: Nov 11')
+    expect(screen.getByText('+25.0%')).toBeTruthy() // prompt tokens 800 → 1,000
+    expect(screen.getAllByText('+20.0%')).toHaveLength(2) // total tokens 1,000 → 1,200 and calls 10 → 12
+    expect(document.querySelector('.text-emerald-600, .text-emerald-700, .bg-emerald-100')).toBeNull() // a rise in spend is not good news
+  })
+
+  it('has no comparison to draw when nothing came before', async () => {
+    const totals = { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30, llm_calls: 1, turns: 1 }
+    vi.mocked(api.usageSummary).mockResolvedValue({
+      period_days: 7,
+      mtd: false,
+      totals,
+      prior_totals: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, llm_calls: 0, turns: 0 },
+      prior_period_days: 7,
+      mtd_totals: totals,
+      daily: [],
+      by_model: [],
+      monthly_token_budget: 0,
+    })
+    vi.mocked(api.usageEvents).mockResolvedValue({ events: [] })
+    render(<UsagePage />)
+    expect((await screen.findByTestId('usage-summary-line')).textContent).toContain('30 tokens across 1 Ask Data turns')
+  })
 })

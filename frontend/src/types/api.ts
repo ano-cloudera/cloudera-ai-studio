@@ -646,6 +646,9 @@ export type UsageSummary = {
   period_days: number | null
   mtd: boolean
   totals: UsageTotals
+  /** The stretch of the same length just before this one; the change on a card is measured against it. */
+  prior_totals?: UsageTotals
+  prior_period_days?: number
   mtd_totals: UsageTotals
   daily: { day: string; tokens: number }[]
   by_model: { provider: string; model: string; tokens: number; turns: number }[]
