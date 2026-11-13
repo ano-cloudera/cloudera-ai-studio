@@ -3,22 +3,42 @@
 @tailwind utilities;
 
 :root {
+  /* Cloudera brand colours */
+  --cloudera-orange: #FF5A14;
+  --cloudera-deep-indigo: #13003D;
+  --cloudera-electric-indigo: #5351F6;
+  --cloudera-white: #FFFFFF;
+  --cloudera-light-gray: #F6F7F9;
+  --cloudera-dark-navy: #17113F;
+  --cloudera-blue: #3779D6;
+  --cloudera-border: #E2E6ED;
+  --cloudera-text-secondary: #64748B;
+  --status-success: #16865D;
+  --status-warning: #E5A000;
+  --status-danger: #DC3545;
+  --background: var(--cloudera-light-gray);
+  --surface: var(--cloudera-white);
+  --foreground: var(--cloudera-dark-navy);
+  --primary: var(--cloudera-orange);
+  --secondary: var(--cloudera-electric-indigo);
+  --border: var(--cloudera-border);
+  --muted-foreground: var(--cloudera-text-secondary);
   font-family: var(--font-body), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #18162a;
-  background: #f7f8fc;
+  color: var(--foreground);
+  background: var(--background);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
 
 * { box-sizing: border-box; }
-html { background: #f7f8fc; }
-body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; background: #f7f8fc; }
+html { background: var(--background); }
+body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; background: var(--background); }
 button, input, textarea, select { font: inherit; }
 /* Every enabled control says it can be used; a disabled one says it cannot (R-39). */
 button, a[href], summary, select, label[for], [role="button"], [role="tab"], [role="switch"],
 input[type="checkbox"], input[type="radio"] { cursor: pointer; }
 button:disabled, [aria-disabled="true"], input:disabled, select:disabled { cursor: not-allowed; }
-::selection { background: rgba(255, 90, 31, .18); }
+::selection { background: rgba(255, 90, 20, .18); }
 
 @layer components {
   .card { @apply rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(36,19,95,0.04),0_8px_24px_rgba(36,19,95,0.035)]; }

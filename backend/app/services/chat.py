@@ -1053,6 +1053,11 @@ class ChatService:
                 display = (ai_ctx or {}).get("display_name") or definition.get("description")
                 if display:
                     raw_data["governed_metric_display_name"] = str(display).strip()[:200]
+                description = str(definition.get("description") or "").strip()
+                if description:
+                    raw_data["metric_description"] = description[:300]
+                if definition.get("better") in ("up", "down"):
+                    raw_data["metric_better"] = definition["better"]
         if unit_format:
             raw_data["unit_format"] = str(unit_format)
         try:

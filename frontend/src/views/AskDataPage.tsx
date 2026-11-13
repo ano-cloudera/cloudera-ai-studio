@@ -1,6 +1,7 @@
 'use client'
 
 import { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { chartMetric } from '../lib/chartMetric'
 import { answerSectionLabels } from '../lib/answerSectionLabels'
 import { ProposedActions } from '../components/ProposedActions'
 import { useSearchParams } from 'next/navigation'
@@ -1115,7 +1116,7 @@ function StructuredAnswer({
       )}
 
       {hasVisualChart && (
-        <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded className="!mb-0" exportId={response.request_id} />
+        <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded className="!mb-0" exportId={response.request_id} metric={chartMetric(response)} />
       )}
 
       {response.data.rows.length > 0 && (

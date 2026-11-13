@@ -568,6 +568,9 @@ export type ChatResponse = {
     overall_value?: number | null
     /** Coordinates of the values of a column, when its dimension carries them: {column: {value: [latitude, longitude]}}. */
     geo_points?: Record<string, Record<string, number[]>>
+    /** What the metric measures, as its author wrote it, and which way is good when declared: shown under a chart. */
+    metric_description?: string | null
+    metric_better?: 'up' | 'down' | null
     data_coverage?: { first: string; last: string } | null
   }
   chart_spec: ChartSpec | null

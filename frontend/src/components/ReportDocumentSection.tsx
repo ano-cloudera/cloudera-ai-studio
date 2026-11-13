@@ -1,6 +1,7 @@
 'use client'
 
 import { rememberColumnLabels } from '../lib/businessPresentation'
+import { chartMetric } from '../lib/chartMetric'
 import { answerSectionLabels } from '../lib/answerSectionLabels'
 
 import { useMemo, useState } from 'react'
@@ -173,7 +174,7 @@ export function ReportDocumentSection({ response }: Props) {
                   </div>
                 )}
                 {hasVisualChart && response.chart_spec && (
-                  <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded hideTitle />
+                  <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded hideTitle metric={chartMetric(response)} />
                 )}
               </WorkspaceSectionContent>
             </WorkspaceSection>

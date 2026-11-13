@@ -29,7 +29,7 @@ import type { HomeBriefing, HomeKpi, HomePayload, HomeRows, HomeStandout } from 
 
 type Language = 'id' | 'en'
 
-const ORANGE = '#FF5A1F'
+const ORANGE = '#FF5A14'
 const INDIGO = '#5351F6' // Cloudera Electric Indigo: the colour of data lines and areas
 const INDIGO_SOFT = '#d9d8fd'
 const INDIGO_WASH = '#ecebfe'
@@ -250,7 +250,7 @@ function Sparkline({ kpi }: { kpi: HomeKpi }) {
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={kpi.series} margin={{ top: 8, right: 8, bottom: 4, left: 4 }}>
           <YAxis hide domain={['dataMin', 'dataMax']} />
-          <Area type="monotone" dataKey="value" stroke={INDIGO} strokeWidth={2} fill={INDIGO_WASH} dot={lastPoint(kpi.series.length)} isAnimationActive={false} />
+          <Area type="monotone" dataKey="value" stroke={INDIGO} strokeWidth={2} fill={INDIGO_WASH} dot={lastPoint(kpi.series.length)} activeDot={false} isAnimationActive={false} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -497,7 +497,7 @@ function TrendCard({ kpis, language, className }: { kpis: HomeKpi[]; language: L
               isAnimationActive={false}
               label={(props: { x?: number | string; y?: number | string; index?: number }) =>
                 props.index === data.length - 1 && props.x !== undefined && props.y !== undefined ? (
-                  <text x={Number(props.x)} y={Number(props.y) - 12} textAnchor="end" fill="#15084A" fontSize={12} fontWeight={700}>
+                  <text x={Number(props.x)} y={Number(props.y) - 12} textAnchor="end" fill="#17113F" fontSize={12} fontWeight={700}>
                     {format(last.value)}
                   </text>
                 ) : (
@@ -716,7 +716,7 @@ export function HomePage() {
               <button
                 type="submit"
                 disabled={!question.trim()}
-                className={`min-h-11 rounded-lg bg-cloudera-orange px-4 text-sm font-semibold text-white transition-colors hover:bg-[#e94e14] active:bg-[#d24510] disabled:opacity-50 ${FOCUS}`}
+                className={`min-h-11 rounded-lg bg-cloudera-orange px-4 text-sm font-semibold text-white transition-colors hover:bg-[#e84f10] active:bg-[#cf460e] disabled:opacity-50 ${FOCUS}`}
               >
                 {words.ask}
               </button>

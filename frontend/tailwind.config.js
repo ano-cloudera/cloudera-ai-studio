@@ -4,12 +4,17 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Cloudera brand colours (the brand palette): orange for the call to action and the one highlight, deep indigo for
+        // hero and dark sections, electric indigo for data and secondary accents, dark navy for headings and text.
         cloudera: {
-          orange: '#FF5A1F',
-          navy: '#15084A',
-          violet: '#635BFF',
-          ink: '#18162A',
-          mist: '#F7F8FC'
+          orange: '#FF5A14',
+          navy: '#13003D',
+          violet: '#5351F6',
+          indigo: '#5351F6',
+          ink: '#17113F',
+          mist: '#F6F7F9',
+          blue: '#3779D6',
+          border: '#E2E6ED'
         }
       },
       boxShadow: {

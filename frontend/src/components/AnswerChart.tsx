@@ -4,12 +4,14 @@ import { truncateAxisLabel } from '../lib/answerFormatting'
 import {
   compareTimeAxisValues,
   formatBusinessLabel,
+  formatBusinessValue,
   formatTimeAxisLabel,
   isTimeAxisField,
 } from '../lib/businessPresentation'
 import { ASSISTANT_CHART_CLASS } from './ConversationInner'
 
-const COLORS = ['#FF5A1F', '#635BFF', '#3EBAA5', '#9A8CFF']
+// Cloudera palette: electric indigo draws the data, then blue, orange and dark navy for further series.
+const COLORS = ['#5351F6', '#3779D6', '#FF5A14', '#17113F']
 const tick = { fontSize: 11, fill: '#64748B' }
 const CHART_MARGIN_DENSE_BOTTOM = 88
 const CHART_MARGIN_DENSE_BOTTOM_EMBEDDED = 44
@@ -27,7 +29,15 @@ function formatAxisNumber(value: number): string {
 }
 
 function formatTooltipValue(value: unknown): string {
-  return typeof value === 'number' ? value.toLocaleString('id-ID') : String(value ?? '')
+  return typeof value === 'number' ? value.toLocaleString('en-US', { maximumFractionDigits: 2 }) : String(value ?? '')
+}
+
+/** What the plotted metric is, so a reader knows the number and which way is good. */
+export type ChartMetric = {
+  label?: string | null
+  unitFormat?: string | null
+  description?: string | null
+  better?: 'up' | 'down' | null
 }
 
 export function AnswerChart({
@@ -37,6 +47,7 @@ export function AnswerChart({
   embedded = false,
   hideTitle = false,
   exportId = '',
+  metric,
 }: {
   chart: ChartSpec | null
   rows: Record<string, unknown>[]
@@ -46,6 +57,8 @@ export function AnswerChart({
   hideTitle?: boolean
   /** The id of the answer this chart belongs to, so the PDF export pairs it with the right turn. */
   exportId?: string
+  /** The metric plotted as metric_value: its name (not "metric_value"), unit, definition and which way is good. */
+  metric?: ChartMetric
 }) {
   if (!chart || chart.type === 'table' || chart.type === 'kpi' || !chart.x || !chart.y || !rows.length) return null
   // A series must be a category: the value column (or the x axis) as a series gives each point its own colour and a
@@ -182,6 +195,11 @@ export function AnswerChart({
       }}
     />
   )
+  const valueName = (metric?.label || '').trim() || formatBusinessLabel(chart.title || 'Value')
+  const formatValue = (value: unknown) =>
+    typeof value === 'number' ? formatBusinessValue('metric_value', value, undefined, metric?.unitFormat ?? undefined) : formatTooltipValue(value)
+  const direction = metric?.better === 'down' ? 'Lower is better' : metric?.better === 'up' ? 'Higher is better' : ''
+  const caption = [metric?.description?.trim(), direction].filter(Boolean).join(' · ')
   const axes = (
     <>
       <CartesianGrid vertical={false} stroke="#E7E8F0" />
@@ -195,7 +213,10 @@ export function AnswerChart({
         domain={yDomain}
       />
       <Tooltip
-        formatter={formatTooltipValue}
+        formatter={(value: unknown, name: unknown) => [
+          name === 'metric_value' || name === valueName ? formatValue(value) : formatTooltipValue(value),
+          name === 'metric_value' ? valueName : String(name ?? ''),
+        ]}
         labelFormatter={label =>
           timeOnX ? formatTimeAxisLabel(label) ?? String(label) : String(label)
         }
@@ -213,22 +234,27 @@ export function AnswerChart({
   const body = (
     <>
       {!hideTitle && (
-        <div className={`${embedded ? 'answer-chart-title mb-1.5' : 'text-sm font-semibold text-cloudera-navy mb-4'}`}>
+        <div className={`${embedded ? 'answer-chart-title mb-1.5' : 'text-sm font-semibold text-cloudera-navy mb-1'}`}>
           {chart.title}
         </div>
+      )}
+      {caption && (
+        <p className="mb-3 text-xs text-slate-600" data-testid="chart-metric-caption">
+          {caption}
+        </p>
       )}
       {/* No series animation: the chart is whole the moment it appears, so a PDF export never captures it half-drawn. */}
       <div className={chartHeight}>
         <ResponsiveContainer width="100%" height="100%">
-    {chart.type === 'bar' ? <BarChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => <Bar key={key} dataKey={key} fill={COLORS[index % COLORS.length]} radius={[6, 6, 0, 0]} maxBarSize={54} isAnimationActive={false} />)}</BarChart>
-      : chart.type === 'area' ? <AreaChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => <Area key={key} dataKey={key} stroke={COLORS[index % COLORS.length]} fill={COLORS[index % COLORS.length]} fillOpacity={0.12} isAnimationActive={false} />)}</AreaChart>
+    {chart.type === 'bar' ? <BarChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => <Bar key={key} dataKey={key} name={key === 'metric_value' ? valueName : key} fill={COLORS[index % COLORS.length]} radius={[6, 6, 0, 0]} maxBarSize={54} isAnimationActive={false} />)}</BarChart>
+      : chart.type === 'area' ? <AreaChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => <Area key={key} dataKey={key} name={key === 'metric_value' ? valueName : key} stroke={COLORS[index % COLORS.length]} fill={COLORS[index % COLORS.length]} fillOpacity={0.12} isAnimationActive={false} />)}</AreaChart>
       : chart.type === 'scatter' ? <ScatterChart margin={chartMargin}><CartesianGrid vertical={false} stroke="#E7E8F0" /><XAxis type="number" dataKey={chart.x} name={chart.x} tick={tick} /><YAxis type="number" dataKey={chart.y} name={chart.y} tick={tick} width={56} tickFormatter={formatAxisNumber} /><Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={formatTooltipValue} />{series ? seriesNames.map((name, index) => <Scatter key={name} name={name} data={rows.filter(row => String(row[series!] ?? 'Unknown') === name)} fill={COLORS[index % COLORS.length]} isAnimationActive={false} />) : <Scatter data={data} fill={COLORS[2]} isAnimationActive={false} />}{series && <Legend wrapperStyle={{ fontSize: 11 }} />}</ScatterChart>
       : chart.type === 'pie' ? <PieChart margin={{ bottom: 16 }}><Pie data={data} dataKey={chart.y} nameKey={chart.x} innerRadius={52} outerRadius={88} isAnimationActive={false}>{data.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip formatter={formatTooltipValue} /><Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} /></PieChart>
       : <LineChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => (
             <Line
               key={key}
               dataKey={key}
-              name={key === 'metric_value' ? formatBusinessLabel(chart.title || 'Nilai') : formatBusinessLabel(key)}
+              name={key === 'metric_value' ? valueName : formatBusinessLabel(key)}
               stroke={COLORS[index % COLORS.length]}
               strokeWidth={2}
               dot={{ r: 3 }}

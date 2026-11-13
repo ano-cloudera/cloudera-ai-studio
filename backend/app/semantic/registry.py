@@ -286,6 +286,8 @@ class OssieRegistry:
             "original_kpi_id": config.get("original_kpi_id"),
             "unit_format": config.get("unit_format"),
             "unit": config.get("unit"),
+            "better": config.get("better") if config.get("better") in ("up", "down") else None,
+            "target": _number(config.get("target")),
             "ai_context": metric.get("ai_context", {}),
         }
 

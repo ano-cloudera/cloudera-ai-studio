@@ -77,3 +77,22 @@ describe('AnswerChart', () => {
     expect(screen.getByTestId('x-axis').getAttribute('data-interval')).toBe('0')
   })
 })
+
+describe('the metric a chart plots', () => {
+  it('is named and explained under the chart, with which way is good when the model says so', async () => {
+    const { render, screen, cleanup } = await import('@testing-library/react')
+    const { AnswerChart } = await import('./AnswerChart')
+    render(
+      <AnswerChart
+        chart={{ type: 'bar', title: 'Tingkat Keterlambatan per Regional', x: 'regional', y: 'metric_value' }}
+        rows={[{ regional: 'Papua Maluku', metric_value: 34.538 }, { regional: 'Jatimbalinus', metric_value: 11.4 }]}
+        metric={{ label: 'Tingkat Keterlambatan', unitFormat: 'percent', description: 'Share of finished loading orders that arrived after their SLA.', better: 'down' }}
+      />,
+    )
+    expect(screen.getByTestId('chart-metric-caption').textContent).toBe('Share of finished loading orders that arrived after their SLA. · Lower is better')
+    cleanup()
+    render(<AnswerChart chart={{ type: 'bar', title: 'x', x: 'regional', y: 'metric_value' }} rows={[{ regional: 'A', metric_value: 1 }, { regional: 'B', metric_value: 2 }]} />)
+    expect(screen.queryByTestId('chart-metric-caption')).toBeNull() // nothing to say: no empty line
+    cleanup()
+  })
+})
