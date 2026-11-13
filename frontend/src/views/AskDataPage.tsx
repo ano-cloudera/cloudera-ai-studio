@@ -240,7 +240,20 @@ export function AskDataPage() {
       )
   }, [libraryPickerOptions])
 
+  // A question sent from another page (Home: ?ask=...) starts a new chat and is asked as soon as a model is selected.
+  const pendingAskRef = useRef<string | null>(null)
   useEffect(() => {
+    const asked = searchParams.get('ask')?.trim()
+    if (asked && !inflightStreamSessionId()) {
+      pendingAskRef.current = asked
+      setSessions(loadSessions())
+      try {
+        window.history.replaceState(null, '', window.location.pathname)  // a reload does not ask it again
+      } catch {
+        // the question is still asked
+      }
+      return
+    }
     // Back from another page: continue the session that was open, under its own id.
     const current = readCurrentSessionId()
     const open = current && !inflightStreamSessionId() ? loadSessions().find(s => s.id === current) : undefined
@@ -249,8 +262,16 @@ export function AskDataPage() {
       setMessages(open.messages)
     }
     setSessions(loadSessions())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => writeCurrentSessionId(sessionId), [sessionId])
+  useEffect(() => {
+    const asked = pendingAskRef.current
+    if (!asked || !selection || loading || messages.length) return
+    pendingAskRef.current = null
+    submit(asked, 'starter_question')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection, loading, messages.length])
 
   useEffect(() => {
     api

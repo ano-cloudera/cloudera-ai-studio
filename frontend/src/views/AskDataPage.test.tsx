@@ -26,13 +26,15 @@ vi.mock('../lib/api', () => ({
   },
 }))
 vi.mock('../lib/chatPdfExport', () => ({ downloadConversationPdf: vi.fn().mockResolvedValue(undefined) }))
+const navigation = vi.hoisted(() => ({ query: '' }))
 vi.mock('next/navigation', () => ({
   usePathname: () => '/',
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(navigation.query),
 }))
 
 describe('V2 Ask Data page', () => {
   afterEach(() => {
+    navigation.query = ''
     vi.useRealTimers()
     vi.clearAllMocks()
     cleanup()
@@ -85,6 +87,23 @@ describe('V2 Ask Data page', () => {
       fireEvent.click(send)
     })
   }
+
+  it('asks a question sent from Home (?ask=) in a new chat once a model is selected', async () => {
+    navigation.query = `ask=${encodeURIComponent('Kenapa Papua Maluku paling sering terlambat?')}`
+    vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
+    vi.mocked(api.chatStream).mockImplementation((async function* () {
+      yield { type: 'done', response: {
+        request_id: 'r1', session_id: 's1', status: 'SUCCESS', provider: 'qwen', model: 'qwen-model', strategy: 'governed',
+        answer: { direct_answer: 'Karena jarak', executive_summary: '', insights: [], business_implications: [], caveats: [], data_reference: 'result' },
+        data: { columns: [], rows: [], row_count: 0, execution_ms: 1 }, chart_spec: null,
+        timings: { context_ms: 1, planning_ms: 1, validation_ms: 1, query_ms: 1, analysis_ms: 1, total_ms: 6 }, retry_count: 0,
+      } }
+    }) as never)
+    renderWithProviders(<AskDataPage />)
+    await waitFor(() => expect(api.chatStream).toHaveBeenCalledTimes(1))
+    expect(vi.mocked(api.chatStream).mock.calls[0][0]).toBe('Kenapa Papua Maluku paling sering terlambat?')
+    expect((await screen.findAllByText('Karena jarak')).length).toBeGreaterThan(0)
+  })
 
   it('loads starter questions and submits one directly on click', async () => {
     vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })

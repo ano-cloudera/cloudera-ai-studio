@@ -951,3 +951,46 @@ export type SemanticBenchmarkResult = {
   sql?: string | null
   ms?: number
 }
+
+/** Home: headline KPIs of the published semantic model (GET /api/v1/home). */
+export type HomeMonthValue = { month: string; value: number }
+export type HomeKpi = {
+  metric: string
+  label: string
+  description?: string
+  unit_format?: string | null
+  value: number
+  series: HomeMonthValue[]
+  last_month?: HomeMonthValue
+  previous_month?: HomeMonthValue
+  change?: number
+  change_pct?: number
+}
+export type HomeRows = {
+  metric: string
+  label?: string | null
+  dimension?: string | null
+  columns: string[]
+  rows: Record<string, unknown>[]
+  column_labels: Record<string, string>
+  overall_value?: number | null
+  unit_format?: string | null
+  geo_points?: Record<string, Record<string, number[]>>
+}
+export type HomePayload = {
+  status: 'ok' | 'no_data' | 'no_model'
+  language?: 'id' | 'en'
+  data_coverage?: { first?: string; last?: string } | null
+  kpis: HomeKpi[]
+  trend?: HomeKpi | null
+  breakdown?: HomeRows | null
+  map?: HomeRows | null
+  generated_at?: string
+}
+export type HomeBriefing = {
+  status: 'ok' | 'no_data' | 'unverified' | 'failed'
+  headline?: string
+  points?: string[]
+  ask_next?: string[]
+  language?: 'id' | 'en'
+}

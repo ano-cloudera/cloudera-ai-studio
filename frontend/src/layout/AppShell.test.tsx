@@ -14,6 +14,7 @@ describe('V2 application shell', () => {
   it('exposes accelerator navigation including Prompts, without Skills', () => {
     const nav = buildPrimaryNavigation()
     expect(nav.map(item => item.label)).toEqual([
+      'Home',
       'Ask Data',
       'Knowledge',
       'Semantic Layer',
@@ -36,7 +37,7 @@ describe('V2 application shell', () => {
       .getAllByRole('link')
       .map(link => link.textContent?.trim())
       .filter(Boolean)
-    expect(labels).toEqual(['Ask Data', 'Knowledge', 'Semantic Layer', 'Prompts', 'Data Sources', 'Usage', 'Settings'])
+    expect(labels).toEqual(['Home', 'Ask Data', 'Knowledge', 'Semantic Layer', 'Prompts', 'Data Sources', 'Usage', 'Settings'])
 
     expect(screen.queryByText('Dashboard')).toBeNull()
     expect(screen.queryByText('AI Monitoring')).toBeNull()

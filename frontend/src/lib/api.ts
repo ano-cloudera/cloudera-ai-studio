@@ -44,6 +44,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 
+function homeQuery(selection: { provider: string; model: string } | null, refresh: boolean): string {
+  const params = new URLSearchParams()
+  if (selection) {
+    params.set('provider', selection.provider)
+    params.set('model', selection.model)
+  }
+  if (refresh) params.set('refresh', 'true')
+  return params.toString()
+}
+
 export const api = {
   deleteChatSession: async (sessionId: string): Promise<void> => {
     const response = await fetch(`/api/chat/sessions/${encodeURIComponent(sessionId)}`, { method: 'DELETE' })
@@ -53,6 +63,10 @@ export const api = {
   },
   models: () => request<{ models: ModelInfo[] }>('/models'),
   askDataStarters: () => request<import('../types/api').AskDataStartersResponse>('/v1/ask-data/starters'),
+  home: (selection: { provider: string; model: string } | null, refresh = false) =>
+    request<import('../types/api').HomePayload>(`/v1/home?${homeQuery(selection, refresh)}`),
+  homeBriefing: (selection: { provider: string; model: string } | null, refresh = false) =>
+    request<import('../types/api').HomeBriefing>(`/v1/home/briefing?${homeQuery(selection, refresh)}`),
   askDataPresentationConfig: () =>
     request<{ workspace_slug: string; presentation: import('./presentationTierConfig').PresentationTierConfig }>(
       '/v1/ask-data/presentation-config',
