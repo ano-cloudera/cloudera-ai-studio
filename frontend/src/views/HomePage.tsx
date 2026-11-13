@@ -6,7 +6,10 @@
  * - Focal point: the Deep Indigo briefing band at the top, with one Cloudera Orange rule across its top edge as the brand moment.
  * - KPI tiles are one size and one structure. Green and red appear only where the model's author declared which way is good
  *   (or a target); without that a change is neutral grey, because Home does not guess whether up is good.
- * - Orange marks the one thing to look at in each block: the latest point, the group that stands out, the top bar.
+ * - Electric Indigo draws the data (lines, areas, bars); Cloudera Orange marks the one thing to look at in each block: the latest
+ *   point, the group that stands out, the top bar.
+ * - Only the KPI tiles are lifted (a soft shadow, and 2px up on hover): they are what is read and clicked first; elevation
+ *   elsewhere would say nothing.
  * - Flat bordered cards on the light canvas; no illustration, no sparkle icons, no gradient: the figures are the content.
  * - Motion: each block rises once as it arrives (no fill mode, so a paused animation never hides a figure); none under reduced motion.
  * - Text is English unless the Backend is asked for another language; metric and group names are the model's own words.
@@ -27,8 +30,9 @@ import type { HomeBriefing, HomeKpi, HomePayload, HomeRows, HomeStandout } from 
 type Language = 'id' | 'en'
 
 const ORANGE = '#FF5A1F'
-const NAVY = '#15084A'
+const INDIGO = '#5351F6' // Cloudera Electric Indigo: the colour of data lines and areas
 const INDIGO_SOFT = '#d9d8fd'
+const INDIGO_WASH = '#ecebfe'
 const STORAGE_KEY = 'ai-studio.home.v4'
 const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cloudera-orange'
 const CARD = 'rounded-2xl border border-slate-200 bg-white'
@@ -246,7 +250,7 @@ function Sparkline({ kpi }: { kpi: HomeKpi }) {
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={kpi.series} margin={{ top: 8, right: 8, bottom: 4, left: 4 }}>
           <YAxis hide domain={['dataMin', 'dataMax']} />
-          <Area type="monotone" dataKey="value" stroke={NAVY} strokeWidth={1.75} fill="#eceef7" dot={lastPoint(kpi.series.length)} isAnimationActive={false} />
+          <Area type="monotone" dataKey="value" stroke={INDIGO} strokeWidth={2} fill={INDIGO_WASH} dot={lastPoint(kpi.series.length)} isAnimationActive={false} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
@@ -276,7 +280,7 @@ function KpiTile({ kpi, language }: { kpi: HomeKpi; language: Language }) {
       href={askHref(question)}
       aria-label={name}
       title={kpi.description || undefined}
-      className={`${CARD} flex min-h-[11.5rem] flex-col p-5 transition-colors hover:border-slate-400 active:bg-slate-50 ${FOCUS}`}
+      className={`${CARD} flex min-h-[11.5rem] flex-col p-5 shadow-[0_1px_2px_rgba(19,0,61,0.06),0_8px_20px_-6px_rgba(19,0,61,0.14)] transition duration-150 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_2px_4px_rgba(19,0,61,0.08),0_14px_28px_-8px_rgba(19,0,61,0.2)] active:translate-y-0 motion-reduce:transform-none ${FOCUS}`}
       data-testid="home-kpi"
     >
       <div className="flex items-start justify-between gap-3">
@@ -487,13 +491,13 @@ function TrendCard({ kpis, language, className }: { kpis: HomeKpi[]; language: L
               type="monotone"
               dataKey="value"
               name={kpi.label}
-              stroke={ORANGE}
+              stroke={INDIGO}
               strokeWidth={2.5}
-              dot={{ r: 2 }}
+              dot={lastPoint(data.length)}
               isAnimationActive={false}
               label={(props: { x?: number | string; y?: number | string; index?: number }) =>
                 props.index === data.length - 1 && props.x !== undefined && props.y !== undefined ? (
-                  <text x={Number(props.x)} y={Number(props.y) - 12} textAnchor="end" fill={ORANGE} fontSize={12} fontWeight={700}>
+                  <text x={Number(props.x)} y={Number(props.y) - 12} textAnchor="end" fill="#15084A" fontSize={12} fontWeight={700}>
                     {format(last.value)}
                   </text>
                 ) : (
