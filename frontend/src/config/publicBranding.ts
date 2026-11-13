@@ -6,6 +6,8 @@ export type PublicBranding = {
   sidebarBrandTitle: string
   sidebarPoweredByLabel: string
   sidebarFooterCaption: string
+  /** The mark beside "Powered by ..." in the sidebar footer: the platform's, not the product's own logo. */
+  sidebarPoweredByLogoUrl: string
   headerTitle: string
   logoUrl: string
   emptyStateLogoUrl: string
@@ -44,8 +46,9 @@ export function resolvePublicBranding(): PublicBranding {
     appName,
     sidebarBrandTitle: customerName || appName,
     sidebarPoweredByLabel: read('NEXT_PUBLIC_SIDEBAR_POWERED_BY', 'Powered by Cloudera'),
-    sidebarFooterCaption:
-      process.env.NEXT_PUBLIC_SIDEBAR_FOOTER_CAPTION?.trim() || productName,
+    // A second line under "Powered by" only when one is set; the product name is already in the header.
+    sidebarFooterCaption: process.env.NEXT_PUBLIC_SIDEBAR_FOOTER_CAPTION?.trim() || '',
+    sidebarPoweredByLogoUrl: process.env.NEXT_PUBLIC_SIDEBAR_POWERED_BY_LOGO?.trim() || '/cloudera-logo.png',
     headerTitle: [customerName, appName].filter(Boolean).join(' ') || appName,
     logoUrl: `${logo}${cacheBust}`,
     emptyStateLogoUrl: `${emptyStateLogo}${cacheBust}`,

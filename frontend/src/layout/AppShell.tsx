@@ -347,9 +347,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="shrink-0 border-t border-slate-100 px-3 py-3">
               <div className="flex items-center gap-2">
                 <img
-                  src={branding.logoUrl}
+                  src={branding.sidebarPoweredByLogoUrl}
                   alt=""
                   aria-hidden
+                  width={20}
+                  height={20}
                   className="h-5 w-5 shrink-0 rounded object-contain"
                 />
                 <span className="text-xs font-medium text-slate-600">{branding.sidebarPoweredByLabel}</span>

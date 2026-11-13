@@ -56,9 +56,7 @@ export const appConfig = {
   },
   sidebarPoweredByLabel: env('NEXT_PUBLIC_SIDEBAR_POWERED_BY', 'Powered by Cloudera'),
   get sidebarFooterCaption(): string {
-    const explicit = process.env.NEXT_PUBLIC_SIDEBAR_FOOTER_CAPTION?.trim()
-    if (explicit) return explicit
-    return this.productName
+    return process.env.NEXT_PUBLIC_SIDEBAR_FOOTER_CAPTION?.trim() || ''
   },
   /** The features as switched in this workspace (the deployment default unless an override exists). */
   features,

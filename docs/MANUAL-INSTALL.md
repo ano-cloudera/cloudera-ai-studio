@@ -161,7 +161,7 @@ fix the error and build again.
 | `STUDIO_REPO_ROOT` | `/home/cdsw/anywhere-ai-studio` | **Yes**, if the repo path differs |
 | `APP_STARTUP_TIMEOUT_MINUTES` | `15` | No |
 | `NEXT_PUBLIC_PRODUCT_NAME`, `NEXT_PUBLIC_PRODUCT_SHORT_NAME`, `NEXT_PUBLIC_APP_NAME`, `NEXT_PUBLIC_APP_SUBTITLE`, `NEXT_PUBLIC_APP_TAGLINE`, `NEXT_PUBLIC_SIDEBAR_FOOTER_CAPTION` | `Anywhere AI Studio` | Optional (branding, build time) |
-| `NEXT_PUBLIC_SIDEBAR_POWERED_BY` | `Powered by Anywhere Cloud` | Optional (branding, build time) |
+| `NEXT_PUBLIC_SIDEBAR_POWERED_BY`, `NEXT_PUBLIC_SIDEBAR_POWERED_BY_LOGO` | `Powered by Cloudera`, `/cloudera-logo.png` | Optional (branding, build time). The footer logo is separate from the product logo. `NEXT_PUBLIC_SIDEBAR_FOOTER_CAPTION` adds a second line; empty by default |
 | `NEXT_PUBLIC_PRODUCT_LOGO`, `NEXT_PUBLIC_APP_LOGO`, `NEXT_PUBLIC_EMPTY_STATE_LOGO` | `/branding/anywhere-ai-logo.png` | Optional (branding, build time) |
 
 The branding block is also in `deployment/cai/env/studio-frontend.env.example`. After a branding change, rebuild and restart.
