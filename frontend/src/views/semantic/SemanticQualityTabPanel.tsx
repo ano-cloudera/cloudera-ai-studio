@@ -313,8 +313,8 @@ export function SemanticQualityTabPanel({ modelId, published }: { modelId: strin
                         </span>
                       </td>
                       <td>{row.question}</td>
-                      <td>{row.expected ?? '—'}</td>
-                      <td>{row.actual ?? '—'}</td>
+                      <td>{row.expected ?? '–'}</td>
+                      <td>{row.actual ?? '–'}</td>
                       <td className="text-slate-600">{row.message || ''}</td>
                     </tr>
                   ))}

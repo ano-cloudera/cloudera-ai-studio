@@ -52,7 +52,7 @@ export function SemanticVersionContextBar({
   } else if (needsRuntimeActivation && activeVersion) {
     detail = (
       <span className="text-amber-900">
-        Published v{activeVersion.version_number} is not live in Ask Data yet — use{' '}
+        Published v{activeVersion.version_number} is not live in Ask Data yet. Use{' '}
         <span className="font-semibold">Publish</span> on the Publish tab.
       </span>
     )
@@ -63,7 +63,7 @@ export function SemanticVersionContextBar({
       </span>
     )
   } else if (draftVersion) {
-    detail = <span>Draft v{draftVersion.version_number} — publish when ready.</span>
+    detail = <span>Draft v{draftVersion.version_number} : publish when ready.</span>
   } else {
     detail = <span>No published version yet.</span>
   }

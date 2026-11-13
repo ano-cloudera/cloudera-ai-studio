@@ -145,7 +145,7 @@ export function AskDataPage() {
       const st = file?.metadata?.status as string | undefined
       const chunks = file?.metadata?.chunk_count as number | undefined
       if (st === 'READY' && chunks != null && chunks <= 0) {
-        return 'No searchable text in this file yet — try another PDF or Save to Knowledge.'
+        return 'No searchable text in this file yet. Try another PDF or Save to Knowledge.'
       }
       return 'Wait until attached files finish processing.'
     }

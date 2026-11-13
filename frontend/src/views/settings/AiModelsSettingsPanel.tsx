@@ -215,7 +215,7 @@ export function AiModelsSettingsPanel() {
     const normalizedKey = normalizeProviderKey(providerDraft.key.trim() || providerDraft.name)
     if (!isValidProviderKey(normalizedKey)) {
       setProviderModalError(
-        'Key must be a lowercase id (e.g. gemini or google_gemini). It is not your API key — do not use XXXX or uppercase.',
+        'Key must be a lowercase id (e.g. gemini or google_gemini). It is not your API key, so do not use XXXX or uppercase.',
       )
       return
     }
@@ -768,7 +768,7 @@ export function AiModelsSettingsPanel() {
                       <td className="px-3 py-2 font-medium text-cloudera-navy">{model.name}</td>
                       <td className="font-mono text-slate-700">{model.model_id}</td>
                       <td className="px-3 py-2">{modelTypeLabel(model.model_type)}</td>
-                      <td className="px-3 py-2">{provider?.name ?? '—'}</td>
+                      <td className="px-3 py-2">{provider?.name ?? '–'}</td>
                       <td className="px-3 py-2">
                         <span className={`rounded-full px-2 py-0.5 text-sm font-semibold ${modelStatusClass(model)}`}>
                           {modelStatusLabel(model)}

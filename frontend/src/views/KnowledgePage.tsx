@@ -717,7 +717,7 @@ export function KnowledgePage() {
                         <td className="truncate px-3 py-2 font-medium text-cloudera-navy">{doc.original_filename}</td>
                         <td className="truncate px-3 py-2 text-slate-600">{mimeShort(doc.mime_type)}</td>
                         <td className="px-3 py-2 text-slate-600">{formatBytes(doc.size_bytes)}</td>
-                        <td className="px-3 py-2 text-slate-600">{doc.chunk_count ?? '—'}</td>
+                        <td className="px-3 py-2 text-slate-600">{doc.chunk_count ?? '–'}</td>
                         <td className="px-3 py-2"><StatusPill status={doc.status} /></td>
                         <td className="px-3 py-2 text-slate-600">{formatShortDate(doc.created_at)}</td>
                         <td className="px-3 py-2 text-slate-600">{formatRelative(doc.updated_at)}</td>

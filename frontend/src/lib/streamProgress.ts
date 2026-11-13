@@ -60,7 +60,7 @@ export function safeProgressDetail(detail: string | null | undefined): string | 
 export function formatTechnicalLine(entry: ProgressTraceEntry): string {
   const safe = safeProgressDetail(entry.detail)
   const label = entry.label.trim()
-  if (safe) return `${label} — ${safe}`
+  if (safe) return `${label}: ${safe}`
   return label
 }
 

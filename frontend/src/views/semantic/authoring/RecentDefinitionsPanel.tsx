@@ -111,7 +111,7 @@ export function RecentDefinitionsPanel({ versionId, onViewInTab }: Props) {
               />
               <td className="whitespace-nowrap px-3 py-2 font-medium">{row.name}</td>
               <td className="whitespace-nowrap">{row.type}</td>
-              <td className="max-w-[12rem] truncate">{row.definition || '—'}</td>
+              <td className="max-w-[12rem] truncate">{row.definition || '–'}</td>
               <td className="max-w-[10rem] truncate">{row.source}</td>
               <td className="whitespace-nowrap text-emerald-800">{row.status}</td>
               <td className="whitespace-nowrap text-slate-600">{formatSemanticModifiedCompact(row.modified_at)}</td>

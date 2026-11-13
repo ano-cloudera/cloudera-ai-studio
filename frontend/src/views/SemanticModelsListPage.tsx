@@ -19,7 +19,7 @@ export const SEMANTIC_MODEL_PATH = '/semantic-layer/model'
 type Row = { model: SemanticModelRecord; overview: SemanticOverviewPayload | null }
 
 export function modelStatus(overview: SemanticOverviewPayload | null): { label: string; tone: 'live' | 'draft' | 'empty' | 'unknown' } {
-  if (!overview) return { label: '—', tone: 'unknown' }
+  if (!overview) return { label: '–', tone: 'unknown' }
   const published = overview.published_version_number
   const draft = overview.draft_version_number
   if (published != null) return { label: draft != null ? `Published v${published} · draft v${draft} open` : `Published v${published}`, tone: 'live' }
@@ -268,9 +268,9 @@ export function SemanticModelsListPage() {
                       <td>
                         <span className={`rounded-full px-2.5 py-0.5 text-sm font-medium ${TONE[status.tone]}`}>{status.label}</span>
                       </td>
-                      <td className="text-right tabular-nums text-slate-700">{counts?.entities ?? '—'}</td>
-                      <td className="text-right tabular-nums text-slate-700">{counts?.metrics ?? '—'}</td>
-                      <td className="text-right tabular-nums text-slate-700">{counts?.dimensions ?? '—'}</td>
+                      <td className="text-right tabular-nums text-slate-700">{counts?.entities ?? '–'}</td>
+                      <td className="text-right tabular-nums text-slate-700">{counts?.metrics ?? '–'}</td>
+                      <td className="text-right tabular-nums text-slate-700">{counts?.dimensions ?? '–'}</td>
                       <td className="text-slate-600">{formatSemanticModifiedCompact(row.overview?.model.updated_at ?? row.model.updated_at)}</td>
                       <td>
                         <RowActions

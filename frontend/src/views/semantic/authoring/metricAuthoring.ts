@@ -119,6 +119,6 @@ export function formatMetricDimensionsCell(
     return selected.slice(0, 4).join(', ') + (selected.length > 4 ? ` +${selected.length - 4}` : '')
   }
   const avail = dimensionsForMetric(metric.source_entity_key, dimensions, relationships)
-  if (!avail.length) return '—'
+  if (!avail.length) return '–'
   return `All on model (${avail.length})`
 }

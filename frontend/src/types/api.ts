@@ -961,6 +961,8 @@ export type HomeKpi = {
   label: string
   description?: string
   unit_format?: string | null
+  /** The unit the metric declares (KL, %, IDR), written beside its figures. */
+  unit?: string | null
   value: number
   series: HomeMonthValue[]
   last_month?: HomeMonthValue
@@ -977,6 +979,7 @@ export type HomeRows = {
   column_labels: Record<string, string>
   overall_value?: number | null
   unit_format?: string | null
+  unit?: string | null
   geo_points?: Record<string, Record<string, number[]>>
 }
 export type HomePayload = {
@@ -987,7 +990,7 @@ export type HomePayload = {
   trend?: HomeKpi | null
   breakdown?: HomeRows | null
   map?: HomeRows | null
-  generated_at?: string
+  computed_at?: string
 }
 export type HomeBriefing = {
   status: 'ok' | 'no_data' | 'unverified' | 'failed'

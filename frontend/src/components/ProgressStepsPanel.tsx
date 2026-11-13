@@ -168,7 +168,7 @@ export function ProgressStepsPanel({
                       {entry.detail ? (
                         <span className="text-slate-500">
                           {' '}
-                          — {entry.detail}
+                          · {entry.detail}
                         </span>
                       ) : null}
                     </span>

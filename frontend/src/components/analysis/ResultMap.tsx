@@ -34,6 +34,37 @@ function loadBoundaries(): Promise<GeoCollection> {
   return boundariesPromise
 }
 
+const WORDS = {
+  en: {
+    failed: 'The map boundaries could not be loaded. The Table tab has the same numbers.',
+    loading: 'Loading map…',
+    zoom: 'Zoom', zoomIn: 'Zoom in', zoomOut: 'Zoom out', reset: 'Reset view',
+    mapOf: (label: string, placed: boolean) => `Map of ${label} by ${placed ? 'location' : 'province'}`,
+    noData: 'no data', noDataTitle: 'No data',
+    hint: 'Drag to pan, use the buttons (or Ctrl and scroll) to zoom. Boundaries: Natural Earth, public domain.',
+    unmatched: 'Not placed on the map (name not recognised)',
+    ranking: (label: string, placed: boolean) => `${label} by ${placed ? 'location' : 'province'}, highest first`,
+    areas: 'Areas', bubbles: 'Bubbles', style: 'Map style',
+  },
+  id: {
+    failed: 'Batas peta tidak dapat dimuat. Angka yang sama ada di tab Tabel.',
+    loading: 'Memuat peta…',
+    zoom: 'Zoom', zoomIn: 'Perbesar', zoomOut: 'Perkecil', reset: 'Kembalikan tampilan',
+    mapOf: (label: string, placed: boolean) => `Peta ${label} per ${placed ? 'lokasi' : 'provinsi'}`,
+    noData: 'tidak ada data', noDataTitle: 'Tidak ada data',
+    hint: 'Geser untuk memindah, pakai tombol (atau Ctrl dan scroll) untuk zoom. Batas wilayah: Natural Earth, domain publik.',
+    unmatched: 'Tidak ditempatkan di peta (nama tidak dikenali)',
+    ranking: (label: string, placed: boolean) => `${label} per ${placed ? 'lokasi' : 'provinsi'}, tertinggi dulu`,
+    areas: 'Area', bubbles: 'Gelembung', style: 'Gaya peta',
+  },
+} as const
+
+/** Places with coordinates sit close together (terminals on Java), so their bubbles stay small; provinces can be larger. */
+function placeRadius(value: number, max: number): number {
+  if (max <= 0 || value <= 0) return 4
+  return 4 + 11 * Math.sqrt(value / max)
+}
+
 type Mode = 'areas' | 'bubbles'
 type View = { x: number; y: number; k: number }
 const HOME: View = { x: 0, y: 0, k: 1 }
@@ -44,9 +75,14 @@ type Props = {
   detection: GeoDetection
   metric?: string
   unitFormat?: string | null
+  /** How a value is written (Home passes its own locale and unit); defaults to the app's business format. */
+  formatValue?: (value: number) => string
+  /** The language of the page around the map (Home follows the semantic model); the app's own pages are in English. */
+  language?: 'id' | 'en'
 }
 
-export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
+export function ResultMap({ rows, detection, metric, unitFormat, formatValue, language = 'en' }: Props) {
+  const words = WORDS[language]
   const [collection, setCollection] = useState<GeoCollection | null>(null)
   const [failed, setFailed] = useState(false)
   const [mode, setMode] = useState<Mode>('areas')
@@ -73,7 +109,8 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
   }, [values])
   const geometry = useMemo(() => {
     if (!collection) return null
-    const projection = fitProjection(collection)
+    // A margin as wide as the largest bubble, so a place on the edge (Jayapura, Sabang) is never cut in half.
+    const projection = fitProjection(collection, undefined, detection.points ? 18 : 12)
     return {
       projection,
       items: collection.features.map(feature => ({
@@ -85,20 +122,20 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
   }, [collection])
 
   const label = workspaceColumnLabel(detection.valueColumn, metric)
-  const format = (value: number) => formatBusinessValue(detection.valueColumn, value, metric, unitFormat)
+  const format = (value: number) => (formatValue ? formatValue(value) : formatBusinessValue(detection.valueColumn, value, metric, unitFormat))
   const ranking = useMemo(() => [...values.entries()].sort((a, b) => b[1] - a[1]), [values])
 
   if (failed) {
     return (
       <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
-        The map boundaries could not be loaded. The Table tab has the same numbers.
+        {words.failed}
       </p>
     )
   }
   if (!geometry) {
     return (
       <p className="py-10 text-center text-sm text-slate-500" role="status">
-        Loading map…
+        {words.loading}
       </p>
     )
   }
@@ -139,7 +176,7 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
       <div>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           {placed ? <div /> : (
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-semibold" role="group" aria-label="Map style">
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs font-semibold" role="group" aria-label={words.style}>
             {(['areas', 'bubbles'] as const).map(option => (
               <button
                 key={option}
@@ -150,15 +187,15 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
                   mode === option ? 'bg-cloudera-navy text-white' : 'text-slate-600 hover:text-cloudera-navy'
                 }`}
               >
-                {option === 'areas' ? 'Areas' : 'Bubbles'}
+                {option === 'areas' ? words.areas : words.bubbles}
               </button>
             ))}
           </div>
           )}
-          <div className="inline-flex gap-1" role="group" aria-label="Zoom">
-            <button type="button" aria-label="Zoom in" onClick={() => zoom(1.5)} className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-cloudera-navy"><Plus className="h-4 w-4" /></button>
-            <button type="button" aria-label="Zoom out" onClick={() => zoom(1 / 1.5)} className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-cloudera-navy"><Minus className="h-4 w-4" /></button>
-            <button type="button" aria-label="Reset view" onClick={() => setView(HOME)} className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-cloudera-navy"><RotateCcw className="h-4 w-4" /></button>
+          <div className="inline-flex gap-1" role="group" aria-label={words.zoom}>
+            <button type="button" aria-label={words.zoomIn} onClick={() => zoom(1.5)} className="grid h-11 w-11 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 hover:text-cloudera-navy active:bg-slate-50 sm:h-8 sm:w-8"><Plus className="h-4 w-4" /></button>
+            <button type="button" aria-label={words.zoomOut} onClick={() => zoom(1 / 1.5)} className="grid h-11 w-11 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 hover:text-cloudera-navy active:bg-slate-50 sm:h-8 sm:w-8"><Minus className="h-4 w-4" /></button>
+            <button type="button" aria-label={words.reset} onClick={() => setView(HOME)} className="grid h-11 w-11 place-items-center rounded-md border border-slate-200 bg-white text-slate-600 hover:text-cloudera-navy active:bg-slate-50 sm:h-8 sm:w-8"><RotateCcw className="h-4 w-4" /></button>
           </div>
         </div>
 
@@ -167,7 +204,7 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
             viewBox={`0 0 ${projection.width} ${projection.height}`}
             className="block h-auto w-full cursor-grab touch-none select-none active:cursor-grabbing"
             role="img"
-            aria-label={`Map of ${label} by ${placed ? 'location' : 'province'}`}
+            aria-label={words.mapOf(label, placed)}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={() => (drag.current = null)}
@@ -193,7 +230,7 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
                     strokeWidth={0.7 / view.k}
                     onPointerMove={event => (placed ? setHover(null) : track(item.name, event))}
                   >
-                    <title>{placed ? item.name : value === undefined ? `${item.name}: no data` : `${item.name}: ${format(value)}`}</title>
+                    <title>{placed ? item.name : value === undefined ? `${item.name}: ${words.noData}` : `${item.name}: ${format(value)}`}</title>
                   </path>
                 )
               })}
@@ -206,7 +243,7 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
                       key={item.name}
                       cx={item.centre[0]}
                       cy={item.centre[1]}
-                      r={bubbleRadius(value, stats.max) / Math.sqrt(view.k)}
+                      r={(placed ? placeRadius(value, stats.max) : bubbleRadius(value, stats.max)) / Math.sqrt(view.k)}
                       fill={rampColor(value, stats.min, stats.max)}
                       fillOpacity={0.9}
                       stroke="#ffffff"
@@ -224,7 +261,7 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
               style={{ left: hover.x, top: hover.y - 8 }}
             >
               <div className="font-semibold">{hover.name}</div>
-              <div>{values.has(hover.name) ? `${label}: ${format(values.get(hover.name)!)}` : 'No data'}</div>
+              <div>{values.has(hover.name) ? `${label}: ${format(values.get(hover.name)!)}` : words.noDataTitle}</div>
             </div>
           )}
         </div>
@@ -234,15 +271,15 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
           <div className="h-2 min-w-0 flex-1 rounded-full" style={{ background: `linear-gradient(to right, ${rampColor(0, 0, 1)}, ${rampColor(1, 0, 1)})` }} />
           <span className="shrink-0">{format(stats.max)}</span>
         </div>
-        <p className="mt-1 text-[11px] text-slate-400">Drag to pan, use the buttons (or Ctrl and scroll) to zoom. Boundaries: Natural Earth, public domain.</p>
+        <p className="mt-1 text-[11px] text-slate-500">{words.hint}</p>
         {detection.unmatched.length > 0 && (
           <p className="mt-2 text-xs text-amber-800" role="note">
-            Not placed on the map (name not recognised): {detection.unmatched.join(', ')}.
+            {words.unmatched}: {detection.unmatched.join(', ')}.
           </p>
         )}
       </div>
 
-      <ol className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2" aria-label={`${label} by province, highest first`}>
+      <ol className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2" aria-label={words.ranking(label, placed)}>
         {ranking.slice(0, 10).map(([name, value], index) => (
           <li
             key={name}
@@ -250,7 +287,7 @@ export function ResultMap({ rows, detection, metric, unitFormat }: Props) {
             className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-slate-50"
           >
             <span className="flex items-center gap-2">
-              <span className="w-4 text-right text-xs text-slate-400">{index + 1}</span>
+              <span className="w-4 text-right text-xs text-slate-500">{index + 1}</span>
               <span className="h-2.5 w-2.5 rounded-sm" style={{ background: rampColor(value, stats.min, stats.max) }} aria-hidden />
               <span className="text-slate-800">{name}</span>
             </span>

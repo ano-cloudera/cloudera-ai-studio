@@ -49,24 +49,24 @@ export function defaultContextLabel(connector: ConnectorRecord): string {
   const cfg = connector.config || {}
   if (connector.connector_type === 'trino') {
     const parts = [cfg.catalog, cfg.schema].filter(Boolean)
-    return parts.length ? parts.join(' / ') : '—'
+    return parts.length ? parts.join(' / ') : '–'
   }
   if (connector.connector_type === 'postgres') {
-    return String(cfg.database || '—')
+    return String(cfg.database || '–')
   }
-  return String(cfg.database || '—')
+  return String(cfg.database || '–')
 }
 
 export function hostFromConfig(connector: ConnectorRecord): string {
   const cfg = connector.config || {}
   const host = String(cfg.host || '')
   const port = cfg.port != null ? String(cfg.port) : ''
-  if (!host) return '—'
+  if (!host) return '–'
   return port ? `${maskHost(host)}:${port}` : maskHost(host)
 }
 
 export function formatDateTime(iso: string | null): string {
-  if (!iso) return '—'
+  if (!iso) return '–'
   try {
     return new Date(iso).toLocaleString()
   } catch {

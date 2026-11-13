@@ -419,7 +419,7 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
                 </div>
               )
             })}
-            {!suggestions ? <p className="text-xs text-slate-500">No suggestions loaded — selected tables will still be imported as data models.</p> : null}
+            {!suggestions ? <p className="text-xs text-slate-500">No suggestions loaded. Selected tables will still be imported as data models.</p> : null}
           </div>
         ) : null}
 
@@ -432,7 +432,7 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
               <li>{completion.counts.dimensions ?? 0} Dimensions</li>
               <li>{completion.counts.relationships ?? 0} Relationships</li>
             </ul>
-            <p className="text-xs text-slate-500">State: Draft — publish when ready.</p>
+            <p className="text-xs text-slate-500">State: Draft. Publish when ready.</p>
             <div className="flex gap-2">
               <button type="button" className="btn-primary h-9 px-3 text-sm" onClick={() => onCreated(completion.modelId)}>
                 Open Semantic Model

@@ -122,7 +122,7 @@ function LegacyChatModelControls({
             <button type="button" className="btn-primary px-4 py-2 text-sm" disabled={!canSave} onClick={saveModel}>
               Save model
             </button>
-            {draftDirty && <p className="type-chat-meta text-slate-500">Unsaved change — applies after Save.</p>}
+            {draftDirty && <p className="type-chat-meta text-slate-500">Unsaved change. Applies after Save.</p>}
             {!draftDirty && committedValue && (
               <p className="type-chat-meta text-emerald-700">Saved for new chat messages.</p>
             )}

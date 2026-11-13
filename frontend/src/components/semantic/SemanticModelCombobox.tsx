@@ -155,7 +155,7 @@ export function SemanticModelCombobox({ models, value, onChange, disabled, 'aria
             {!visibleResults.length ? <li className="px-3 py-2 text-xs text-slate-500">No models match</li> : null}
             {resultsTruncated ? (
               <li className="border-t border-slate-100 px-3 py-2 text-[11px] text-slate-500">
-                Showing {MAX_VISIBLE_RESULTS} of {filtered.length} — refine search to narrow results
+                Showing {MAX_VISIBLE_RESULTS} of {filtered.length}. Refine the search to narrow the results
               </li>
             ) : null}
           </ul>

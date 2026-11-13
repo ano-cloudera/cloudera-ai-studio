@@ -391,7 +391,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </header>
           <main
             className={`min-h-0 flex-1 ${
-              onAskData ? 'flex min-h-0 flex-col overflow-hidden' : 'overflow-y-auto p-4 sm:p-6'
+              onAskData ? 'flex min-h-0 flex-col overflow-hidden' : 'overflow-y-auto p-3 sm:p-4'
             }`}
           >
             {pageOff && pageFeature ? (

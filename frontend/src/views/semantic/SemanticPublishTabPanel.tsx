@@ -45,7 +45,7 @@ export function SemanticPublishTabPanel({ saving, canPublish, publishMode, onPub
         ) : null}
 
         <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-          Toolbar <span className="font-semibold">Save</span> only stores draft edits — it does not publish.
+          Toolbar <span className="font-semibold">Save</span> only stores draft edits; it does not publish.
         </p>
 
         <div className="flex flex-wrap items-center gap-2 pt-1">

@@ -59,7 +59,7 @@ function formatExportTimestamp(date: Date): string {
 }
 
 function formatCellValue(value: unknown): string {
-  if (value == null) return '—'
+  if (value == null) return '–'
   const month = formatMonthBucket(value)
   if (month) return month
   if (typeof value === 'number' && Number.isFinite(value)) {

@@ -458,7 +458,7 @@ export function PromptsPage() {
                       </td>
                       <td className="font-mono text-slate-500">{p.key}</td>
                       <td>{meta?.label ? <StatusBadge label={meta.label} /> : '…'}</td>
-                      <td>{meta?.version != null ? `v${meta.version}` : '—'}</td>
+                      <td>{meta?.version != null ? `v${meta.version}` : '–'}</td>
                       <td className="text-slate-600">{formatModified(p.updated_at)}</td>
                       <td>
                         <RowMenu

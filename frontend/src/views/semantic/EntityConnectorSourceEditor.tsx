@@ -136,7 +136,7 @@ export function EntityConnectorSourceEditor({ entity, readOnly, form, setForm, o
               value={form.catalog ?? ''}
               onChange={e => patch({ catalog: e.target.value || null })}
             >
-              <option value="">—</option>
+              <option value="">Not set</option>
               {catalogs.map(c => (
                 <option key={c} value={c}>
                   {c}
@@ -153,7 +153,7 @@ export function EntityConnectorSourceEditor({ entity, readOnly, form, setForm, o
             value={form.schema ?? ''}
             onChange={e => patch({ schema: e.target.value || null })}
           >
-            <option value="">—</option>
+            <option value="">Not set</option>
             {schemas.map(s => (
               <option key={s} value={s}>
                 {s}
@@ -169,7 +169,7 @@ export function EntityConnectorSourceEditor({ entity, readOnly, form, setForm, o
             value={form.table_name || form.view_name || ''}
             onChange={e => patch({ table_name: e.target.value, view_name: null })}
           >
-            <option value="">—</option>
+            <option value="">Not set</option>
             {tables.map(t => (
               <option key={t} value={t}>
                 {t}

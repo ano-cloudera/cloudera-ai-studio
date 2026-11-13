@@ -14,7 +14,10 @@
 html { background: #f7f8fc; }
 body { margin: 0; min-width: 320px; min-height: 100vh; overflow-x: hidden; background: #f7f8fc; }
 button, input, textarea, select { font: inherit; }
-button { cursor: pointer; }
+/* Every enabled control says it can be used; a disabled one says it cannot (R-39). */
+button, a[href], summary, select, label[for], [role="button"], [role="tab"], [role="switch"],
+input[type="checkbox"], input[type="radio"] { cursor: pointer; }
+button:disabled, [aria-disabled="true"], input:disabled, select:disabled { cursor: not-allowed; }
 ::selection { background: rgba(255, 90, 31, .18); }
 
 @layer components {
@@ -270,3 +273,24 @@ button { cursor: pointer; }
 
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical line { stroke: #eef0f5; }
+
+/* Home: each section rises into place once as its figures arrive, so nothing jumps; off for reduced motion.
+   No fill mode and no delay: an element's own style is fully visible, so a browser that holds animations back (a background
+   tab, a power saver) still shows every figure; the motion is only added on top. Later sections take a little longer. */
+@keyframes home-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.home-rise { animation: home-rise 200ms cubic-bezier(0.2, 0.7, 0.2, 1); }
+.home-rise-1 { animation-duration: 260ms; }
+.home-rise-2 { animation-duration: 320ms; }
+.home-rise-3 { animation-duration: 380ms; }
+@keyframes home-shimmer {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.home-placeholder { animation: home-shimmer 1.4s ease-in-out 3; }  /* stops within 5 s (R-39) */
+@media (prefers-reduced-motion: reduce) {
+  .home-rise, .home-rise-1, .home-rise-2, .home-rise-3 { animation: none; }
+  .home-placeholder { animation: none; }
+}

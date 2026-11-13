@@ -556,7 +556,7 @@ export function SemanticLayerPage() {
       window.clearInterval(timer)
       setPublishProgress('')
       setPublishSuccess(
-        `Published — Version ${result.version_number ?? ''} is live in the registry and active in Ask Data.`,
+        `Published. Version ${result.version_number ?? ''} is live in the registry and active in Ask Data.`,
       )
       await refreshVersions(model.id)
       await refreshModels()

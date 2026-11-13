@@ -15,7 +15,7 @@ function parseApiDate(iso: string): Date {
 
 export function formatRelative(iso: string): string {
   const then = parseApiDate(iso).getTime()
-  if (Number.isNaN(then)) return '—'
+  if (Number.isNaN(then)) return '–'
   const diffMs = Date.now() - then
   const mins = Math.floor(diffMs / 60_000)
   if (mins < 1) return 'Just now'
@@ -28,7 +28,7 @@ export function formatRelative(iso: string): string {
 
 export function formatShortDate(iso: string): string {
   const d = parseApiDate(iso)
-  if (Number.isNaN(d.getTime())) return '—'
+  if (Number.isNaN(d.getTime())) return '–'
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 

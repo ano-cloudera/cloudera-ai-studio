@@ -125,7 +125,7 @@ export function SemanticOverviewChecklist({
             label:
               metricsWithExplicitBreakdown > 0
                 ? `Custom breakdown scope on ${metricsWithExplicitBreakdown} metric(s)`
-                : 'Breakdown dimensions use defaults (all eligible) — optional: restrict per metric',
+                : 'Breakdown dimensions use defaults (all eligible). Optional: restrict per metric',
             done: true,
             tab: 'metrics' as TabTarget,
           },
@@ -158,7 +158,7 @@ export function SemanticOverviewChecklist({
       {welcome ? (
         <div className="mb-3 flex flex-wrap items-start justify-between gap-2 rounded-md border border-emerald-100 bg-emerald-50/80 px-3 py-2 text-sm text-emerald-950">
           <p>
-            <span className="font-semibold">Semantic model created.</span> Use any tab to edit — you do not need to
+            <span className="font-semibold">Semantic model created.</span> Use any tab to edit; you do not need to
             finish every step in order. Publish when validation passes.
           </p>
           {onDismissWelcome ? (

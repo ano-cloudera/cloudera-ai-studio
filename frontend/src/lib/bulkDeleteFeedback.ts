@@ -10,5 +10,5 @@ export function bulkDeleteSummary(result: BulkDeleteResponse, entityLabel: strin
 
 export function bulkDeleteFailureDetails(result: BulkDeleteResponse): string {
   if (!result.failed.length) return ''
-  return result.failed.map(item => `${item.name} — ${item.message}`).join('\n')
+  return result.failed.map(item => `${item.name}: ${item.message}`).join('\n')
 }

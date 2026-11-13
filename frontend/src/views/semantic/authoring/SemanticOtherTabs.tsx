@@ -424,7 +424,7 @@ export function MetricsTab({ versionId, readOnly, entityKeys, onChanged, focusOb
             <tr key={m.id} className="h-11 border-b border-slate-50">
               <SemanticAuthoringSelectCell active={selectionMode.active} id={m.id} label={m.name} selection={selection} />
               <td className="truncate px-3 py-2 font-medium">{m.name}</td>
-              <td className="truncate px-3 py-2">{m.business_definition ?? '—'}</td>
+              <td className="truncate px-3 py-2">{m.business_definition ?? '–'}</td>
               <td className="truncate font-mono">{m.expression}</td>
               <td>{m.source_entity_key}</td>
               <td className="truncate text-xs" title={formatMetricDimensionsCell(m, dimensions, relationships)}>
@@ -527,7 +527,7 @@ export function MetricsTab({ versionId, readOnly, entityKeys, onChanged, focusOb
             <fieldset className="rounded-lg border border-slate-200 px-3 py-2">
               <legend className="px-1 text-xs font-semibold text-slate-700">Allowed dimensions (Ask Data breakdowns)</legend>
               <p className="mb-2 text-xs text-slate-500">
-                Pick which dimensions can slice this metric. Naming a metric &quot;by City&quot; does not add a breakdown — select dimensions here (and define joins under Relationships for other models).
+                Pick which dimensions can slice this metric. Naming a metric &quot;by City&quot; does not add a breakdown: select dimensions here (and define joins under Relationships for other models).
               </p>
               {breakdownDimensionOptions.length ? (
                 <ul className="max-h-40 space-y-1 overflow-y-auto">
@@ -562,7 +562,7 @@ export function MetricsTab({ versionId, readOnly, entityKeys, onChanged, focusOb
                 <p className="text-xs text-amber-800">Add dimensions on this model (or related models via Relationships) first.</p>
               )}
               {!form.allowed_dimension_keys?.length && breakdownDimensionOptions.length ? (
-                <p className="mt-2 text-xs text-slate-500">None selected — publish will allow all listed dimensions above.</p>
+                <p className="mt-2 text-xs text-slate-500">None selected. Publish will allow all listed dimensions above.</p>
               ) : null}
               {issueMessage(fieldIssues.length ? fieldIssues : localIssues, 'allowed_dimension_keys') ? (
                 <span className="mt-1 block text-xs text-red-700">
@@ -608,7 +608,7 @@ function EntitySourceColumnSelect(props: {
       <div className="grid gap-1">
         {props.columnOptions.length === 0 ? (
           <p className="text-xs text-amber-800">
-            No columns on this model yet — type the physical column name, or add another dimension first.
+            No columns on this model yet. Type the physical column name, or add another dimension first.
           </p>
         ) : (
           <p className="text-xs text-slate-500">Type a physical column name, or pick from the list.</p>
@@ -787,8 +787,8 @@ export function DimensionsTab({ versionId, readOnly, entityKeys, onChanged, focu
         <tbody>{list.items.map(d => (
           <tr key={d.id} className="h-11 border-b border-slate-50">
             <SemanticAuthoringSelectCell active={selectionMode.active} id={d.id} label={d.name} selection={selection} />
-            <td className="px-3 py-2 font-medium">{d.name}</td><td className="px-3 py-2">{d.description ?? '—'}</td><td className="px-3 py-2">{d.source_entity_key}</td><td className="px-3 py-2">{d.source_column}</td>
-            <td className="px-3 py-2">{String((d.metadata as { category?: string })?.category ?? 'Other')}</td><td className="px-3 py-2">{d.data_type ?? '—'}</td><td className="px-3 py-2 text-emerald-800">Ready</td>
+            <td className="px-3 py-2 font-medium">{d.name}</td><td className="px-3 py-2">{d.description ?? '–'}</td><td className="px-3 py-2">{d.source_entity_key}</td><td className="px-3 py-2">{d.source_column}</td>
+            <td className="px-3 py-2">{String((d.metadata as { category?: string })?.category ?? 'Other')}</td><td className="px-3 py-2">{d.data_type ?? '–'}</td><td className="px-3 py-2 text-emerald-800">Ready</td>
             <td className="px-3 py-2">{formatSemanticModified(d.modified_at)}</td>
             <td className="px-3 py-2"><RowActionsMenu label={`Edit ${d.name}`} items={[{ key: 'e', label: 'Edit', onClick: () => openDimensionEdit(d) }]} /></td>
           </tr>
@@ -1274,7 +1274,7 @@ export function RelationshipsTab({ versionId, readOnly, entityKeys, onChanged, f
 
             <p className="rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700">
               {form.use_advanced_join
-                ? form.join_expression || '—'
+                ? form.join_expression || '–'
                 : buildRelationshipJoinExpression(
                     form.from_entity_key,
                     form.from_key_columns,
@@ -1417,10 +1417,10 @@ export function GlossaryTab({
           <tr key={t.id} className="h-11 border-b border-slate-50">
             <SemanticAuthoringSelectCell active={selectionMode.active} id={t.id} label={t.term} selection={selection} />
             <td className="truncate px-3 py-2 font-medium">{t.term}</td>
-            <td className="truncate px-3 py-2">{t.definition ?? '—'}</td>
-            <td className="truncate px-3 py-2">{(t.synonyms ?? []).join(', ') || '—'}</td>
+            <td className="truncate px-3 py-2">{t.definition ?? '–'}</td>
+            <td className="truncate px-3 py-2">{(t.synonyms ?? []).join(', ') || '–'}</td>
             <td className="truncate px-3 py-2">
-              {[...(t.related_metric_keys ?? []), ...(t.related_dimension_keys ?? [])].slice(0, 3).join(', ') || '—'}
+              {[...(t.related_metric_keys ?? []), ...(t.related_dimension_keys ?? [])].slice(0, 3).join(', ') || '–'}
             </td>
             <td className="px-3 py-2">{formatSemanticModified(t.modified_at)}</td>
             <td className="px-3 py-2">

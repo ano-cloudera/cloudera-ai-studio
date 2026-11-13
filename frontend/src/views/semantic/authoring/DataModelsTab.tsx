@@ -256,7 +256,7 @@ export function DataModelsTab({ versionId, readOnly, connectors, onChanged, onEn
             <tr key={entity.id} className="h-11 border-b border-slate-50 hover:bg-slate-50/60">
               <SemanticAuthoringSelectCell active={selectionMode.active} id={entity.id} label={entity.name} selection={selection} />
               <td className="truncate px-3 py-2 font-medium text-cloudera-navy">{entity.name}</td>
-              <td className="truncate px-3 py-2 text-slate-600">{entity.description ?? '—'}</td>
+              <td className="truncate px-3 py-2 text-slate-600">{entity.description ?? '–'}</td>
               <td className="truncate font-mono text-slate-600">{physicalSource(entity)}</td>
               <td className="truncate px-3 py-2 text-slate-600">{entityConnectorLabel(entity, connectors)}</td>
               <td className="px-3 py-2 text-slate-600">{entityFieldCount(entity)}</td>
@@ -338,7 +338,7 @@ export function DataModelsTab({ versionId, readOnly, connectors, onChanged, onEn
       </SemanticDrawer>
 
       {previewOpen && form ? (
-        <SemanticDrawer open footer="close-only" title={`Preview — ${form.name}`} onClose={() => setPreviewOpen(false)} onCancel={() => setPreviewOpen(false)} onSave={() => setPreviewOpen(false)}>
+        <SemanticDrawer open footer="close-only" title={`Preview: ${form.name}`} onClose={() => setPreviewOpen(false)} onCancel={() => setPreviewOpen(false)} onSave={() => setPreviewOpen(false)}>
           <p className="text-sm text-slate-600">Physical source: {physicalSource(form)}</p>
           {form.connection_id ? (
             <button type="button" className="mt-3 text-sm font-semibold text-cloudera-violet underline" onClick={() => router.push(`/connectors/${form.connection_id}`)}>

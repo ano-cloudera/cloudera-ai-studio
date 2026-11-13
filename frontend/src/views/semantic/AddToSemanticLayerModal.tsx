@@ -181,7 +181,7 @@ export function AddToSemanticLayerModal({ connector, catalog, schema, table, onC
             </select>
           </label>
           {!draftId ? (
-            <p className="text-xs text-amber-800">No draft version — import will create a draft from active or a new draft.</p>
+            <p className="text-xs text-amber-800">No draft version. Import will create a draft from active or a new draft.</p>
           ) : null}
           <label className="block">
             <span className="font-medium text-slate-700">Entity name</span>

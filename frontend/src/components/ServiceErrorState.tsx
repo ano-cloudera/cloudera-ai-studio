@@ -35,7 +35,7 @@ export function ServiceErrorState({ title, message, error, onRetry }: Props) {
       </div>
       {showDetails && error ? (
         <pre className="mt-4 overflow-x-auto rounded-lg border border-slate-200 bg-white p-3 text-left text-xs text-slate-600">
-          {`HTTP ${error.status || '—'}\nCode: ${error.code}${error.requestId ? `\nRequest: ${error.requestId}` : ''}`}
+          {`HTTP ${error.status || '–'}\nCode: ${error.code}${error.requestId ? `\nRequest: ${error.requestId}` : ''}`}
         </pre>
       ) : null}
     </div>

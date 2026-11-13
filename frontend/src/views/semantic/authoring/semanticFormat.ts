@@ -2,28 +2,28 @@ import type { ConnectorRecord, SemanticEntityRecord } from '../../../types/api'
 import { connectorTypeLabel } from '../../connectors/connectorUi'
 
 export function formatSemanticModified(iso: string | null | undefined): string {
-  if (!iso) return '—'
+  if (!iso) return '–'
   try {
     return new Date(iso).toLocaleString()
   } catch {
-    return '—'
+    return '–'
   }
 }
 
 /** Compact timestamp for dense overview tables. */
 export function formatSemanticModifiedCompact(iso: string | null | undefined): string {
-  if (!iso) return '—'
+  if (!iso) return '–'
   try {
     const d = new Date(iso)
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
   } catch {
-    return '—'
+    return '–'
   }
 }
 
 export function physicalSource(entity: SemanticEntityRecord): string {
   const parts = [entity.catalog, entity.schema, entity.table_name || entity.view_name].filter(Boolean)
-  return parts.join('.') || '—'
+  return parts.join('.') || '–'
 }
 
 export function entityConnectorLabel(entity: SemanticEntityRecord, connectors: ConnectorRecord[]): string {
@@ -44,5 +44,5 @@ export function semanticKeyFromName(name: string): string {
 export function entityFieldCount(entity: SemanticEntityRecord): string {
   const meta = entity.metadata ?? {}
   const n = meta.field_count ?? meta.column_count ?? meta.columns_discovered
-  return n != null ? String(n) : '—'
+  return n != null ? String(n) : '–'
 }

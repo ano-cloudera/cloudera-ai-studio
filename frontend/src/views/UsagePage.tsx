@@ -309,7 +309,7 @@ export function UsagePage() {
                           <span className="capitalize">{ev.provider}</span>
                           <span className="block text-sm text-slate-500">{ev.model}</span>
                         </td>
-                        <td>{ev.strategy || '—'}</td>
+                        <td>{ev.strategy || '–'}</td>
                         <td className="text-right font-medium">{formatCompactTokens(ev.total_tokens)}</td>
                         <td className="text-right text-slate-500">{ev.llm_calls}</td>
                       </tr>

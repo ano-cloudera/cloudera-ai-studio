@@ -87,7 +87,7 @@ export function SaveToKnowledgeModal({ open, attachmentId, attachmentName, onClo
             onChange={e => setLibraryId(e.target.value)}
           >
             {visibleLibraries.length === 0 ? (
-              <option value="">No libraries yet — create one below</option>
+              <option value="">No libraries yet. Create one below</option>
             ) : null}
             {visibleLibraries.map(lib => (
               <option key={lib.id} value={lib.id}>

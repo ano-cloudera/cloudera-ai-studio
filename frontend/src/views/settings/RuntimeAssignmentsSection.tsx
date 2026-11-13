@@ -89,9 +89,9 @@ export function RuntimeAssignmentsSection({ models, assignmentByCap, onAssign, o
                           {hasRegistryModel ? (
                             <span className="font-medium text-cloudera-navy">{effective!.model_name}</span>
                           ) : row.optional ? (
-                            <span className="text-slate-600">No override — uses environment defaults</span>
+                            <span className="text-slate-600">No override (uses environment defaults)</span>
                           ) : row.envBacked ? (
-                            <span className="text-slate-600">No registry model — uses environment configuration</span>
+                            <span className="text-slate-600">No registry model (uses environment configuration)</span>
                           ) : (
                             <span className="text-slate-600">No registry model assigned</span>
                           )}
@@ -107,7 +107,7 @@ export function RuntimeAssignmentsSection({ models, assignmentByCap, onAssign, o
                           <p className="text-xs text-amber-800">
                             {wrongType.map(m => m.name).join(', ')}{' '}
                             {wrongType.length === 1 ? 'is' : 'are'} registered as{' '}
-                            {wrongType.length === 1 ? 'the wrong type' : 'the wrong types'} — re-register with type{' '}
+                            {wrongType.length === 1 ? 'the wrong type' : 'the wrong types'}. Re-register with type{' '}
                             {modelTypeLabel(row.modelType)} to enable assignment.
                           </p>
                         ) : compatible.length === 0 ? (

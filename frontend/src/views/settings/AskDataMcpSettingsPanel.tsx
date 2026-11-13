@@ -194,7 +194,7 @@ export function AskDataMcpSettingsPanel({ embedded = false }: Props) {
           {embedded ? 'Connections' : 'MCP connections'}
         </h2>
         <p className="type-chat-meta mt-1 text-slate-500">
-          Standard MCP (stdio or SSE). Secrets stay in backend environment — reference env var names only.
+          Standard MCP (stdio or SSE). Secrets stay in the backend environment: reference env var names only.
           Use @ in Ask Data to attach a server for that message.
         </p>
       </div>
@@ -261,7 +261,7 @@ export function AskDataMcpSettingsPanel({ embedded = false }: Props) {
                 </label>
               </div>
               <p className="break-all rounded-lg bg-slate-50 px-3 py-2 font-mono text-[11px] leading-relaxed text-slate-600">
-                {target || '—'}
+                {target || '–'}
               </p>
               {server.default_tool ? (
                 <p className="text-xs text-slate-500">Default tool: {server.default_tool}</p>

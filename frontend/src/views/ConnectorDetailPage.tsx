@@ -549,7 +549,7 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
               </div>
               <div>
                 <dt className="text-slate-500">Capabilities</dt>
-                <dd className="text-slate-900">{capabilityLabels(capabilities ?? undefined).join(', ') || '—'}</dd>
+                <dd className="text-slate-900">{capabilityLabels(capabilities ?? undefined).join(', ') || '–'}</dd>
               </div>
               {references && references.count > 0 ? (
                 <div>
@@ -768,8 +768,8 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
                                 <td className="py-2 font-medium">{col.name}</td>
                                 <td className="py-2">{col.native_type || col.data_type}</td>
                                 <td className="py-2">{col.normalized_type}</td>
-                                <td className="py-2">{col.nullable == null ? '—' : col.nullable ? 'Yes' : 'No'}</td>
-                                <td className="py-2 text-slate-600">{col.comment || '—'}</td>
+                                <td className="py-2">{col.nullable == null ? '–' : col.nullable ? 'Yes' : 'No'}</td>
+                                <td className="py-2 text-slate-600">{col.comment || '–'}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -830,7 +830,7 @@ export function ConnectorDetailPage({ connectorId }: { connectorId: string }) {
             </button>
           </div>
           {pendingRetest ? (
-            <p className="mt-3 text-xs text-amber-700">Connection settings changed — status is Not Tested until you run a test.</p>
+            <p className="mt-3 text-xs text-amber-700">Connection settings changed. Status is Not Tested until you run a test.</p>
           ) : null}
         </div>
       ) : null}

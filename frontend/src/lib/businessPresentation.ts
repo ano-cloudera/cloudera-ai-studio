@@ -158,7 +158,7 @@ export function inferColumnUnitFormat(column: string, metric?: string): string |
 }
 
 export function formatBusinessValue(field: string, value: unknown, metric?: string, unitFormat?: string | null): string {
-  if (value === null || value === undefined || value === '') return '—'
+  if (value === null || value === undefined || value === '') return '–'
 
   const col = field.trim().toLowerCase()
   if (isCalmonthField(field)) {

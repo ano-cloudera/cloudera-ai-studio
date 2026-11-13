@@ -701,7 +701,7 @@ export function SkillsPage() {
                   <tr key={v.id} className="border-b border-slate-50">
                     <td className="px-3 py-2">v{v.version_number}</td>
                     <td className="px-3 py-2"><StatusBadge label={v.status === 'ACTIVE' ? 'Published' : v.status === 'DRAFT' ? 'Draft' : v.status} /></td>
-                    <td>{v.status === 'ACTIVE' ? 'Yes' : '—'}</td>
+                    <td>{v.status === 'ACTIVE' ? 'Yes' : '–'}</td>
                     <td className="text-slate-500">{formatModified(v.created_at)}</td>
                     <td className="px-3 py-2">
                       {v.status === 'DRAFT' ? (
