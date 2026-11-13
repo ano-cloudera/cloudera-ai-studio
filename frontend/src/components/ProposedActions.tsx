@@ -7,7 +7,6 @@ import { api } from '../lib/api'
 import type { ProposedAction } from '../types/api'
 
 const TEXT = {
-  id: { heading: 'Aksi yang diusulkan', note: 'Tidak ada yang dijalankan sampai Anda menyetujuinya.', run: 'Jalankan', running: 'Menjalankan…', done: 'Selesai', failed: 'Gagal', retry: 'Coba lagi', seeActions: 'Lihat di Actions' },
   en: { heading: 'Proposed actions', note: 'Nothing runs until you approve it.', run: 'Run', running: 'Running…', done: 'Done', failed: 'Failed', retry: 'Retry', seeActions: 'View in Actions' },
 } as const
 
@@ -35,7 +34,7 @@ function argumentLines(action: ProposedAction): [string, string][] {
 }
 
 export function ProposedActions({ actions, language }: { actions: ProposedAction[]; language?: string | null }) {
-  const text = TEXT[language === 'id' ? 'id' : 'en']
+  const text = TEXT.en
   const [states, setStates] = useState<Record<string, State>>({})
   if (!actions.length) return null
 

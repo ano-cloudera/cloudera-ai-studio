@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 /** Shared horizontal rail for user, assistant, progress, and composer. */
 /** ~48rem centered column — aligned with composer and bubbles (ChatGPT-style). */
 export const CONVERSATION_RAIL_CLASS =
-  'conversation-rail mx-auto w-full max-w-[min(100%,52rem)] px-4 sm:px-5 lg:max-w-[720px]'
+  'conversation-rail mx-auto w-full max-w-[min(100%,52rem)] px-4 sm:px-5 lg:max-w-[800px]'
 
 export function conversationRailClassName(extra?: string): string {
   return extra ? `${CONVERSATION_RAIL_CLASS} ${extra}` : CONVERSATION_RAIL_CLASS

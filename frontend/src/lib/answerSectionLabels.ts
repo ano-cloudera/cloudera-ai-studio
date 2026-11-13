@@ -20,6 +20,7 @@ const LABELS = {
 
 export type AnswerSectionLabels = (typeof LABELS)[keyof typeof LABELS]
 
-export function answerSectionLabels(language?: string | null): AnswerSectionLabels {
-  return LABELS[language === 'id' ? 'id' : 'en']
+/** The platform's own words are English; the answer text itself follows the language of the question. */
+export function answerSectionLabels(_language?: string | null): AnswerSectionLabels {
+  return LABELS.en
 }

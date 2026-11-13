@@ -523,6 +523,11 @@ def step_card(item: Call) -> dict[str, Any]:
     card: dict[str, Any] = {"title": item.label(), "tool": item.call.tool, "status": "failed", "row_count": 0}
     if response is None:
         return card
+    if item.is_data and " " not in card["title"]:  # a bare metric id such as rata_durasi: the chart's own title reads better
+        spec = getattr(response, "chart_spec", None)
+        readable = (getattr(spec, "title", "") or "") or str((response.data.column_labels or {}).get("metric_value") or "")
+        if readable.strip():
+            card["title"] = readable.strip()
     card["status"] = "ok" if response.status == "SUCCESS" else "no_data" if response.status == "NO_DATA" else "failed"
     if item.is_data:
         data = response.data

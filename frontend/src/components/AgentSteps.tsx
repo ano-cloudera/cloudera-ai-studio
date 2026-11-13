@@ -4,17 +4,14 @@ import { useState } from 'react'
 import { formatBusinessValue } from '../lib/businessPresentation'
 import type { AgentStepCard } from '../types/api'
 
-const TEXT = {
-  id: { heading: 'Cara jawaban ini disusun', checks: (n: number) => `${n} pemeriksaan`, rows: (n: number) => `${n} baris`, sources: (n: number) => `${n} sumber`, noData: 'tidak ada data', failed: 'gagal', query: 'Lihat query', overall: 'Keseluruhan', more: (n: number) => `+${n} baris lagi` },
-  en: { heading: 'How this was worked out', checks: (n: number) => `${n} checks`, rows: (n: number) => `${n} rows`, sources: (n: number) => `${n} sources`, noData: 'no data', failed: 'failed', query: 'View query', overall: 'Overall', more: (n: number) => `+${n} more rows` },
-} as const
+const TEXT = { checks: (n: number) => `${n} checks`, rows: (n: number) => `${n} rows`, sources: (n: number) => `${n} sources`, noData: 'no data', failed: 'failed', query: 'View query', overall: 'Overall', more: (n: number) => `+${n} more rows` }
 
 function cell(column: string, value: unknown, unitFormat?: string | null): string {
   if (typeof value === 'number') return formatBusinessValue(column, value, undefined, column === 'metric_value' ? unitFormat ?? undefined : undefined)
   return String(value ?? '')
 }
 
-function StepCard({ step, index, words }: { step: AgentStepCard; index: number; words: (typeof TEXT)['en'] | (typeof TEXT)['id'] }) {
+function StepCard({ step, index, words }: { step: AgentStepCard; index: number; words: typeof TEXT }) {
   const [open, setOpen] = useState(false)
   const columns = step.columns ?? []
   const rows = step.rows ?? []
@@ -95,30 +92,16 @@ function StepCard({ step, index, words }: { step: AgentStepCard; index: number; 
 }
 
 /** The checks behind an agent's answer, each opening to its rows and governed query, the way an analyst shows their work. */
-export function AgentSteps({ steps, language }: { steps: AgentStepCard[]; language?: string | null }) {
-  const words = TEXT[language === 'id' ? 'id' : 'en']
-  const [open, setOpen] = useState(false)
+export function AgentSteps({ steps }: { steps: AgentStepCard[] }) {
   if (!steps.length) return null
   return (
-    <div className="answer-section-divider !pt-3" data-testid="agent-steps">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cloudera-orange"
-      >
-        <span className="type-section-label">{words.heading}</span>
-        <span className="text-xs font-semibold text-cloudera-indigo">
-          {words.checks(steps.length)} {open ? '▴' : '▾'}
-        </span>
-      </button>
-      {open && (
-        <ol className="mt-2 space-y-2">
-          {steps.map((step, index) => (
-            <StepCard key={`${index}-${step.title}`} step={step} index={index} words={words} />
-          ))}
-        </ol>
-      )}
+    <div data-testid="agent-steps">
+      <p className="mb-3 text-sm text-slate-600">{TEXT.checks(steps.length)} the agent ran to reach this answer. Open one to see its rows and the governed query.</p>
+      <ol className="space-y-2">
+        {steps.map((step, index) => (
+          <StepCard key={`${index}-${step.title}`} step={step} index={index} words={TEXT} />
+        ))}
+      </ol>
     </div>
   )
 }

@@ -133,7 +133,7 @@ button:disabled, [aria-disabled="true"], input:disabled, select:disabled { curso
     @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
   }
   .chat-response-typography .answer-prose-main {
-    @apply text-base font-medium leading-[1.5] text-slate-900;
+    @apply text-[14.5px] font-semibold leading-[1.6] text-slate-900;
   }
   .chat-response-typography .answer-prose-support {
     @apply text-[14.5px] font-normal leading-[1.6] text-slate-600;

@@ -991,11 +991,9 @@ function StructuredAnswer({
       </div>
     ) : null
   // What to do next: the actions the agent proposes (each approved before it runs), then the questions to ask next.
-  const agentSteps = response.status === 'SUCCESS' ? response.agent_steps ?? [] : []
   const followUpBlock =
-    agentSteps.length > 0 || proposedActions.length > 0 || nextQuestionsBlock ? (
+    proposedActions.length > 0 || nextQuestionsBlock ? (
       <>
-        {agentSteps.length > 0 && <AgentSteps steps={agentSteps} language={response.language} />}
         {proposedActions.length > 0 && <ProposedActions actions={proposedActions} language={response.language} />}
         {nextQuestionsBlock}
       </>

@@ -8,7 +8,6 @@ describe('AgentSteps', () => {
   it('lists the checks behind an answer and opens one to its rows, overall value and query', () => {
     render(
       <AgentSteps
-        language="en"
         steps={[
           {
             title: 'Late rate by region', tool: 'query_metric', status: 'ok', row_count: 8, columns: ['regional', 'metric_value'],
@@ -20,8 +19,7 @@ describe('AgentSteps', () => {
         ]}
       />,
     )
-    expect(screen.getByText('3 checks ▾')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: /How this was worked out/ }))
+    expect(screen.getByText(/3 checks the agent ran/)).toBeTruthy()
     expect(screen.getByText('8 rows')).toBeTruthy()
     expect(screen.getByText('2 sources')).toBeTruthy()
     expect(screen.getByText('no data')).toBeTruthy()

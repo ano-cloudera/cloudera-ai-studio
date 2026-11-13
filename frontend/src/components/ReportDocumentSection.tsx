@@ -12,6 +12,7 @@ import {
   WorkspaceSectionContent,
   WorkspaceSectionHeader,
 } from './analysis/WorkspaceSectionParts'
+import { AgentSteps } from './AgentSteps'
 import { AnswerChart } from './AnswerChart'
 import { AnswerProse } from './AnswerProse'
 import { WorkspaceDataTable } from './analysis/WorkspaceDataTable'
@@ -23,7 +24,7 @@ import { detectGeo } from '../lib/geo'
 import { formatCitationLabel, isRagResponse } from '../lib/ragReport'
 import type { ChatResponse } from '../types/api'
 
-type WorkspaceTab = 'summary' | 'map' | 'table' | 'query' | 'sources'
+type WorkspaceTab = 'summary' | 'map' | 'table' | 'query' | 'sources' | 'checks'
 
 type Props = {
   response: ChatResponse
@@ -34,10 +35,12 @@ function workspaceTabs(
   hasQuery: boolean,
   hasSources: boolean,
   hasMap = false,
+  hasChecks = false,
 ): { id: WorkspaceTab; label: string; disabled?: boolean }[] {
   const tabs: { id: WorkspaceTab; label: string; disabled?: boolean }[] = [{ id: 'summary', label: 'Summary' }]
   if (hasSources) tabs.push({ id: 'sources', label: 'Sources' })
   if (hasMap) tabs.push({ id: 'map', label: 'Map' })
+  if (hasChecks) tabs.push({ id: 'checks', label: 'Checks' })
   tabs.push({ id: 'table', label: 'Table', disabled: !hasTable })
   tabs.push({ id: 'query', label: 'Query', disabled: !hasQuery })
   return tabs
@@ -100,13 +103,20 @@ export function ReportDocumentSection({ response }: Props) {
   const geo = useMemo(() => (rag ? null : detectGeo(response.data.columns, response.data.rows, response.data.geo_points)), [rag, response.data.columns, response.data.rows, response.data.geo_points])
   const calculation = rag ? null : response.calculation ?? null
   const comparison = !rag && comparisonKind(response.data.columns) !== null && hasTable
-  const tabs = workspaceTabs(hasTable, hasQuery || Boolean(calculation), hasSources, Boolean(geo))
+  const checks = response.status === 'SUCCESS' ? response.agent_steps ?? [] : []
+  const tabs = workspaceTabs(hasTable, hasQuery || Boolean(calculation), hasSources, Boolean(geo), checks.length > 0)
   const summarySame =
     response.answer.executive_summary.trim() === response.answer.direct_answer.trim()
   const chartTitle = response.chart_spec?.title || 'Visualization'
   return (
     <div>
       <WorkspaceTabBar tab={tab} tabs={tabs} onSelect={setTab} />
+
+      {tab === 'checks' && (
+        <div className="mt-6" role="tabpanel">
+          <AgentSteps steps={checks} />
+        </div>
+      )}
 
       {tab === 'summary' && (
         <div className="mt-6" role="tabpanel">
