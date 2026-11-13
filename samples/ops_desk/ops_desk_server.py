@@ -7,7 +7,7 @@ the chat and only then is create_ticket called. Tickets are kept in a JSON file 
 (ServiceNow, Jira, SAP PM, email), replace _save() with a call to it; the tools and the agent stay unchanged.
 
 Register it in Settings -> MCP connections as a stdio server:
-    command: <python of the backend venv>     args: scripts/mcp/ops_desk_server.py
+    command: <python of the backend venv>     args: samples/ops_desk/ops_desk_server.py
 
 create_ticket is annotated as an action (readOnlyHint false), which is how the agent knows it may propose it; list_tickets is
 read-only. Works with mcp 1.x (FastMCP) and 2.x (MCPServer).

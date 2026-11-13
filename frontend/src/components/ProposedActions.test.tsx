@@ -34,7 +34,7 @@ describe('ProposedActions', () => {
     expect(api.runMcpAction).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: /Jalankan/ }))
     await waitFor(() => expect(screen.getByRole('status').textContent).toContain('OPS-261113-AB12'))
-    expect(api.runMcpAction).toHaveBeenCalledWith({ server_id: 'ops', tool: 'create_ticket', arguments: action.arguments })
+    expect(api.runMcpAction).toHaveBeenCalledWith({ server_id: 'ops', tool: 'create_ticket', arguments: action.arguments, title: action.title })
     expect(screen.queryByRole('button', { name: /Jalankan/ })).toBeNull()
   })
 

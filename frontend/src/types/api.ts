@@ -1009,3 +1009,17 @@ export type ProposedAction = {
   title: string
   arguments: Record<string, unknown>
 }
+
+/** An action a person approved and ran, as the platform recorded it (GET /api/v1/mcp/actions/history). */
+export type ActionRecord = {
+  id: string
+  at: string
+  server_id: string
+  server: string
+  tool: string
+  title: string
+  arguments: Record<string, unknown>
+  status: 'ok' | 'failed'
+  result: string
+  error: string
+}

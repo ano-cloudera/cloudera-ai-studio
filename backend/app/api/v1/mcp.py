@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -88,54 +87,51 @@ class RunActionRequest(BaseModel):
     server_id: str = Field(min_length=1, max_length=120)
     tool: str = Field(min_length=1, max_length=120)
     arguments: dict[str, Any] = Field(default_factory=dict)
+    title: str | None = Field(default=None, max_length=200)  # what the agent said the action does, kept with its record
 
 
 @router.post("/actions/run")
 async def run_mcp_action(body: RunActionRequest, request: Request) -> dict:
     """Run an action the agent proposed, after the user approved it: a tool that changes something, on a server enabled in this
-    workspace, with arguments that are valid for its schema."""
+    workspace, with arguments that are valid for its schema. Every run, successful or not, is recorded (GET /actions/history)."""
+    from app.mcp import action_log
     from app.mcp.actions import run_action
 
+    settings = request.app.state.settings
     entry = next((s for s in request.app.state.chat_service.mcp_servers() if s.id == body.server_id), None)
     if entry is None:
         raise HTTPException(status_code=404, detail="That MCP server is not enabled in this workspace.")
+    recorded = dict(server_id=entry.id, server=entry.name, tool=body.tool, title=body.title, arguments=body.arguments)
     try:
         result = await run_action(entry, body.tool, body.arguments)
     except ValueError as exc:
+        action_log.record(settings, ok=False, error=str(exc), **recorded)
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001 - reported to the user, who can retry
         from app.mcp.client import describe_exception
 
-        raise HTTPException(status_code=502, detail=f"The action could not run: {describe_exception(exc)[:300]}") from exc
-    return {"ok": True, "server": entry.name, "tool": body.tool, "result": result}
+        message = f"The action could not run: {describe_exception(exc)[:300]}"
+        action_log.record(settings, ok=False, error=message, **recorded)
+        raise HTTPException(status_code=502, detail=message) from exc
+    logged = action_log.record(settings, ok=True, result=result, **recorded)
+    return {"ok": True, "server": entry.name, "tool": body.tool, "result": result, "record_id": logged["id"]}
 
 
-@router.post("/tools/read")
-async def read_mcp_tool(body: RunActionRequest, request: Request) -> dict:
-    """Call a read-only tool (one that says it changes nothing) of a server enabled in this workspace, for pages that show what a
-    server holds, such as the tickets raised through approved actions."""
-    from app.mcp.actions import run_read
+@router.get("/actions/history")
+def mcp_action_history(request: Request, limit: int = Query(200, ge=1, le=1000)) -> dict:
+    """The actions people approved and ran, newest first."""
+    from app.mcp import action_log
 
-    entry = next((s for s in request.app.state.chat_service.mcp_servers() if s.id == body.server_id), None)
-    if entry is None:
-        raise HTTPException(status_code=404, detail="That MCP server is not enabled in this workspace.")
-    try:
-        result = await run_read(entry, body.tool, body.arguments)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except Exception as exc:  # noqa: BLE001
-        from app.mcp.client import describe_exception
-
-        raise HTTPException(status_code=502, detail=f"The tool could not run: {describe_exception(exc)[:300]}") from exc
-    return {"ok": True, "server": entry.name, "tool": body.tool, "result": result}
+    return {"actions": action_log.history(request.app.state.settings, limit=limit)}
 
 
-@router.get("/tools/readable")
-async def readable_mcp_tools(request: Request) -> dict:
-    """The read-only tools of the enabled servers, so a page can find the one it shows (for example list_tickets)."""
-    from app.mcp.actions import server_reads
+@router.get("/actions/status")
+async def mcp_action_status(request: Request) -> dict:
+    """Whether the Actions page has anything to show: an enabled server offers an action tool, or an action was run."""
+    from app.mcp import action_log
 
-    servers = request.app.state.chat_service.mcp_servers()
-    found = await asyncio.gather(*(server_reads(s) for s in servers), return_exceptions=True)
-    tools = [t for result in found if not isinstance(result, BaseException) for t in result]
-    return {"tools": [{k: t[k] for k in ("server_id", "server", "tool", "description")} for t in tools]}
+    ran = action_log.count(request.app.state.settings)
+    offered = False
+    if not ran:
+        offered = bool(await request.app.state.chat_service.agent_actions())
+    return {"visible": bool(ran or offered), "recorded": ran, "action_tools_available": offered}

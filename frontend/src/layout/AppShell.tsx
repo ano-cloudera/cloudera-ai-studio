@@ -24,6 +24,7 @@ import { ConversationSessionList, type ConversationSessionListProps } from '../c
 import { appConfig } from '../config/appConfig'
 import { usePublicBranding } from '../config/PublicBrandingContext'
 import { usePlatformReadiness } from '../hooks/usePlatformReadiness'
+import { useActionsVisible } from '../hooks/useActionsVisible'
 import { api } from '../lib/api'
 import {
   FEATURE_LABELS,
@@ -38,6 +39,8 @@ type NavItem = {
   href: string
   label: () => string
   icon: typeof Bot
+  /** Shown only once the Backend says the page has something to show (an action tool is offered, or an action was run). */
+  needsActions?: boolean
 }
 
 const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
@@ -65,7 +68,7 @@ const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
   {
     title: 'Monitor',
     items: [
-      { feature: 'askData', href: '/tickets', label: () => 'Tickets', icon: ClipboardList },
+      { feature: 'askData', href: '/actions', label: () => 'Actions', icon: ClipboardList, needsActions: true },
       { feature: 'usage', href: '/usage', label: () => appConfig.navigationUsage, icon: BarChart3 },
     ],
   },
@@ -74,10 +77,10 @@ const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
   },
 ]
 
-export function buildPrimaryNavigation() {
+export function buildPrimaryNavigation(options: { actions?: boolean } = {}) {
   return NAV_SECTIONS.flatMap(section =>
     section.items
-      .filter(item => appConfig.features[item.feature])
+      .filter(item => appConfig.features[item.feature] && (!item.needsActions || options.actions))
       .map(item => ({
         href: item.href,
         label: item.label(),
@@ -87,11 +90,11 @@ export function buildPrimaryNavigation() {
   )
 }
 
-export function buildSidebarSections() {
+export function buildSidebarSections(options: { actions?: boolean } = {}) {
   return NAV_SECTIONS.map(section => ({
     title: section.title,
     items: section.items
-      .filter(item => appConfig.features[item.feature])
+      .filter(item => appConfig.features[item.feature] && (!item.needsActions || options.actions))
       .map(item => ({
         href: item.href,
         label: item.label(),
@@ -170,10 +173,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       .then(res => setFeatureOverrides(res.overrides))
       .catch(() => undefined) // whatever goes wrong, the deployment defaults stay
   }, [])
+  const actionsVisible = useActionsVisible()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const navigation = useMemo(() => buildPrimaryNavigation(), [featureOverrides])
+  const navigation = useMemo(() => buildPrimaryNavigation({ actions: actionsVisible }), [featureOverrides, actionsVisible])
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const sidebarSections = useMemo(() => buildSidebarSections(), [featureOverrides])
+  const sidebarSections = useMemo(() => buildSidebarSections({ actions: actionsVisible }), [featureOverrides, actionsVisible])
   const pageFeature = featureForPath(pathname ?? '/')
   const pageOff = pageFeature !== null && !appConfig.features[pageFeature]
   const platform = usePlatformReadiness()

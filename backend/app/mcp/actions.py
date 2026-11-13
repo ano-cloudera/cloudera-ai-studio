@@ -103,11 +103,6 @@ async def server_actions(entry: McpServerEntry) -> list[dict[str, Any]]:
     return [t for t in await _server_tools(entry) if t["read_only"] is False]
 
 
-async def server_reads(entry: McpServerEntry) -> list[dict[str, Any]]:
-    """The read-only tools of one server: the ones that say they change nothing."""
-    return [t for t in await _server_tools(entry) if t["read_only"] is True]
-
-
 async def available_actions(servers: list[McpServerEntry]) -> list[dict[str, Any]]:
     """Every action tool of the enabled servers; a server that cannot be reached is left out."""
     found = await asyncio.gather(*(server_actions(s) for s in servers), return_exceptions=True)
@@ -184,18 +179,6 @@ async def run_action(entry: McpServerEntry, tool: str, arguments: dict[str, Any]
     if problems:
         raise ValueError("; ".join(problems))
     logger.info("mcp_action_run server=%s tool=%s", entry.id, tool)
-    return await _call(entry, tool, arguments)
-
-
-async def run_read(entry: McpServerEntry, tool: str, arguments: dict[str, Any]) -> str:
-    """Call a tool that says it changes nothing (a lookup or a list), with arguments valid for its schema."""
-    reads = {t["tool"]: t for t in await server_reads(entry)}
-    found = reads.get(tool)
-    if found is None:
-        raise ValueError(f"'{tool}' is not a read-only tool of {entry.name}")
-    problems = check_arguments(found["input_schema"], arguments)
-    if problems:
-        raise ValueError("; ".join(problems))
     return await _call(entry, tool, arguments)
 
 

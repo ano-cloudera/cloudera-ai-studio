@@ -9,12 +9,9 @@ import {
   DEFAULT_PRESENTATION,
   PREVIEW_SAMPLES,
   PRESETS,
-  SENSITIVITY,
   applyPreset,
-  applySensitivity,
   presetOf,
   previewOutcome,
-  sensitivityOf,
 } from '../../lib/presentationPresets'
 
 function overridesFromConfig(cfg: PresentationTierConfig): PresentationTierOverridesPayload {
@@ -114,7 +111,6 @@ export function AskDataPresentationSettingsPanel() {
   }
 
   const preset = presetOf(draft)
-  const sensitivity = sensitivityOf(draft)
   const atDefaults = JSON.stringify(overridesFromConfig(draft)) === JSON.stringify(overridesFromConfig(DEFAULT_PRESENTATION))
 
   return (
@@ -154,7 +150,7 @@ export function AskDataPresentationSettingsPanel() {
         {preset === 'custom' ? <p className="type-chat-meta text-slate-500">Your choices below do not match a preset, so they are shown as custom.</p> : null}
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-2">
         <label className="block text-sm font-medium text-slate-700">
           Who reads the answers?
           <select
@@ -186,29 +182,6 @@ export function AskDataPresentationSettingsPanel() {
           <span className="mt-1 block text-xs font-normal text-slate-500">The panel holds the chart, the table and the SQL.</span>
         </label>
 
-        <label className="block text-sm font-medium text-slate-700">
-          What counts as a bigger answer?
-          <select
-            className="app-select mt-1 w-full"
-            value={sensitivity}
-            disabled={draft.panel_auto_open !== 'heuristic'}
-            onChange={e => {
-              if (e.target.value !== 'custom') setDraft(d => applySensitivity(d, e.target.value as (typeof SENSITIVITY)[number]['id']))
-            }}
-          >
-            {SENSITIVITY.map(option => (
-              <option key={option.id} value={option.id}>
-                {option.title}
-              </option>
-            ))}
-            {sensitivity === 'custom' ? <option value="custom">Custom (see advanced)</option> : null}
-          </select>
-          <span className="mt-1 block text-xs font-normal text-slate-500">
-            {draft.panel_auto_open !== 'heuristic'
-              ? 'Only used when the panel opens automatically.'
-              : (SENSITIVITY.find(option => option.id === sensitivity)?.hint ?? 'Uses the values under advanced settings.') + '. An answer with a chart always counts.'}
-          </span>
-        </label>
       </section>
 
       <section className="space-y-2">
@@ -246,46 +219,6 @@ export function AskDataPresentationSettingsPanel() {
           ))}
         </ul>
       </section>
-
-      <details className="rounded-xl border border-slate-200 px-4 py-3">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-800">Advanced settings</summary>
-        <div className="mt-3 grid gap-4 sm:grid-cols-3">
-          <label className="block text-sm font-medium text-slate-700">
-            Open the panel when a result has at least this many rows
-            <input
-              type="number"
-              min={1}
-              max={1000}
-              className="input mt-1"
-              value={draft.tier3_min_rows}
-              onChange={e => setDraft(d => ({ ...d, tier3_min_rows: Number(e.target.value) || 1 }))}
-            />
-          </label>
-          <label className="block text-sm font-medium text-slate-700">
-            Open the panel for a ranking with more than this many items
-            <input
-              type="number"
-              min={0}
-              max={500}
-              className="input mt-1"
-              value={draft.rank_tier3_above_n}
-              onChange={e => setDraft(d => ({ ...d, rank_tier3_above_n: Number(e.target.value) || 0 }))}
-            />
-          </label>
-          <label className="block text-sm font-medium text-slate-700">
-            Least detail a ranking gets
-            <select
-              className="app-select mt-1 w-full"
-              value={draft.rank_min_tier}
-              onChange={e => setDraft(d => ({ ...d, rank_min_tier: Number(e.target.value) as 1 | 2 | 3 }))}
-            >
-              <option value={1}>The answer only</option>
-              <option value={2}>The answer with highlights</option>
-              <option value={3}>The full analysis panel</option>
-            </select>
-          </label>
-        </div>
-      </details>
 
       {banner ? <p className="type-chat-meta text-emerald-700">{banner}</p> : null}
       {error ? <p className="type-chat-meta text-rose-700">{safeErrorMessage(error)}</p> : null}

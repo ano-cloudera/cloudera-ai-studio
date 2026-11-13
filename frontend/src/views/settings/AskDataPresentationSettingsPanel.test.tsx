@@ -51,14 +51,11 @@ describe('AskDataPresentationSettingsPanel', () => {
     expect(screen.getByRole('radio', { name: /Demo/ }).getAttribute('aria-checked')).toBe('true')
   })
 
-  it('the bigger-answer choice follows the panel setting and the advanced values stay reachable', async () => {
+  it('offers only the choices a person understands: no size thresholds to tune', async () => {
     render(<AskDataPresentationSettingsPanel />)
     await screen.findByText('How answers are shown')
-    const sensitivity = screen.getByLabelText(/What counts as a bigger answer/) as HTMLSelectElement
-    expect(sensitivity.value).toBe('balanced')
-    fireEvent.change(screen.getByLabelText(/When does the analysis panel open/), { target: { value: 'never' } })
-    expect(sensitivity.disabled).toBe(true)
-    expect(screen.getByText('Advanced settings')).toBeTruthy()
-    expect((screen.getByLabelText(/at least this many rows/) as HTMLInputElement).value).toBe('13')
+    expect(screen.queryByLabelText(/What counts as a bigger answer/)).toBeNull()
+    expect(screen.queryByText('Advanced settings')).toBeNull()
+    expect(screen.getByLabelText(/When does the analysis panel open/)).toBeTruthy()
   })
 })

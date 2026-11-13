@@ -51,7 +51,7 @@ export const LOCKED_NOTES: Partial<Record<FeatureKey, string>> = {
 /** Menu and page prefixes, to find which feature a page belongs to. */
 const ROUTE_FEATURE: [string, FeatureKey][] = [
   ['/home', 'askData'],
-  ['/tickets', 'askData'],
+  ['/actions', 'askData'],
   ['/knowledge', 'documents'],
   ['/prompts', 'prompts'],
   ['/skills', 'skills'],

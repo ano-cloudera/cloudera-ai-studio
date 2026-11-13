@@ -24,7 +24,6 @@ export const DEFAULT_PRESENTATION: PresentationTierConfig = {
 }
 
 export type PresetId = 'demo' | 'analyst' | 'minimal'
-export type SensitivityId = 'rarely' | 'balanced' | 'often'
 
 export const PRESETS: { id: PresetId; title: string; description: string; values: Partial<PresentationTierConfig> }[] = [
   {
@@ -47,18 +46,6 @@ export const PRESETS: { id: PresetId; title: string; description: string; values
   },
 ]
 
-/** How soon an answer counts as "big": one choice instead of four thresholds. */
-export const SENSITIVITY: {
-  id: SensitivityId
-  title: string
-  hint: string
-  values: Pick<PresentationTierConfig, 'tier3_min_rows' | 'rank_tier3_above_n' | 'tier3_min_insights' | 'tier3_min_implications'>
-}[] = [
-  { id: 'rarely', title: 'Rarely', hint: 'Only large results', values: { tier3_min_rows: 30, rank_tier3_above_n: 10, tier3_min_insights: 5, tier3_min_implications: 3 } },
-  { id: 'balanced', title: 'Balanced (recommended)', hint: 'Results of about a dozen rows or more', values: { tier3_min_rows: 13, rank_tier3_above_n: 5, tier3_min_insights: 3, tier3_min_implications: 2 } },
-  { id: 'often', title: 'Often', hint: 'Even short breakdowns', values: { tier3_min_rows: 6, rank_tier3_above_n: 3, tier3_min_insights: 2, tier3_min_implications: 1 } },
-]
-
 const PRESET_KEYS: (keyof PresentationTierConfig)[] = ['audience_mode', 'panel_auto_open', 'chat_details_default_open', 'tier1_show_narrative']
 
 export function applyPreset(current: PresentationTierConfig, id: PresetId): PresentationTierConfig {
@@ -76,15 +63,6 @@ export function presetOf(cfg: PresentationTierConfig): PresetId | 'custom' {
     if (PRESET_KEYS.every(key => cfg[key] === expected[key])) return preset.id
   }
   return 'custom'
-}
-
-export function sensitivityOf(cfg: PresentationTierConfig): SensitivityId | 'custom' {
-  const match = SENSITIVITY.find(option => (Object.keys(option.values) as (keyof typeof option.values)[]).every(key => cfg[key] === option.values[key]))
-  return match?.id ?? 'custom'
-}
-
-export function applySensitivity(current: PresentationTierConfig, id: SensitivityId): PresentationTierConfig {
-  return { ...current, ...SENSITIVITY.find(option => option.id === id)!.values }
 }
 
 // ---- the preview: three typical answers shown under the current settings --------------------------------------------

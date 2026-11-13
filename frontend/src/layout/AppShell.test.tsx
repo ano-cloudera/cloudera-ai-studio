@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { appConfig } from '../config/appConfig'
 import { TestBrandingWrapper } from '../test/testBrandingWrapper'
-import { buildPrimaryNavigation, AppShell } from './AppShell'
+import { buildPrimaryNavigation, buildSidebarSections, AppShell } from './AppShell'
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/' }))
 
@@ -20,7 +20,6 @@ describe('V2 application shell', () => {
       'Semantic Layer',
       'Prompts',
       'Data Sources',
-      'Tickets',
       'Usage',
       'Settings',
     ])
@@ -38,12 +37,18 @@ describe('V2 application shell', () => {
       .getAllByRole('link')
       .map(link => link.textContent?.trim())
       .filter(Boolean)
-    expect(labels).toEqual(['Home', 'Ask Data', 'Knowledge', 'Semantic Layer', 'Prompts', 'Data Sources', 'Tickets', 'Usage', 'Settings'])
+    expect(labels).toEqual(['Home', 'Ask Data', 'Knowledge', 'Semantic Layer', 'Prompts', 'Data Sources', 'Usage', 'Settings'])
 
     expect(screen.queryByText('Dashboard')).toBeNull()
     expect(screen.queryByText('AI Monitoring')).toBeNull()
     expect(screen.queryByText('Scan Intelligence')).toBeNull()
     expect(screen.getAllByText(appConfig.sidebarBrandTitle).length).toBeGreaterThan(0)
     screen.getByText('Ask Data content')
+  })
+
+  it('shows Actions only when an action tool is offered or an action was run', () => {
+    expect(buildPrimaryNavigation().map(item => item.label)).not.toContain('Actions')
+    expect(buildPrimaryNavigation({ actions: true }).map(item => item.label)).toContain('Actions')
+    expect(buildSidebarSections({ actions: true }).flatMap(section => section.items.map(item => item.label))).toContain('Actions')
   })
 })

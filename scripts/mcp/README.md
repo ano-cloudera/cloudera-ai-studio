@@ -35,29 +35,3 @@ python scripts/mcp/train_credit_model.py   # rewrites credit_risk_model.json
 
 To serve the model from a Cloudera AI Model endpoint instead, replace the body of `assess()` in
 `credit_risk_scoring.py` with an HTTP call to the endpoint; the MCP tool and the planner stay unchanged.
-
-# Operations Desk MCP (agent actions)
-
-An MCP server where follow-up tickets are raised and listed (`ops_desk_server.py`). The agent proposes a ticket from what the
-data showed; the user approves it in the chat (button **Run**), and only then is `create_ticket` called. `create_ticket` is
-annotated as an action (`readOnlyHint: false`); only such tools are ever proposed. `list_tickets` is read-only.
-
-Tickets are kept in `OPS_DESK_FILE` (default `~/anywhere-studio-data/ops_desk/tickets.json`, the project storage). To send them
-to ServiceNow, Jira, SAP PM or email instead, replace `_save()`; the tools and the agent stay the same.
-
-## Register it (Settings → MCP connections)
-
-| Field | Value on Cloudera AI |
-|---|---|
-| Name | `Operations Desk` |
-| Description | `Raise and list follow-up tickets for operational issues.` |
-| Transport | `stdio` |
-| Command | `/home/cdsw/.venvs/studio-backend/bin/python` |
-| Arguments | `/home/cdsw/anywhere-ai-studio/scripts/mcp/ops_desk_server.py` |
-
-**Test connection** should list `create_ticket` and `list_tickets`. Then ask the agent what to do, for example:
-
-> Apa yang sebaiknya kita lakukan untuk Papua Maluku?
-
-The answer ends with **Proposed actions**; each shows its arguments and runs only when you click **Run**. Proposals need the
-tool loop (`AGENT_LOOP=tools`).

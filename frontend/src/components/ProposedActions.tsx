@@ -7,8 +7,8 @@ import { api } from '../lib/api'
 import type { ProposedAction } from '../types/api'
 
 const TEXT = {
-  id: { heading: 'Aksi yang diusulkan', note: 'Tidak ada yang dijalankan sampai Anda menyetujuinya.', run: 'Jalankan', running: 'Menjalankan…', done: 'Selesai', failed: 'Gagal', retry: 'Coba lagi', seeTickets: 'Lihat semua tiket' },
-  en: { heading: 'Proposed actions', note: 'Nothing runs until you approve it.', run: 'Run', running: 'Running…', done: 'Done', failed: 'Failed', retry: 'Retry', seeTickets: 'See all tickets' },
+  id: { heading: 'Aksi yang diusulkan', note: 'Tidak ada yang dijalankan sampai Anda menyetujuinya.', run: 'Jalankan', running: 'Menjalankan…', done: 'Selesai', failed: 'Gagal', retry: 'Coba lagi', seeActions: 'Lihat di Actions' },
+  en: { heading: 'Proposed actions', note: 'Nothing runs until you approve it.', run: 'Run', running: 'Running…', done: 'Done', failed: 'Failed', retry: 'Retry', seeActions: 'View in Actions' },
 } as const
 
 type State = { status: 'idle' | 'running' | 'done' | 'failed'; message?: string }
@@ -42,7 +42,7 @@ export function ProposedActions({ actions, language }: { actions: ProposedAction
   const run = async (action: ProposedAction) => {
     setStates(current => ({ ...current, [action.id]: { status: 'running' } }))
     try {
-      const reply = await api.runMcpAction({ server_id: action.server_id, tool: action.tool, arguments: action.arguments })
+      const reply = await api.runMcpAction({ server_id: action.server_id, tool: action.tool, arguments: action.arguments, title: action.title })
       setStates(current => ({ ...current, [action.id]: { status: 'done', message: summarise(reply.result) } }))
     } catch (error) {
       const message = (error as { message?: string })?.message || ''
@@ -96,8 +96,8 @@ export function ProposedActions({ actions, language }: { actions: ProposedAction
             {state.status === 'done' && (
               <p className="mt-2 text-xs text-emerald-800" role="status">
                 {state.message}{' '}
-                <Link href="/tickets" className="font-semibold underline underline-offset-2">
-                  {text.seeTickets}
+                <Link href="/actions" className="font-semibold underline underline-offset-2">
+                  {text.seeActions}
                 </Link>
               </p>
             )}

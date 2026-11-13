@@ -3,16 +3,13 @@ import {
   DEFAULT_PRESENTATION,
   PREVIEW_SAMPLES,
   applyPreset,
-  applySensitivity,
   presetOf,
   previewOutcome,
-  sensitivityOf,
 } from './presentationPresets'
 
 describe('presets', () => {
-  it('the shipped configuration is the Demo preset and balanced', () => {
+  it('the shipped configuration is the Demo preset', () => {
     expect(presetOf(DEFAULT_PRESENTATION)).toBe('demo')
-    expect(sensitivityOf(DEFAULT_PRESENTATION)).toBe('balanced')
   })
 
   it('applies a preset and recognises it again, and says custom after a manual change', () => {
@@ -24,11 +21,9 @@ describe('presets', () => {
     expect(presetOf(applyPreset(DEFAULT_PRESENTATION, 'minimal'))).toBe('minimal')
   })
 
-  it('keeps the thresholds when a preset is applied and the sensitivity when the preset changes', () => {
-    const often = applySensitivity(DEFAULT_PRESENTATION, 'often')
-    expect(sensitivityOf(often)).toBe('often')
-    expect(applyPreset(often, 'analyst').tier3_min_rows).toBe(often.tier3_min_rows)
-    expect(sensitivityOf({ ...often, tier3_min_rows: 99 })).toBe('custom')
+  it('keeps the thresholds when a preset is applied, so a deployment that tuned them is not undone', () => {
+    const tuned = { ...DEFAULT_PRESENTATION, tier3_min_rows: 99 }
+    expect(applyPreset(tuned, 'analyst').tier3_min_rows).toBe(99)
   })
 })
 
@@ -49,11 +44,11 @@ describe('preview', () => {
     expect(outcomes(applyPreset(DEFAULT_PRESENTATION, 'minimal')).some(opens)).toBe(false)
   })
 
-  it('follows how soon an answer counts as big (a chart always counts)', () => {
-    const rarely = outcomes(applySensitivity(DEFAULT_PRESENTATION, 'rarely'))
+  it('follows the size thresholds a deployment sets (a chart always counts)', () => {
+    const rarely = outcomes({ ...DEFAULT_PRESENTATION, tier3_min_rows: 30, rank_tier3_above_n: 10, tier3_min_insights: 5, tier3_min_implications: 3 })
     expect(opens(rarely[3])).toBe(false)
     expect(opens(rarely[2])).toBe(true)
-    expect(opens(outcomes(applySensitivity(DEFAULT_PRESENTATION, 'often'))[1])).toBe(true)
+    expect(opens(outcomes({ ...DEFAULT_PRESENTATION, tier3_min_insights: 2, tier3_min_implications: 1, tier3_min_rows: 6 })[1])).toBe(true)
   })
 
   it('says whether the table and SQL are shown under the answer', () => {
