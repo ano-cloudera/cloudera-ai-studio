@@ -20,7 +20,7 @@ export function BrandMark() {
           src={src}
           alt=""
           aria-hidden
-          className="h-9 w-9 shrink-0 object-contain"
+          className="h-8 w-8 shrink-0 object-contain"
           onError={() => setFailed(true)}
         />
       )}
