@@ -157,7 +157,8 @@ export function inferColumnUnitFormat(column: string, metric?: string): string |
   return null
 }
 
-export function formatBusinessValue(field: string, value: unknown, metric?: string, unitFormat?: string | null): string {
+/** `locale` follows the language of the answer ("id-ID" writes 16,07%), so a figure reads the same in the text and around it. */
+export function formatBusinessValue(field: string, value: unknown, metric?: string, unitFormat?: string | null, locale = 'en-US'): string {
   if (value === null || value === undefined || value === '') return '–'
 
   const col = field.trim().toLowerCase()
@@ -172,11 +173,11 @@ export function formatBusinessValue(field: string, value: unknown, metric?: stri
 
   if (resolvedUnit === 'percent') {
     const scaled = Math.abs(value) <= 1 && value !== 0 ? value * 100 : value
-    return `${scaled.toLocaleString('en-US', { maximumFractionDigits: 2 })}%`
+    return `${scaled.toLocaleString(locale, { maximumFractionDigits: 2 })}%`
   }
-  if (resolvedUnit === 'quantity' || resolvedUnit === 'count') return Math.round(value).toLocaleString('en-US')
+  if (resolvedUnit === 'quantity' || resolvedUnit === 'count') return Math.round(value).toLocaleString(locale)
   if (resolvedUnit === 'ratio') return value.toFixed(2)
-  if (resolvedUnit === 'minutes') return `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })} min`
+  if (resolvedUnit === 'minutes') return `${value.toLocaleString(locale, { maximumFractionDigits: 1 })} min`
   if (resolvedUnit === 'currency_idr') {
     const absolute = Math.abs(value)
     const sign = value < 0 ? '-' : ''
@@ -198,5 +199,5 @@ export function formatBusinessValue(field: string, value: unknown, metric?: stri
     return `${sign}Rp${absolute.toLocaleString('id-ID', { maximumFractionDigits: 2 })}`
   }
 
-  return value.toLocaleString('en-US', { maximumFractionDigits: 2 })
+  return value.toLocaleString(locale, { maximumFractionDigits: 2 })
 }

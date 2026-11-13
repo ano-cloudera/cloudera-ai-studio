@@ -1007,7 +1007,7 @@ function StructuredAnswer({
       <div className="answer-section-divider space-y-3">
         <div className="type-section-label flex items-center gap-2">
           <Lightbulb size={14} className="text-cloudera-orange" aria-hidden />
-          {sectionLabels.insights}
+          {response.strategy === 'conversational' ? 'What you can ask about' : sectionLabels.insights}
         </div>
         <ul className="answer-prose-secondary space-y-2.5">
           {response.answer.insights.map(item => (
@@ -1061,7 +1061,7 @@ function StructuredAnswer({
           <AnswerProse text={answerText} omitTables={omitTablesInProse} variant="main" />
           {inlineChart && (
             <div data-testid="chat-inline-chart">
-              <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded className="!mb-0" exportId={response.request_id} metric={chartMetric(response)} />
+              <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded className="!mb-0" exportId={response.request_id} metric={chartMetric(response)} overall={response.data.overall_value ?? null} />
             </div>
           )}
           {showExecutiveSummary && (
@@ -1127,7 +1127,7 @@ function StructuredAnswer({
       )}
 
       {hasVisualChart && (
-        <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded className="!mb-0" exportId={response.request_id} metric={chartMetric(response)} />
+        <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded className="!mb-0" exportId={response.request_id} metric={chartMetric(response)} overall={response.data.overall_value ?? null} />
       )}
 
       {response.data.rows.length > 0 && (

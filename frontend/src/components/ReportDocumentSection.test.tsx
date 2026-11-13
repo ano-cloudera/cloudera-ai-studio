@@ -48,10 +48,11 @@ describe('Analysis workspace summary', () => {
     expect(screen.queryByText('Rate by region')).toBeNull()
   })
 
-  it('keeps a chart in the workspace when there are more than 15 categories', () => {
+  it('keeps the chart in its own tab of the workspace, larger than in the chat', () => {
     render(<ReportDocumentSection response={response(16)} chatInsightCount={2} chartShownInChat={false} />)
 
-    expect(screen.getByText('Rate by region')).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: 'Chart' }))
+    expect(screen.getByTestId('workspace-chart').textContent).toContain('Rate by region')
   })
 
   it('opens on the agent full analysis, which is not the chat summary', () => {

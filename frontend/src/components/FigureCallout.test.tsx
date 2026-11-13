@@ -41,4 +41,10 @@ describe('FigureCallout', () => {
     expect(singleFigure(answer({}, { strategy: 'agent' }))).toBeNull()
     expect(singleFigure(answer({}, { status: 'NO_DATA' }))).toBeNull()
   })
+
+  it('writes numbers the way the answer does: 1,07 under an Indonesian answer', () => {
+    const response = answer({ metric_target: 15, metric_better: 'down' }, { language: 'id' })
+    render(<FigureCallout response={response} value={singleFigure(response)!} />)
+    expect(screen.getByText('1,07 pts above target')).toBeTruthy()
+  })
 })

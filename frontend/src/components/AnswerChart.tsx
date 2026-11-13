@@ -1,4 +1,6 @@
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts'
+import { useState } from 'react'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, LabelList, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts'
+import { chartViews, differenceRows, paretoRows, type ChartView } from '../lib/chartViews'
 import type { ChartSpec } from '../types/api'
 import { truncateAxisLabel } from '../lib/answerFormatting'
 import {
@@ -12,6 +14,8 @@ import { ASSISTANT_CHART_CLASS } from './ConversationInner'
 
 // Cloudera palette: electric indigo draws the data, then blue, orange and dark navy for further series.
 const COLORS = ['#FF5A14', '#5351F6', '#3779D6', '#17113F']
+/** A share of the whole can have up to six slices: the four brand colours, then lighter orange and indigo. */
+const PIE_COLORS = [...COLORS, '#FFA47A', '#A9A8FB']
 const tick = { fontSize: 11, fill: '#64748B' }
 const CHART_MARGIN_DENSE_BOTTOM = 88
 const CHART_MARGIN_DENSE_BOTTOM_EMBEDDED = 44
@@ -28,8 +32,8 @@ function formatAxisNumber(value: number): string {
   return String(value)
 }
 
-function formatTooltipValue(value: unknown): string {
-  return typeof value === 'number' ? value.toLocaleString('en-US', { maximumFractionDigits: 2 }) : String(value ?? '')
+function formatTooltipValue(value: unknown, locale = 'en-US'): string {
+  return typeof value === 'number' ? value.toLocaleString(locale, { maximumFractionDigits: 2 }) : String(value ?? '')
 }
 
 /** What the plotted metric is, so a reader knows the number and which way is good. */
@@ -38,6 +42,8 @@ export type ChartMetric = {
   unitFormat?: string | null
   description?: string | null
   better?: 'up' | 'down' | null
+  /** How numbers are written: the answer's language ("id-ID" gives 16,07%). */
+  locale?: string | null
 }
 
 export function AnswerChart({
@@ -48,6 +54,7 @@ export function AnswerChart({
   hideTitle = false,
   exportId = '',
   metric,
+  overall = null,
 }: {
   chart: ChartSpec | null
   rows: Record<string, unknown>[]
@@ -59,7 +66,10 @@ export function AnswerChart({
   exportId?: string
   /** The metric plotted as metric_value: its name (not "metric_value"), unit, definition and which way is good. */
   metric?: ChartMetric
+  /** The metric over all groups, when known: it allows the "vs overall" view of a rate. */
+  overall?: number | null
 }) {
+  const [picked, setPicked] = useState<ChartView>('native')
   if (!chart || chart.type === 'table' || chart.type === 'kpi' || !chart.x || !chart.y || !rows.length) return null
   // A series must be a category: the value column (or the x axis) as a series gives each point its own colour and a
   // legend made of numbers.
@@ -196,8 +206,24 @@ export function AnswerChart({
     />
   )
   const valueName = (metric?.label || '').trim() || formatBusinessLabel(chart.title || 'Value')
+  const locale = metric?.locale || 'en-US'
   const formatValue = (value: unknown) =>
-    typeof value === 'number' ? formatBusinessValue('metric_value', value, undefined, metric?.unitFormat ?? undefined) : formatTooltipValue(value)
+    typeof value === 'number' ? formatBusinessValue('metric_value', value, undefined, metric?.unitFormat ?? undefined, locale) : formatTooltipValue(value, locale)
+  const views = chartViews({
+    type: chart.type,
+    values: rawYValues,
+    unitFormat: metric?.unitFormat,
+    overall,
+    hasSeries: visibleSeriesNames.length > 0,
+    timeOnX,
+  })
+  const view: ChartView = views.some(option => option.id === picked) ? picked : 'native'
+  const pointGap = (value: number) =>
+    metric?.unitFormat === 'percent'
+      ? `${value > 0 ? '+' : value < 0 ? '-' : ''}${Math.abs(value).toLocaleString(locale, { maximumFractionDigits: 2 })} pts`
+      : `${value > 0 ? '+' : value < 0 ? '-' : ''}${formatValue(Math.abs(value))}`
+  // Values written on the bars in the larger chart of the panel, where there is room for them.
+  const valueLabels = !embedded && categoryCount <= 15 && keys.length === 1
   const direction = metric?.better === 'down' ? 'Lower is better' : metric?.better === 'up' ? 'Higher is better' : ''
   const caption = [metric?.description?.trim(), direction].filter(Boolean).join(' · ')
   const axes = (
@@ -214,7 +240,7 @@ export function AnswerChart({
       />
       <Tooltip
         formatter={(value: unknown, name: unknown) => [
-          name === 'metric_value' || name === valueName ? formatValue(value) : formatTooltipValue(value),
+          name === 'metric_value' || name === valueName ? formatValue(value) : formatTooltipValue(value, locale),
           name === 'metric_value' ? valueName : String(name ?? ''),
         ]}
         labelFormatter={label =>
@@ -233,9 +259,30 @@ export function AnswerChart({
       : 'h-[20.7rem]'
   const body = (
     <>
-      {!hideTitle && (
-        <div className={`${embedded ? 'answer-chart-title mb-1.5' : 'text-sm font-semibold text-cloudera-navy mb-1'}`}>
-          {chart.title}
+      {(!hideTitle || views.length > 1) && (
+        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
+          {!hideTitle ? (
+            <div className={embedded ? 'answer-chart-title' : 'text-sm font-semibold text-cloudera-navy'}>{chart.title}</div>
+          ) : (
+            <span />
+          )}
+          {views.length > 1 && (
+            <div role="group" aria-label="Chart view" className="inline-flex rounded-md border border-slate-200 bg-white p-0.5" data-testid="chart-view-switch">
+              {views.map(option => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={view === option.id}
+                  onClick={() => setPicked(option.id)}
+                  className={`min-h-7 rounded px-2.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-cloudera-orange ${
+                    view === option.id ? 'bg-cloudera-navy text-white' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
       {caption && (
@@ -246,10 +293,52 @@ export function AnswerChart({
       {/* No series animation: the chart is whole the moment it appears, so a PDF export never captures it half-drawn. */}
       <div className={chartHeight}>
         <ResponsiveContainer width="100%" height="100%">
-    {chart.type === 'bar' ? <BarChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => <Bar key={key} dataKey={key} name={key === 'metric_value' ? valueName : key} fill={COLORS[index % COLORS.length]} radius={[6, 6, 0, 0]} maxBarSize={54} isAnimationActive={false} />)}</BarChart>
+    {view === 'pareto' ? (
+      <ComposedChart data={paretoRows(rows, chart.x!, yField)} margin={chartMargin}>
+        <CartesianGrid vertical={false} stroke="#E7E8F0" />
+        {xAxis}
+        <YAxis yAxisId="value" tick={tick} axisLine={false} tickLine={false} width={56} tickFormatter={formatAxisNumber} />
+        <YAxis yAxisId="share" orientation="right" domain={[0, 100]} tick={tick} axisLine={false} tickLine={false} width={44} tickFormatter={value => `${value}%`} />
+        <Tooltip
+          formatter={(value: unknown, name: unknown) =>
+            name === '__cumulative' ? [`${Number(value).toLocaleString(locale, { maximumFractionDigits: 1 })}%`, 'Cumulative share'] : [formatValue(value), valueName]
+          }
+        />
+        <Bar yAxisId="value" dataKey={yField} name={yField} fill={COLORS[0]} radius={[6, 6, 0, 0]} maxBarSize={54} isAnimationActive={false} />
+        <Line yAxisId="share" dataKey="__cumulative" name="__cumulative" stroke={COLORS[1]} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+      </ComposedChart>
+    ) : view === 'vs_overall' && typeof overall === 'number' ? (
+      <BarChart data={differenceRows(rows, chart.x!, yField, overall)} margin={chartMargin}>
+        <CartesianGrid vertical={false} stroke="#E7E8F0" />
+        {xAxis}
+        <YAxis tick={tick} axisLine={false} tickLine={false} width={56} />
+        <Tooltip formatter={(value: unknown) => [pointGap(Number(value)), `vs overall ${formatValue(overall)}`]} />
+        <ReferenceLine y={0} stroke="#17113F" strokeWidth={1} />
+        <Bar dataKey="__difference" name="__difference" radius={[4, 4, 4, 4]} maxBarSize={54} isAnimationActive={false}>
+          {differenceRows(rows, chart.x!, yField, overall).map((row, index) => (
+            <Cell key={index} fill={(row.__difference as number) > 0 ? COLORS[0] : COLORS[1]} />
+          ))}
+          {!embedded && <LabelList dataKey="__difference" position="top" formatter={(value: unknown) => pointGap(Number(value))} style={{ fontSize: 10, fill: '#475569' }} />}
+        </Bar>
+      </BarChart>
+    ) : view === 'pie' ? (
+      <PieChart margin={{ bottom: 16 }}>
+        <Pie data={data} dataKey={yField} nameKey={chart.x!} innerRadius={52} outerRadius={88} isAnimationActive={false}>
+          {data.map((_, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
+        </Pie>
+        <Tooltip formatter={(value: unknown) => formatValue(value)} />
+        <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+      </PieChart>
+    ) : view === 'line' ? (
+      <LineChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => <Line key={key} dataKey={key} name={key === 'metric_value' ? valueName : formatBusinessLabel(key)} stroke={COLORS[index % COLORS.length]} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />)}</LineChart>
+    ) : view === 'bar' || view === 'stacked' || chart.type === 'bar' ? <BarChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => (
+            <Bar key={key} dataKey={key} name={key === 'metric_value' ? valueName : key} fill={COLORS[index % COLORS.length]} radius={view === 'stacked' ? [0, 0, 0, 0] : [6, 6, 0, 0]} maxBarSize={54} stackId={view === 'stacked' ? 'stack' : undefined} isAnimationActive={false}>
+              {valueLabels && <LabelList dataKey={key} position="top" formatter={(value: unknown) => formatValue(value)} style={{ fontSize: 10, fill: '#475569' }} />}
+            </Bar>
+          ))}</BarChart>
       : chart.type === 'area' ? <AreaChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => <Area key={key} dataKey={key} name={key === 'metric_value' ? valueName : key} stroke={COLORS[index % COLORS.length]} fill={COLORS[index % COLORS.length]} fillOpacity={0.12} isAnimationActive={false} />)}</AreaChart>
-      : chart.type === 'scatter' ? <ScatterChart margin={chartMargin}><CartesianGrid vertical={false} stroke="#E7E8F0" /><XAxis type="number" dataKey={chart.x} name={chart.x} tick={tick} /><YAxis type="number" dataKey={chart.y} name={chart.y} tick={tick} width={56} tickFormatter={formatAxisNumber} /><Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={formatTooltipValue} />{series ? seriesNames.map((name, index) => <Scatter key={name} name={name} data={rows.filter(row => String(row[series!] ?? 'Unknown') === name)} fill={COLORS[index % COLORS.length]} isAnimationActive={false} />) : <Scatter data={data} fill={COLORS[2]} isAnimationActive={false} />}{series && <Legend wrapperStyle={{ fontSize: 11 }} />}</ScatterChart>
-      : chart.type === 'pie' ? <PieChart margin={{ bottom: 16 }}><Pie data={data} dataKey={chart.y} nameKey={chart.x} innerRadius={52} outerRadius={88} isAnimationActive={false}>{data.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip formatter={formatTooltipValue} /><Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} /></PieChart>
+      : chart.type === 'scatter' ? <ScatterChart margin={chartMargin}><CartesianGrid vertical={false} stroke="#E7E8F0" /><XAxis type="number" dataKey={chart.x} name={chart.x} tick={tick} /><YAxis type="number" dataKey={chart.y} name={chart.y} tick={tick} width={56} tickFormatter={formatAxisNumber} /><Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={(value: unknown) => formatTooltipValue(value, locale)} />{series ? seriesNames.map((name, index) => <Scatter key={name} name={name} data={rows.filter(row => String(row[series!] ?? 'Unknown') === name)} fill={COLORS[index % COLORS.length]} isAnimationActive={false} />) : <Scatter data={data} fill={COLORS[2]} isAnimationActive={false} />}{series && <Legend wrapperStyle={{ fontSize: 11 }} />}</ScatterChart>
+      : chart.type === 'pie' ? <PieChart margin={{ bottom: 16 }}><Pie data={data} dataKey={chart.y} nameKey={chart.x} innerRadius={52} outerRadius={88} isAnimationActive={false}>{data.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip formatter={(value: unknown) => formatTooltipValue(value, locale)} /><Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} /></PieChart>
       : <LineChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => (
             <Line
               key={key}

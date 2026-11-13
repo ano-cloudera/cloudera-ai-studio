@@ -1,6 +1,7 @@
 'use client'
 
 import { formatBusinessValue } from '../lib/businessPresentation'
+import { answerLocale } from '../lib/chartMetric'
 import type { ChatResponse } from '../types/api'
 
 /** The one figure of a single-value answer, when the result is one number. */
@@ -23,10 +24,11 @@ export function FigureCallout({ response, value }: { response: ChatResponse; val
   const target = typeof data.metric_target === 'number' ? data.metric_target : null
   if (target === null) return null
   const unit = data.unit_format ?? undefined
-  const show = (n: number) => formatBusinessValue('metric_value', n, data.governed_metric ?? undefined, unit)
+  const locale = answerLocale(response)
+  const show = (n: number) => formatBusinessValue('metric_value', n, data.governed_metric ?? undefined, unit, locale)
   const above = value > target
   const gap = Math.abs(value - target)
-  const gapText = unit === 'percent' ? `${Number(gap.toFixed(2))} pts` : show(gap)
+  const gapText = unit === 'percent' ? `${Number(gap.toFixed(2)).toLocaleString(locale)} pts` : show(gap)
   const good = data.metric_better ? (data.metric_better === 'up') === above : null
   const tone = value === target ? 'text-slate-800' : good === null ? 'text-slate-800' : good ? 'text-emerald-700' : 'text-rose-700'
   const standing = value === target ? 'on target' : `${gapText} ${above ? 'above' : 'below'} target`

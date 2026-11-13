@@ -9,5 +9,11 @@ export function chartMetric(response: ChatResponse): ChartMetric {
     unitFormat: data.unit_format ?? null,
     description: data.metric_description ?? null,
     better: data.metric_better ?? null,
+    locale: answerLocale(response),
   }
+}
+
+/** Numbers around an answer are written the way its text writes them: 16,07% under an Indonesian answer. */
+export function answerLocale(response: ChatResponse): string {
+  return response.language === 'id' ? 'id-ID' : 'en-US'
 }

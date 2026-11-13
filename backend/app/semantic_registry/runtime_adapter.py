@@ -140,8 +140,12 @@ class OssieRuntimeAdapter(SemanticRuntimeAdapter):
                 "datatype": "Decimal",
                 "description": metric.description or metric.business_definition or metric.name,
             }
+            # What the model calls the metric ("Jumlah LO"): answers, follow-ups and the welcome list name it so, not "Jumlah Lo".
+            metric_context: dict[str, Any] = {"display_name": metric.name} if metric.name and metric.name != metric.key else {}
             if metric.synonyms:
-                doc["ai_context"] = {"synonyms": list(metric.synonyms)}
+                metric_context["synonyms"] = list(metric.synonyms)
+            if metric_context:
+                doc["ai_context"] = metric_context
             reference_payload = {
                 "base_dataset": metric.metadata_.get("ossie_dataset") or metric.source_entity_key,
                 "allowed_dimensions": allowed_dimension_keys,

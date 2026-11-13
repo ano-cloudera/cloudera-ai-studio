@@ -1,5 +1,5 @@
 import React from 'react'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('recharts', () => {
@@ -12,6 +12,7 @@ vi.mock('recharts', () => {
     YAxis: ({ dataKey, tick }: { dataKey?: string; tick?: { fontSize?: number } }) => <div data-testid="y-axis" data-key={dataKey} data-font-size={tick?.fontSize} />,
     Scatter: ({ name }: { name?: string }) => <div data-testid="scatter" data-name={name} />,
     Bar: ({ dataKey, maxBarSize }: { dataKey?: string; maxBarSize?: number }) => <div data-testid="bar" data-key={dataKey} data-max-size={maxBarSize} />, Area: () => null, Line: () => null,
+    ComposedChart: container, LabelList: () => null, ReferenceLine: () => null,
   }
 })
 
@@ -94,5 +95,38 @@ describe('the metric a chart plots', () => {
     render(<AnswerChart chart={{ type: 'bar', title: 'x', x: 'regional', y: 'metric_value' }} rows={[{ regional: 'A', metric_value: 1 }, { regional: 'B', metric_value: 2 }]} />)
     expect(screen.queryByTestId('chart-metric-caption')).toBeNull() // nothing to say: no empty line
     cleanup()
+  })
+})
+
+describe('switching the view of a chart', () => {
+  afterEach(cleanup)
+  const volume = [
+    { produk: 'Pertalite', metric_value: 1530928 },
+    { produk: 'Biosolar', metric_value: 956232 },
+    { produk: 'Pertamax', metric_value: 770808 },
+    { produk: 'Solar Industri', metric_value: 660184 },
+  ]
+
+  it('offers a share of the whole for a volume, and draws it from the same rows without a new query', () => {
+    render(<AnswerChart chart={{ type: 'bar', title: 'Volume per produk', x: 'produk', y: 'metric_value' }} rows={volume} metric={{ unitFormat: 'quantity' }} />)
+    const switcher = screen.getByTestId('chart-view-switch')
+    expect(switcher.textContent).toBe('BarShare')
+    fireEvent.click(screen.getByRole('button', { name: 'Share' }))
+    expect(screen.getByRole('button', { name: 'Share' }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('offers each group against the overall value for a rate, never a pie of rates', () => {
+    const rates = [{ regional: 'Papua Maluku', metric_value: 34.54 }, { regional: 'Kalimantan', metric_value: 29.66 }, { regional: 'Jatimbalinus', metric_value: 11.4 }]
+    render(<AnswerChart chart={{ type: 'bar', title: 'Late rate', x: 'regional', y: 'metric_value' }} rows={rates} metric={{ unitFormat: 'percent' }} overall={16.07} />)
+    expect(screen.getByTestId('chart-view-switch').textContent).toBe('Barvs overall')
+    fireEvent.click(screen.getByRole('button', { name: 'vs overall' }))
+    const drawn = Array.from(document.querySelectorAll('[data-chart]')).map(el => el.getAttribute('data-chart') ?? '').find(json => json.includes('__difference'))
+    expect(drawn).toContain('"__difference":18.47')
+  })
+
+  it('shows no switch when the rows support only one honest view', () => {
+    const rates = [{ regional: 'A', metric_value: 10 }, { regional: 'B', metric_value: 12 }]
+    render(<AnswerChart chart={{ type: 'bar', title: 'Late rate', x: 'regional', y: 'metric_value' }} rows={rates} metric={{ unitFormat: 'percent' }} />)
+    expect(screen.queryByTestId('chart-view-switch')).toBeNull()
   })
 })

@@ -1050,7 +1050,7 @@ class ChatService:
                 if base:
                     raw_data["governed_base_dataset"] = str(base)
                 ai_ctx = definition.get("ai_context") if isinstance(definition.get("ai_context"), dict) else {}
-                display = (ai_ctx or {}).get("display_name") or definition.get("description")
+                display = (ai_ctx or {}).get("display_name") or definition.get("description")  # the description only for a model without names
                 if display:
                     raw_data["governed_metric_display_name"] = str(display).strip()[:200]
                 description = str(definition.get("description") or "").strip()

@@ -1,11 +1,11 @@
 'use client'
 
 import { formatBusinessValue, rememberColumnLabels } from '../lib/businessPresentation'
-import { chartMetric } from '../lib/chartMetric'
+import { answerLocale, chartMetric } from '../lib/chartMetric'
 import { answerSectionLabels } from '../lib/answerSectionLabels'
 
 import { useMemo, useState } from 'react'
-import { ArrowLeftRight, BarChart3, Briefcase, FileText, Lightbulb } from 'lucide-react'
+import { ArrowLeftRight, Briefcase, FileText, Lightbulb } from 'lucide-react'
 import {
   InsightListItem,
   WorkspaceSection,
@@ -18,13 +18,12 @@ import { AnswerProse } from './AnswerProse'
 import { WorkspaceDataTable } from './analysis/WorkspaceDataTable'
 import { WorkspaceQueryView } from './analysis/WorkspaceQueryView'
 import { ResultMap } from './analysis/ResultMap'
-import { KpiCard } from './KpiCard'
 import { ComparisonSummary, comparisonKind } from './analysis/ComparisonSummary'
 import { detectGeo } from '../lib/geo'
 import { formatCitationLabel, isRagResponse } from '../lib/ragReport'
 import type { ChatResponse } from '../types/api'
 
-type WorkspaceTab = 'summary' | 'map' | 'table' | 'query' | 'sources' | 'checks'
+type WorkspaceTab = 'summary' | 'chart' | 'map' | 'table' | 'query' | 'sources' | 'checks'
 
 type GroupStanding = { group: string; value: number; difference: number }
 
@@ -48,8 +47,9 @@ export function standingsAgainstOverall(response: ChatResponse): { overall: numb
 
 function GroupStandings({ response, standings }: { response: ChatResponse; standings: NonNullable<ReturnType<typeof standingsAgainstOverall>> }) {
   const unit = response.data.unit_format ?? undefined
-  const show = (n: number) => formatBusinessValue('metric_value', n, response.data.governed_metric ?? undefined, unit)
-  const gap = (n: number) => (unit === 'percent' ? `${n > 0 ? '+' : '-'}${Number(Math.abs(n).toFixed(2))} pts` : `${n > 0 ? '+' : '-'}${show(Math.abs(n))}`)
+  const locale = answerLocale(response)
+  const show = (n: number) => formatBusinessValue('metric_value', n, response.data.governed_metric ?? undefined, unit, locale)
+  const gap = (n: number) => (unit === 'percent' ? `${n > 0 ? '+' : '-'}${Number(Math.abs(n).toFixed(2)).toLocaleString(locale)} pts` : `${n > 0 ? '+' : '-'}${show(Math.abs(n))}`)
   const total = standings.above.length + standings.below.length
   const list = (title: string, items: GroupStanding[]) =>
     items.length > 0 ? (
@@ -94,8 +94,10 @@ function workspaceTabs(
   hasMap = false,
   hasChecks = false,
   hasAnalysis = true,
+  hasChart = false,
 ): { id: WorkspaceTab; label: string; disabled?: boolean }[] {
   const tabs: { id: WorkspaceTab; label: string; disabled?: boolean }[] = hasAnalysis ? [{ id: 'summary', label: 'Analysis' }] : []
+  if (hasChart) tabs.push({ id: 'chart', label: 'Chart' })
   if (hasSources) tabs.push({ id: 'sources', label: 'Sources' })
   if (hasMap) tabs.push({ id: 'map', label: 'Map' })
   if (hasChecks) tabs.push({ id: 'checks', label: 'Checks' })
@@ -155,8 +157,6 @@ export function ReportDocumentSection({
       response.chart_spec.y &&
       response.data.rows.length > 0,
   )
-  const kpiField = response.chart_spec?.type === 'kpi' ? response.chart_spec.y || response.data.columns[0] : null
-  const kpiValue = kpiField ? response.data.rows[0]?.[kpiField] : undefined
   const sql = response.governed_sql?.trim()
   const hasTable = response.data.rows.length > 0
   const hasQuery = Boolean(sql || response.data.governed_metric || response.answer.data_reference.trim())
@@ -169,12 +169,16 @@ export function ReportDocumentSection({
   const report = response.analysis_report?.trim() ?? ''
   const standings = rag || report ? null : standingsAgainstOverall(response)
   const workspaceInsightsFirst = response.answer.insights.filter(item => item.trim()).slice(chatInsightCount)
-  const chartInPanel = !chartShownInChat && (response.chart_spec?.type === 'kpi' || hasVisualChart)
+  // The chart has its own tab (Chart): larger than in the chat, with values on the bars and a second view when the data allows one.
   const hasAnalysis = Boolean(
-    report || standings || !chatNarrativeShown || comparison || workspaceInsightsFirst.length || chartInPanel || response.answer.business_implications.length,
+    report || standings || !chatNarrativeShown || comparison || workspaceInsightsFirst.length || response.answer.business_implications.length,
   )
-  const tabs = workspaceTabs(hasTable, hasQuery || Boolean(calculation), hasSources, Boolean(geo), checks.length > 0, hasAnalysis)
-  const [tab, setTab] = useState<WorkspaceTab>(() => tabs.find(item => !item.disabled)?.id ?? 'table')
+  const tabs = workspaceTabs(hasTable, hasQuery || Boolean(calculation), hasSources, Boolean(geo), checks.length > 0, hasAnalysis, hasVisualChart)
+  // Opens on what the chat does not show: the fuller analysis, else the map, else the rows. The chart is one click away.
+  const [tab, setTab] = useState<WorkspaceTab>(() => {
+    const open = (id: WorkspaceTab) => tabs.some(item => item.id === id && !item.disabled)
+    return (['summary', 'map', 'table', 'chart', 'query'] as WorkspaceTab[]).find(open) ?? tabs.find(item => !item.disabled)?.id ?? 'table'
+  })
   const summarySame =
     response.answer.executive_summary.trim() === response.answer.direct_answer.trim()
   const chartTitle = response.chart_spec?.title || 'Visualization'
@@ -262,27 +266,6 @@ export function ReportDocumentSection({
             </WorkspaceSection>
           )}
 
-          {chartInPanel && (
-            <WorkspaceSection>
-              <WorkspaceSectionHeader
-                icon={BarChart3}
-                tone="orange"
-                title={chartTitle}
-                action={null}
-              />
-              <WorkspaceSectionContent className="pb-4">
-                {response.chart_spec?.type === 'kpi' && (
-                  <div className="max-w-sm">
-                    <KpiCard label={response.chart_spec.title} value={kpiValue} format="" icon={BarChart3} />
-                  </div>
-                )}
-                {hasVisualChart && response.chart_spec && (
-                  <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded hideTitle metric={chartMetric(response)} />
-                )}
-              </WorkspaceSectionContent>
-            </WorkspaceSection>
-          )}
-
           {geo && (
             <p className="mt-4 text-xs text-slate-500 sm:ml-[calc(3rem+1rem)]">
               This result has provinces.{' '}
@@ -314,6 +297,12 @@ export function ReportDocumentSection({
               </WorkspaceSectionContent>
             </WorkspaceSection>
           )}
+        </div>
+      )}
+
+      {tab === 'chart' && hasVisualChart && response.chart_spec && (
+        <div className="mt-6" role="tabpanel" data-testid="workspace-chart">
+          <AnswerChart chart={response.chart_spec} rows={response.data.rows} metric={chartMetric(response)} overall={response.data.overall_value ?? null} className="!border-0 !p-0 !shadow-none" />
         </div>
       )}
 
