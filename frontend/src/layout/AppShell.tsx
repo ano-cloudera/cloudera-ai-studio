@@ -235,7 +235,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   src={branding.logoUrl}
                   alt=""
                   aria-hidden
-                  className="h-7 w-7 object-contain"
+                  className="h-8 w-8 object-contain"
                 />
               </div>
             )}
