@@ -1,13 +1,14 @@
 'use client'
 
+import Link from 'next/link'
 import { useState } from 'react'
 import { CheckCircle2, Loader2, Play, ShieldCheck, XCircle } from 'lucide-react'
 import { api } from '../lib/api'
 import type { ProposedAction } from '../types/api'
 
 const TEXT = {
-  id: { heading: 'Aksi yang diusulkan', note: 'Tidak ada yang dijalankan sampai Anda menyetujuinya.', run: 'Jalankan', running: 'Menjalankan…', done: 'Selesai', failed: 'Gagal', retry: 'Coba lagi' },
-  en: { heading: 'Proposed actions', note: 'Nothing runs until you approve it.', run: 'Run', running: 'Running…', done: 'Done', failed: 'Failed', retry: 'Retry' },
+  id: { heading: 'Aksi yang diusulkan', note: 'Tidak ada yang dijalankan sampai Anda menyetujuinya.', run: 'Jalankan', running: 'Menjalankan…', done: 'Selesai', failed: 'Gagal', retry: 'Coba lagi', seeTickets: 'Lihat semua tiket' },
+  en: { heading: 'Proposed actions', note: 'Nothing runs until you approve it.', run: 'Run', running: 'Running…', done: 'Done', failed: 'Failed', retry: 'Retry', seeTickets: 'See all tickets' },
 } as const
 
 type State = { status: 'idle' | 'running' | 'done' | 'failed'; message?: string }
@@ -92,7 +93,14 @@ export function ProposedActions({ actions, language }: { actions: ProposedAction
                 </button>
               )}
             </div>
-            {state.status === 'done' && state.message && <p className="mt-2 text-xs text-emerald-800" role="status">{state.message}</p>}
+            {state.status === 'done' && (
+              <p className="mt-2 text-xs text-emerald-800" role="status">
+                {state.message}{' '}
+                <Link href="/tickets" className="font-semibold underline underline-offset-2">
+                  {text.seeTickets}
+                </Link>
+              </p>
+            )}
             {state.status === 'failed' && (
               <p className="mt-2 inline-flex items-center gap-1 text-xs text-rose-700" role="alert">
                 <XCircle size={12} aria-hidden /> {text.failed}

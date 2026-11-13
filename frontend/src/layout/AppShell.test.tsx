@@ -20,6 +20,7 @@ describe('V2 application shell', () => {
       'Semantic Layer',
       'Prompts',
       'Data Sources',
+      'Tickets',
       'Usage',
       'Settings',
     ])
@@ -37,7 +38,7 @@ describe('V2 application shell', () => {
       .getAllByRole('link')
       .map(link => link.textContent?.trim())
       .filter(Boolean)
-    expect(labels).toEqual(['Home', 'Ask Data', 'Knowledge', 'Semantic Layer', 'Prompts', 'Data Sources', 'Usage', 'Settings'])
+    expect(labels).toEqual(['Home', 'Ask Data', 'Knowledge', 'Semantic Layer', 'Prompts', 'Data Sources', 'Tickets', 'Usage', 'Settings'])
 
     expect(screen.queryByText('Dashboard')).toBeNull()
     expect(screen.queryByText('AI Monitoring')).toBeNull()

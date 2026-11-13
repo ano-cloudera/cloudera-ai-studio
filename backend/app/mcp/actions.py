@@ -34,12 +34,16 @@ def _attr(item: Any, *names: str) -> Any:
     return None
 
 
-def _is_action(tool: Any) -> bool:
+def _read_only_hint(tool: Any) -> bool | None:
     annotations = _attr(tool, "annotations")
     if annotations is None:
-        return False
-    read_only = _attr(annotations, "read_only_hint", "readOnlyHint")
-    return read_only is False  # only a tool that says it changes something, never one that says nothing
+        return None
+    hint = _attr(annotations, "read_only_hint", "readOnlyHint")
+    return hint if isinstance(hint, bool) else None
+
+
+def _is_action(tool: Any) -> bool:
+    return _read_only_hint(tool) is False  # only a tool that says it changes something, never one that says nothing
 
 
 def _key(entry: McpServerEntry) -> str:
@@ -67,8 +71,9 @@ async def _session_tools(entry: McpServerEntry) -> list[Any]:
             return list((await session.list_tools()).tools)
 
 
-async def server_actions(entry: McpServerEntry) -> list[dict[str, Any]]:
-    """The action tools of one server: name, description and input schema (kept TOOLS_SECONDS)."""
+async def _server_tools(entry: McpServerEntry) -> list[dict[str, Any]]:
+    """Every tool of one server with what it says about itself: name, description, input schema and its read-only hint
+    (kept TOOLS_SECONDS)."""
     key = _key(entry)
     hit = _tools.get(key)
     if hit and monotonic() - hit[0] < TOOLS_SECONDS:
@@ -78,19 +83,29 @@ async def server_actions(entry: McpServerEntry) -> list[dict[str, Any]]:
     if stdio_preflight_problem(entry):
         return []
     tools = await asyncio.wait_for(_session_tools(entry), timeout=LIST_TIMEOUT_SECONDS)
-    actions = [
+    found = [
         {
             "server_id": entry.id,
             "server": entry.name,
             "tool": str(_attr(tool, "name")),
             "description": str(_attr(tool, "description") or "")[:1200],
             "input_schema": _attr(tool, "input_schema", "inputSchema") or {},
+            "read_only": _read_only_hint(tool),
         }
         for tool in tools
-        if _is_action(tool)
     ]
-    _tools[key] = (monotonic(), actions)
-    return actions
+    _tools[key] = (monotonic(), found)
+    return found
+
+
+async def server_actions(entry: McpServerEntry) -> list[dict[str, Any]]:
+    """The action tools of one server: the ones that say they change something."""
+    return [t for t in await _server_tools(entry) if t["read_only"] is False]
+
+
+async def server_reads(entry: McpServerEntry) -> list[dict[str, Any]]:
+    """The read-only tools of one server: the ones that say they change nothing."""
+    return [t for t in await _server_tools(entry) if t["read_only"] is True]
 
 
 async def available_actions(servers: list[McpServerEntry]) -> list[dict[str, Any]]:
@@ -168,6 +183,23 @@ async def run_action(entry: McpServerEntry, tool: str, arguments: dict[str, Any]
     problems = check_arguments(action["input_schema"], arguments)
     if problems:
         raise ValueError("; ".join(problems))
+    logger.info("mcp_action_run server=%s tool=%s", entry.id, tool)
+    return await _call(entry, tool, arguments)
+
+
+async def run_read(entry: McpServerEntry, tool: str, arguments: dict[str, Any]) -> str:
+    """Call a tool that says it changes nothing (a lookup or a list), with arguments valid for its schema."""
+    reads = {t["tool"]: t for t in await server_reads(entry)}
+    found = reads.get(tool)
+    if found is None:
+        raise ValueError(f"'{tool}' is not a read-only tool of {entry.name}")
+    problems = check_arguments(found["input_schema"], arguments)
+    if problems:
+        raise ValueError("; ".join(problems))
+    return await _call(entry, tool, arguments)
+
+
+async def _call(entry: McpServerEntry, tool: str, arguments: dict[str, Any]) -> str:
     from mcp import ClientSession
 
     from app.mcp.client import _content_to_text
@@ -190,7 +222,6 @@ async def run_action(entry: McpServerEntry, tool: str, arguments: dict[str, Any]
                 await session.initialize()
                 return _content_to_text(await session.call_tool(tool, arguments=arguments))
 
-    logger.info("mcp_action_run server=%s tool=%s", entry.id, tool)
     return await asyncio.wait_for(call(), timeout=RUN_TIMEOUT_SECONDS)
 
 

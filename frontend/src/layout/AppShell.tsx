@@ -7,6 +7,7 @@ import {
   BookOpen,
   Bot,
   Cable,
+  ClipboardList,
   Download,
   Layers,
   LayoutDashboard,
@@ -63,7 +64,10 @@ const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
   },
   {
     title: 'Monitor',
-    items: [{ feature: 'usage', href: '/usage', label: () => appConfig.navigationUsage, icon: BarChart3 }],
+    items: [
+      { feature: 'askData', href: '/tickets', label: () => 'Tickets', icon: ClipboardList },
+      { feature: 'usage', href: '/usage', label: () => appConfig.navigationUsage, icon: BarChart3 },
+    ],
   },
   {
     items: [{ feature: 'settings', href: '/settings', label: () => appConfig.navigationSettings, icon: Settings }],

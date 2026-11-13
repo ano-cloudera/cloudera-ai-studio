@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -107,3 +108,34 @@ async def run_mcp_action(body: RunActionRequest, request: Request) -> dict:
 
         raise HTTPException(status_code=502, detail=f"The action could not run: {describe_exception(exc)[:300]}") from exc
     return {"ok": True, "server": entry.name, "tool": body.tool, "result": result}
+
+
+@router.post("/tools/read")
+async def read_mcp_tool(body: RunActionRequest, request: Request) -> dict:
+    """Call a read-only tool (one that says it changes nothing) of a server enabled in this workspace, for pages that show what a
+    server holds, such as the tickets raised through approved actions."""
+    from app.mcp.actions import run_read
+
+    entry = next((s for s in request.app.state.chat_service.mcp_servers() if s.id == body.server_id), None)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="That MCP server is not enabled in this workspace.")
+    try:
+        result = await run_read(entry, body.tool, body.arguments)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        from app.mcp.client import describe_exception
+
+        raise HTTPException(status_code=502, detail=f"The tool could not run: {describe_exception(exc)[:300]}") from exc
+    return {"ok": True, "server": entry.name, "tool": body.tool, "result": result}
+
+
+@router.get("/tools/readable")
+async def readable_mcp_tools(request: Request) -> dict:
+    """The read-only tools of the enabled servers, so a page can find the one it shows (for example list_tickets)."""
+    from app.mcp.actions import server_reads
+
+    servers = request.app.state.chat_service.mcp_servers()
+    found = await asyncio.gather(*(server_reads(s) for s in servers), return_exceptions=True)
+    tools = [t for result in found if not isinstance(result, BaseException) for t in result]
+    return {"tools": [{k: t[k] for k in ("server_id", "server", "tool", "description")} for t in tools]}
