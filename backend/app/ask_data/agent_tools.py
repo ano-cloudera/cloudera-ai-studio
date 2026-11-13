@@ -66,11 +66,19 @@ class AgentTurn(_Lenient):
     done: bool = False
 
 
+class ProposedAction(_Lenient):
+    server_id: str = ""
+    tool: str
+    title: str = Field(default="", description="What the action does, in the user's language, shown on the approval button.")
+    arguments: dict[str, Any] = Field(default_factory=dict)
+
+
 class AgentReport(_Lenient):
     headline: str
     body: str = ""
     follow_up_questions: list[str] = Field(default_factory=list)
     show: int | None = None
+    actions: list[ProposedAction] = Field(default_factory=list)
 
 
 class Call:
@@ -336,6 +344,7 @@ async def write_report(
     language: str,
     calls: list[Call],
     data_coverage: str | None,
+    action_tools: list[dict[str, Any]] | None = None,
 ) -> tuple[AgentReport, list[str]]:
     """The report from every result, and the figures in it that could not be found in the results (after one correction)."""
     from app.ask_data.answer_checks import unverified_figures
@@ -349,6 +358,11 @@ async def write_report(
         payload["question_in_full"] = question
     if data_coverage:
         payload["data_coverage"] = data_coverage
+    if action_tools:
+        # Actions the user can approve (MCP tools that change something); proposed only when the question asks what to do.
+        payload["action_tools"] = [
+            {"server_id": a["server_id"], "tool": a["tool"], "description": a["description"], "input_schema": a["input_schema"]} for a in action_tools
+        ]
     messages: list[dict[str, str]] = [
         {"role": "system", "content": _prompt("agent_tool_report.md")},
         {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},

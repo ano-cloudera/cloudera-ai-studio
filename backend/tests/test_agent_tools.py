@@ -151,3 +151,36 @@ def test_when_no_query_answers_the_normal_pipeline_answers(monkeypatch) -> None:
     response, events = _run(replay)
     assert response is None and not any(e["type"] == "done" for e in events)
     assert "AgentReport" not in replay.model.calls
+
+
+def test_the_report_may_propose_actions_and_only_valid_ones_reach_the_user(monkeypatch) -> None:
+    from app.ask_data import value_filters
+    from tests.test_mcp_actions import ACTION
+
+    value_filters.clear_cache()
+
+    class Proposing(AgentModel):
+        def __init__(self) -> None:
+            super().__init__(wrong_figure_first=False)
+            self.saw_tools = False
+
+        async def generate_structured(self, messages, model, **kwargs):
+            if model.__name__ == "AgentReport":
+                self.saw_tools = "action_tools" in json.loads(messages[1]["content"])
+                report = await super().generate_structured(messages, model, **kwargs)
+                return report.model_copy(update={"actions": [
+                    {"server_id": "ops", "tool": "create_ticket", "title": "Buat tiket", "arguments": {"title": "Kurir KT", "description": "evaluasi", "priority": "high"}},
+                    {"server_id": "ops", "tool": "create_ticket", "title": "salah", "arguments": {"priority": "urgent"}},
+                ]})
+            return await super().generate_structured(messages, model, **kwargs)
+
+    replay = Replay(monkeypatch, Proposing())
+
+    async def listed():
+        return [ACTION]
+
+    replay.service.agent_actions = listed  # type: ignore[method-assign]
+    response, _ = _run(replay)
+    assert replay.model.saw_tools
+    assert [a.title for a in response.proposed_actions] == ["Buat tiket"]  # the invalid one never reaches the user
+    assert response.proposed_actions[0].arguments["priority"] == "high"

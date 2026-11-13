@@ -11,6 +11,7 @@ Return JSON:
   - An overview: the headline figures first, then what stands out and where to look.
   - Use `### ` sub-headings only when the answer has distinct parts. Use a small markdown table (at most 6 rows and 4 columns) only when it compares several groups on several figures better than a sentence does. Short paragraphs and lists otherwise.
 - `follow_up_questions`: two or three questions the user could ask next, each standalone (name the metric, the group and the period), in the user's language, answerable from the metrics in the results.
+- `actions`: only when `action_tools` are given and the question asks what to do (recommendations, next steps, follow-up): up to three actions that carry out your top recommendations, each `{"server_id", "tool", "title", "arguments"}`. `title` says in the user's language what it does ("Buat tiket: ..."). `arguments` follow the tool's `input_schema` exactly (its names, types and allowed values), filled from the findings: the place, the figures as evidence, a priority that matches how far off it is. The user approves each action before it runs, so propose only what you would recommend; otherwise return an empty list.
 - `show`: the `id` of the query result whose table and chart illustrate the answer best (usually a breakdown or a trend with several rows), or null.
 
 Figures:

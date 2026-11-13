@@ -697,6 +697,9 @@ class AskDataAgent:
         coverage = coverage_label(known_coverage(), language)
         run_id = uuid.uuid4().hex[:8]
         calls: list[agent_tools.Call] = []
+        # The actions the user could approve (MCP tools that change something) are listed while the agent explores.
+        lister = getattr(self._chat, "agent_actions", None)
+        actions_task = asyncio.create_task(lister()) if callable(lister) else None
         async for event in agent_tools.explore(
             self._chat,
             provider,
@@ -716,9 +719,15 @@ class AskDataAgent:
             logger.warning("agent_fallback reason=no_query_answered calls=%s", [(c.call.tool, c.problems[:1], getattr(c.response, "status", None)) for c in calls])
             return
         yield {"type": "progress", "stage": "agent_report", "label": _labels(language)["report"]}
+        action_tools: list[dict[str, Any]] = []
+        if actions_task is not None:
+            try:
+                action_tools = await asyncio.wait_for(actions_task, timeout=5.0)
+            except Exception:  # noqa: BLE001 - the report is written without actions
+                logger.warning("agent_actions_unavailable")
         _, provider = self._chat.provider_for(request)
         report, unverified = await agent_tools.write_report(
-            provider, request=request, question=question, language=language, calls=calls, data_coverage=coverage
+            provider, request=request, question=question, language=language, calls=calls, data_coverage=coverage, action_tools=action_tools
         )
         steps = [
             AgentStep(kind="data" if c.is_data else "knowledge", question=c.label(), why=c.label(), metric=(c.call.query.metric if c.call.query else ""))
@@ -745,6 +754,13 @@ class AskDataAgent:
         response = assemble_response(
             request=prepared, steps=steps, responses=responses, analysis=analysis, elapsed_ms=round((perf_counter() - started) * 1000, 3), shown=shown
         )
+        if action_tools and report.actions:
+            from app.core.models import ProposedAction
+            from app.mcp.actions import proposals
+
+            proposed = proposals(report.actions, action_tools)
+            if proposed:
+                response = response.model_copy(update={"proposed_actions": [ProposedAction(**p) for p in proposed]})
         response = self._chat.finalize_response(response)
         self._chat.record_turn(prepared, response, frame=frame) if frame else self._chat.record_turn(prepared, response)
         remember = getattr(self._chat, "remember_agent_answer", None)

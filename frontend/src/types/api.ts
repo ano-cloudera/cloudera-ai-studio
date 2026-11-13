@@ -534,6 +534,8 @@ export type ChatResponse = {
   cache_reason?: 'repeat' | 'data_source_unavailable' | null
   /** The language of the question, so the sections of the answer are named in it. */
   language?: 'id' | 'en' | null
+  /** Actions the agent proposes (MCP tools that change something); each runs only when the user approves it. */
+  proposed_actions?: ProposedAction[] | null
   strategy:
     | 'governed'
     | 'sql_fallback'
@@ -993,4 +995,14 @@ export type HomeBriefing = {
   points?: string[]
   ask_next?: string[]
   language?: 'id' | 'en'
+}
+
+/** An action the agent proposes; POST /api/v1/mcp/actions/run runs it after the user approves. */
+export type ProposedAction = {
+  id: string
+  server_id: string
+  server: string
+  tool: string
+  title: string
+  arguments: Record<string, unknown>
 }

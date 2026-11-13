@@ -246,6 +246,17 @@ class CalculationNote(StrictModel):
     checks: list[CalculationCheck] = []
 
 
+class ProposedAction(StrictModel):
+    """An action the agent proposes (an MCP tool that changes something); it runs only when the user approves it."""
+
+    id: str
+    server_id: str
+    server: str
+    tool: str
+    title: str
+    arguments: dict[str, Any] = {}
+
+
 class AskDataResponse(StrictModel):
     request_id: str
     session_id: str
@@ -270,6 +281,7 @@ class AskDataResponse(StrictModel):
     cached_at: str | None = None
     cache_reason: Literal["repeat", "data_source_unavailable"] | None = None
     language: Literal["id", "en"] | None = None  # the language of the question, so the UI names its sections in it
+    proposed_actions: list[ProposedAction] | None = None  # actions the agent proposes, each approved by the user before it runs
     context_mode: ContextMode | None = None
     clarification: AskDataClarification | None = None
     presentation_tier: PresentationTier | None = None

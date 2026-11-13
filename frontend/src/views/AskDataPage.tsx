@@ -2,6 +2,7 @@
 
 import { MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { answerSectionLabels } from '../lib/answerSectionLabels'
+import { ProposedActions } from '../components/ProposedActions'
 import { useSearchParams } from 'next/navigation'
 import { BarChart3, ChevronDown, Lightbulb, Table2 } from 'lucide-react'
 import { ContextAwareChatComposer } from '../components/chat/ContextAwareChatComposer'
@@ -965,7 +966,8 @@ function StructuredAnswer({
   })()
 
   const followUps = response.status === 'SUCCESS' ? (response.answer.follow_up_questions ?? []).filter(q => q.trim()) : []
-  const followUpBlock =
+  const proposedActions = response.status === 'SUCCESS' ? response.proposed_actions ?? [] : []
+  const nextQuestionsBlock =
     onFollowUp && followUps.length > 0 ? (
       <div className="answer-section-divider !pt-3" role="group" aria-label="Suggested next questions" data-testid="follow-up-questions">
         <div className="type-section-label mb-2">{sectionLabels.askNext}</div>
@@ -983,6 +985,14 @@ function StructuredAnswer({
           ))}
         </div>
       </div>
+    ) : null
+  // What to do next: the actions the agent proposes (each approved before it runs), then the questions to ask next.
+  const followUpBlock =
+    proposedActions.length > 0 || nextQuestionsBlock ? (
+      <>
+        {proposedActions.length > 0 && <ProposedActions actions={proposedActions} language={response.language} />}
+        {nextQuestionsBlock}
+      </>
     ) : null
 
   const insightsBlock =

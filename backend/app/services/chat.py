@@ -489,6 +489,32 @@ class ChatService:
         return turn.is_conversational or looks_like_small_talk(question)
 
 
+    def mcp_servers(self) -> list[Any]:
+        """The MCP servers enabled in the workspace's Settings -> MCP connections."""
+        factory = self.dependencies.session_factory
+        scope = self._project_scope
+        if factory is None or not scope:
+            return []
+        try:
+            from app.db.platform_models import WorkspaceRow
+            from app.mcp.actions import workspace_servers
+
+            with factory() as session:
+                row = session.get(WorkspaceRow, uuid.UUID(scope[0]))
+                return workspace_servers(row.settings_json if row is not None else None)
+        except Exception:  # noqa: BLE001 - no actions is a valid answer
+            logger.exception("mcp_servers_failed")
+            return []
+
+    async def agent_actions(self) -> list[dict[str, Any]]:
+        """The action tools (readOnlyHint false) of the workspace's MCP servers, for the agent to propose."""
+        servers = self.mcp_servers()
+        if not servers:
+            return []
+        from app.mcp.actions import available_actions
+
+        return await available_actions(servers)
+
     def _ask_data_space_instructions(self) -> str:
         factory = self.dependencies.session_factory
         scope = self._project_scope

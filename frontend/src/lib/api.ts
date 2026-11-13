@@ -63,6 +63,8 @@ export const api = {
   },
   models: () => request<{ models: ModelInfo[] }>('/models'),
   askDataStarters: () => request<import('../types/api').AskDataStartersResponse>('/v1/ask-data/starters'),
+  runMcpAction: (body: { server_id: string; tool: string; arguments: Record<string, unknown> }) =>
+    request<{ ok: boolean; server: string; tool: string; result: string }>('/v1/mcp/actions/run', { method: 'POST', body: JSON.stringify(body) }),
   home: (selection: { provider: string; model: string } | null, refresh = false) =>
     request<import('../types/api').HomePayload>(`/v1/home?${homeQuery(selection, refresh)}`),
   homeBriefing: (selection: { provider: string; model: string } | null, refresh = false) =>
