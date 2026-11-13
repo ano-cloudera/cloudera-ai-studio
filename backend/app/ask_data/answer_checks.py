@@ -80,9 +80,11 @@ def _worth_checking(token: str, candidates: set[float], decimals: int) -> bool:
     return decimals > 0 or digits >= 3
 
 
-def allowed_figures(rows: list[dict[str, Any]], question: str, extras: list[float] | None = None) -> set[float]:
+def allowed_figures(rows: list[dict[str, Any]], question: str, extras: list[float] | None = None, *, means: bool = True) -> set[float]:
     """Every figure the answer may state: the cells, and what can be worked out from them. `extras` are figures the answer was
-    given besides the rows (the overall value), with the differences and ratios against each cell."""
+    given besides the rows (the overall value), with the differences and ratios against each cell. `means=False` leaves out the
+    average of a column: for a rate or an average metric the mean of the groups is not the overall value, and quoting it as a
+    comparison point misleads."""
     columns: dict[str, list[float]] = {}
     for row in rows:
         for key, value in row.items():
@@ -93,7 +95,9 @@ def allowed_figures(rows: list[dict[str, Any]], question: str, extras: list[floa
     for values in columns.values():
         total = sum(values)
         allowed.update(values)
-        allowed.update({total, total / len(values), min(values), max(values)})
+        allowed.update({total, min(values), max(values)})
+        if means:
+            allowed.add(total / len(values))
         for number in (*values, total):
             allowed.update(number / scale for scale in _SCALES)
         for extra in extras or []:
@@ -164,7 +168,11 @@ def unverified_figures(texts: list[str], rows: list[dict[str, Any]], question: s
     """Figures written in the texts that are neither in the rows nor derivable from them."""
     if not rows:
         return []
-    allowed = allowed_figures(rows, question, extras)
+    return figures_outside(texts, allowed_figures(rows, question, extras))
+
+
+def figures_outside(texts: list[str], allowed: set[float]) -> list[str]:
+    """Figures written in the texts that are in none of the allowed figures (within the rounding they are written with)."""
     found: list[str] = []
     for text in texts:
         for token in _NUMBER.findall(text or ""):

@@ -184,18 +184,22 @@ def observation(item: Call) -> dict[str, Any]:
     return out
 
 
-def _figure_rows_and_extras(calls: list[Call]) -> tuple[list[dict[str, Any]], list[float]]:
-    rows: list[dict[str, Any]] = []
-    extras: list[float] = []
+def _allowed_figures(calls: list[Call], context: str) -> set[float]:
+    """The figures the report may quote: each query's own figures and what follows from that query alone (rows of different
+    queries are never combined), the average of a column only for a metric that adds up, and the figures in the question and
+    the documents."""
+    from app.ask_data.answer_checks import allowed_figures, is_additive
+
+    allowed: set[float] = allowed_figures([{}], context)
     for item in calls:
         if not (item.ok and item.is_data and item.response is not None):
             continue
         shown = observation(item)
-        rows.extend(shown.get("rows") or [])
-        if shown.get("overall_value") is not None:
-            extras.extend(_numbers(shown["overall_value"]))
-        extras.extend(_numbers(shown.get("computed") or {}))
-    return rows, extras
+        rows = list(shown.get("rows") or [])
+        extras = _numbers(shown.get("overall_value")) + _numbers(shown.get("computed") or {})
+        additive = is_additive({"expression": item.response.data.governed_metric_expression or ""})
+        allowed |= allowed_figures(rows or [{}], context, extras, means=additive)
+    return allowed
 
 
 async def _run_call(chat: Any, request: AskDataRequest, item: Call, *, library_ids: list[str], language: str, session_prefix: str) -> Call:
@@ -347,8 +351,6 @@ async def write_report(
     action_tools: list[dict[str, Any]] | None = None,
 ) -> tuple[AgentReport, list[str]]:
     """The report from every result, and the figures in it that could not be found in the results (after one correction)."""
-    from app.ask_data.answer_checks import unverified_figures
-
     payload: dict[str, Any] = {
         "question": request.question,
         "language": language,
@@ -368,15 +370,17 @@ async def write_report(
         {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
     ]
     report = await provider.generate_structured(messages, AgentReport, temperature=0.2, max_tokens=2200)
-    rows, extras = _figure_rows_and_extras(calls)
+    from app.ask_data.answer_checks import figures_outside
+
     # A figure quoted from a document (a threshold in the SOP) is as good as one from a query.
     documents = " ".join(
         " ".join([item.response.answer.direct_answer, *(c.snippet for c in (item.response.citations or []))])
         for item in calls
         if item.ok and not item.is_data and item.response is not None
     )
-    question = f"{question} {documents}".strip()
-    bad = unverified_figures([report.headline, report.body], rows, question, extras)
+    allowed = _allowed_figures(calls, f"{question} {documents}".strip())
+    has_data = any(item.ok and item.is_data for item in calls)
+    bad = figures_outside([report.headline, report.body], allowed) if has_data else []
     if bad:
         logger.info("agent_report_figures_unverified figures=%s", bad)
         messages += [
@@ -390,7 +394,7 @@ async def write_report(
         ]
         try:
             report = await provider.generate_structured(messages, AgentReport, temperature=0.1, max_tokens=2200)
-            bad = unverified_figures([report.headline, report.body], rows, question, extras)
+            bad = figures_outside([report.headline, report.body], allowed) if has_data else []
         except Exception:  # noqa: BLE001 - the first report stands, with its figures said to be unverified
             logger.warning("agent_report_repair_failed")
     return report, bad
