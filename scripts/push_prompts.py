@@ -9,7 +9,11 @@ back from the Prompts page. A prompt whose active text already equals the file i
     python scripts/push_prompts.py --dry-run                # what would be pushed
     python scripts/push_prompts.py                          # push every key that has a file
     python scripts/push_prompts.py --key rag.system         # one key
-    python scripts/push_prompts.py --scope workspace        # at another scope
+    python scripts/push_prompts.py --scope workspace        # at one scope (default: auto)
+
+With the default --scope auto, a key is pushed to the scope that applies to it now (so a workspace prompt is updated, not shadowed by
+a new global one); a key with no prompt in the platform yet is created at global. The Prompts API has no delete: a prompt left at
+another scope stays, harmless while it holds the same text, and --status says which scopes hold a key.
 
 It runs in a Cloudera AI Session (the Backend URL is derived the way the deploy Job does it); pass --base-url to use another one.
 Nothing secret is printed: only keys, scopes, version numbers and sizes.
@@ -51,6 +55,17 @@ def _api(base_url: str):
     return Api(base_url)
 
 
+def _in_session() -> bool:
+    """Whether a Backend URL can be derived here (inside a Cloudera AI Session), so a dry run can ask the platform what would change."""
+    sys.path.insert(0, str(HERE))
+    try:
+        import semantic_api  # noqa: PLC0415
+
+        return bool(semantic_api.default_base_url())
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _same(a: str, b: str) -> bool:
     return a.strip().replace("\r\n", "\n") == b.strip().replace("\r\n", "\n")
 
@@ -81,6 +96,14 @@ def status(api, key: str, text: str, pushed_scope: str | None = None) -> str:
     return line
 
 
+def target_scope(api, key: str, requested: str) -> str:
+    """The scope to write: the one asked for, or with `auto` the scope of the prompt that applies now (global when only the file does)."""
+    if requested != "auto":
+        return requested
+    source = api.call("POST", "/api/v1/prompts/resolve", {"prompt_key": key}).get("source", "file")
+    return source if source in ("project", "workspace", "global") else "global"
+
+
 def push(api, key: str, text: str, scope: str, *, dry_run: bool) -> str:
     row = _find(api, key, scope)
     if row is not None:
@@ -105,7 +128,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     parser.add_argument("--base-url")
     parser.add_argument("--key", action="append", choices=sorted(FILES), help="a key to push (repeat); default: every key with a file")
-    parser.add_argument("--scope", default="global", choices=["global", "workspace", "project"])
+    parser.add_argument("--scope", default="auto", choices=["auto", "global", "workspace", "project"])
     parser.add_argument("--status", action="store_true", help="only show which prompt applies and whether it differs from the file")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
@@ -113,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
     keys = args.key or sorted(FILES)
     texts = {key: (PROMPT_DIR / FILES[key]).read_text(encoding="utf-8") for key in keys}
 
-    if args.dry_run and not args.status:
+    if args.dry_run and not args.status and not args.base_url and not _in_session():
         for key in keys:
             print(f"{key} ({args.scope}): would push {FILES[key]} ({len(texts[key])} characters)")
         return 0
@@ -129,12 +152,13 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     api = _api(base_url)
     try:
+        scopes = {key: target_scope(api, key, args.scope) for key in keys}
         for key in keys:
-            print(status(api, key, texts[key]) if args.status else push(api, key, texts[key], args.scope, dry_run=args.dry_run))
+            print(status(api, key, texts[key]) if args.status else push(api, key, texts[key], scopes[key], dry_run=args.dry_run))
         if not args.status and not args.dry_run:
             print()
             for key in keys:
-                print(status(api, key, texts[key], args.scope))
+                print(status(api, key, texts[key], scopes[key]))
     except RuntimeError as exc:  # semantic_api.ApiError
         print(f"Failed: {exc}", file=sys.stderr)
         return 1

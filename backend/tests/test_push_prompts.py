@@ -121,3 +121,19 @@ def test_status_warns_when_a_more_specific_prompt_overrides_what_was_pushed() ->
     line = script.status(Resolving(), "rag.system", "y", "global")
     assert "WARNING: a workspace prompt overrides what was pushed at global" in line
     assert "NOTE" in script.status(Resolving(), "rag.system", "y", "workspace")  # two scopes hold the key
+
+
+def test_auto_scope_writes_where_the_prompt_applies_now_and_global_when_only_the_file_does() -> None:
+    script = _load()
+
+    def resolving(source):
+        class Api:
+            def call(self, method, path, body=None, **_):
+                return {"source": source}
+
+        return Api()
+
+    assert script.target_scope(resolving("workspace"), "rag.system", "auto") == "workspace"
+    assert script.target_scope(resolving("project"), "rag.system", "auto") == "project"
+    assert script.target_scope(resolving("file"), "rag.system", "auto") == "global"
+    assert script.target_scope(resolving("workspace"), "rag.system", "global") == "global"  # an explicit scope is kept
