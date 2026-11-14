@@ -259,7 +259,7 @@ class RAGService:
             workspace_id=workspace_id,
             project_id=project_id,
         )
-        user_content = build_rag_user_message(question=query, evidence=evidence, dialog=dialog)
+        user_content = build_rag_user_message(question=query, evidence=evidence, dialog=dialog, language=detect_language(query))
         llm_started = time.perf_counter()
         try:
             llm_out = await llm_provider.generate_structured(

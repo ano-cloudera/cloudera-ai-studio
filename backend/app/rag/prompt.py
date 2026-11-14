@@ -68,6 +68,7 @@ def build_rag_user_message(
     question: str,
     evidence: list[RetrievalCandidate],
     dialog: list[dict[str, str]],
+    language: str | None = None,
 ) -> str:
     parts: list[str] = []
     if dialog:
@@ -80,6 +81,9 @@ def build_rag_user_message(
         parts.append("")
 
     parts.append(f"Question: {question.strip()}")
+    if language in ("id", "en"):
+        # Said outright, from the question: the evidence and the instructions are often in another language than the reader's.
+        parts.append(f"Answer language: {'Indonesian (Bahasa Indonesia)' if language == 'id' else 'English'}. Write every field of the answer in it; keep document names and quoted terms as they are written.")
     parts.append("")
     if evidence:
         parts.append("Evidence:")

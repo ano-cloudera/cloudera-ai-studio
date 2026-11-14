@@ -47,3 +47,13 @@ def test_rag_insufficient_message_follows_the_question_language() -> None:
     indonesian = load_rag_insufficient_message(settings, question="Kapan segmen ditandai untuk investigasi?")
     assert english == INSUFFICIENT_ANSWER_EN
     assert indonesian == INSUFFICIENT_ANSWER_ID
+
+
+def test_the_document_prompt_names_the_answer_language_from_the_question() -> None:
+    from app.rag.prompt import build_rag_user_message
+
+    indonesian = build_rag_user_message(question="Apa yang harus dilakukan kalau keterlambatan TBBM di atas 30%?", evidence=[], dialog=[], language="id")
+    english = build_rag_user_message(question="What must be done when TBBM delay exceeds 30%?", evidence=[], dialog=[], language="en")
+    assert "Answer language: Indonesian" in indonesian
+    assert "Answer language: English" in english
+    assert "Answer language" not in build_rag_user_message(question="x", evidence=[], dialog=[])  # without a language nothing is claimed
