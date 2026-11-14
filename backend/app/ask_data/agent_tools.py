@@ -135,6 +135,10 @@ class Call:
         return self.call.search[:120]
 
 
+from app.prompt_management.keys import ASK_DATA_AGENT, ASK_DATA_AGENT_REPORT  # noqa: E402 - below the constants it reads with
+from app.prompt_management.managed import managed_prompt  # noqa: E402
+
+
 def _prompt(name: str) -> str:
     return (PROMPT_DIR / name).read_text(encoding="utf-8")
 
@@ -391,7 +395,7 @@ async def explore(
     if data_coverage:
         payload["data_coverage"] = data_coverage
     messages: list[dict[str, str]] = [
-        {"role": "system", "content": _prompt("agent_tools.md")},
+        {"role": "system", "content": managed_prompt(ASK_DATA_AGENT, "agent_tools.md")},
         {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
     ]
     started = perf_counter()
@@ -484,7 +488,7 @@ async def write_report(
             {"server_id": a["server_id"], "tool": a["tool"], "description": a["description"], "input_schema": a["input_schema"]} for a in action_tools
         ]
     messages: list[dict[str, str]] = [
-        {"role": "system", "content": _prompt("agent_tool_report.md")},
+        {"role": "system", "content": managed_prompt(ASK_DATA_AGENT_REPORT, "agent_tool_report.md")},
         {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
     ]
     report = await provider.generate_structured(messages, AgentReport, temperature=0.2, max_tokens=2200)

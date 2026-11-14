@@ -26,7 +26,7 @@ import {
 } from '../lib/promptSkillDisplay'
 import type { PromptRecord, PromptResolveResult, PromptVersionRecord } from '../types/api'
 
-const KNOWN_KEYS = ['ask_data.system', 'rag.system', 'rag.insufficient_evidence'] as const
+const KNOWN_KEYS = ['ask_data.system', 'ask_data.analyst', 'ask_data.agent', 'ask_data.agent_report', 'ask_data.turn_reader', 'rag.system', 'rag.insufficient_evidence'] as const
 type PromptKey = (typeof KNOWN_KEYS)[number] | string
 
 type DrawerTab = 'editor' | 'versions' | 'preview'

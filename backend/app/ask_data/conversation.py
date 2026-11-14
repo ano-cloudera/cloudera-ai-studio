@@ -20,6 +20,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from app.llm.base import LLMProvider, ProviderError
+from app.prompt_management.keys import ASK_DATA_TURN_READER
+from app.prompt_management.managed import managed_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -231,7 +233,7 @@ async def read_turn(
     try:
         reading = await provider.generate_structured(
             [
-                {"role": "system", "content": PROMPT.read_text(encoding="utf-8")},
+                {"role": "system", "content": managed_prompt(ASK_DATA_TURN_READER, "conversation_rewrite.md")},
                 {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
             ],
             TurnReading,

@@ -1113,7 +1113,10 @@ def build_workflow(deps: WorkflowDependencies):
             user_payload["reviewer_hint"] = state["judge_synthesis_hint"]
         if state.get("ask_data_space_instructions"):
             user_payload["space_instructions"] = state["ask_data_space_instructions"]
-        analyst_prompt = _prompt("result_analyst.md")
+        from app.prompt_management.keys import ASK_DATA_ANALYST
+        from app.prompt_management.managed import managed_prompt
+
+        analyst_prompt = managed_prompt(ASK_DATA_ANALYST, "result_analyst.md")
         analysis = None
         for attempt in range(2):
             try:

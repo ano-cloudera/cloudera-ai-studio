@@ -3,7 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.core.config import BACKEND_ROOT, Settings
-from app.prompt_management.keys import ASK_DATA_SYSTEM, RAG_INSUFFICIENT_EVIDENCE, RAG_SYSTEM
+from app.prompt_management.keys import (
+    ASK_DATA_AGENT,
+    ASK_DATA_AGENT_REPORT,
+    ASK_DATA_ANALYST,
+    ASK_DATA_SYSTEM,
+    ASK_DATA_TURN_READER,
+    RAG_INSUFFICIENT_EVIDENCE,
+    RAG_SYSTEM,
+)
 from app.rag.prompt import INSUFFICIENT_ANSWER_EN
 
 PROMPT_DIR = BACKEND_ROOT / "prompts"
@@ -15,6 +23,10 @@ class FilePromptSource:
     FILE_MAP: dict[str, str] = {
         ASK_DATA_SYSTEM: "global_system.md",
         RAG_SYSTEM: "rag_system.txt",
+        ASK_DATA_ANALYST: "result_analyst.md",
+        ASK_DATA_AGENT: "agent_tools.md",
+        ASK_DATA_AGENT_REPORT: "agent_tool_report.md",
+        ASK_DATA_TURN_READER: "conversation_rewrite.md",
     }
 
     TEXT_MAP: dict[str, str] = {

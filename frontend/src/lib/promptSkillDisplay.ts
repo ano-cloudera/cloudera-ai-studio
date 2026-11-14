@@ -33,6 +33,10 @@ export function formatPromptKey(key: string | null | undefined): string {
   const known: Record<string, string> = {
     'ask_data.system': 'Ask Data System',
     'rag.system': 'RAG System',
+    'ask_data.analyst': 'Data answer writer',
+    'ask_data.agent': 'Analyst agent',
+    'ask_data.agent_report': 'Analyst agent report',
+    'ask_data.turn_reader': 'Question reader',
     'rag.insufficient_evidence': 'RAG Insufficient Evidence',
   }
   if (known[key]) return known[key]

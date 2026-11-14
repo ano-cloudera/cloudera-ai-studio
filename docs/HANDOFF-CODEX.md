@@ -71,3 +71,21 @@ Repo rules that the owner enforces:
 1. `git pull` and read section 5, item 1.
 2. Reproduce on a dev server with the judge file, or ask the owner for a CAI screenshot.
 3. Keep changes small; run both test suites before reporting.
+
+
+## 8. Update 2026-11-14
+
+State: everything is committed and pushed except the last commit of this section (check `git log origin/main..HEAD`). Backend 617 tests, frontend 426, `next build` passes. None of it has been looked at in a browser or run with Nemotron on CAI since 3d4f687; the owner tests on CAI.
+
+What changed since section 3:
+- **Panel is the fuller answer** (3d4f687, 861d5f3): the agent report has `headline`, `summary` (chat) and `body` (panel, `analysis_report`); a governed breakdown gets `AnalysisOutput.detailed_analysis` written by the LLM in the same call, moved to `analysis_report` in `ChatService._finalize_response` and figure-checked in `review_answer`. The panel's first tab is Analysis (the narrative), then Chart, Map, Table, Query. There is no Checks tab: an agent answer's steps are cards inside Query (`WorkspaceQueryView steps`). The standings table was removed because it repeated the Table tab.
+- **Charts** (8a5f194): at most one alternative view from `frontend/src/lib/chartViews.ts` (share, Pareto, vs overall, stacked, line/bar), no funnel, no pie of rates. Numbers follow the language of the answer (`answerLocale`).
+- **SQL** (861d5f3): `frontend/src/lib/formatSql.ts` lays the query out like an editor, `WorkspaceSqlBlock` numbers and colours it; only whitespace changes.
+- **Telemetry line** (model, seconds, tokens) shows under every answer.
+- **Fixes**: a percentage warning no longer fires for an attainment of 101.9%; follow-ups with Vietnamese letters are dropped; metric display names (`Jumlah LO`) reach the runtime model (republish the semantic model to apply).
+- **Documents** (f558434): `rag_system.txt` now asks for the steps, thresholds and limits the document states, with owner, deadline and page.
+- **Prompts are managed** (this commit): the prompts that decide answer quality are keys of the Prompts feature with their files as defaults: `ask_data.analyst` (result_analyst.md), `ask_data.agent` (agent_tools.md), `ask_data.agent_report` (agent_tool_report.md), `ask_data.turn_reader` (conversation_rewrite.md), next to `ask_data.system` and `rag.system`. Code reads them through `app/prompt_management/managed.py` (`managed_prompt(key, file)`), so a version published in Prompts, or by `scripts/push_prompts.py`, applies without a redeploy; with no version, or no platform database, the file applies. A published version overrides edits to the file: if a prompt edit in git seems to have no effect, check the Prompts page (`--status` of the script shows which layer wins).
+
+Open, in order: (1) judge on CAI, then the ten demo questions (`samples/fuel_distribution/judge_demo.json`); (2) agent recommendation for "apa yang sebaiknya kita lakukan" is still thin; (3) favicon `frontend/app/icon.png`; (4) `highlight.js` is no longer used; (5) `AGENT_ANSWERS_ALL` stays off until judged.
+
+Tuning prompts on CAI without a redeploy: `python scripts/push_prompts.py --status`, then `--dry-run`, then run it; `--key ask_data.analyst` for one prompt, `--scope workspace` for another scope. A new version is added and published; the old one stays in the history and can be rolled back from the Prompts page.
