@@ -64,11 +64,21 @@ def _find(api, key: str, scope: str) -> dict | None:
     return next((row for row in rows if row["key"] == key and row["scope"] == scope), None)
 
 
-def status(api, key: str, text: str) -> str:
+SPECIFICITY = {"file": 0, "global": 1, "workspace": 2, "project": 3}  # the more specific one applies
+
+
+def status(api, key: str, text: str, pushed_scope: str | None = None) -> str:
     effective = api.call("POST", "/api/v1/prompts/resolve", {"prompt_key": key})
-    layers = ", ".join(f"{layer['scope']} v{layer['version_number']}" for layer in effective.get("layers", [])) or "none"
+    layers = effective.get("layers", [])
+    shown = ", ".join(f"{layer['scope']} v{layer['version_number']}" for layer in layers) or "none"
     equal = _same(effective.get("content", ""), text)
-    return f"{key}: applies from {effective.get('source_label')} (layers: {layers}); {'same as the file' if equal else 'DIFFERENT from the file'}"
+    line = f"{key}: applies from {effective.get('source_label')} (layers: {shown}); {'same as the file' if equal else 'DIFFERENT from the file'}"
+    source = effective.get("source", "file")
+    if pushed_scope and SPECIFICITY.get(source, 0) > SPECIFICITY[pushed_scope]:
+        line += f"\n  WARNING: a {source} prompt overrides what was pushed at {pushed_scope}; update or delete it in Prompts, or push with --scope {source}"
+    elif len(layers) > 1:
+        line += f"\n  NOTE: {len(layers)} scopes hold this key ({', '.join(layer['scope'] for layer in layers)}); only the most specific applies"
+    return line
 
 
 def push(api, key: str, text: str, scope: str, *, dry_run: bool) -> str:
@@ -124,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
         if not args.status and not args.dry_run:
             print()
             for key in keys:
-                print(status(api, key, texts[key]))
+                print(status(api, key, texts[key], args.scope))
     except RuntimeError as exc:  # semantic_api.ApiError
         print(f"Failed: {exc}", file=sys.stderr)
         return 1

@@ -109,3 +109,15 @@ def test_the_prompts_that_write_a_data_answer_are_managed_keys_with_a_file_defau
     assert managed.managed_prompt("ask_data.analyst", "result_analyst.md") == "published text"
     monkeypatch.setattr("app.prompt_management.resolver.PromptResolver", Broken)
     assert "AnalysisOutput" in managed.managed_prompt("ask_data.analyst", "result_analyst.md")
+
+
+def test_status_warns_when_a_more_specific_prompt_overrides_what_was_pushed() -> None:
+    script = _load()
+
+    class Resolving:
+        def call(self, method, path, body=None, **_):
+            return {"source": "workspace", "source_label": "Workspace override", "content": "x", "layers": [{"scope": "workspace", "version_number": 1}, {"scope": "global", "version_number": 1}]}
+
+    line = script.status(Resolving(), "rag.system", "y", "global")
+    assert "WARNING: a workspace prompt overrides what was pushed at global" in line
+    assert "NOTE" in script.status(Resolving(), "rag.system", "y", "workspace")  # two scopes hold the key
