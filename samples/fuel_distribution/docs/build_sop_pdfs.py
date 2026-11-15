@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Write the two sample SOP documents of the fuel distribution demo as PDF (synthetic, for the Knowledge library).
+"""Write the sample documents of the fuel distribution demo as PDF (synthetic, for the Knowledge library).
 
-    python3 samples/fuel_distribution/docs/build_sop_pdfs.py      # writes the two PDFs next to this script
+    python3 samples/fuel_distribution/docs/build_sop_pdfs.py      # writes the four PDFs next to this script
 
-Upload both to a Knowledge library (Knowledge -> New library -> Upload). The agent then cites them, with the page, when it
-recommends what to do; their thresholds match the planted patterns of generate_data.py. Needs fpdf2 (pip install fpdf2).
+Upload them to a Knowledge library (Knowledge -> New library -> Upload). The agent then cites them, with the page, when it
+recommends what to do. Their thresholds and figures match generate_data.py and the semantic model (the SLA formula, the
+backup terminal of Kertapati, the reasons of a late order). Needs fpdf2 (pip install fpdf2).
 """
 from __future__ import annotations
 
@@ -94,6 +95,105 @@ SOP_QUOTA = {
 }
 
 
+SOP_OUTAGE = {
+    "file": "SOP_Pengalihan_Pasokan_Gangguan_TBBM.pdf",
+    "title": "SOP Pengalihan Pasokan Saat Gangguan TBBM",
+    "code": "SOP-DIST-021 Rev. 1",
+    "sections": [
+        ("1. Tujuan", [
+            "Prosedur ini mengatur pengalihan pasokan BBM ke SPBU dan pelanggan industri ketika sebuah Terminal BBM (TBBM) tidak bisa melayani sebagian atau seluruh kapasitasnya, agar stok di SPBU tidak habis.",
+        ]),
+        ("2. Ruang Lingkup", [
+            "Berlaku untuk gangguan TBBM karena kerusakan fasilitas, perbaikan terjadwal yang melebihi kapasitas cadangan, atau kondisi di luar kendali seperti bencana dan cuaca ekstrem di lokasi TBBM.",
+        ]),
+        ("3. Definisi", [
+            "Gangguan parsial: kapasitas muat TBBM turun kurang dari 50 persen.",
+            "Gangguan penuh: TBBM tidak dapat memuat sama sekali selama lebih dari 24 jam.",
+            "TBBM cadangan: TBBM yang ditetapkan dalam peta cadangan untuk melayani pelanggan tertentu bila TBBM asalnya terganggu.",
+            "Pengalihan pasokan: pengiriman LO dari TBBM cadangan ke pelanggan yang biasanya dilayani TBBM asal.",
+        ]),
+        ("4. Peta TBBM Cadangan", [
+            "Kertapati (Palembang) dicadangkan oleh TBBM Panjang (Bandar Lampung) untuk pelanggan di Sumatera Selatan, Bengkulu dan Bangka Belitung. Jarak tempuh dari Panjang dapat mencapai 1,8 kali jarak standar pelanggan.",
+            "Plumpang (Jakarta Utara) dicadangkan oleh Tanjung Gerem (Cilegon) untuk pelanggan di DKI Jakarta dan Jawa Barat bagian utara.",
+            "Tanjung Batu (Balikpapan) dicadangkan oleh Banjarmasin untuk pelanggan di Kalimantan Timur.",
+            "Peta cadangan ditinjau setiap triwulan oleh Regional Distribution Manager bersama Terminal Manager masing-masing TBBM.",
+        ]),
+        ("5. Langkah Penanganan", [
+            "5.1 Tetapkan status gangguan dalam dua jam sejak TBBM melapor. Terminal Manager menyampaikan kapasitas yang tersisa; Regional Distribution Manager menetapkan status.",
+            "5.2 Prioritaskan SPBU DODO dan pelanggan industri yang stoknya kurang dari dua hari untuk dialihkan lebih dulu.",
+            "5.3 Alihkan pengiriman ke TBBM cadangan sesuai peta. Jadwalkan ulang slot muat di TBBM cadangan agar tidak menumpuk pada jam padat.",
+            "5.4 Tambah mobil tangki dari TBBM lain dalam regional bila TBBM cadangan tidak mampu menanggung seluruh pengalihan.",
+            "5.5 Beri tahu SPBU dan pelanggan industri terdampak bila keterlambatan diperkirakan lebih dari dua jam.",
+            "5.6 Catat setiap pengiriman hasil pengalihan dengan alasan Pasokan dari terminal alternatif, agar dapat dipisahkan dari keterlambatan biasa.",
+        ]),
+        ("6. Ketentuan SLA Selama Pengalihan", [
+            "SLA pengiriman tidak berubah secara otomatis. Batas waktu tetap dihitung dari jarak standar pelanggan dari TBBM asal, sesuai SOP keterlambatan.",
+            "Pengalihan yang tempuhnya lebih dari 1,5 kali jarak standar dicatat sebagai pengecualian dan ditinjau oleh Regional Distribution Manager dalam tujuh hari kerja. Peninjauan dapat menetapkan SLA baru untuk rute tersebut selama gangguan.",
+        ]),
+        ("7. Pelaporan dan Penutupan", [
+            "Selama gangguan, Terminal Manager TBBM cadangan melaporkan tingkat keterlambatan harian rute pengalihan kepada Regional Distribution Manager.",
+            "Gangguan ditutup setelah TBBM asal kembali memuat normal. Tingkat keterlambatan rute pengalihan pada bulan tersebut dibandingkan dengan bulan sebelum gangguan dan dilaporkan ke VP Distribution.",
+        ]),
+        ("8. Tanggung Jawab", [
+            "Terminal Manager TBBM asal: status kapasitas dan laporan harian gangguan.",
+            "Terminal Manager TBBM cadangan: penjadwalan slot muat dan laporan rute pengalihan.",
+            "Regional Distribution Manager: penetapan status, keputusan pengalihan dalam regional, dan peninjauan pengecualian SLA.",
+            "VP Distribution: keputusan untuk gangguan penuh yang berlangsung lebih dari tujuh hari, dan pengalihan lintas regional.",
+        ]),
+    ],
+}
+
+SOP_SLA = {
+    "file": "Standar_Layanan_Pengiriman_LO.pdf",
+    "title": "Standar Layanan Pengiriman Loading Order BBM",
+    "code": "PDM-LAYANAN-003 Rev. 1",
+    "sections": [
+        ("1. Tujuan", [
+            "Standar ini menetapkan cara batas waktu pengiriman (SLA) dihitung untuk setiap Loading Order (LO), sehingga setiap pihak menilai ketepatan pengiriman dengan cara yang sama.",
+        ]),
+        ("2. Ruang Lingkup", [
+            "Berlaku untuk seluruh LO yang dikirim dengan mobil tangki dari TBBM ke SPBU (COCO, CODO, DODO) dan pelanggan industri di semua regional.",
+        ]),
+        ("3. Komponen SLA", [
+            "Jarak standar: jarak dari TBBM asal ke lokasi pelanggan, dalam kilometer, yang ditetapkan untuk setiap pelanggan dan tidak berubah dari bulan ke bulan.",
+            "Kecepatan rujukan: 40 kilometer per jam untuk menghitung waktu tempuh.",
+            "Waktu muat dan bongkar: 60 menit, sudah termasuk pemeriksaan dokumen dan pengisian tangki.",
+        ]),
+        ("4. Rumus SLA", [
+            "SLA pengiriman (menit) = (jarak standar dalam km dibagi 40) dikali 60, ditambah 60 menit.",
+            "Contoh: pelanggan dengan jarak standar 120 km. Waktu tempuh rujukan 120 dibagi 40 dikali 60 sama dengan 180 menit. SLA = 180 + 60 = 240 menit.",
+        ]),
+        ("5. Durasi dan Status", [
+            "Durasi kirim: waktu sejak mobil tangki keluar dari TBBM sampai bongkar selesai, dalam menit.",
+            "Terkirim: durasi kirim tidak melebihi SLA.",
+            "Terlambat: durasi kirim melebihi SLA. Setiap LO terlambat wajib memiliki satu alasan dari daftar pada bagian 6.",
+            "Dalam Perjalanan: LO yang belum selesai pada tanggal pelaporan. LO ini tidak dihitung dalam tingkat keterlambatan.",
+        ]),
+        ("6. Alasan Keterlambatan", [
+            "Antrean muat di TBBM: LO menunggu giliran muat melebihi kapasitas slot.",
+            "Kemacetan lalu lintas: waktu tempuh terganggu kepadatan jalan.",
+            "Akses jalan rusak: jalan menuju lokasi pelanggan tidak dapat dilalui dengan kecepatan normal.",
+            "Cuaca buruk: gelombang laut, hujan lebat, atau banjir yang menghambat perjalanan.",
+            "Antrean bongkar di SPBU: mobil tangki menunggu giliran bongkar di SPBU atau pelanggan.",
+            "Kerusakan mobil tangki: mobil tangki mogok atau harus diganti di tengah perjalanan.",
+            "Pasokan dari terminal alternatif: LO dilayani TBBM cadangan sesuai SOP pengalihan pasokan.",
+        ]),
+        ("7. Pengecualian", [
+            "Cuaca buruk tidak membebaskan LO dari SLA. Alasan dicatat dan dapat dijadikan dasar peninjauan rute, tetapi SLA tidak diubah secara otomatis.",
+            "Penyesuaian SLA untuk pengalihan pasokan hanya berlaku bila ditetapkan oleh Regional Distribution Manager sesuai SOP pengalihan pasokan.",
+        ]),
+        ("8. Ambang dan Pemantauan", [
+            "Tingkat keterlambatan dihitung sebagai jumlah LO terlambat dibagi jumlah LO yang selesai, dalam persen. Target nasional 15 persen.",
+            "Pemantauan dan eskalasi mengikuti SOP penanganan keterlambatan (SOP-DIST-014).",
+        ]),
+        ("9. Tanggung Jawab", [
+            "Terminal Manager: memastikan setiap LO terlambat memiliki satu alasan yang tercatat.",
+            "Regional Distribution Manager: meninjau alasan terbanyak setiap bulan dan mengusulkan perbaikan rute.",
+        ]),
+    ],
+}
+
+
 class Document(FPDF):
     def __init__(self, title: str, code: str) -> None:
         super().__init__(format="A4")
@@ -144,7 +244,7 @@ def build(spec: dict) -> Path:
 
 
 def main() -> int:
-    for spec in (SOP_DELIVERY, SOP_QUOTA):
+    for spec in (SOP_DELIVERY, SOP_QUOTA, SOP_OUTAGE, SOP_SLA):
         print(build(spec))
     return 0
 
