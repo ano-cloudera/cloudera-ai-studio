@@ -102,3 +102,17 @@ came back as one run-on paragraph whatever the prompt said. So the structure mov
 - Prompts (`result_analyst.md`, `agent_tool_report.md`, `rag_system.txt`) now describe the fields and carry one invented example each.
   A prompt change reaches CAI with `python scripts/push_prompts.py`; a schema change needs a backend restart.
 - If an answer still looks unstructured, check first that the backend was restarted and that `push_prompts.py --status` says "same as the file".
+
+
+## 10. Update 2026-11-15 (evening): guardrails for the agent, found with scripts/judge_show.py
+
+Judge on CAI (`samples/fuel_distribution/judge_demo.json`) kept failing the two agent investigations because Nemotron does not reliably follow
+planning rules in the prompt. So two checks moved into code (`app/ask_data/agent_tools.py`):
+- `_context_calls`: a query or comparison filtered to some groups (`regional: A, B`) gets the same call over every group of that dimension with no
+  filter, run in the same turn (at most 3 a run, only for a dimension the metric can be broken down by, dropped if invalid or empty, deduplicated by
+  signature). Without it a filtered result has no figure for each named group and its `overall_value` covers only the filtered groups; the model once
+  called that "overall". Such a result carries `context` in the observation and a step titled "Konteks semua <dimension>".
+- `_shift_hint`: when a comparison of periods shows one group falling and another rising by at least half as much, and the report names the riser
+  nowhere, `write_report` asks for one rewrite with those facts (folded into the figure-check repair; the model may leave it out).
+Also: sections of one kind share one heading (`sections._merged`); the em dash cleaner covers the panel analysis and recommendations; the judge reads the
+panel and the recommendations table; `scripts/judge_show.py <file> [turns]` prints the failed checks, the agent's steps and the full answer.

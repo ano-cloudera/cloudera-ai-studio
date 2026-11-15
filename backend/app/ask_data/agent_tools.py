@@ -127,6 +127,7 @@ class Call:
         self.problems: list[str] = []
         self.seconds = 0.0
         self.compare_overall: dict[str, float] = {}  # a comparison's overall value of each side
+        self.context = False  # added by the system beside a filtered call: the same call over every group of the filtered dimension
 
     @property
     def ok(self) -> bool:
@@ -186,6 +187,8 @@ def observation(item: Call) -> dict[str, Any]:
         base["query"] = item.call.query.model_dump(exclude_defaults=True)
     if item.call.tool == "compare" and item.call.compare is not None:
         base["compare"] = item.call.compare.model_dump(exclude_defaults=True)
+    if item.context:
+        base["context"] = "added by the system beside a filtered call: the same call over every group of the filtered dimension, with no filter on it"
     if item.problems:
         return {**base, "status": "invalid", "problems": item.problems}
     response = item.response
@@ -375,6 +378,80 @@ def _result_word(item: Call, labels: dict[str, str]) -> str:
     return labels["rows"].format(n=len(item.response.citations or []))
 
 
+CONTEXT_CALLS_PER_RUN = 3
+_SHIFT_SHARE = 0.5  # a group that rose by at least this share of what another fell by is where the amount went
+
+
+def _context_calls(fresh: list[Call], catalog: dict[str, Any], seen: dict[str, int], language: str, used: int) -> list[Call]:
+    """For a query or a comparison filtered to some groups ("regional: A, B"), the same call over every group of that dimension, with no
+    filter on it. A filtered result hides the groups left out: each named group's own figure, the overall value of everything and the
+    place an amount moved to are all in the part that was filtered away, and the model does not reliably ask for it. Added by code,
+    at most CONTEXT_CALLS_PER_RUN a run, only for a dimension the metric can be broken down by; an invalid or empty one is dropped
+    after it ran."""
+    breakdowns = {m.get("name"): set(m.get("breakdowns") or []) for m in (catalog.get("metrics") or []) if isinstance(m, dict)}
+    labels = {m.get("name"): m.get("label") or m.get("name") for m in (catalog.get("metrics") or []) if isinstance(m, dict)}
+    added: list[Call] = []
+    for item in fresh:
+        if used + len(fresh) + len(added) >= MAX_CALLS - 1 or sum(1 for c in fresh if c.context) + len(added) >= CONTEXT_CALLS_PER_RUN:
+            break
+        call = item.call
+        spec = call.query if call.tool == "query_metric" else call.compare if call.tool == "compare" else None
+        if spec is None or not spec.filters:
+            continue
+        metric = spec.metric if call.tool == "query_metric" or spec.mode == "periods" else (spec.metrics[0] if spec.metrics else "")
+        allowed = breakdowns.get(metric, set())
+        chosen = next((f for f in spec.filters if f.dimension in allowed and f.values), None)
+        if chosen is None:
+            continue
+        rest = [f for f in spec.filters if f.dimension != chosen.dimension]
+        update: dict[str, Any] = {"breakdown": [chosen.dimension], "filters": rest}
+        if call.tool == "query_metric":
+            update.update(by_month=False, limit=None, sort="desc")
+        label = str(labels.get(metric) or metric)
+        dimension = chosen.dimension.replace("_", " ")
+        why = f"Konteks semua {dimension}: {label}" if language == "id" else f"Context, every {dimension}: {label}"
+        clone = ToolCall(tool=call.tool, why=why, **{("query" if call.tool == "query_metric" else "compare"): spec.model_copy(update=update)})
+        signature = _signature(clone)
+        if signature in seen:
+            continue
+        context = Call(used + len(fresh) + len(added) + 1, clone)
+        context.context = True
+        seen[signature] = context.index
+        added.append(context)
+    return added
+
+
+def _group_name(row: dict[str, Any]) -> str:
+    return " / ".join(str(v) for k, v in row.items() if k not in ("value_a", "value_b", "change", "change_pct") and v is not None and not isinstance(v, (int, float)))
+
+
+def _shift_hint(calls: list[Call], text: str) -> str | None:
+    """When a comparison of two periods shows one group falling and another rising by about as much (the amount moved, it was not
+    lost) and the report names the rising group nowhere, the facts to name it with; None when there is nothing to add. Which groups
+    and which figures come from the results, never from the model; whether it bears on the question is left to the model."""
+    haystack = text.casefold()
+    for item in calls:
+        spec = item.call.compare
+        if item.call.tool != "compare" or spec is None or spec.mode != "periods" or not item.ok or item.response is None:
+            continue
+        rows = [r for r in item.response.data.rows if isinstance(r.get("change"), (int, float)) and _group_name(r)]
+        if len(rows) < 2:
+            continue
+        lost = min(rows, key=lambda r: r["change"])
+        gained = max(rows, key=lambda r: r["change"])
+        if lost["change"] >= 0 or gained["change"] <= 0 or gained["change"] < _SHIFT_SHARE * abs(lost["change"]):
+            continue
+        name = _group_name(gained)
+        if name.casefold() in haystack:
+            continue
+        return (
+            f"The comparison of periods (result id {item.index}) shows that {name} rose by {gained['change']:g} (from {gained.get('value_a')} to {gained.get('value_b')}) "
+            f"while {_group_name(lost)} fell by {abs(lost['change']):g} (from {lost.get('value_a')} to {lost.get('value_b')}), and the report does not name {name}. "
+            "If that is where the amount went, say so in the headline or the summary, naming both with these figures; if it does not bear on the question, leave it out."
+        )
+    return None
+
+
 async def explore(
     chat: Any,
     provider: Any,
@@ -442,6 +519,7 @@ async def explore(
             fresh.append(item)
         if not fresh:
             return  # done, or only repeats: the results so far are the answer
+        fresh.extend(_context_calls(fresh, catalog, seen, language, len(calls)))
         for item in fresh:
             yield {"type": "progress", "stage": "agent_step", "label": labels["run"].format(what=item.label())}
         pending = [
@@ -455,6 +533,8 @@ async def explore(
         finally:
             for task in pending:
                 task.cancel()  # the client went away
+        # A context call that was invalid or empty says nothing: it is left out instead of shown as a failed step.
+        fresh = [i for i in fresh if not (i.context and (i.problems or i.response is None or i.response.status != "SUCCESS"))]
         calls.extend(fresh)
         for item in fresh:
             if item.problems:
@@ -525,16 +605,17 @@ async def write_report(
     has_data = any(item.ok and item.is_data for item in calls)
     spoken = [report.headline, report.summary, report.body, *[f"{r.action} {r.basis}" for r in report.recommendations]]
     bad = figures_outside(spoken, allowed) if has_data else []
-    if bad:
-        logger.info("agent_report_figures_unverified figures=%s", bad)
+    shift = _shift_hint(calls, " ".join(spoken))
+    if bad or shift:
+        logger.info("agent_report_repair figures=%s shift=%s", bad, bool(shift))
+        asked: list[str] = []
+        if bad:
+            asked.append("These figures are not in the results and cannot be derived from them: " + ", ".join(bad) + ". Rewrite the report quoting only figures from the results (rows, overall_value, computed), or leave those figures out.")
+        if shift:
+            asked.append(shift)
         messages += [
             {"role": "assistant", "content": report.model_dump_json()},
-            {
-                "role": "user",
-                "content": "These figures are not in the results and cannot be derived from them: "
-                + ", ".join(bad)
-                + ". Rewrite the report quoting only figures from the results (rows, overall_value, computed), or leave those figures out.",
-            },
+            {"role": "user", "content": " ".join(asked)},
         ]
         try:
             report = _laid_out(await provider.generate_structured(messages, AgentReport, temperature=0.1, max_tokens=2600), language)

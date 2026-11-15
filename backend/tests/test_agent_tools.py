@@ -443,3 +443,97 @@ def test_the_agent_report_sections_become_a_laid_out_body_with_formal_headings(m
     # the question is in English, so the headings are too
     assert response.analysis_report.startswith("### Detailed Explanation\n\nSatu kurir menanggung")
     assert "### Possible Drivers\n\n- Kemungkinan terkait kapasitas armada, belum terbukti." in response.analysis_report
+
+
+def _item(index: int, call_dict: dict[str, Any]):
+    from app.ask_data.agent_tools import Call, ToolCall
+
+    return Call(index, ToolCall.model_validate(call_dict))
+
+
+CATALOG = {"metrics": [{"name": "late_rate", "label": "Late Rate", "breakdowns": ["regional", "provinsi"]}, {"name": "volume", "label": "Volume", "breakdowns": ["terminal"]}]}
+
+
+def test_a_filtered_call_gets_the_same_call_over_every_group_of_the_filtered_dimension() -> None:
+    from app.ask_data.agent_tools import CONTEXT_CALLS_PER_RUN, _context_calls
+
+    named = {"tool": "query_metric", "why": "Per provinsi", "query": {"metric": "late_rate", "breakdown": ["provinsi"], "filters": [{"dimension": "regional", "values": ["A", "B"]}], "by_month": True, "limit": 5}}
+    fresh = [_item(1, named)]
+    added = _context_calls(fresh, CATALOG, {}, "id", 0)
+    assert len(added) == 1 and added[0].context
+    context = added[0].call.query
+    assert context.breakdown == ["regional"] and context.filters == [] and context.by_month is False and context.limit is None  # all groups, whole period
+    assert added[0].call.why == "Konteks semua regional: Late Rate"
+
+    # a comparison filtered to one place gets the comparison over every place, with its own periods
+    compare = {"tool": "compare", "compare": {"mode": "periods", "metric": "volume", "breakdown": ["terminal"], "filters": [{"dimension": "terminal", "values": ["Kertapati"]}], "period_a_start": "2025-07-01", "period_a_end": "2025-08-01", "period_b_start": "2025-08-01", "period_b_end": "2025-09-01"}}
+    context = _context_calls([_item(2, compare)], CATALOG, {}, "en", 0)[0].call
+    assert context.compare.filters == [] and context.compare.breakdown == ["terminal"] and context.compare.period_b_start == "2025-08-01"
+    assert context.why == "Context, every terminal: Volume"
+
+    # nothing is added for an unfiltered call, a dimension the metric cannot be broken down by, a repeat, or past the limit per run
+    assert _context_calls([_item(1, {"tool": "query_metric", "query": {"metric": "late_rate", "breakdown": ["regional"]}})], CATALOG, {}, "id", 0) == []
+    assert _context_calls([_item(1, {"tool": "query_metric", "query": {"metric": "late_rate", "filters": [{"dimension": "colour", "values": ["red"]}]}})], CATALOG, {}, "id", 0) == []
+    seen: dict[str, int] = {}
+    assert len(_context_calls(fresh, CATALOG, seen, "id", 0)) == 1 and _context_calls(fresh, CATALOG, seen, "id", 0) == []
+    many = [_item(n, {"tool": "query_metric", "query": {"metric": "late_rate", "breakdown": ["provinsi"], "filters": [{"dimension": "regional", "values": [f"R{n}"]}], "period_start": f"2025-0{n}-01"}}) for n in range(1, 8)]
+    assert len(_context_calls(many[:3], CATALOG, {}, "id", 0)) <= CONTEXT_CALLS_PER_RUN
+
+
+def _compare_item(rows: list[dict[str, Any]]):
+    from types import SimpleNamespace
+
+    item = _item(1, {"tool": "compare", "compare": {"mode": "periods", "metric": "volume", "breakdown": ["terminal"]}})
+    item.response = SimpleNamespace(status="SUCCESS", data=SimpleNamespace(rows=rows))
+    return item
+
+
+def test_a_report_that_misses_where_the_amount_moved_is_given_the_facts_to_name_it_with() -> None:
+    from app.ask_data.agent_tools import _shift_hint
+
+    rows = [
+        {"terminal": "Panjang", "value_a": 6816, "value_b": 11944, "change": 5128},
+        {"terminal": "Kertapati", "value_a": 6168, "value_b": 2056, "change": -4112},
+        {"terminal": "Wayame", "value_a": 900, "value_b": 905, "change": 5},
+    ]
+    hint = _shift_hint([_compare_item(rows)], "Volume Kertapati turun karena jumlah LO turun.")
+    assert hint is not None and "Panjang rose by 5128 (from 6816 to 11944)" in hint and "Kertapati fell by 4112" in hint
+    assert "leave it out" in hint  # whether it bears on the question stays the model's call
+    assert _shift_hint([_compare_item(rows)], "Volume Kertapati pindah ke Panjang, yang naik 5.128 KL.") is None  # already named
+    small = [{"terminal": "A", "change": 40}, {"terminal": "B", "change": -4112}]
+    assert _shift_hint([_compare_item(small)], "turun") is None  # a rise of 40 against a fall of 4,112 is not where it went
+    assert _shift_hint([_compare_item([{"terminal": "A", "change": -5}, {"terminal": "B", "change": -9}])], "x") is None  # nothing rose
+    assert _shift_hint([], "x") is None
+
+
+def test_the_agent_runs_the_context_call_beside_a_filtered_one_and_the_report_sees_it(monkeypatch) -> None:
+    from app.ask_data import value_filters
+
+    value_filters.clear_cache()
+    seen: dict[str, Any] = {}
+
+    class Filtering(AgentModel):
+        """Turn 1: carriers over everything. Turn 2: carriers within one region only, which hides every other region."""
+
+        async def generate_structured(self, messages, model, **kwargs):
+            if model.__name__ == "AgentTurn":
+                self.calls.append("AgentTurn")
+                turn = sum(1 for m in messages if m["role"] == "assistant") + 1
+                if turn == 1:
+                    return model.model_validate({"calls": [_late([CARRIER], why="Per kurir")]})
+                if turn == 2:
+                    return model.model_validate({"calls": [_late([CARRIER], [{"dimension": REGION, "values": ["kalimantan timur"]}], why="Kurir di Kalimantan Timur")]})
+                return model.model_validate({"done": True})
+            if model.__name__ == "AgentReport":
+                self.calls.append("AgentReport")
+                seen["results"] = json.loads(messages[1]["content"])["results"]
+                return model.model_validate({"headline": "Di Kalimantan Timur satu kurir paling sering terlambat.", "summary": "Terpusat.", "show": 2})
+            return await super().generate_structured(messages, model, **kwargs)
+
+    replay = Replay(monkeypatch, Filtering())
+    response, _ = _run(replay)
+    titles = [step.title for step in response.agent_steps]
+    context = [r for r in seen["results"] if r.get("context")]
+    assert len(context) == 1 and context[0]["query"]["breakdown"] == [REGION] and "filters" not in context[0]["query"]  # every region, no filter
+    assert context[0]["status"] == "ok" and context[0]["overall_value"] > 0  # with the overall value of everything
+    assert any(title.startswith("Konteks semua") for title in titles)
