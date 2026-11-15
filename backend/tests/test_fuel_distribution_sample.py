@@ -98,3 +98,10 @@ def test_the_reason_is_the_last_column_so_the_other_columns_keep_their_place(tmp
     rows = list(csv.DictReader((tmp_path / "deliveries.csv").open()))
     assert rows[0].keys() >= {"alasan_keterlambatan", "status_pengiriman"}
     assert list(rows[0].keys())[-1] == "alasan_keterlambatan"
+
+
+def test_the_reason_description_says_shares_come_from_the_count_not_the_rate() -> None:
+    text = (SAMPLE / "build_semantic_model.py").read_text(encoding="utf-8")
+    assert "Jumlah LO Terlambat (jumlah)" in text
+    prompt = (Path(__file__).resolve().parents[1] / "prompts" / "agent_tools.md").read_text(encoding="utf-8")
+    assert "never break a rate down by it" in prompt
