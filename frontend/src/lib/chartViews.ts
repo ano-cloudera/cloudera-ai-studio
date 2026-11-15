@@ -12,7 +12,14 @@ export type ChartViewOption = { id: ChartView; label: string }
 
 const NON_ADDITIVE_UNITS = new Set(['percent', 'ratio', 'minutes'])
 
-/** A measure that adds up across groups. Unknown units are treated as not adding up, so no share is drawn by guess. */
+/** A sum or a count adds up across groups; a rate, an average or a ratio does not (the same rule the backend applies to a metric's expression). */
+export function isAdditiveExpression(expression: string | null | undefined): boolean | null {
+  const text = (expression ?? '').trim().toUpperCase()
+  if (!text) return null
+  return (text.startsWith('SUM(') || text.startsWith('COUNT(')) && !text.includes('/') && !text.includes('AVG(')
+}
+
+/** A measure that adds up across groups, judged from its unit alone. Unknown units are treated as not adding up, so no share is drawn by guess. */
 export function isAdditiveUnit(unitFormat: string | null | undefined): boolean {
   return Boolean(unitFormat) && !NON_ADDITIVE_UNITS.has(String(unitFormat))
 }
@@ -23,12 +30,14 @@ export function chartViews(input: {
   type: string
   values: number[]
   unitFormat?: string | null
+  /** Whether the measure adds up across groups, when known from its expression; else judged from the unit. */
+  additive?: boolean | null
   overall?: number | null
   hasSeries: boolean
   timeOnX: boolean
 }): ChartViewOption[] {
   const native: ChartViewOption = { id: 'native', label: NATIVE_LABEL[input.type] ?? 'Chart' }
-  const additive = isAdditiveUnit(input.unitFormat)
+  const additive = typeof input.additive === 'boolean' ? input.additive : isAdditiveUnit(input.unitFormat)
   const count = input.values.length
   const nonNegative = input.values.every(value => value >= 0)
   let alternative: ChartViewOption | null = null

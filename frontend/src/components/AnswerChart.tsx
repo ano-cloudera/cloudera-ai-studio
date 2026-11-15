@@ -44,6 +44,8 @@ export type ChartMetric = {
   better?: 'up' | 'down' | null
   /** How numbers are written: the answer's language ("id-ID" gives 16,07%). */
   locale?: string | null
+  /** Whether the measure adds up across groups (from its expression), which decides whether a share or a Pareto is honest. */
+  additive?: boolean | null
 }
 
 export function AnswerChart({
@@ -213,6 +215,7 @@ export function AnswerChart({
     type: chart.type,
     values: rawYValues,
     unitFormat: metric?.unitFormat,
+    additive: metric?.additive,
     overall,
     hasSeries: visibleSeriesNames.length > 0,
     timeOnX,

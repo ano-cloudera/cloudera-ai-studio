@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chartViews, differenceRows, paretoRows } from './chartViews'
+import { chartViews, differenceRows, isAdditiveExpression, paretoRows } from './chartViews'
 
 const base = { hasSeries: false, timeOnX: false }
 
@@ -20,5 +20,16 @@ describe('chartViews', () => {
     expect(pareto.map(r => r.__cumulative)).toEqual([75, 100])
     const diff = differenceRows([{ r: 'x', v: 11.4 }, { r: 'y', v: 34.54 }], 'r', 'v', 16.07)
     expect(diff).toEqual([{ r: 'y', __difference: 18.47 }, { r: 'x', __difference: -4.67 }])
+  })
+
+  it('judges "adds up" from the metric expression when it is known: an average amount is not shared out', () => {
+    expect(isAdditiveExpression('SUM(amount)')).toBe(true)
+    expect(isAdditiveExpression('COUNT(DISTINCT id)')).toBe(true)
+    expect(isAdditiveExpression('SUM(amount) / COUNT(id)')).toBe(false)
+    expect(isAdditiveExpression('AVG(amount)')).toBe(false)
+    expect(isAdditiveExpression('')).toBeNull()
+    // an average in rupiah has an amount unit, but its expression says it does not add up
+    expect(chartViews({ ...base, type: 'bar', values: [5, 3, 2], unitFormat: 'currency_idr', additive: false }).map(v => v.id)).toEqual(['native'])
+    expect(chartViews({ ...base, type: 'bar', values: [5, 3, 2], unitFormat: 'currency_idr', additive: true }).map(v => v.id)).toEqual(['native', 'pie'])
   })
 })

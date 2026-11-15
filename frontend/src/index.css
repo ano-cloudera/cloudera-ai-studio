@@ -122,8 +122,9 @@ button:disabled, [aria-disabled="true"], input:disabled, select:disabled { curso
   }
   .type-sidebar-section { @apply text-[11px] font-semibold uppercase tracking-wide text-slate-400; }
   .type-session-title { @apply text-[13px] font-normal leading-snug; }
-  .type-chat-user { @apply text-[15px] leading-normal; }
-  .type-chat-body { @apply text-[15px] leading-relaxed text-slate-700; }
+  /* The user's message, a plain answer and the text of a structured answer are all one size, so a conversation reads evenly. */
+  .type-chat-user { @apply text-[14.5px] leading-[1.6]; }
+  .type-chat-body { @apply text-[14.5px] leading-[1.6] text-slate-700; }
   .type-chat-lead { @apply text-base font-semibold leading-relaxed text-slate-900; }
   .type-section-label { @apply text-[13px] font-semibold text-cloudera-navy; }
   .type-answer-kicker { @apply text-xs font-semibold uppercase tracking-wide text-slate-500; }
@@ -139,7 +140,7 @@ button:disabled, [aria-disabled="true"], input:disabled, select:disabled { curso
     @apply text-[14.5px] font-normal leading-[1.6] text-slate-600;
   }
   .chat-response-typography .answer-prose-secondary {
-    @apply text-sm font-normal leading-[1.55] text-slate-700;
+    @apply text-[14.5px] font-normal leading-[1.6] text-slate-700;
   }
   .chat-response-typography .type-section-label {
     @apply text-[13px] font-semibold text-cloudera-navy;
@@ -160,7 +161,7 @@ button:disabled, [aria-disabled="true"], input:disabled, select:disabled { curso
     @apply text-[11px] font-normal leading-snug text-slate-500;
   }
   .chat-response-typography .answer-implication-card {
-    @apply text-sm font-normal leading-[1.55] text-slate-700;
+    @apply text-[14.5px] font-normal leading-[1.6] text-slate-700;
   }
 
   .answer-surface {

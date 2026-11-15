@@ -1,4 +1,5 @@
 import type { ChartMetric } from '../components/AnswerChart'
+import { isAdditiveExpression } from './chartViews'
 import type { ChatResponse } from '../types/api'
 
 /** The plotted metric of an answer: its label from the result's column labels, unit, definition and which way is good. */
@@ -10,6 +11,7 @@ export function chartMetric(response: ChatResponse): ChartMetric {
     description: data.metric_description ?? null,
     better: data.metric_better ?? null,
     locale: answerLocale(response),
+    additive: isAdditiveExpression(data.governed_metric_expression),
   }
 }
 
