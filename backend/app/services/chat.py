@@ -89,9 +89,9 @@ class _PreparedTurn:
     reading: TurnReading | None = None
 
 
-# Bumped when the shape of a stored answer changes in code (sections laid out by code, analysis_report, recommendations), so an
-# answer kept from before is recomputed instead of served in the old shape.
-ANSWER_FORMAT_VERSION = "2026-11-15"
+# Bumped when the shape or the content of a stored answer changes in code (sections laid out by code, analysis_report,
+# recommendations, the agent's own checks), so an answer kept from before is recomputed instead of served as it was.
+ANSWER_FORMAT_VERSION = "2026-11-15b"  # b: the agent now adds unfiltered context calls and checks where an amount moved
 
 class ChatService:
     def __init__(
