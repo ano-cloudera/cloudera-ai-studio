@@ -53,11 +53,22 @@ def default_base_url(env: dict[str, str]) -> str | None:
     return f"https://{prefix}-backend.{domain}/{token}"
 
 
+def _recommendation_lines(response: dict[str, Any]) -> list[str]:
+    return [
+        " ".join(str(row.get(k) or "") for k in ("action", "basis", "owner", "timeframe", "source")).strip()
+        for row in response.get("recommendations") or []
+        if isinstance(row, dict) and str(row.get("action") or "").strip()
+    ]
+
+
 def answer_text(response: dict[str, Any]) -> str:
+    """Everything the reader is shown: the chat answer, the fuller analysis in the panel and the recommended actions."""
     answer = response.get("answer") or {}
     parts: list[str] = [str(answer.get("direct_answer") or ""), str(answer.get("executive_summary") or "")]
     for key in ("insights", "business_implications", "caveats"):
         parts.extend(str(item) for item in answer.get(key) or [])
+    parts.append(str(response.get("analysis_report") or ""))
+    parts.extend(_recommendation_lines(response))
     return "\n".join(p for p in parts if p.strip())
 
 
@@ -156,6 +167,9 @@ def judge(expect: dict[str, Any], response: dict[str, Any], *, language: str = "
         actions = list(answer.get("business_implications") or [])
         # The agent's report writes its recommendations as a numbered or bulleted list in the body.
         actions += [line for line in str(answer.get("executive_summary") or "").splitlines() if re.match(r"^\s*(\d+[.)]|[-*•])\s+\S", line)]
+        # ... and, since the panel holds the full analysis, in the analysis report and the table of recommended actions.
+        actions += [line for line in str(response.get("analysis_report") or "").splitlines() if re.match(r"^\s*(\d+[.)]|[-*•])\s+\S", line)]
+        actions += _recommendation_lines(response)
         checks.append(("actions", len(actions) >= 1, f"{len(actions)} actions"))
     if language == "id" and text.strip():
         count = english_words(text)

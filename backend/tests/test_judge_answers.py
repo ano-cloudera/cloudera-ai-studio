@@ -124,3 +124,19 @@ def test_recommendations_count_in_the_implications_or_as_a_list_in_the_report() 
     assert actions({"direct_answer": "x", "business_implications": ["Audit armada"]})
     assert actions({"direct_answer": "x", "executive_summary": "### Rekomendasi\n1. Audit armada di Sorong\n2. Tambah slot muat"})
     assert not actions({"direct_answer": "x", "executive_summary": "Papua Maluku 34,5%, tertinggi."})
+
+
+def test_the_judge_reads_what_the_reader_is_shown_in_the_chat_and_in_the_panel() -> None:
+    import importlib.util
+    from pathlib import Path
+
+    spec = importlib.util.spec_from_file_location("judge_under_test", Path(__file__).resolve().parents[2] / "scripts" / "judge_answers.py")
+    judge = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(judge)
+    response = {
+        "answer": {"direct_answer": "Papua Maluku 34,54%.", "executive_summary": "Terpusat di dua wilayah."},
+        "analysis_report": "### Faktor Pendorong\n\n- Jarak rata-rata 172 km, jauh di atas wilayah lain.",
+        "recommendations": [{"action": "Buat tiket prioritas tinggi", "basis": "34,54% vs 16,07%", "owner": "", "timeframe": "", "source": "SOP, hal. 1"}],
+    }
+    text = judge.answer_text(response)
+    assert "172 km" in text and "Buat tiket prioritas tinggi" in text  # the panel counts, not only the chat

@@ -39,7 +39,7 @@ describe('Usage page', () => {
           llm_calls: 1,
         },
       ],
-    })
+    } as never)
     render(<UsagePage />)
     expect(await screen.findByText('Total tokens')).toBeTruthy()
     expect(screen.getByText('Recent turns')).toBeTruthy()
@@ -66,7 +66,7 @@ describe('Usage page', () => {
         total_tokens: 30,
         llm_calls: 1,
       })),
-    })
+    } as never)
     render(<UsagePage />)
     expect(await screen.findByText(/Showing 1–10 of 11/)).toBeTruthy()
   })

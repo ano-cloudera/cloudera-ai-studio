@@ -126,3 +126,21 @@ def test_the_code_version_is_the_commit_of_the_checkout() -> None:
 
     code_version.cache_clear()
     assert len(code_version()) >= 7
+
+
+
+def test_a_published_prompt_changes_the_cache_key_so_an_answer_from_before_is_not_served(monkeypatch) -> None:
+    from app.prompt_management import managed
+
+    texts = {"ask_data.analyst": "v1"}
+    monkeypatch.setattr(managed, "managed_prompt", lambda key, file_name: texts.get(key, "file"))
+    before = managed.prompts_fingerprint()
+    texts["ask_data.analyst"] = "v2"
+    assert managed.prompts_fingerprint() != before
+    assert AnswerCache.key("q", {"prompts": before}) != AnswerCache.key("q", {"prompts": managed.prompts_fingerprint()})
+
+    def broken(key, file_name):
+        raise RuntimeError("no database")
+
+    monkeypatch.setattr(managed, "managed_prompt", broken)
+    assert managed.prompts_fingerprint() == ""  # caching keeps working when prompts cannot be read

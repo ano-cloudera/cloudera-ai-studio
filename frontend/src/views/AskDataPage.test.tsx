@@ -47,6 +47,7 @@ describe('V2 Ask Data page', () => {
       workspace_slug: 'default',
       presentation: {
         enabled: true,
+        tier1_show_narrative: false,
         panel_auto_open: 'heuristic',
         tier3_min_rows: 13,
         tier3_min_insights: 3,
@@ -253,7 +254,7 @@ describe('V2 Ask Data page', () => {
 
   it('lets the user stop a request that is still loading', async () => {
     vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
-    vi.mocked(api.chatStream).mockImplementation((async function* (_question, _session, _selection, signal?: AbortSignal) {
+    vi.mocked(api.chatStream).mockImplementation((async function* (_question: unknown, _session: unknown, _selection: unknown, signal?: AbortSignal) {
       yield { type: 'progress', stage: 'querying_data', label: 'Querying REFERENCE data' }
       await new Promise<void>((_resolve, reject) => signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true }))
     }) as never)
@@ -355,7 +356,7 @@ describe('V2 Ask Data page', () => {
   it('times out a request and clears its loading state after 90 seconds', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
-    vi.mocked(api.chatStream).mockImplementation((async function* (_question, _session, _selection, signal?: AbortSignal) {
+    vi.mocked(api.chatStream).mockImplementation((async function* (_question: unknown, _session: unknown, _selection: unknown, signal?: AbortSignal) {
       yield { type: 'progress', stage: 'querying_data', label: 'Querying REFERENCE data' }
       await new Promise<void>((_resolve, reject) => signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true }))
     }) as never)

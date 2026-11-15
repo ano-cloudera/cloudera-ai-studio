@@ -24,6 +24,7 @@ describe('ProposedActions', () => {
   it('runs nothing until approved, then shows what was created', async () => {
     vi.mocked(api.runMcpAction).mockResolvedValue({
       ok: true,
+      record_id: 'rec-1',
       server: 'Operations Desk',
       tool: 'create_ticket',
       result: JSON.stringify({ created: { id: 'OPS-261113-AB12', title: 'Keterlambatan Sorong', due_date: '2026-11-16' } }),

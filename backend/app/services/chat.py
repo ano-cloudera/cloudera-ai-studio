@@ -89,6 +89,10 @@ class _PreparedTurn:
     reading: TurnReading | None = None
 
 
+# Bumped when the shape of a stored answer changes in code (sections laid out by code, analysis_report, recommendations), so an
+# answer kept from before is recomputed instead of served in the old shape.
+ANSWER_FORMAT_VERSION = "2026-11-15"
+
 class ChatService:
     def __init__(
         self,
@@ -1420,6 +1424,7 @@ class ChatService:
         if not self._answers.enabled or not (question or "").strip():
             return None
         from app.ask_data.answer_cache import AnswerCache
+        from app.prompt_management.managed import prompts_fingerprint
 
         bundle = self._runtime_bundle
         scope = {
@@ -1429,6 +1434,9 @@ class ChatService:
             "mode": request.mode,
             "agent": self.agent_loop(request) if agent else False,
             "sources": [s.model_dump(mode="json") for s in request.context_sources or []],
+            # A prompt published since, or a new layout of the answer in code, makes a different answer: not served from before.
+            "prompts": prompts_fingerprint(),
+            "format": ANSWER_FORMAT_VERSION,
         }
         return AnswerCache.key(question, scope)
 

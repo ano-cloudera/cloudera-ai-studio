@@ -26,3 +26,29 @@ def managed_prompt(key: str, file_name: str) -> str:
     except Exception:  # noqa: BLE001 - a prompt that cannot be resolved must not stop an answer: the file applies
         logger.warning("managed_prompt_fallback key=%s", key)
     return (PROMPT_DIR / file_name).read_text(encoding="utf-8")
+
+
+# The prompts that write a data answer, with their file defaults; their active text is part of what makes an answer.
+ANSWER_PROMPTS: tuple[tuple[str, str], ...] = (
+    ("ask_data.system", "global_system.md"),
+    ("ask_data.analyst", "result_analyst.md"),
+    ("ask_data.agent", "agent_tools.md"),
+    ("ask_data.agent_report", "agent_tool_report.md"),
+    ("ask_data.turn_reader", "conversation_rewrite.md"),
+)
+
+
+def prompts_fingerprint() -> str:
+    """A short hash of the active text of the answer prompts: a cached answer written under other prompts is not served after a
+    prompt is published (Prompts page or scripts/push_prompts.py). Empty when they cannot be read, so caching still works."""
+    import hashlib
+
+    try:
+        digest = hashlib.sha256()
+        for key, file_name in ANSWER_PROMPTS:
+            digest.update(key.encode())
+            digest.update(managed_prompt(key, file_name).encode("utf-8"))
+        return digest.hexdigest()[:16]
+    except Exception:  # noqa: BLE001
+        logger.warning("prompts_fingerprint_unavailable")
+        return ""

@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-from app.core.config import BACKEND_ROOT, Settings
+from app.core.config import BACKEND_ROOT
 from app.prompt_management.keys import (
     ASK_DATA_AGENT,
     ASK_DATA_AGENT_REPORT,
