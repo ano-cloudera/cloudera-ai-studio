@@ -64,7 +64,7 @@ export function presentationTierConfigFromEnv(): PresentationTierConfig {
     chat_expand_tier1: envBool('NEXT_PUBLIC_ASK_DATA_CHAT_EXPAND_TIER1', true),
     chat_expand_tier2: envBool('NEXT_PUBLIC_ASK_DATA_CHAT_EXPAND_TIER2', true),
     chat_details_default_open: envBool('NEXT_PUBLIC_ASK_DATA_CHAT_DETAILS_DEFAULT_OPEN', false),
-    tier1_show_narrative: envBool('NEXT_PUBLIC_ASK_DATA_TIER1_SHOW_NARRATIVE', false),
+    tier1_show_narrative: envBool('NEXT_PUBLIC_ASK_DATA_TIER1_SHOW_NARRATIVE', true),
   }
 }
 

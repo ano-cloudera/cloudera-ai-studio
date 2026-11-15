@@ -293,7 +293,7 @@ class Settings(BaseSettings):
         description="executive | analyst",
     )
     ask_data_tier1_show_narrative: bool = Field(
-        default=False,
+        default=True,
         validation_alias="ASK_DATA_TIER1_SHOW_NARRATIVE",
         description="When true, tier-1 KPI chat shows executive summary and insights (not only the headline).",
     )

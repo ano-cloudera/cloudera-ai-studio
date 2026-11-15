@@ -16,7 +16,7 @@ describe('presets', () => {
     const analyst = applyPreset(DEFAULT_PRESENTATION, 'analyst')
     expect(analyst).toMatchObject({ audience_mode: 'analyst', panel_auto_open: 'always', chat_details_default_open: true })
     expect(presetOf(analyst)).toBe('analyst')
-    expect(presetOf({ ...analyst, tier1_show_narrative: true })).toBe('custom')
+    expect(presetOf({ ...analyst, tier1_show_narrative: false })).toBe('custom')
     expect(presetOf(applyPreset(analyst, 'demo'))).toBe('demo') // switching back resets what the other preset changed
     expect(presetOf(applyPreset(DEFAULT_PRESENTATION, 'minimal'))).toBe('minimal')
   })

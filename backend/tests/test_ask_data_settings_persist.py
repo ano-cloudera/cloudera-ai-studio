@@ -22,14 +22,14 @@ def _factory(**presentation):
 
 
 def test_a_saved_presentation_choice_is_read_back_whether_the_id_is_a_uuid_or_text() -> None:
-    factory, workspace_id = _factory(tier1_show_narrative=True, panel_auto_open="never")
+    factory, workspace_id = _factory(tier1_show_narrative=False, panel_auto_open="never")
     for key in (workspace_id, str(workspace_id)):  # the endpoint passes text
         config = load_presentation_tier_config(get_settings(), session_factory=factory, workspace_id=key)
-        assert config.tier1_show_narrative is True and config.panel_auto_open == "never"
+        assert config.tier1_show_narrative is False and config.panel_auto_open == "never"
 
 
 def test_without_a_saved_choice_or_a_workspace_the_deployment_default_applies() -> None:
     factory, workspace_id = _factory()
-    assert load_presentation_tier_config(get_settings(), session_factory=factory, workspace_id=str(workspace_id)).tier1_show_narrative is False
-    assert load_presentation_tier_config(get_settings(), session_factory=None, workspace_id=None).tier1_show_narrative is False
-    assert load_presentation_tier_config(get_settings(), session_factory=factory, workspace_id="not-a-uuid").tier1_show_narrative is False  # no crash
+    assert load_presentation_tier_config(get_settings(), session_factory=factory, workspace_id=str(workspace_id)).tier1_show_narrative is True
+    assert load_presentation_tier_config(get_settings(), session_factory=None, workspace_id=None).tier1_show_narrative is True
+    assert load_presentation_tier_config(get_settings(), session_factory=factory, workspace_id="not-a-uuid").tier1_show_narrative is True  # no crash

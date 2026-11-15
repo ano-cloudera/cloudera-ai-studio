@@ -20,7 +20,7 @@ export const DEFAULT_PRESENTATION: PresentationTierConfig = {
   chat_expand_tier1: true,
   chat_expand_tier2: true,
   chat_details_default_open: false,
-  tier1_show_narrative: false,
+  tier1_show_narrative: true,
 }
 
 export type PresetId = 'demo' | 'analyst' | 'minimal'

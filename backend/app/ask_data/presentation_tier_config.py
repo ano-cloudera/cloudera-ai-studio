@@ -57,7 +57,7 @@ class PresentationTierConfig(BaseModel):
     chat_expand_tier2: bool = True
     chat_details_default_open: bool = False
     audience_mode: AudienceMode = "executive"
-    tier1_show_narrative: bool = False
+    tier1_show_narrative: bool = True
 
     @classmethod
     def from_settings(cls, settings: Settings) -> PresentationTierConfig:
@@ -83,7 +83,7 @@ class PresentationTierConfig(BaseModel):
             chat_expand_tier2=bool(getattr(settings, "ask_data_chat_expand_tier2", True)),
             chat_details_default_open=bool(getattr(settings, "ask_data_chat_details_default_open", False)),
             audience_mode=_parse_audience_mode(getattr(settings, "ask_data_audience_mode", "executive")),
-            tier1_show_narrative=bool(getattr(settings, "ask_data_tier1_show_narrative", False)),
+            tier1_show_narrative=bool(getattr(settings, "ask_data_tier1_show_narrative", True)),
         )
 
     def merge_overrides(self, overrides: PresentationTierOverrides | None) -> PresentationTierConfig:
