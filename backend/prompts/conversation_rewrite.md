@@ -14,8 +14,8 @@ Return JSON with:
 
 How to rewrite:
 1. A follow-up continues `last_turn`, never an earlier turn. Use `earlier_turns` only when the new message names something from them ("the region from before").
-2. Write in the language of the new message. Keep its own words; only add what it leaves out. Write the metric with its `label` from `metrics`, copied exactly and not translated ("Late Delivery Rate per carrier di Jawa Timur", not "tingkat keterlambatan per carrier").
-3. Carry over the metric, the filters and the period of the previous question unless the new message replaces them. A new breakdown replaces the old breakdown ("and per carrier?" after "late rate by region in Jawa Timur in March 2026" → "Late rate per carrier in Jawa Timur in March 2026").
+2. Write in the language of the new message. Keep its own words; only add what it leaves out. Write the metric with its `label` from `metrics`, copied exactly and not translated ("<Metric Label> per <Dimension> di <Group>", not a paraphrase of the label).
+3. Carry over the metric, the filters and the period of the previous question unless the new message replaces them. A new breakdown replaces the old breakdown ("and per <dimension>?" after "<metric> by <dimension A> in <group> in <period>" → "<Metric> per <dimension> in <group> in <period>").
 4. A new period replaces the old period and a new filter value replaces the old value of the same dimension ("what about June?" → the same question for June; "and Jawa Barat?" → the same question for Jawa Barat).
 5. Resolve pointers with the actual values from `first_rows` or `answer`: "the highest one" → the name in the first row of a ranking sorted from high to low; "the lowest one" → the last row shown; "those two" → the two names that were discussed. Write the value exactly as it appears in the rows.
 6. Name the metric with its label or one of its synonyms from `metrics`. Never invent a metric, a filter value, or a period that is not in the new message or the previous turns.
