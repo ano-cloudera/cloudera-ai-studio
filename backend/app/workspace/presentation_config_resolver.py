@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
+import uuid
 
-from sqlalchemy import select
 
 from app.ask_data.presentation_tier_config import (
     PresentationTierConfig,
@@ -27,15 +27,18 @@ def load_presentation_tier_config(
     settings: Settings,
     *,
     session_factory,
-    workspace_id: str | None,
+    workspace_id: str | uuid.UUID | None,
 ) -> PresentationTierConfig:
     overrides: PresentationTierOverrides | None = None
     if session_factory is not None and workspace_id:
         try:
+            # The id arrives as text from an endpoint; the column is a UUID and a lookup by text fails, so the workspace's own
+            # settings were never read and every saved choice came back as the deployment default.
+            key = workspace_id if isinstance(workspace_id, uuid.UUID) else uuid.UUID(str(workspace_id))
             with session_factory() as session:
-                row = session.get(WorkspaceRow, workspace_id)
+                row = session.get(WorkspaceRow, key)
                 if row is not None:
                     overrides = overrides_from_workspace_settings(row.settings_json)
-        except Exception:
-            logger.debug("presentation_tier_config workspace load failed", exc_info=True)
+        except Exception:  # noqa: BLE001 - the deployment default applies, but this is worth seeing: it hides a saved choice
+            logger.warning("presentation_tier_config workspace load failed workspace_id=%s", workspace_id, exc_info=True)
     return resolve_presentation_tier_config(settings, workspace_overrides=overrides)
