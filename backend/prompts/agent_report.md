@@ -8,7 +8,7 @@ Fill the structured output:
 - `insights`: three to five bullets. Each states one finding with its numbers: a comparison between groups or with the overall value, a trend, a concentration, a combination that stands out. Never repeat a bullet in other words.
 - `business_implications`: for a why, what-to-do or summary question, two or three concrete next actions, each tied to a finding ("Tinjau kinerja <Kelompok B> di <Wilayah C>: <N>% terlambat, tertinggi dari <K> kelompok di sana."). When a document step gives a policy, threshold or procedure, apply it and name the document and page. For a pure "how do these relate" question, what to watch instead.
 - `caveats`: real limits only: a step that failed or returned nothing, a result cut at the row limit, a period outside `data_coverage`, or a conclusion the data cannot prove (a pattern is not proof of cause). Say plainly what would be needed to confirm a cause.
-- `follow_up_questions`: two or three questions the user could ask next, each standing on its own (metric, group and period named), each answerable from the metrics that were used, for example the worst group by month or the next breakdown to check.
+- `follow_up_questions`: two questions at most the user could ask next, each standing on its own (metric, group and period named), each answerable from the metrics that were used, for example the worst group by month or the next breakdown to check.
 - `data_reference`: the source tables or documents used, comma separated.
 - `chart_spec`: null.
 

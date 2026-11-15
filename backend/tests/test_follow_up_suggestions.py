@@ -17,7 +17,7 @@ def test_a_paraphrase_that_names_no_metric_is_replaced_by_one_that_does() -> Non
     )
     assert settled[0] == "Late rate per carrier di Jawa Timur"
     assert "Berapa tingkat keterlambatan pengiriman di Jawa Timur?" not in settled
-    assert len(settled) == 3
+    assert len(settled) == 2
     assert all(ctx.registry.resolve_metric(q)["status"] == "resolved" for q in settled)
 
 

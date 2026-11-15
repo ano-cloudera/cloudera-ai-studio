@@ -33,3 +33,6 @@ class RagLlmOutput(StrictModel):
     steps: list[str] = Field(default_factory=list)  # what the document says to do, in its order, one step each, with the page
     levels: SectionTable | None = None  # several levels, roles or thresholds side by side
     action_items: list[RagActionItem] = Field(default_factory=list)
+    # Up to two things the reader may ask next that the passages supplied already answer; each is checked against the library
+    # before it is shown (see RAGService.grounded_follow_ups), so a suggestion is never a question the documents cannot answer.
+    follow_up_questions: list[str] = Field(default_factory=list)

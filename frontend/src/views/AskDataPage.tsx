@@ -972,20 +972,20 @@ function StructuredAnswer({
     )
   })()
 
-  const followUps = response.status === 'SUCCESS' ? (response.answer.follow_up_questions ?? []).filter(q => q.trim()) : []
+  const followUps = response.status === 'SUCCESS' ? (response.answer.follow_up_questions ?? []).filter(q => q.trim()).slice(0, 2) : []
   const proposedActions = response.status === 'SUCCESS' ? response.proposed_actions ?? [] : []
   const nextQuestionsBlock =
     onFollowUp && followUps.length > 0 ? (
       <div className="answer-section-divider !pt-3" role="group" aria-label="Suggested next questions" data-testid="follow-up-questions">
-        <div className="type-section-label mb-2">{sectionLabels.askNext}</div>
-        <div className="flex flex-wrap gap-2">
+        <div className="mb-2 text-sm text-slate-600">{sectionLabels.askNext}</div>
+        <div className="flex flex-col items-start gap-2">
           {followUps.map(question => (
             <button
               key={question}
               type="button"
               disabled={clarificationDisabled}
               onClick={() => onFollowUp(question)}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-left text-xs font-medium text-slate-700 transition-colors hover:border-cloudera-orange/50 hover:bg-orange-50 disabled:opacity-50"
+              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-left text-sm text-slate-700 transition-colors hover:border-cloudera-orange/50 hover:bg-orange-50 disabled:opacity-50"
             >
               {question}
             </button>

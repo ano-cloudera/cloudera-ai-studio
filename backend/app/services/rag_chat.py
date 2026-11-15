@@ -77,6 +77,7 @@ def _to_ask_data_response(
             insights=result.insights,
             business_implications=result.business_implications,
             caveats=result.caveats,
+            follow_up_questions=result.follow_up_questions,
             data_reference="retrieved document evidence",
             chart_spec=None,
         ),

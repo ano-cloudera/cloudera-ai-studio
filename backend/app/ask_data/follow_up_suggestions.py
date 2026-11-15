@@ -12,7 +12,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_MAX = 3
+_MAX = 2
 
 
 def _dimension_label(semantic_context: Any, dataset: str, key: str) -> str:

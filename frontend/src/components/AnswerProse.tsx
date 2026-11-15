@@ -1,4 +1,6 @@
 import { answerBlocks } from '../lib/answerFormatting'
+import { flowBlock } from '../lib/flowBlocks'
+import { FlowDiagram } from './FlowDiagram'
 
 /** `**bold**` only; everything else stays plain text (no HTML is ever interpreted). */
 function renderInline(text: string) {
@@ -21,7 +23,7 @@ function ProseLines({ text }: { text: string }) {
         if (numbered) {
           return (
             <span key={lineIndex} className="block pl-1">
-              <span className="font-medium text-slate-700">{numbered[1]}</span> {renderInline(numbered[2] ?? '')}
+              <span className="font-semibold text-cloudera-violet">{numbered[1]}</span> {renderInline(numbered[2] ?? '')}
             </span>
           )
         }
@@ -29,7 +31,7 @@ function ProseLines({ text }: { text: string }) {
         if (bullet) {
           return (
             <span key={lineIndex} className="flex gap-2 pl-1">
-              <span className="mt-[0.55em] h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" aria-hidden />
+              <span className="mt-[0.55em] h-1.5 w-1.5 shrink-0 rounded-full bg-cloudera-orange" aria-hidden />
               <span className="min-w-0">{renderInline(bullet[1] ?? '')}</span>
             </span>
           )
@@ -84,10 +86,10 @@ export function AnswerProse({
           return (
             <div key={index} className="overflow-x-auto rounded-lg border border-slate-200">
               <table className="answer-prose-table min-w-full text-left text-sm">
-                <thead className="bg-slate-50 text-slate-700">
+                <thead className="app-table-head">
                   <tr>
                     {block.header.map((cell, cellIndex) => (
-                      <th key={cellIndex} scope="col" className="px-3 py-2 font-semibold">
+                      <th key={cellIndex} scope="col" className="px-3 py-2">
                         {renderInline(cell)}
                       </th>
                     ))}
@@ -108,6 +110,8 @@ export function AnswerProse({
             </div>
           )
         }
+        const flow = flowBlock(block.text)
+        if (flow) return <FlowDiagram key={index} block={flow} renderText={renderInline} />
         return (
           <p key={index} className={`whitespace-pre-wrap ${paragraphClass()}`}>
             <ProseLines text={block.text} />

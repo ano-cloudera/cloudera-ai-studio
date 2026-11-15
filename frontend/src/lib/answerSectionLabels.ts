@@ -3,7 +3,7 @@ const LABELS = {
   en: {
     insights: 'Insights',
     implications: 'Business implications',
-    askNext: 'You could ask next',
+    askNext: 'Want me to go further? Pick one',
     executiveSummary: 'Executive summary',
     comparison: 'Comparison',
     keyFindings: 'Key findings',
@@ -11,7 +11,7 @@ const LABELS = {
   id: {
     insights: 'Temuan',
     implications: 'Implikasi bisnis',
-    askNext: 'Pertanyaan lanjutan',
+    askNext: 'Mau saya lanjutkan? Pilih salah satu',
     executiveSummary: 'Ringkasan',
     comparison: 'Perbandingan',
     keyFindings: 'Temuan utama',

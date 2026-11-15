@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
@@ -71,6 +71,7 @@ class RagAnswerResult:
     execution_metadata: dict
     session_frame: dict
     status: str
+    follow_up_questions: list[str] = field(default_factory=list)
 
 
 class RAGService:
@@ -327,6 +328,17 @@ class RAGService:
         rag_insights = [] if grounding == "INSUFFICIENT_EVIDENCE" else insights
         rag_implications = [] if grounding == "INSUFFICIENT_EVIDENCE" else implications
         rag_caveats = list(llm_out.caveats) if grounding == "INSUFFICIENT_EVIDENCE" else caveats
+        follow_ups: list[str] = []
+        if status == "SUCCESS" and llm_out.follow_up_questions:
+            follow_ups = self.grounded_follow_ups(
+                retrieval,
+                llm_out.follow_up_questions,
+                asked=query,
+                workspace_id=workspace_id,
+                project_id=project_id,
+                scoped=scoped,
+                scoped_docs=bool(scoped_docs),
+            )
         return RagAnswerResult(
             grounding=grounding,
             answer_text=answer,
@@ -351,7 +363,49 @@ class RAGService:
             },
             session_frame=build_rag_session_frame(library_ids=scoped, project_id=project_id),
             status=status,
+            follow_up_questions=follow_ups,
         )
+
+    def grounded_follow_ups(
+        self,
+        retrieval: RetrievalService,
+        questions: list[str],
+        *,
+        asked: str,
+        workspace_id: uuid.UUID,
+        project_id: uuid.UUID,
+        scoped: list[uuid.UUID],
+        scoped_docs: bool,
+        limit: int = 2,
+    ) -> list[str]:
+        """The suggestions the library can answer: each is searched like a question, and kept only when the search finds evidence
+        at the same bar as a real answer. At most `limit`, none repeating the question just asked or each other."""
+        min_score = float(self._settings.rag_min_rerank_score or 0.0)
+        seen = {" ".join(asked.casefold().split())}
+        kept: list[str] = []
+        for question in questions:
+            text = " ".join(str(question).split())
+            key = text.casefold()
+            if not text or key in seen:
+                continue
+            seen.add(key)
+            try:
+                payload = retrieval.retrieve(
+                    query=text,
+                    workspace_id=workspace_id,
+                    project_id=project_id,
+                    library_ids=None if scoped_docs else scoped,
+                    document_ids=scoped if scoped_docs else None,
+                )
+            except Exception:  # noqa: BLE001 - a suggestion is optional; the answer must not fail for it
+                logger.info("rag follow-up check failed", exc_info=True)
+                continue
+            found = self._evidence_from_payload(payload)
+            if found and (min_score <= 0 or self._top_score(found) >= min_score):
+                kept.append(text)
+            if len(kept) >= limit:
+                break
+        return kept
 
     @staticmethod
     def _evidence_from_payload(payload: dict) -> list[RetrievalCandidate]:
