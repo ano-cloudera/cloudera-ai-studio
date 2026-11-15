@@ -119,6 +119,10 @@ def english_words(text: str) -> int:
     return len(_ENGLISH.findall(text))
 
 
+def english_word_list(text: str) -> list[str]:
+    return [m.group(0) for m in _ENGLISH.finditer(text)]
+
+
 def judge(expect: dict[str, Any], response: dict[str, Any], *, language: str = "id") -> list[tuple[str, bool, str]]:
     """Every check for one answer as (name, passed, what was seen)."""
     checks: list[tuple[str, bool, str]] = []
@@ -172,8 +176,10 @@ def judge(expect: dict[str, Any], response: dict[str, Any], *, language: str = "
         actions += _recommendation_lines(response)
         checks.append(("actions", len(actions) >= 1, f"{len(actions)} actions"))
     if language == "id" and text.strip():
-        count = english_words(text)
-        checks.append(("language id", count <= 3, f"{count} English words"))
+        found = english_word_list(text)
+        # Which words, and a little of the sentence around the first ones, so a failure says where the English is.
+        where = "; ".join(text[max(0, m.start() - 30): m.end() + 30].replace("\n", " ") for m in list(_ENGLISH.finditer(text))[:3])
+        checks.append(("language id", len(found) <= 3, f"{len(found)} English words: {', '.join(found[:8])}" + (f" | {where}" if found else "")))
     echoes = echoed_labels(text)
     checks.append(("no repeated labels", not echoes, "; ".join(echoes)[:160] or "ok"))
     if "—" in text:
@@ -205,7 +211,7 @@ def run_conversation(ask: Callable[[str, str], dict[str, Any]], cases: dict[str,
             "metric": (response.get("data") or {}).get("governed_metric"),
             "failed": [{"check": name, "seen": seen} for name, ok, seen in checks if not ok],
             "checks": len(checks),
-            "answer": answer_text(response)[:1500],
+            "answer": answer_text(response)[:8000],
             "rows": ((response.get("data") or {}).get("rows") or [])[:10],
             "steps": (response.get("calculation") or {}).get("steps") or [],
         })
