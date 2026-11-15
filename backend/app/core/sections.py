@@ -98,10 +98,31 @@ def table_to_markdown(table: SectionTable | None) -> str:
     return "\n".join(lines)
 
 
+def _merged(sections: list[AnalysisSection]) -> list[AnalysisSection]:
+    """One section per kind, in the order the kinds first appear: a model that uses `detail` three times gets one heading with
+    three paragraphs under it, not the same heading three times."""
+    order: list[str] = []
+    by_kind: dict[str, AnalysisSection] = {}
+    for section in sections:
+        kind = (section.kind or "").strip().lower()
+        kind = kind if kind in TITLES else "detail"
+        if kind not in by_kind:
+            order.append(kind)
+            by_kind[kind] = AnalysisSection(kind=kind, paragraphs=list(section.paragraphs), steps=list(section.steps), bullets=list(section.bullets), table=section.table)
+            continue
+        merged = by_kind[kind]
+        merged.paragraphs += section.paragraphs
+        merged.steps += section.steps
+        merged.bullets += section.bullets
+        if merged.table is None:
+            merged.table = section.table
+    return [by_kind[kind] for kind in order]
+
+
 def sections_to_markdown(sections: list[AnalysisSection], language: str) -> str:
     """The sections as markdown: a `###` heading from the kind, the paragraphs, a bullet list, the table. An empty section is dropped."""
     blocks: list[str] = []
-    for section in sections:
+    for section in _merged(sections):
         parts: list[str] = []
         parts += [_clean(p) for p in section.paragraphs if _clean(p)]
         steps = [re.sub(r"^\s*\(?\d{1,2}[.)]\s*", "", _clean(s)) for s in section.steps if _clean(s)]

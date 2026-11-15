@@ -11,7 +11,8 @@ def test_headings_come_from_a_formal_vocabulary_in_the_language_of_the_answer_ne
     markdown = sections_to_markdown(sections, "id")
     assert markdown.startswith("### Penjelasan Detail\n\nTiga dari delapan")
     assert "### Temuan Utama\n\n- A unggul 18,47 poin.\n- B unggul 13,6 poin." in markdown
-    assert markdown.count("### Penjelasan Detail") == 2  # an invented kind falls back to the plain explanation heading
+    assert markdown.count("### Penjelasan Detail") == 1  # an invented kind falls back to the plain explanation, under the same heading
+    assert markdown.index("Tiga dari delapan") < markdown.index("\n\nx")  # and its text follows the first paragraph
     assert title_for("drivers", "en") == "Possible Drivers" and title_for("recommendations", "id") == "Rekomendasi Tindakan"
 
 
@@ -50,3 +51,16 @@ def test_the_laid_out_analysis_and_the_recommendations_carry_no_em_dash() -> Non
     assert "\u2014" not in markdown
     row = ActionRecommendation(action="Alihkan armada \u2014 sementara", basis="2.056 KL \u2014 Agustus")
     assert "\u2014" not in row.action and "\u2014" not in row.basis
+
+
+def test_a_kind_used_several_times_has_one_heading_with_everything_under_it() -> None:
+    sections = [
+        AnalysisSection(kind="detail", paragraphs=["Satu."], bullets=["a"]),
+        AnalysisSection(kind="findings", bullets=["temuan"]),
+        AnalysisSection(kind="detail", paragraphs=["Dua."], bullets=["b"]),
+        AnalysisSection(kind="detail", paragraphs=["Tiga."]),
+    ]
+    markdown = sections_to_markdown(sections, "id")
+    assert markdown.count("### Penjelasan Detail") == 1 and markdown.count("### Temuan Utama") == 1
+    assert markdown.index("Satu.") < markdown.index("Dua.") < markdown.index("Tiga.") < markdown.index("### Temuan Utama")  # first-seen order of the kinds
+    assert "- a\n- b" in markdown
