@@ -109,6 +109,7 @@ class AgentReport(_Lenient):
     headline: str
     summary: str = ""  # what the chat shows under the headline: the why, in a few conversational sentences
     body: str = ""  # the full analysis, shown in the analysis panel
+    sections: list[AnalysisSection] = Field(default_factory=list)  # the same, as sections laid out by code (preferred over body)
     recommendations: list[Recommendation] = Field(default_factory=list)  # recommended actions as a table, for a what-to-do question
     follow_up_questions: list[str] = Field(default_factory=list)
     show: int | None = None
@@ -145,6 +146,7 @@ class Call:
         return self.call.search[:120]
 
 
+from app.core.sections import AnalysisSection, sections_to_markdown  # noqa: E402
 from app.prompt_management.keys import ASK_DATA_AGENT, ASK_DATA_AGENT_REPORT  # noqa: E402 - below the constants it reads with
 from app.prompt_management.managed import managed_prompt  # noqa: E402
 
@@ -472,6 +474,15 @@ async def explore(
         ]
 
 
+def _laid_out(report: AgentReport, language: str) -> AgentReport:
+    """The report with its body laid out from its sections (headings of a formal vocabulary, lists, tables) when it has them."""
+    if report.sections:
+        body = sections_to_markdown(report.sections, language)
+        if body:
+            return report.model_copy(update={"body": body, "sections": []})
+    return report
+
+
 async def write_report(
     provider: Any,
     *,
@@ -501,7 +512,7 @@ async def write_report(
         {"role": "system", "content": managed_prompt(ASK_DATA_AGENT_REPORT, "agent_tool_report.md")},
         {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
     ]
-    report = await provider.generate_structured(messages, AgentReport, temperature=0.2, max_tokens=2200)
+    report = _laid_out(await provider.generate_structured(messages, AgentReport, temperature=0.2, max_tokens=2600), language)
     from app.ask_data.answer_checks import figures_outside
 
     # A figure quoted from a document (a threshold in the SOP) is as good as one from a query.
@@ -526,7 +537,7 @@ async def write_report(
             },
         ]
         try:
-            report = await provider.generate_structured(messages, AgentReport, temperature=0.1, max_tokens=2200)
+            report = _laid_out(await provider.generate_structured(messages, AgentReport, temperature=0.1, max_tokens=2600), language)
             spoken = [report.headline, report.summary, report.body, *[f"{r.action} {r.basis}" for r in report.recommendations]]
             bad = figures_outside(spoken, allowed) if has_data else []
         except Exception:  # noqa: BLE001 - the first report stands, with its figures said to be unverified

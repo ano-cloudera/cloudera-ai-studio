@@ -202,6 +202,11 @@ def review_answer(
     extra_figures: list[float] | None = None,
 ) -> tuple[AnalysisOutput, list[str]]:
     """The answer without a calculation label and with a caveat for each figure that cannot be verified."""
+    if analysis.analysis_sections:
+        from app.core.sections import sections_to_markdown
+
+        laid_out = sections_to_markdown(analysis.analysis_sections, language)
+        analysis = analysis.model_copy(update={"detailed_analysis": laid_out or analysis.detailed_analysis, "analysis_sections": []})
     summary = strip_calculation_label(analysis.executive_summary)
     insights = [item for item in (strip_calculation_label(i) for i in analysis.insights) if item]
     detailed = strip_calculation_label(analysis.detailed_analysis) if analysis.detailed_analysis else ""

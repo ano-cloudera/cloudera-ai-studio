@@ -104,3 +104,19 @@ def test_a_follow_up_in_a_stray_script_is_left_out_and_the_fuller_analysis_is_ch
     reviewed, warnings = review_answer(out, rows=rows, question="regional mana paling terlambat", language="id", extra_figures=[16.07])
     assert any("98,76" in w or "98.76" in w for w in warnings)  # a figure in the fuller analysis that is in no result
     assert reviewed.detailed_analysis.startswith("### Cara membacanya")
+
+
+def test_the_analyst_sections_are_laid_out_and_figure_checked_like_the_rest() -> None:
+    from app.ask_data.answer_checks import review_answer
+    from app.core.models import AnalysisOutput
+    from app.core.sections import AnalysisSection
+
+    out = AnalysisOutput(
+        direct_answer="Papua Maluku 34,54%.", executive_summary="", insights=[], business_implications=[], caveats=[], data_reference="",
+        analysis_sections=[AnalysisSection(kind="detail", paragraphs=["Selisih tertinggi dan terendah 23,14 poin."]), AnalysisSection(kind="findings", bullets=["Satu grup unggul 98,76 poin."])],
+    )
+    rows = [{"regional": "Papua Maluku", "metric_value": 34.54}, {"regional": "Jatimbalinus", "metric_value": 11.4}]
+    reviewed, warnings = review_answer(out, rows=rows, question="regional mana paling terlambat", language="id", extra_figures=[16.07])
+    assert reviewed.detailed_analysis.startswith("### Penjelasan Detail") and "### Temuan Utama\n\n- Satu grup" in reviewed.detailed_analysis
+    assert reviewed.analysis_sections == []
+    assert any("98,76" in w or "98.76" in w for w in warnings) and not any("23,14" in w or "23.14" in w for w in warnings)

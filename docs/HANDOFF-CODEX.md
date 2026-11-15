@@ -89,3 +89,16 @@ What changed since section 3:
 Open, in order: (1) judge on CAI, then the ten demo questions (`samples/fuel_distribution/judge_demo.json`); (2) agent recommendation for "apa yang sebaiknya kita lakukan" is still thin; (3) favicon `frontend/app/icon.png`; (4) `highlight.js` is no longer used; (5) `AGENT_ANSWERS_ALL` stays off until judged.
 
 Tuning prompts on CAI without a redeploy: `python scripts/push_prompts.py --status`, then `--dry-run`, then run it; `--key ask_data.analyst` for one prompt, `--scope workspace` for another scope. A new version is added and published; the old one stays in the history and can be rolled back from the Prompts page.
+
+
+## 9. Update 2026-11-15: layout is made by code, not asked of the model
+
+Nemotron does not reliably write markdown (newlines, headings, lists) inside a JSON string: the document answer and the panel analysis
+came back as one run-on paragraph whatever the prompt said. So the structure moved into the schema (`app/core/sections.py`):
+- Governed answers: `AnalysisOutput.analysis_sections` (list of `{kind, paragraphs, steps, bullets, table}`), laid out by
+  `review_answer` into `detailed_analysis` (then `analysis_report`). Agent reports: `AgentReport.sections`, laid out by `_laid_out`
+  in `write_report`. Documents: `RagLlmOutput` has `key_points`, `steps`, `levels` (table), `action_items`; `normalize_rag_llm_output(out, language)`
+  writes the markdown. Headings come from `TITLES` in the language of the answer, never from the model; steps are numbered by code.
+- Prompts (`result_analyst.md`, `agent_tool_report.md`, `rag_system.txt`) now describe the fields and carry one invented example each.
+  A prompt change reaches CAI with `python scripts/push_prompts.py`; a schema change needs a backend restart.
+- If an answer still looks unstructured, check first that the backend was restarted and that `push_prompts.py --status` says "same as the file".

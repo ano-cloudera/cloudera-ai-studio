@@ -409,3 +409,37 @@ def test_the_recommended_actions_reach_the_response_as_a_table_and_their_figures
     assert response is not None
     assert [r.action for r in response.recommendations] == ["Buat tiket tindak lanjut"]  # an empty row is dropped
     assert response.recommendations[0].owner == "Regional Distribution Manager" and response.recommendations[0].source == "SOP, hal. 1"
+
+
+def test_the_agent_report_sections_become_a_laid_out_body_with_formal_headings(monkeypatch) -> None:
+    from app.ask_data import value_filters
+
+    value_filters.clear_cache()
+
+    class Sectioned(AgentModel):
+        async def generate_structured(self, messages, model, **kwargs):
+            if model.__name__ == "AgentTurn":
+                if sum(1 for m in messages if m["role"] == "assistant") == 0:
+                    return model.model_validate({"calls": [_late([CARRIER], why="Per kurir")]})
+                return model.model_validate({"done": True})
+            if model.__name__ == "AgentReport":
+                return model.model_validate(
+                    {
+                        "headline": "NusaCargo paling sering terlambat.",
+                        "summary": "Keterlambatan terpusat di satu kurir.",
+                        "sections": [
+                            {"kind": "detail", "paragraphs": ["Satu kurir menanggung sebagian besar keterlambatan."]},
+                            {"kind": "drivers", "bullets": ["Kemungkinan terkait kapasitas armada, belum terbukti."]},
+                        ],
+                        "show": 1,
+                    }
+                )
+            return await super().generate_structured(messages, model, **kwargs)
+
+    replay = Replay(monkeypatch, Sectioned())
+    request = AskDataRequest(session_id=replay.session_id, question="Late delivery rate per carrier", provider="qwen", model="m", agent_all=True)
+    response = asyncio.run(AskDataAgent(replay.service).run(request))
+    assert response is not None
+    # the question is in English, so the headings are too
+    assert response.analysis_report.startswith("### Detailed Explanation\n\nSatu kurir menanggung")
+    assert "### Possible Drivers\n\n- Kemungkinan terkait kapasitas armada, belum terbukti." in response.analysis_report

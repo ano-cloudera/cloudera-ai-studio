@@ -20,8 +20,9 @@ from app.services.retrieval_service import RetrievalService, RetrievalServiceErr
 logger = logging.getLogger(__name__)
 
 
-def normalize_rag_llm_output(llm_out: RagLlmOutput) -> tuple[str, str, list[str], list[str], list[str]]:
-    """Default RAG replies are one prose block; fold legacy section fields into direct_answer."""
+def normalize_rag_llm_output(llm_out: RagLlmOutput, language: str = "en") -> tuple[str, str, list[str], list[str], list[str]]:
+    """A RAG reply is one block of markdown: the answer, then its sections laid out by code (points, steps, a table of levels, action
+    items) under headings of a fixed formal vocabulary; the legacy section fields are folded in."""
     answer = llm_out.direct_answer.strip()
     summary = (llm_out.executive_summary or "").strip()
     insights = [item.strip() for item in llm_out.insights if (item or "").strip()]
@@ -34,6 +35,23 @@ def normalize_rag_llm_output(llm_out: RagLlmOutput) -> tuple[str, str, list[str]
     for item in insights + implications:
         if item not in answer:
             extras.append(item)
+    from app.core.sections import AnalysisSection, sections_to_markdown  # noqa: PLC0415
+
+    sections: list[AnalysisSection] = []
+    if llm_out.key_points or llm_out.levels is not None:
+        sections.append(AnalysisSection(kind="provisions", bullets=llm_out.key_points, table=llm_out.levels))
+    if llm_out.steps:
+        sections.append(AnalysisSection(kind="steps", steps=llm_out.steps))
+    items = [
+        " → ".join(part for part in (item.owner.strip(), item.action.strip(), item.deadline.strip()) if part)
+        for item in llm_out.action_items
+        if item.action.strip()
+    ]
+    if items:
+        sections.append(AnalysisSection(kind="action_items", bullets=items))
+    laid = sections_to_markdown(sections, language)
+    if laid:
+        extras.append(laid)
     if extras:
         answer = f"{answer}\n\n" + "\n\n".join(extras) if answer else "\n\n".join(extras)
     summary = answer
@@ -301,7 +319,7 @@ class RAGService:
                     if detect_language(query) == "id"
                     else "This answer is only partly supported by the available evidence."
                 )
-            answer, summary, insights, implications, caveats = normalize_rag_llm_output(llm_out)
+            answer, summary, insights, implications, caveats = normalize_rag_llm_output(llm_out, detect_language(query))
 
         meta = retrieval_payload.get("metadata") or {}
         ctx = retrieval_payload.get("context") or {}

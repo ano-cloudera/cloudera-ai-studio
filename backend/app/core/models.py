@@ -6,6 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.core.sections import AnalysisSection
 from app.services.text_sanitize import without_em_dash
 
 
@@ -83,6 +84,9 @@ class AnalysisOutput(StrictModel):
     # A fuller analysis of a breakdown, ranking or trend, written with the answer: it goes to the analysis panel (the response's
     # analysis_report), so the panel adds to the chat instead of repeating it. Empty for a single figure.
     detailed_analysis: str = ""
+    # The same analysis as sections (a kind, paragraphs, bullets, a table): the layout and the headings are made by code, so the
+    # model is not relied on to format a string. review_answer turns them into detailed_analysis.
+    analysis_sections: list[AnalysisSection] = Field(default_factory=list)
 
     @field_validator("follow_up_questions", mode="before")
     @classmethod
