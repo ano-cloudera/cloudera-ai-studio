@@ -15,10 +15,10 @@ function Arrow({ direction }: { direction: 'down' | 'right' }) {
 }
 
 /** A procedure drawn as boxes joined by arrows: numbered steps go down the page, hand-overs (who, what, by when) go across. */
-export function FlowDiagram({ block, renderText }: { block: FlowBlock; renderText: (text: string) => ReactNode }) {
+export function FlowDiagram({ block, renderText, textClass = '' }: { block: FlowBlock; renderText: (text: string) => ReactNode; textClass?: string }) {
   if (block.kind === 'steps') {
     return (
-      <ol className="m-0 list-none p-0" data-testid="flow-diagram" aria-label="Flow">
+      <ol className={`m-0 list-none p-0 ${textClass}`} data-testid="flow-diagram" aria-label="Flow">
         {block.items.map((item, index) => (
           <li key={index} className="flex flex-col">
             <div className="flex items-start gap-3 rounded-lg border border-violet-100 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(36,19,95,0.04)]">
@@ -32,7 +32,7 @@ export function FlowDiagram({ block, renderText }: { block: FlowBlock; renderTex
     )
   }
   return (
-    <ul className="m-0 list-none space-y-2 p-0" data-testid="flow-diagram" aria-label="Flow">
+    <ul className={`m-0 list-none space-y-2 p-0 ${textClass}`} data-testid="flow-diagram" aria-label="Flow">
       {block.rows.map((row, index) => (
         <li key={index} className="flex flex-wrap items-center gap-2">
           {row.map((part, partIndex) => (

@@ -110,10 +110,11 @@ export function AnswerProse({
             </div>
           )
         }
+        const textClass = paragraphClass()
         const flow = flowBlock(block.text)
-        if (flow) return <FlowDiagram key={index} block={flow} renderText={renderInline} />
+        if (flow) return <FlowDiagram key={index} block={flow} renderText={renderInline} textClass={textClass} />
         return (
-          <p key={index} className={`whitespace-pre-wrap ${paragraphClass()}`}>
+          <p key={index} className={`whitespace-pre-wrap ${textClass}`}>
             <ProseLines text={block.text} />
           </p>
         )
