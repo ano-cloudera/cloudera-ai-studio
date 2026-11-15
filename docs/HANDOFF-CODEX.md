@@ -121,3 +121,11 @@ After the first run with these guardrails the judge showed no "Konteks semua ...
 (`build_catalog` from `tests/test_fuel_resolution.py`): `_context_calls` does add them for both judge queries, so the running Backend was most
 likely still the old code. `/version` now returns `commit` (read once at process start) and `python scripts/backend_version.py` compares it with
 `git rev-parse HEAD` and says "RESTART NEEDED" when they differ. Run it after every `git pull` before judging.
+
+UI test findings (2026-11-15, late):
+- The answer cache is keyed by `RUNNING_COMMIT` (`app/core/build_info.py`), not only by ANSWER_FORMAT_VERSION: a deploy of new agent code made the UI serve
+  "Cached" answers written by the old code (an agent answer with 39.20% / 33.37% for regional rates, which are product cells). After a deploy the cache is
+  cold; warm it again with the judge.
+- A single figure is written through `SingleFigureOutput` (`context` required, minLength 20) because Nemotron left `executive_summary` empty whatever the
+  prompt said. A required schema field is followed where an instruction is not. The scripted test models map it back to AnalysisOutput.
+- The amber "N to check" badge was removed from the closed Query details row; the checks are read inside the opened row.

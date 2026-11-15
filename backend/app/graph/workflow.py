@@ -14,7 +14,7 @@ from typing import Any, Callable
 from langgraph.graph import END, START, StateGraph
 
 from app.core.language import detect_language
-from app.core.models import AnalysisOutput, QueryPlan
+from app.core.models import AnalysisOutput, QueryPlan, SingleFigureOutput
 from app.graph.inquiry_brief import build_inquiry_brief
 from app.graph.judge import judge_review
 from app.graph.judge_replan import apply_judge_replan
@@ -183,6 +183,14 @@ def _titled(label: str, by: str | None, question: str) -> str:
     if not by:
         return label
     return f"{label} {'per' if detect_language(question) == 'id' else 'by'} {by}"
+
+def _is_single_figure(rows: list[dict[str, Any]]) -> bool:
+    """One row holding one number (a total, an overall rate): the answer is the figure and its context, not a table to describe."""
+    if len(rows) != 1 or not isinstance(rows[0], dict):
+        return False
+    numbers = [v for v in rows[0].values() if isinstance(v, (int, float)) and not isinstance(v, bool)]
+    return len(numbers) == 1 and len(rows[0]) <= 2
+
 
 def _metric_labels(deps: WorkflowDependencies) -> dict[str, str]:
     try:
@@ -1131,6 +1139,8 @@ def build_workflow(deps: WorkflowDependencies):
         from app.prompt_management.managed import managed_prompt
 
         analyst_prompt = managed_prompt(ASK_DATA_ANALYST, "result_analyst.md")
+        figure_rows = list((state.get("query_result") or {}).get("rows") or [])
+        single_figure = _is_single_figure(figure_rows)
         analysis = None
         for attempt in range(2):
             try:
@@ -1139,10 +1149,20 @@ def build_workflow(deps: WorkflowDependencies):
                         {"role": "system", "content": _ask_data_global_system() + "\n" + analyst_prompt},
                         {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False, default=str)},
                     ],
-                    AnalysisOutput,
+                    SingleFigureOutput if single_figure else AnalysisOutput,
                     temperature=0.1,
                     max_tokens=2800,
                 )
+                if isinstance(analysis, SingleFigureOutput):
+                    analysis = AnalysisOutput(
+                        direct_answer=analysis.direct_answer,
+                        executive_summary=analysis.context,
+                        insights=[],
+                        business_implications=[],
+                        caveats=[],
+                        data_reference="",
+                        follow_up_questions=analysis.follow_up_questions,
+                    )
                 break
             except ProviderError as exc:
                 logger.warning(

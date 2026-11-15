@@ -118,6 +118,15 @@ class AnalysisOutput(StrictModel):
         return [without_em_dash(item) if isinstance(item, str) else item for item in value]
 
 
+class SingleFigureOutput(StrictModel):
+    """The answer to a question that returned one figure. `context` is required (a schema is followed where an instruction in a prompt
+    is not): what the figure measures and covers, how it stands against its target, and a related metric the question could also mean."""
+
+    direct_answer: str
+    context: str = Field(min_length=20, description="Two or three sentences that put the figure in context. Required, never empty.")
+    follow_up_questions: list[str] = Field(default_factory=list)
+
+
 class CitationRecord(StrictModel):
     document_id: str
     filename: str | None = None

@@ -94,7 +94,10 @@ class WorstCaseModel:
         self.calls: list[str] = []
 
     async def generate_structured(self, messages: list[dict[str, str]], model: Any, **_: Any) -> Any:
-        self.calls.append(model.__name__)
+        # A single figure is written through its own schema (SingleFigureOutput); a test counts it as the analyst's answer all the same.
+        self.calls.append("AnalysisOutput" if model.__name__ == "SingleFigureOutput" else model.__name__)
+        if model.__name__ == "SingleFigureOutput":
+            return model.model_validate({"direct_answer": "ok", "context": "Konteks singkat untuk satu angka."})
         if model.__name__ == "AnalysisOutput":
             return model.model_validate(
                 {"direct_answer": "ok", "executive_summary": "", "insights": [], "business_implications": [], "caveats": [], "data_reference": "x"}

@@ -4,13 +4,11 @@ import logging
 import uuid
 from contextlib import asynccontextmanager
 
-import subprocess
-from pathlib import Path
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app.core.build_info import RUNNING_COMMIT
 from app.security.path_token import PathTokenMiddleware
 from app.api import chat, models, usage
 from app.api.v1 import documents as v1_documents
@@ -42,18 +40,6 @@ from app.llm.registry import ProviderRegistry
 from app.services.chat import ChatService
 logger = logging.getLogger(__name__)
 
-
-def _running_commit() -> str:
-    """The commit of the code this process loaded, read once when it started. After a `git pull` the files on disk change but a
-    process keeps running what it imported, so /version showing a commit older than the one on disk means a restart is due."""
-    try:
-        done = subprocess.run(["git", "-C", str(Path(__file__).resolve().parents[2]), "rev-parse", "--short", "HEAD"], capture_output=True, text=True, timeout=3, check=False)
-        return done.stdout.strip() or "unknown"
-    except Exception:  # noqa: BLE001 - a checkout without git (a packaged copy) simply has no commit to show
-        return "unknown"
-
-
-RUNNING_COMMIT = _running_commit()
 
 
 def _semantic_runtime_health(settings: Settings) -> dict:

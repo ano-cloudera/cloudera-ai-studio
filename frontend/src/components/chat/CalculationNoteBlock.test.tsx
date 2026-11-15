@@ -25,7 +25,7 @@ describe('CalculationNoteBlock', () => {
   it('shows the summary and opens the details on click', () => {
     render(<CalculationNoteBlock note={note} />)
     expect(screen.getByText(note.summary)).toBeTruthy()
-    expect(screen.getByText('1 to check')).toBeTruthy()
+    expect(screen.queryByText('1 to check')).toBeNull() // a warning is read inside the opened details, not flagged on the closed row
     expect(screen.queryByText('carrier: NusaCargo')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /How this was calculated/i }))
     expect(screen.getByText('carrier: NusaCargo')).toBeTruthy()

@@ -52,7 +52,6 @@ export function ChatAnalysisDetailsExpand({
 
   if (!hasSql && !showTableInExpand && !hasKpi && !calculation) return null
 
-  const warnings = calculation ? calculation.checks.filter(check => check.status === 'warning').length : 0
   const label = calculation
     ? 'Query details'
     : executiveQueryOnly
@@ -81,7 +80,6 @@ export function ChatAnalysisDetailsExpand({
           <span className="block">{label}</span>
           {calculation ? <span className="block truncate text-xs font-normal text-slate-600">{calculation.summary}</span> : null}
         </span>
-        {warnings ? <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">{warnings} to check</span> : null}
         <ChevronDown
           size={14}
           className={`ml-auto shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}

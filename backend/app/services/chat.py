@@ -1424,6 +1424,7 @@ class ChatService:
         if not self._answers.enabled or not (question or "").strip():
             return None
         from app.ask_data.answer_cache import AnswerCache
+        from app.core.build_info import RUNNING_COMMIT
         from app.prompt_management.managed import prompts_fingerprint
 
         bundle = self._runtime_bundle
@@ -1437,6 +1438,8 @@ class ChatService:
             # A prompt published since, or a new layout of the answer in code, makes a different answer: not served from before.
             "prompts": prompts_fingerprint(),
             "format": ANSWER_FORMAT_VERSION,
+            # The code that wrote it: an answer kept from before a deploy is not served by the code after it.
+            "code": RUNNING_COMMIT,
         }
         return AnswerCache.key(question, scope)
 

@@ -13,11 +13,12 @@ describe('ChatAnalysisDetailsExpand', () => {
     render(<ChatAnalysisDetailsExpand response={response} tier={1} kpiBlock={null} tableBlock={null} calculation={note} executiveQueryOnly />)
     const toggle = screen.getByRole('button', { name: /Query details/ })
     expect(toggle.textContent).toContain('Jumlah Industri · fuel_customers')
-    expect(toggle.textContent).toContain('1 to check')
+    expect(toggle.textContent).not.toContain('to check') // the warning is read inside, not flagged on the closed row
     expect(screen.queryByText('How this was calculated')).toBeNull()
     expect(screen.queryByTestId('query-details-calculation')).toBeNull() // closed until clicked
     fireEvent.click(toggle)
     expect(screen.getByTestId('query-details-calculation').textContent).toContain('COUNT(id)')
+    expect(screen.getByTestId('query-details-calculation').textContent).toContain('check me') // and the check itself is still there
     expect(screen.getByTestId('workspace-sql').textContent).toContain('SELECT')
   })
 })

@@ -17,9 +17,16 @@ class FakeProvider:
         self.calls: list[str] = []
 
     async def generate_structured(self, messages, response_model, **kwargs):
-        self.calls.append(response_model.__name__)
         self.messages = messages
-        return response_model.model_validate(self.responses.pop(0))
+        response = self.responses.pop(0)
+        if response_model.__name__ == "SingleFigureOutput":
+            # One figure is written through its own schema: the scripted analysis answers it, its summary becoming the required context.
+            self.calls.append("AnalysisOutput")
+            context = (response.get("executive_summary") or "").strip()
+            context = context if len(context) >= 20 else "Konteks singkat untuk satu angka."
+            return response_model.model_validate({"direct_answer": response["direct_answer"], "context": context, "follow_up_questions": response.get("follow_up_questions", [])})
+        self.calls.append(response_model.__name__)
+        return response_model.model_validate(response)
 
 
 class FakeRegistry:
@@ -112,7 +119,7 @@ def deps(context, provider, rows, validator=lambda sql, context: ValidatedSQL(Tr
 async def test_governed_path_uses_deterministic_plan_and_grounded_analysis() -> None:
     provider = FakeProvider([analysis({"type": "bar", "title": "By material", "x": "material", "y": "value"})])
     context = FakeContext({"status": "resolved", "metric": "material_sell_in_value", "definition": {"base_dataset": "material_360"}})
-    dependencies = deps(context, provider, [{"material": "A", "value": 10}])
+    dependencies = deps(context, provider, [{"material": "A", "value": 10}, {"material": "B", "value": 7}])  # two groups: a chart means something
 
     state = await build_workflow(dependencies).ainvoke(AskDataRequest(session_id="s1", question="top material", provider="qwen", model="qwen-model").model_dump())
 
@@ -373,3 +380,27 @@ async def test_understand_preserves_precomputed_follow_up_resolution() -> None:
 def test_query_plan_cannot_select_conversational_strategy() -> None:
     with pytest.raises(ValidationError):
         QueryPlan.model_validate({"strategy": "conversational"})
+
+
+@pytest.mark.asyncio
+async def test_a_single_figure_is_written_through_a_schema_that_requires_its_context() -> None:
+    from app.core.models import SingleFigureOutput
+    from app.graph.workflow import _is_single_figure
+
+    assert _is_single_figure([{"metric_value": 16.07}]) is True
+    assert _is_single_figure([{"regional": "A", "metric_value": 29.66}]) is True  # one group's figure
+    assert _is_single_figure([{"metric_value": 1}, {"metric_value": 2}]) is False
+    assert _is_single_figure([{"a": 1, "b": 2}]) is False  # two numbers: not one figure
+    assert _is_single_figure([]) is False
+
+    provider = FakeProvider([{**analysis(), "executive_summary": "Angka ini menghitung semua LO yang sudah selesai, dibanding target 15%."}])
+    context = FakeContext({"status": "resolved", "metric": "material_sell_in_value", "definition": {"base_dataset": "material_360", "description": "Total nilai", "target": 15, "better": "down"}})
+    state = await build_workflow(deps(context, provider, [{"value": 10}])).ainvoke(AskDataRequest(session_id="s9", question="berapa nilai", provider="qwen", model="qwen-model").model_dump())
+    assert state["answer"]["executive_summary"].startswith("Angka ini menghitung")  # the required context becomes the summary
+    assert state["answer"]["insights"] == [] and state["chart_spec"] is None
+
+    # the schema itself refuses an answer without its context: a model cannot leave it out
+    schema = SingleFigureOutput.model_json_schema()
+    assert "context" in schema["required"] and schema["properties"]["context"]["minLength"] == 20
+    with pytest.raises(Exception):
+        SingleFigureOutput.model_validate({"direct_answer": "16,07 persen.", "context": ""})

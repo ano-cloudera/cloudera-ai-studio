@@ -52,7 +52,6 @@ export function CalculationNoteRows({ note, hideSteps = false }: { note: Calcula
 /** "How this was calculated": the one-line summary is always visible, the details open on click. */
 export function CalculationNoteBlock({ note, embedded = false }: { note: CalculationNote; embedded?: boolean }) {
   const [open, setOpen] = useState(false)
-  const warnings = note.checks.filter(check => check.status === 'warning')
   return (
     <div className={embedded ? 'bg-white' : 'rounded-xl border border-slate-200 bg-white'} data-testid="calculation-note">
       <button
@@ -66,11 +65,6 @@ export function CalculationNoteBlock({ note, embedded = false }: { note: Calcula
           <span className="block text-xs font-semibold text-cloudera-navy">How this was calculated</span>
           <span className="block truncate text-xs text-slate-600">{note.summary}</span>
         </span>
-        {warnings.length ? (
-          <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-            {warnings.length} to check
-          </span>
-        ) : null}
         <ChevronDown size={14} className={`mt-0.5 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
       </button>
       {open ? (
