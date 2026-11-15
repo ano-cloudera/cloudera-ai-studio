@@ -59,7 +59,7 @@ describe('RouteMap', () => {
       '3Plumpang → DKI Jakarta',
     ])
     expect(document.querySelectorAll('[data-route]')).toHaveLength(3)
-    expect(screen.getByTestId('route-legend').textContent).toContain('Line width is')
+    expect(screen.getByTestId('route-legend').textContent).toContain('line width is')
   })
 
   it('shows a route picked from the list and asks the agent why, in the language of the answer', async () => {

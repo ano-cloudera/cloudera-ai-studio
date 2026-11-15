@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { colourRange, curvePath, detectRoutes, missesTarget, routeQuestion, routesOf, severity } from './routes'
+import { colourRange, curvePath, detectRoutes, missesTarget, placeLabels, routeQuestion, routesOf, severity } from './routes'
 
 const geo = { fuel_terminal: { Wayame: [-3.63, 128.17], Jambi: [-1.61, 103.61], Plumpang: [-6.13, 106.89] } }
 const rows = [
@@ -70,5 +70,31 @@ describe('routeQuestion', () => {
   it('asks in the language of the answer, without the unit', () => {
     expect(routeQuestion(route, 'Tingkat Keterlambatan (%)', 'id', true)).toBe('Kenapa tingkat keterlambatan rute Wayame ke Maluku tinggi, dan apa penyebab utamanya?')
     expect(routeQuestion(route, 'Late Rate (%)', 'en', null)).toBe('What drives Late Rate on the Wayame to Maluku route?')
+  })
+})
+
+describe('placeLabels', () => {
+  it('moves a label that would cover another to a free side, and keeps labels inside the visible area', () => {
+    const placed = placeLabels(
+      [
+        { id: 'a', x: 100, y: 100, text: 'Panjang' },
+        { id: 'b', x: 104, y: 100, text: 'Bangka' },
+        { id: 'c', x: 995, y: 50, text: 'Jayapura' },
+      ],
+      1,
+      [],
+      { x0: 0, y0: 0, x1: 1000, y1: 600 },
+    )
+    const [a, b, c] = placed
+    expect(a.anchor).toBe('start')
+    expect([b.lx, b.ly]).not.toEqual([a.lx + 4, a.ly])
+    expect(c.anchor).toBe('end') // no room on the right edge
+  })
+
+  it('leaves a label out when every side is taken, except the first one', () => {
+    const crowd = Array.from({ length: 12 }, (_, i) => ({ id: String(i), x: 50, y: 50, text: 'Terminal' }))
+    const placed = placeLabels(crowd, 1)
+    expect(placed.length).toBeLessThan(crowd.length)
+    expect(placed[0].id).toBe('0')
   })
 })

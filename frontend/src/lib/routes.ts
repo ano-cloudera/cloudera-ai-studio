@@ -169,3 +169,54 @@ export function routeQuestion(route: Route, metricLabel: string, language: strin
   if (high === false) return `Why is ${label} low on the ${route.origin} to ${route.destination} route, and what are the main causes?`
   return `What drives ${label} on the ${route.origin} to ${route.destination} route?`
 }
+
+export type LabelRequest = { id: string; x: number; y: number; text: string }
+export type PlacedLabel = LabelRequest & { lx: number; ly: number; anchor: 'start' | 'middle' | 'end' }
+
+/**
+ * Labels that do not sit on each other: each is tried right, left, above and below its point, in the order given (the most important
+ * first), and left out when every spot is taken; the first one is always placed. `unit` is one screen pixel in map units, so the
+ * spacing holds at any zoom. `avoid` are points (dots) a label must not cover; `bounds` is the visible area, which a label must not
+ * leave (a place at the edge gets its label on the inner side).
+ */
+export function placeLabels(
+  requests: LabelRequest[],
+  unit: number,
+  avoid: [number, number][] = [],
+  bounds?: { x0: number; y0: number; x1: number; y1: number },
+): PlacedLabel[] {
+  const charWidth = 6.3 * unit
+  const height = 12 * unit
+  const boxes: { x0: number; y0: number; x1: number; y1: number }[] = avoid.map(([x, y]) => ({ x0: x - 4 * unit, y0: y - 4 * unit, x1: x + 4 * unit, y1: y + 4 * unit }))
+  const out: PlacedLabel[] = []
+  requests.forEach((request, index) => {
+    const width = request.text.length * charWidth
+    const spots: [number, number, PlacedLabel['anchor']][] = [
+      [8, -6, 'start'],
+      [8, 14, 'start'],
+      [-8, -6, 'end'],
+      [-8, 14, 'end'],
+      [0, -12, 'middle'],
+      [0, 22, 'middle'],
+    ]
+    for (const [dx, dy, anchor] of spots) {
+      const lx = request.x + dx * unit
+      const ly = request.y + dy * unit
+      const x0 = anchor === 'start' ? lx : anchor === 'end' ? lx - width : lx - width / 2
+      const box = { x0: x0 - 2 * unit, y0: ly - height, x1: x0 + width + 2 * unit, y1: ly + 3 * unit }
+      const outside = bounds ? box.x0 < bounds.x0 || box.x1 > bounds.x1 || box.y0 < bounds.y0 || box.y1 > bounds.y1 : false
+      const clash = outside || boxes.some(other => box.x0 < other.x1 && box.x1 > other.x0 && box.y0 < other.y1 && box.y1 > other.y0)
+      if (!clash) {
+        boxes.push(box)
+        out.push({ ...request, lx, ly, anchor })
+        return
+      }
+    }
+    if (index === 0) {
+      // The most important label (the selected route's end) is shown even when crowded, on the side with room.
+      const room = bounds ? request.x + 8 * unit + width < bounds.x1 : true
+      out.push({ ...request, lx: request.x + (room ? 8 : -8) * unit, ly: request.y - 6 * unit, anchor: room ? 'start' : 'end' })
+    }
+  })
+  return out
+}

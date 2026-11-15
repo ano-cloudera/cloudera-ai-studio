@@ -127,14 +127,14 @@ export function ResultMap({ rows, detection, metric, unitFormat, formatValue, la
 
   if (failed) {
     return (
-      <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+      <p className="viz-text rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 !text-amber-900" role="status">
         {words.failed}
       </p>
     )
   }
   if (!geometry) {
     return (
-      <p className="py-10 text-center text-sm text-slate-500" role="status">
+      <p className="viz-caption py-10 text-center" role="status">
         {words.loading}
       </p>
     )
@@ -257,7 +257,7 @@ export function ResultMap({ rows, detection, metric, unitFormat, formatValue, la
           </svg>
           {hover && (
             <div
-              className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md bg-cloudera-navy px-2.5 py-1.5 text-xs text-white shadow-lg"
+              className="viz-caption pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md bg-cloudera-navy px-2.5 py-1.5 !text-white shadow-lg"
               style={{ left: hover.x, top: hover.y - 8 }}
             >
               <div className="font-semibold">{hover.name}</div>
@@ -265,21 +265,21 @@ export function ResultMap({ rows, detection, metric, unitFormat, formatValue, la
             </div>
           )}
         </div>
-        <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-600" data-testid="map-legend">
+        <div className="viz-caption mt-2 flex items-center gap-3" data-testid="map-legend">
           <span className="shrink-0 font-semibold text-slate-700">{label}</span>
           <span className="shrink-0">{format(stats.min)}</span>
           <div className="h-2 min-w-0 flex-1 rounded-full" style={{ background: `linear-gradient(to right, ${rampColor(0, 0, 1)}, ${rampColor(1, 0, 1)})` }} />
           <span className="shrink-0">{format(stats.max)}</span>
         </div>
-        <p className="mt-1 text-[11px] text-slate-500">{words.hint}</p>
+        <p className="viz-caption mt-1">{words.hint}</p>
         {detection.unmatched.length > 0 && (
-          <p className="mt-2 text-xs text-amber-800" role="note">
+          <p className="viz-caption mt-2 !text-amber-800" role="note">
             {words.unmatched}: {detection.unmatched.join(', ')}.
           </p>
         )}
       </div>
 
-      <ol className="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2" aria-label={words.ranking(label, placed)}>
+      <ol className="viz-text grid gap-x-6 gap-y-1 sm:grid-cols-2" aria-label={words.ranking(label, placed)}>
         {ranking.slice(0, 10).map(([name, value], index) => (
           <li
             key={name}
@@ -287,7 +287,7 @@ export function ResultMap({ rows, detection, metric, unitFormat, formatValue, la
             className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-slate-50"
           >
             <span className="flex items-center gap-2">
-              <span className="w-4 text-right text-xs text-slate-500">{index + 1}</span>
+              <span className="w-4 text-right text-slate-500">{index + 1}</span>
               <span className="h-2.5 w-2.5 rounded-sm" style={{ background: rampColor(value, stats.min, stats.max) }} aria-hidden />
               <span className="text-slate-800">{name}</span>
             </span>

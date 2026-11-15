@@ -129,6 +129,13 @@ button:disabled, [aria-disabled="true"], input:disabled, select:disabled { curso
   .type-section-label { @apply text-[13px] font-semibold text-cloudera-navy; }
   .type-answer-kicker { @apply text-xs font-semibold uppercase tracking-wide text-slate-500; }
 
+  /* One type scale for every chart and map: a title, the text of lists and cards, captions (legends, notes), and the key figure.
+     Text drawn inside a graphic (axis ticks, value labels, place names) is 11 px, set in lib/vizType.ts. */
+  .viz-title { @apply text-[13px] font-semibold leading-snug text-cloudera-navy; }
+  .viz-text { @apply text-[13px] leading-snug text-slate-700; }
+  .viz-caption { @apply text-xs leading-snug text-slate-500; }
+  .viz-figure { @apply text-2xl font-bold leading-none tabular-nums text-cloudera-navy; }
+
   /* Chat assistant response only (see .chat-response-typography wrapper) */
   .chat-response-typography .type-answer-kicker {
     @apply text-xs font-semibold uppercase tracking-wide text-slate-500;

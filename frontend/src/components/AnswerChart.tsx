@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { GRAPHIC_FONT, LEGEND_FONT } from '../lib/vizType'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, LabelList, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { chartViews, differenceRows, paretoRows, type ChartView } from '../lib/chartViews'
 import type { ChartSpec } from '../types/api'
@@ -16,7 +17,7 @@ import { ASSISTANT_CHART_CLASS } from './ConversationInner'
 const COLORS = ['#FF5A14', '#5351F6', '#3779D6', '#17113F']
 /** A share of the whole can have up to six slices: the four brand colours, then lighter orange and indigo. */
 const PIE_COLORS = [...COLORS, '#FFA47A', '#A9A8FB']
-const tick = { fontSize: 11, fill: '#64748B' }
+const tick = { fontSize: GRAPHIC_FONT, fill: '#64748B' }
 const CHART_MARGIN_DENSE_BOTTOM = 88
 const CHART_MARGIN_DENSE_BOTTOM_EMBEDDED = 44
 const CHART_MARGIN_DEFAULT_BOTTOM = 52
@@ -251,7 +252,7 @@ export function AnswerChart({
           timeOnX ? formatTimeAxisLabel(label) ?? String(label) : String(label)
         }
       />
-      {visibleSeriesNames.length > 0 && <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />}
+      {visibleSeriesNames.length > 0 && <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: LEGEND_FONT, paddingTop: 8 }} />}
     </>
   )
   const chartHeight = denseCategories
@@ -266,7 +267,7 @@ export function AnswerChart({
       {(!hideTitle || views.length > 1) && (
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
           {!hideTitle ? (
-            <div className={embedded ? 'answer-chart-title' : 'text-sm font-semibold text-cloudera-navy'}>{chart.title}</div>
+            <div className={embedded ? 'answer-chart-title' : 'viz-title'}>{chart.title}</div>
           ) : (
             <span />
           )}
@@ -322,7 +323,7 @@ export function AnswerChart({
           {differenceRows(rows, chart.x!, yField, overall).map((row, index) => (
             <Cell key={index} fill={(row.__difference as number) > 0 ? COLORS[0] : COLORS[1]} />
           ))}
-          {labelled && <LabelList dataKey="__difference" position="top" formatter={(value: unknown) => pointGap(Number(value))} style={{ fontSize: 10, fill: '#475569' }} />}
+          {labelled && <LabelList dataKey="__difference" position="top" formatter={(value: unknown) => pointGap(Number(value))} style={{ fontSize: GRAPHIC_FONT, fill: '#475569' }} />}
         </Bar>
       </BarChart>
     ) : view === 'pie' ? (
@@ -331,18 +332,18 @@ export function AnswerChart({
           {data.map((_, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
         </Pie>
         <Tooltip formatter={(value: unknown) => formatValue(value)} />
-        <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
+        <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: LEGEND_FONT, paddingTop: 8 }} />
       </PieChart>
     ) : view === 'line' ? (
       <LineChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => <Line key={key} dataKey={key} name={key === 'metric_value' ? valueName : formatBusinessLabel(key)} stroke={COLORS[index % COLORS.length]} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />)}</LineChart>
     ) : view === 'bar' || view === 'stacked' || chart.type === 'bar' ? <BarChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => (
             <Bar key={key} dataKey={key} name={key === 'metric_value' ? valueName : key} fill={COLORS[index % COLORS.length]} radius={view === 'stacked' ? [0, 0, 0, 0] : [6, 6, 0, 0]} maxBarSize={54} stackId={view === 'stacked' ? 'stack' : undefined} isAnimationActive={false}>
-              {valueLabels && <LabelList dataKey={key} position="top" formatter={(value: unknown) => formatValue(value)} style={{ fontSize: 10, fill: '#475569' }} />}
+              {valueLabels && <LabelList dataKey={key} position="top" formatter={(value: unknown) => formatValue(value)} style={{ fontSize: GRAPHIC_FONT, fill: '#475569' }} />}
             </Bar>
           ))}</BarChart>
       : chart.type === 'area' ? <AreaChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => <Area key={key} dataKey={key} name={key === 'metric_value' ? valueName : key} stroke={COLORS[index % COLORS.length]} fill={COLORS[index % COLORS.length]} fillOpacity={0.12} isAnimationActive={false} />)}</AreaChart>
-      : chart.type === 'scatter' ? <ScatterChart margin={chartMargin}><CartesianGrid vertical={false} stroke="#E7E8F0" /><XAxis type="number" dataKey={chart.x} name={chart.x} tick={tick} /><YAxis type="number" dataKey={chart.y} name={chart.y} tick={tick} width={56} tickFormatter={formatAxisNumber} /><Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={(value: unknown) => formatTooltipValue(value, locale)} />{series ? seriesNames.map((name, index) => <Scatter key={name} name={name} data={rows.filter(row => String(row[series!] ?? 'Unknown') === name)} fill={COLORS[index % COLORS.length]} isAnimationActive={false} />) : <Scatter data={data} fill={COLORS[2]} isAnimationActive={false} />}{series && <Legend wrapperStyle={{ fontSize: 11 }} />}</ScatterChart>
-      : chart.type === 'pie' ? <PieChart margin={{ bottom: 16 }}><Pie data={data} dataKey={chart.y} nameKey={chart.x} innerRadius={52} outerRadius={88} isAnimationActive={false}>{data.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip formatter={(value: unknown) => formatTooltipValue(value, locale)} /><Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11, paddingTop: 8 }} /></PieChart>
+      : chart.type === 'scatter' ? <ScatterChart margin={chartMargin}><CartesianGrid vertical={false} stroke="#E7E8F0" /><XAxis type="number" dataKey={chart.x} name={chart.x} tick={tick} /><YAxis type="number" dataKey={chart.y} name={chart.y} tick={tick} width={56} tickFormatter={formatAxisNumber} /><Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={(value: unknown) => formatTooltipValue(value, locale)} />{series ? seriesNames.map((name, index) => <Scatter key={name} name={name} data={rows.filter(row => String(row[series!] ?? 'Unknown') === name)} fill={COLORS[index % COLORS.length]} isAnimationActive={false} />) : <Scatter data={data} fill={COLORS[2]} isAnimationActive={false} />}{series && <Legend wrapperStyle={{ fontSize: LEGEND_FONT }} />}</ScatterChart>
+      : chart.type === 'pie' ? <PieChart margin={{ bottom: 16 }}><Pie data={data} dataKey={chart.y} nameKey={chart.x} innerRadius={52} outerRadius={88} isAnimationActive={false}>{data.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip formatter={(value: unknown) => formatTooltipValue(value, locale)} /><Legend verticalAlign="bottom" wrapperStyle={{ fontSize: LEGEND_FONT, paddingTop: 8 }} /></PieChart>
       : <LineChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => (
             <Line
               key={key}
