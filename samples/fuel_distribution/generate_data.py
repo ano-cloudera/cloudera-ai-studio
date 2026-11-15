@@ -12,6 +12,11 @@ Planted patterns, so test answers are checkable (the script prints how each one 
   * The Kertapati terminal is down in August 2025: its customers are served from Panjang, 1.8x farther, and arrive late.
   * Subsidised fuel (Pertalite, Biosolar) is most of the retail volume; the price of non-subsidised fuel moves a little every month.
   * Mining buys the most diesel; aviation fuel (Avtur) goes only to airports.
+  * Every late order carries a reason (`alasan_keterlambatan`), drawn on its own stream so no other number moves. The reasons
+    follow the place and the size of the delay: bad weather at sea dominates Wayame (Maluku), damaged road access the inland
+    routes of Papua and Kalimantan, loading queues the busy Java terminals and the peak months, unloading queues the DODO
+    stations, and the Kertapati outage shows as supply from an alternative terminal. Long delays come from roads, weather and
+    breakdowns; short ones from queues and traffic.
 A loading order never carries more than its truck holds, and "Terlambat" means the duration went over the SLA.
 
 Usage: python samples/fuel_distribution/generate_data.py [--rows 200000]
@@ -96,8 +101,37 @@ SUBSIDISED = ("Pertalite", "Biosolar")
 DELIVERY_COLUMNS = [
     "id_lo", "tanggal_transaksi", "segmen_bisnis", "regional", "provinsi", "fuel_terminal", "kode_pelanggan", "nama_tipe_pelanggan", "produk",
     "kategori_bbm", "volume_kl", "harga_per_liter_idr", "total_nilai_idr", "nopol_mobil_tangki", "kapasitas_tangki_kl",
-    "jarak_tempuh_km", "durasi_kirim_menit", "sla_menit", "status_pengiriman",
+    "jarak_tempuh_km", "durasi_kirim_menit", "sla_menit", "status_pengiriman", "alasan_keterlambatan",
 ]
+
+# Why a late order was late. Empty for an order that arrived on time or is still on its way.
+REASONS = (
+    "Antrean muat di TBBM", "Kemacetan lalu lintas", "Akses jalan rusak", "Cuaca buruk", "Antrean bongkar di SPBU",
+    "Kerusakan mobil tangki", "Pasokan dari terminal alternatif",
+)
+SEA_TERMINALS = {"Wayame"}  # island routes where weather at sea is the main risk
+INLAND_RISK = {"Kalimantan": 3.0, "Papua Maluku": 3.0, "Sulawesi": 1.6, "Sumbagut": 1.0, "Sumbagsel": 1.0}
+
+
+def delay_reason(rng: random.Random, *, region: str, terminal: str, kind: str, month: int, extra: float, detour: bool) -> str:
+    """The reason of one late order, weighted by where and when it happened and by how long the delay was (`extra` minutes
+    added on top of the trip; 0 when it went over the SLA on the trip alone)."""
+    if detour and rng.random() < 0.85:
+        return "Pasokan dari terminal alternatif"
+    long_delay = extra >= 150
+    weights = {
+        "Antrean muat di TBBM": (2.2 if region in JAVA else 1.0) * (1.8 if month in PEAK_MONTHS else 1.0) * (0.5 if long_delay else 1.6),
+        "Kemacetan lalu lintas": (2.6 if region in JAVA else 0.6) * (0.4 if long_delay else 1.8),
+        "Akses jalan rusak": INLAND_RISK.get(region, 0.4) * (0.4 if terminal in SEA_TERMINALS else 1.0) * (1.8 if long_delay else 0.6),
+        "Cuaca buruk": (3.5 if terminal in SEA_TERMINALS else 1.4 if region in ("Papua Maluku", "Kalimantan") else 0.5)
+        * (1.6 if long_delay else 0.7),
+        "Antrean bongkar di SPBU": (2.0 if kind == "DODO" else 0.8 if kind in ("CODO", "COCO") else 0.3) * (0.6 if long_delay else 1.3),
+        "Kerusakan mobil tangki": 0.6 * (1.7 if long_delay else 0.5),
+    }
+    if extra == 0:  # over the SLA on the trip alone: a slow trip, not an incident
+        weights = {"Kemacetan lalu lintas": 3.0, "Antrean muat di TBBM": 1.5, "Antrean bongkar di SPBU": 1.0}
+    names = list(weights)
+    return rng.choices(names, weights=[weights[n] for n in names])[0]
 
 
 def month_index(d: date) -> int:
@@ -187,6 +221,7 @@ def generate(rows: int = ROWS, out: Path = OUT) -> dict:
     out.mkdir(parents=True, exist_ok=True)
     customers = build_customers(rng)
     province_rng = random.Random(SEED + 1)  # its own stream, so adding provinces leaves every other number as it was
+    reason_rng = random.Random(SEED + 3)  # the same for the reasons of late orders
     for c in customers:
         options = TERMINAL_PROVINCES[c["terminal"]]
         c["provinsi"] = province_rng.choices(list(options), weights=list(options.values()))[0]
@@ -225,17 +260,26 @@ def generate(rows: int = ROWS, out: Path = OUT) -> dict:
         p_delay = 0.10 * REGION_DELAY[c["region"]] * TYPE_DELAY[c["kind"]] * (1.3 if day.month in PEAK_MONTHS else 1.0)
         if detour > 1:
             p_delay += 0.3
+        extra = 0.0
         if rng.random() < p_delay:
-            duration += rng.uniform(60, 300)
+            extra = rng.uniform(60, 300)
+            duration += extra
         duration = int(duration)
         in_transit = day == END
+        late = not in_transit and duration > sla
+        reason = (
+            delay_reason(reason_rng, region=c["region"], terminal=served_from, kind=c["kind"], month=day.month, extra=extra, detour=detour > 1)
+            if late
+            else ""
+        )
         deliveries.append({
             "tanggal_transaksi": day, "segmen_bisnis": segment, "regional": c["region"], "provinsi": c["provinsi"], "fuel_terminal": served_from,
             "kode_pelanggan": c["kode"], "nama_tipe_pelanggan": c["tipe_nama"], "produk": product, "kategori_bbm": category,
             "volume_kl": volume, "harga_per_liter_idr": price, "total_nilai_idr": volume * 1000 * price,
             "nopol_mobil_tangki": truck["plate"], "kapasitas_tangki_kl": capacity, "jarak_tempuh_km": distance,
             "durasi_kirim_menit": "" if in_transit else duration, "sla_menit": sla,
-            "status_pengiriman": "Dalam_Perjalanan" if in_transit else ("Terlambat" if duration > sla else "Terkirim"),
+            "status_pengiriman": "Dalam_Perjalanan" if in_transit else ("Terlambat" if late else "Terkirim"),
+            "alasan_keterlambatan": reason,
         })
     deliveries.sort(key=lambda r: (r["tanggal_transaksi"], r["kode_pelanggan"]))
     for n, row in enumerate(deliveries, start=1):
@@ -342,6 +386,13 @@ def report(deliveries: list[dict], quota: list[list]) -> None:
         if r["fuel_terminal"] in ("Kertapati", "Panjang") and r["tanggal_transaksi"].year == 2025 and r["tanggal_transaksi"].month in (7, 8, 9):
             kert[(r["fuel_terminal"], r["tanggal_transaksi"].month)] += 1
     print("  Kertapati / Panjang orders Jul-Sep 2025 " + ", ".join(f"{t} m{m}:{n}" for (t, m), n in sorted(kert.items())))
+    reasons: dict[str, Counter] = defaultdict(Counter)
+    for r in deliveries:
+        if r["alasan_keterlambatan"]:
+            reasons[r["regional"]][r["alasan_keterlambatan"]] += 1
+    for region in ("Papua Maluku", "Kalimantan", "Jawa Bagian Barat"):
+        top = reasons[region].most_common(2)
+        print(f"  top late reasons {region}: " + ", ".join(f"{k} {pct(v, sum(reasons[region].values()))}" for k, v in top))
     over = sum(1 for r in deliveries if r["volume_kl"] > r["kapasitas_tangki_kl"])
     print(f"  orders above the truck capacity: {over}")
 

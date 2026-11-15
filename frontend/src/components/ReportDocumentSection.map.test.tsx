@@ -38,3 +38,26 @@ describe('Map tab', () => {
     expect(screen.queryByRole('tab', { name: 'Map' })).toBeNull()
   })
 })
+
+describe('Map tab with routes', () => {
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllGlobals()
+  })
+
+  it('draws a result from a placed origin to a province as routes', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ type: 'FeatureCollection', features: [square('Maluku', 127, -2), square('Papua', 138, -2)] }) }))
+    const routed = response(
+      [
+        { fuel_terminal: 'Wayame', provinsi: 'Maluku', metric_value: 37.1 },
+        { fuel_terminal: 'Jayapura', provinsi: 'Papua', metric_value: 32.4 },
+      ],
+      ['fuel_terminal', 'provinsi', 'metric_value'],
+    )
+    routed.data.geo_points = { fuel_terminal: { Wayame: [-3.6, 128.2], Jayapura: [-2.5, 140.7] } }
+    render(<ReportDocumentSection response={routed} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Map' }))
+    await waitFor(() => expect(screen.getByTestId('route-map')).toBeTruthy())
+    expect(screen.queryByTestId('result-map')).toBeNull()
+  })
+})

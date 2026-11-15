@@ -19,7 +19,7 @@ const GEO_URL = '/geo/indonesia-provinces.json'
 let boundariesPromise: Promise<GeoCollection> | null = null
 
 /** Loaded once per page; a failed load is retried on the next open. */
-function loadBoundaries(): Promise<GeoCollection> {
+export function loadBoundaries(): Promise<GeoCollection> {
   if (!boundariesPromise) {
     boundariesPromise = fetch(GEO_URL)
       .then(response => {

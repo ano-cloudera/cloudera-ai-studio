@@ -19,6 +19,8 @@ import { ContextModeBadge } from '../components/chat/ContextModeBadge'
 import { RagSourcesList } from '../components/chat/RagSourcesList'
 import { answerPresentation, hasGovernedEvidence } from '../lib/governedEvidence'
 import { AnswerChart } from '../components/AnswerChart'
+import { RouteMap, routeMapContext } from '../components/analysis/RouteMap'
+import { detectRoutes } from '../lib/routes'
 import { AnswerProse } from '../components/AnswerProse'
 import { DataTable } from '../components/DataTable'
 import { SingleRowEvidence } from '../components/SingleRowEvidence'
@@ -802,6 +804,7 @@ export function AskDataPage() {
                 activeSectionId={activeReportSectionId}
                 onExportPdf={() => void downloadChat()}
                 exportingPdf={downloadingPdf}
+                onAsk={question => void submit(question)}
               />
             </div>
           </div>
@@ -818,6 +821,7 @@ export function AskDataPage() {
             activeSectionId={activeReportSectionId}
             onExportPdf={() => void downloadChat()}
             exportingPdf={downloadingPdf}
+            onAsk={question => void submit(question)}
           />
         </div>
       )}
@@ -1041,6 +1045,8 @@ function StructuredAnswer({
       </div>
     ) : null
 
+  // An answer from an origin to a destination (terminal to province) is drawn as routes, in place of a long bar chart.
+  const chatRoutes = isRagResponse(response) ? null : detectRoutes(response.data.columns, response.data.rows, response.data.geo_points)
   const chatDocumentSplit = Boolean(
     presentationTier === 3 && reportArtifact && !expandForExport,
   )
@@ -1050,7 +1056,7 @@ function StructuredAnswer({
     // the table and the chart stay in the panel behind the card.
     const answerText = response.answer.direct_answer.trim()
     // A long category list (32 provinces) is a table or a map, not a chart to read in the chat: the panel has it.
-    const inlineChart = hasVisualChart && !ragProseOnly && response.data.rows.length <= INLINE_CHART_MAX_ROWS
+    const inlineChart = !chatRoutes && hasVisualChart && !ragProseOnly && response.data.rows.length <= INLINE_CHART_MAX_ROWS
     const topInsights = ragProseOnly ? [] : response.answer.insights.filter(item => item.trim()).slice(0, CHAT_TOP_INSIGHTS)
     const moreInsights = ragProseOnly ? 0 : Math.max(0, response.answer.insights.length - topInsights.length)
     return (
@@ -1059,6 +1065,11 @@ function StructuredAnswer({
           {headerRow}
           {governedWarning}
           <AnswerProse text={answerText} omitTables={omitTablesInProse} variant="main" />
+          {chatRoutes && (
+            <div data-testid="chat-route-map">
+              <RouteMap compact rows={response.data.rows} detection={chatRoutes} onAsk={onFollowUp} {...routeMapContext(response)} />
+            </div>
+          )}
           {inlineChart && (
             <div data-testid="chat-inline-chart">
               <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded className="!mb-0" exportId={response.request_id} metric={chartMetric(response)} overall={response.data.overall_value ?? null} />
@@ -1126,7 +1137,12 @@ function StructuredAnswer({
         </div>
       )}
 
-      {hasVisualChart && (
+      {chatRoutes && (
+        <div data-testid="chat-route-map">
+          <RouteMap compact rows={response.data.rows} detection={chatRoutes} onAsk={onFollowUp} {...routeMapContext(response)} />
+        </div>
+      )}
+      {hasVisualChart && !chatRoutes && (
         <AnswerChart chart={response.chart_spec} rows={response.data.rows} embedded className="!mb-0" exportId={response.request_id} metric={chartMetric(response)} overall={response.data.overall_value ?? null} />
       )}
 

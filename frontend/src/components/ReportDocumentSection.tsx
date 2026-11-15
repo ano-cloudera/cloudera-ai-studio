@@ -18,6 +18,8 @@ import { WorkspaceDataTable } from './analysis/WorkspaceDataTable'
 import { RecommendationsTable } from './analysis/RecommendationsTable'
 import { WorkspaceQueryView } from './analysis/WorkspaceQueryView'
 import { ResultMap } from './analysis/ResultMap'
+import { RouteMap, routeMapContext } from './analysis/RouteMap'
+import { detectRoutes } from '../lib/routes'
 import { ComparisonSummary, comparisonKind } from './analysis/ComparisonSummary'
 import { detectGeo } from '../lib/geo'
 import { formatCitationLabel, isRagResponse } from '../lib/ragReport'
@@ -30,6 +32,7 @@ type Props = {
   chatNarrativeShown?: boolean
   chatInsightCount?: number
   chartShownInChat?: boolean
+  onAsk?: (question: string) => void
 }
 
 function workspaceTabs(
@@ -88,6 +91,7 @@ export function ReportDocumentSection({
   chatNarrativeShown = false,
   chatInsightCount = 0,
   chartShownInChat = false,
+  onAsk,
 }: Props) {
   rememberColumnLabels(response.data.column_labels)
   const sectionLabels = answerSectionLabels(response.language)
@@ -106,6 +110,8 @@ export function ReportDocumentSection({
   const citations = response.citations ?? []
   const hasSources = rag && citations.length > 0
   const geo = useMemo(() => (rag ? null : detectGeo(response.data.columns, response.data.rows, response.data.geo_points)), [rag, response.data.columns, response.data.rows, response.data.geo_points])
+  // A result from an origin to a destination (terminal to province) is drawn as routes; otherwise the map colours places.
+  const routes = useMemo(() => (rag ? null : detectRoutes(response.data.columns, response.data.rows, response.data.geo_points)), [rag, response.data.columns, response.data.rows, response.data.geo_points])
   const calculation = rag ? null : response.calculation ?? null
   const comparison = !rag && comparisonKind(response.data.columns) !== null && hasTable
   const checks = response.status === 'SUCCESS' ? response.agent_steps ?? [] : []
@@ -116,7 +122,7 @@ export function ReportDocumentSection({
   const hasAnalysis = Boolean(
     report || recommendations.length > 0 || !chatNarrativeShown || comparison || workspaceInsightsFirst.length || response.answer.business_implications.length,
   )
-  const tabs = workspaceTabs(hasTable, hasQuery || Boolean(calculation) || checks.length > 0, hasSources, Boolean(geo), hasAnalysis, hasVisualChart)
+  const tabs = workspaceTabs(hasTable, hasQuery || Boolean(calculation) || checks.length > 0, hasSources, Boolean(geo || routes), hasAnalysis, hasVisualChart)
   // Opens on what the chat does not show: the fuller analysis, else the map, else the rows. The chart is one click away.
   const [tab, setTab] = useState<WorkspaceTab>(() => {
     const open = (id: WorkspaceTab) => tabs.some(item => item.id === id && !item.disabled)
@@ -243,7 +249,13 @@ export function ReportDocumentSection({
         </div>
       )}
 
-      {tab === 'map' && geo && (
+      {tab === 'map' && routes && (
+        <div className="mt-6" role="tabpanel">
+          <RouteMap rows={response.data.rows} detection={routes} onAsk={onAsk} {...routeMapContext(response)} />
+        </div>
+      )}
+
+      {tab === 'map' && !routes && geo && (
         <div className="mt-6" role="tabpanel">
           <ResultMap
             columns={response.data.columns}

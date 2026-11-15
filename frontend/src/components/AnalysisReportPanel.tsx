@@ -14,6 +14,8 @@ type Props = {
   activeSectionId: string | null
   onExportPdf?: () => void
   exportingPdf?: boolean
+  /** Sends a question as the next turn (asked from a view in the panel, such as one route of a route map). */
+  onAsk?: (question: string) => void
 }
 
 export function AnalysisReportPanel({
@@ -25,6 +27,7 @@ export function AnalysisReportPanel({
   activeSectionId,
   onExportPdf,
   exportingPdf = false,
+  onAsk,
 }: Props) {
   if (!open) return null
 
@@ -95,6 +98,7 @@ export function AnalysisReportPanel({
             <ReportDocumentSection
               key={activeSection.id}
               response={activeSection.response}
+              onAsk={onAsk}
               chatNarrativeShown
               chatInsightCount={
                 activeSection.chatDocumentSplit ? 2 : activeSection.response.answer.insights.length

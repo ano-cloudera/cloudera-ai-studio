@@ -33,6 +33,7 @@ TABLES = {  # table -> (csv file, columns)
         ("kategori_bbm", "VARCHAR"), ("volume_kl", "INTEGER"), ("harga_per_liter_idr", "INTEGER"), ("total_nilai_idr", "BIGINT"),
         ("nopol_mobil_tangki", "VARCHAR"), ("kapasitas_tangki_kl", "INTEGER"), ("jarak_tempuh_km", "DOUBLE"),
         ("durasi_kirim_menit", "INTEGER"), ("sla_menit", "INTEGER"), ("status_pengiriman", "VARCHAR"),
+        ("alasan_keterlambatan", "VARCHAR"),
     ]),
     "fuel_quota": ("quota.csv", [("regional", "VARCHAR"), ("produk", "VARCHAR"), ("bulan", "DATE"), ("kuota_kl", "INTEGER")]),
     "fuel_terminals": ("terminals.csv", [

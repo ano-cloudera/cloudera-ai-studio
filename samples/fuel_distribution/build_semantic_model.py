@@ -60,14 +60,17 @@ SPEC = {
     "dimensions": [
         ("tanggal_transaksi", "Tanggal Transaksi", "penyaluran", "tanggal_transaksi", "Date", ["tanggal", "bulan", "periode", "tahun", "month", "date"], "Tanggal Loading Order dibuat dan dikirim."),
         ("regional", "Regional", "penyaluran", "regional", "String", ["wilayah pemasaran", "region", "wilayah regional"], "Wilayah pemasaran Pertamina: Sumbagut, Sumbagsel, Jawa Bagian Barat, Jawa Bagian Tengah, Jatimbalinus, Kalimantan, Sulawesi, Papua Maluku."),
-        ("provinsi", "Provinsi", "penyaluran", "provinsi", "String", ["province", "wilayah", "daerah", "peta"], "Provinsi tujuan pengiriman (lokasi SPBU atau pelanggan)."),
-        ("fuel_terminal", "Terminal (TBBM)", "penyaluran", "fuel_terminal", "String", ["terminal", "tbbm", "depot", "fuel terminal", "terminal bbm"], "Terminal BBM asal pasokan. Bisa berbeda dari terminal asal pelanggan bila terminal utamanya sedang tidak beroperasi."),
+        ("provinsi", "Provinsi", "penyaluran", "provinsi", "String", ["province", "wilayah", "daerah", "peta", "tujuan", "provinsi tujuan"], "Provinsi tujuan pengiriman (lokasi SPBU atau pelanggan)."),
+        ("fuel_terminal", "Terminal (TBBM)", "penyaluran", "fuel_terminal", "String", ["terminal", "tbbm", "depot", "fuel terminal", "terminal bbm", "asal", "terminal asal"], "Terminal BBM asal pasokan. Bisa berbeda dari terminal asal pelanggan bila terminal utamanya sedang tidak beroperasi."),
         ("segmen_bisnis", "Segmen Bisnis", "penyaluran", "segmen_bisnis", "String", ["segmen", "ritel", "industri", "b2b", "ritel atau industri"], "Ritel_SPBU untuk penyaluran ke SPBU, Industri_B2B untuk pelanggan industri."),
         ("kode_pelanggan", "Kode Pelanggan (SPBU)", "penyaluran", "kode_pelanggan", "String", ["spbu", "kode spbu", "pelanggan", "nomor spbu", "kode pelanggan"], "Kode SPBU atau pelanggan industri penerima pasokan."),
         ("tipe_pelanggan", "Tipe Pelanggan", "penyaluran", "nama_tipe_pelanggan", "String", ["tipe spbu", "jenis spbu", "coco", "codo", "dodo", "sektor industri", "kepemilikan spbu"], "SPBU_COCO, SPBU_CODO atau SPBU_DODO untuk ritel, dan Industri_<sektor> untuk pelanggan industri."),
         ("produk", "Produk", "penyaluran", "produk", "String", ["jenis bbm", "bbm", "fuel", "jenis produk", "pertalite", "biosolar", "pertamax"], "Produk BBM yang dikirim: Pertalite, Biosolar, Pertamax, Pertamax Turbo, Dexlite, Pertamina Dex, Solar Industri, MFO 180 cSt, Pertamax Industri, Avtur."),
         ("kategori_bbm", "Kategori BBM", "penyaluran", "kategori_bbm", "String", ["subsidi", "non subsidi", "kategori", "bbm subsidi"], "Subsidi atau Non-Subsidi."),
         ("status_pengiriman", "Status Pengiriman", "penyaluran", "status_pengiriman", "String", ["status", "terlambat", "terkirim", "tepat waktu"], "Terkirim (tepat waktu), Terlambat (durasi melebihi SLA), atau Dalam_Perjalanan (belum selesai)."),
+        ("alasan_keterlambatan", "Alasan Keterlambatan", "penyaluran", "alasan_keterlambatan", "String",
+         ["alasan", "penyebab", "penyebab keterlambatan", "alasan terlambat", "kendala", "kendala pengiriman", "delay reason", "root cause"],
+         "Alasan yang dicatat untuk LO yang terlambat: Antrean muat di TBBM, Kemacetan lalu lintas, Akses jalan rusak, Cuaca buruk, Antrean bongkar di SPBU, Kerusakan mobil tangki, atau Pasokan dari terminal alternatif. Kosong untuk LO yang tepat waktu atau masih dalam perjalanan, jadi dipakai bersama Jumlah LO Terlambat."),
         ("mobil_tangki", "Mobil Tangki", "penyaluran", "nopol_mobil_tangki", "String", ["truk", "armada", "nopol", "plat nomor", "truk tangki"], "Nomor polisi mobil tangki yang mengirim."),
         ("kuota_regional", "Regional (Kuota)", "kuota_subsidi", "regional", "String", ["wilayah kuota", "regional kuota"], "Regional pemilik kuota BBM subsidi."),
         ("kuota_produk", "Produk Subsidi", "kuota_subsidi", "produk", "String", ["produk kuota", "bbm subsidi", "pertalite", "biosolar"], "Produk subsidi yang dikuotakan: Pertalite atau Biosolar."),
@@ -108,6 +111,7 @@ SPEC = {
     # (key, term, definition, related metric keys). A term is left unrelated to any metric on purpose: a phrase such as "BBM subsidi" or
     # "fuel terminal" appears in many questions, and tying it to metrics made the resolver pick the wrong one for the quota questions.
     "terms": [
+        ("rute", "Rute pengiriman", "Pasangan terminal asal (TBBM) dan provinsi tujuan pengiriman. Rute dibandingkan dengan memecah metrik per Terminal (TBBM) dan per Provinsi sekaligus.", []),
         ("lo", "LO (Loading Order)", "Perintah muat dari terminal ke satu SPBU atau pelanggan. Satu LO adalah satu pengiriman mobil tangki.", []),
         ("tbbm", "TBBM / Fuel Terminal", "Terminal BBM tempat BBM disimpan dan dimuat ke mobil tangki sebelum dikirim.", []),
         ("coco_codo_dodo", "COCO, CODO, DODO", "Kepemilikan SPBU: COCO milik dan dioperasikan perusahaan, CODO milik perusahaan dan dioperasikan dealer, DODO milik dan dioperasikan dealer.", []),

@@ -208,6 +208,49 @@ describe('V2 Ask Data page', () => {
     expect(screen.getByTestId('follow-up-questions').textContent).toContain('Late rate per bulan')
   })
 
+  it('draws an answer by route as a route map in the chat, and asks why one route stands out', async () => {
+    vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
+    const square = (name: string, lon: number, lat: number) => ({
+      type: 'Feature',
+      properties: { name },
+      geometry: { type: 'MultiPolygon', coordinates: [[[[lon, lat], [lon + 3, lat], [lon + 3, lat - 3], [lon, lat - 3], [lon, lat]]]] },
+    })
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ type: 'FeatureCollection', features: [square('Maluku', 127, -2), square('Papua', 138, -2), square('Jawa Barat', 106, -6)] }) })
+    const realFetch = globalThis.fetch
+    globalThis.fetch = fetchMock as unknown as typeof fetch // only the map boundaries; the test setup's other globals stay
+    const rows = Array.from({ length: 14 }, (_, i) => ({ fuel_terminal: ['Wayame', 'Jayapura', 'Balongan'][i % 3], provinsi: ['Maluku', 'Papua', 'Jawa Barat'][i % 3], metric_value: 40 - i }))
+    let call = 0
+    vi.mocked(api.chatStream).mockImplementation((async function* () {
+      call += 1
+      yield { type: 'done', response: {
+        request_id: `r-route-${call}`, session_id: 's-route', status: 'SUCCESS', provider: 'qwen', model: 'qwen-model', strategy: 'governed', language: 'id',
+        answer: {
+          direct_answer: 'Rute Wayame ke Maluku paling sering terlambat.', executive_summary: 'Rute Papua dan Maluku jauh di atas target.',
+          insights: ['Temuan satu', 'Temuan dua', 'Temuan tiga'], business_implications: [], caveats: [], data_reference: 'fuel_deliveries', chart_spec: null,
+        },
+        data: {
+          columns: ['fuel_terminal', 'provinsi', 'metric_value'], rows, row_count: 14, execution_ms: 1,
+          governed_metric_display_name: 'Tingkat Keterlambatan (%)', unit_format: 'percent', metric_better: 'down', metric_target: 15, overall_value: 16.1,
+          geo_points: { fuel_terminal: { Wayame: [-3.6, 128.2], Jayapura: [-2.5, 140.7], Balongan: [-6.4, 108.4] } },
+        },
+        chart_spec: { type: 'bar', x: 'fuel_terminal', y: 'metric_value', title: 'Tingkat keterlambatan per rute' },
+        timings: { context_ms: 1, planning_ms: 1, validation_ms: 1, query_ms: 1, analysis_ms: 1, total_ms: 6 }, retry_count: 0,
+      } }
+    }) as never)
+    renderWithProviders(<AskDataPage />)
+
+    await submitViaComposer('Rute mana yang paling sering terlambat?')
+
+    expect(await screen.findByTestId('chat-route-map')).toBeTruthy()
+    expect(screen.queryByTestId('chat-inline-chart')).toBeNull() // a long bar chart of routes gives way to the map
+    const ask = await screen.findByTestId('route-ask-why')
+    fireEvent.click(ask)
+    await waitFor(() => expect(vi.mocked(api.chatStream).mock.calls.length).toBe(2))
+    expect(vi.mocked(api.chatStream).mock.calls[1][0]).toBe('Kenapa tingkat keterlambatan rute Wayame ke Maluku tinggi, dan apa penyebab utamanya?')
+    await waitFor(() => expect(screen.getAllByTestId('chat-route-map')).toHaveLength(2))
+    globalThis.fetch = realFetch
+  })
+
   it('shows the model, the time and the tokens under a simple answer too, not only under a big one', async () => {
     vi.mocked(api.models).mockResolvedValue({ models: [{ provider: 'qwen', id: 'qwen-model', label: 'Qwen Private', available: true, reason: null }] })
     vi.mocked(api.chatStream).mockImplementation((async function* () {
