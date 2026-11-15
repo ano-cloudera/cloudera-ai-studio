@@ -1194,10 +1194,11 @@ function StructuredAnswer({
 
   const detailRows = (
     <>
-      {response.calculation && !expandForExport && !isRagResponse(response) ? <CalculationNoteBlock note={response.calculation} embedded /> : null}
+      {response.calculation && !expandForExport && !isRagResponse(response) && !expandShown ? <CalculationNoteBlock note={response.calculation} embedded /> : null}
 
       {expandShown ? (
         <ChatAnalysisDetailsExpand
+          calculation={response.calculation && !expandForExport && !isRagResponse(response) ? response.calculation : null}
           response={response}
           tier={presentationTier}
           kpiBlock={kpiOnlyBlock}
@@ -1319,7 +1320,7 @@ function StructuredAnswer({
 
       <div className={`answer-meta-stack ${dataNoteInNarrative || isRagResponse(response) ? 'answer-meta-stack-flush' : ''}`}>
         {isRagResponse(response) && ragCitationCount(response) > 0 ? (
-          <RagSourcesList citations={response.citations ?? []} onViewSources={onViewRagSources} />
+          <RagSourcesList citations={response.citations ?? []} onViewSources={onViewRagSources} defaultOpen={expandForExport} />
         ) : null}
         {showDataNoteBlock && !dataNoteInNarrative && !detailsInSurface && (
           <DataNote

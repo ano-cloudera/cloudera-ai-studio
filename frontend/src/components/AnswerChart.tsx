@@ -222,8 +222,9 @@ export function AnswerChart({
     metric?.unitFormat === 'percent'
       ? `${value > 0 ? '+' : value < 0 ? '-' : ''}${Math.abs(value).toLocaleString(locale, { maximumFractionDigits: 2 })} pts`
       : `${value > 0 ? '+' : value < 0 ? '-' : ''}${formatValue(Math.abs(value))}`
-  // Values written on the bars in the larger chart of the panel, where there is room for them.
-  const valueLabels = !embedded && categoryCount <= 15 && keys.length === 1
+  // Values written on the bars, in the chat up to ten of them and in the panel up to fifteen, where there is room for them.
+  const labelled = categoryCount <= (embedded ? 10 : 15)
+  const valueLabels = labelled && keys.length === 1
   const direction = metric?.better === 'down' ? 'Lower is better' : metric?.better === 'up' ? 'Higher is better' : ''
   const caption = [metric?.description?.trim(), direction].filter(Boolean).join(' · ')
   const axes = (
@@ -318,7 +319,7 @@ export function AnswerChart({
           {differenceRows(rows, chart.x!, yField, overall).map((row, index) => (
             <Cell key={index} fill={(row.__difference as number) > 0 ? COLORS[0] : COLORS[1]} />
           ))}
-          {!embedded && <LabelList dataKey="__difference" position="top" formatter={(value: unknown) => pointGap(Number(value))} style={{ fontSize: 10, fill: '#475569' }} />}
+          {labelled && <LabelList dataKey="__difference" position="top" formatter={(value: unknown) => pointGap(Number(value))} style={{ fontSize: 10, fill: '#475569' }} />}
         </Bar>
       </BarChart>
     ) : view === 'pie' ? (

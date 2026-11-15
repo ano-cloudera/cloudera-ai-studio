@@ -15,6 +15,7 @@ import {
 import { AnswerChart } from './AnswerChart'
 import { AnswerProse } from './AnswerProse'
 import { WorkspaceDataTable } from './analysis/WorkspaceDataTable'
+import { RecommendationsTable } from './analysis/RecommendationsTable'
 import { WorkspaceQueryView } from './analysis/WorkspaceQueryView'
 import { ResultMap } from './analysis/ResultMap'
 import { ComparisonSummary, comparisonKind } from './analysis/ComparisonSummary'
@@ -109,10 +110,11 @@ export function ReportDocumentSection({
   const comparison = !rag && comparisonKind(response.data.columns) !== null && hasTable
   const checks = response.status === 'SUCCESS' ? response.agent_steps ?? [] : []
   const report = response.analysis_report?.trim() ?? ''
+  const recommendations = response.recommendations ?? []
   const workspaceInsightsFirst = response.answer.insights.filter(item => item.trim()).slice(chatInsightCount)
   // The chart has its own tab (Chart): larger than in the chat, with values on the bars and a second view when the data allows one.
   const hasAnalysis = Boolean(
-    report || !chatNarrativeShown || comparison || workspaceInsightsFirst.length || response.answer.business_implications.length,
+    report || recommendations.length > 0 || !chatNarrativeShown || comparison || workspaceInsightsFirst.length || response.answer.business_implications.length,
   )
   const tabs = workspaceTabs(hasTable, hasQuery || Boolean(calculation) || checks.length > 0, hasSources, Boolean(geo), hasAnalysis, hasVisualChart)
   // Opens on what the chat does not show: the fuller analysis, else the map, else the rows. The chart is one click away.
@@ -137,6 +139,15 @@ export function ReportDocumentSection({
                 <div data-testid="analysis-report">
                   <AnswerProse text={report} variant="support" />
                 </div>
+              </WorkspaceSectionContent>
+            </WorkspaceSection>
+          )}
+
+          {recommendations.length > 0 && (
+            <WorkspaceSection>
+              <WorkspaceSectionHeader icon={Briefcase} tone="violet" title="Recommended actions" />
+              <WorkspaceSectionContent>
+                <RecommendationsTable rows={recommendations} />
               </WorkspaceSectionContent>
             </WorkspaceSection>
           )}

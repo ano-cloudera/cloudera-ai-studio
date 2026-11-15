@@ -275,6 +275,17 @@ class ProposedAction(StrictModel):
     arguments: dict[str, Any] = {}
 
 
+class ActionRecommendation(StrictModel):
+    """One row of the recommended actions an agent answer ends with: what to do, why, who, by when, and which document says so."""
+
+    priority: str = ""
+    action: str
+    basis: str = ""  # the finding or figure that calls for it
+    owner: str = ""  # as a document states it; never made up
+    timeframe: str = ""  # as a document states it; never made up
+    source: str = ""  # the document and page the step comes from
+
+
 class AgentStepCard(StrictModel):
     """One check the agent made, shown in the chat as it works and after: what it looked at, how it went, a few rows."""
 
@@ -316,6 +327,7 @@ class AskDataResponse(StrictModel):
     cache_reason: Literal["repeat", "data_source_unavailable"] | None = None
     language: Literal["id", "en"] | None = None  # the language of the question, so the UI names its sections in it
     proposed_actions: list[ProposedAction] | None = None
+    recommendations: list[ActionRecommendation] | None = None  # the agent's recommended actions as a table, for the panel
     analysis_report: str | None = None  # the agent's full analysis (markdown), shown in the panel; the chat shows its summary
     agent_steps: list[AgentStepCard] | None = None  # the checks behind an agent's answer, in the order they ran  # actions the agent proposes, each approved by the user before it runs
     context_mode: ContextMode | None = None

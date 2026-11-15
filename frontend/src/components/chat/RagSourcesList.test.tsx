@@ -36,6 +36,7 @@ describe('RagSourcesList', () => {
   it('lists each file once with every cited page and a typed icon', () => {
     render(
       <RagSourcesList
+        defaultOpen
         onViewSources={vi.fn()}
         citations={[
           cite({ chunk_id: 'a', page_number: 2 }),
@@ -52,7 +53,7 @@ describe('RagSourcesList', () => {
   })
 
   it('opens the original PDF from the row and from each page chip', () => {
-    render(<RagSourcesList citations={[cite({ page_number: 2 }), cite({ chunk_id: 'b', page_number: 1 })]} />)
+    render(<RagSourcesList defaultOpen citations={[cite({ page_number: 2 }), cite({ chunk_id: 'b', page_number: 1 })]} />)
     const links = screen.getAllByRole('link')
     const hrefs = links.map(link => link.getAttribute('href'))
     expect(hrefs).toContain('/api/v1/documents/d1/file#page=1')
@@ -61,14 +62,26 @@ describe('RagSourcesList', () => {
   })
 
   it('does not link a source that is not a PDF', () => {
-    render(<RagSourcesList citations={[cite({ filename: 'rates.csv', page_number: null })]} />)
+    render(<RagSourcesList defaultOpen citations={[cite({ filename: 'rates.csv', page_number: null })]} />)
     expect(screen.queryAllByRole('link')).toHaveLength(0)
   })
 
   it('opens the sources drawer from the footer link', () => {
     const onView = vi.fn()
-    render(<RagSourcesList onViewSources={onView} citations={[cite({})]} />)
+    render(<RagSourcesList defaultOpen onViewSources={onView} citations={[cite({})]} />)
     fireEvent.click(screen.getByTestId('rag-view-sources'))
     expect(onView).toHaveBeenCalledTimes(1)
+  })
+
+  it('is closed by default with a one-line summary, and opens and closes on click', () => {
+    render(<RagSourcesList citations={[cite({ filename: 'SOP.pdf', page_number: 1 }), cite({ filename: 'SOP.pdf', page_number: 2, chunk_id: 'c2' })]} />)
+    const toggle = screen.getByRole('button', { name: /Sources/ })
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(toggle.textContent).toContain('1 document · 2 pages')
+    expect(screen.queryByText('SOP.pdf')).toBeNull()
+    fireEvent.click(toggle)
+    expect(screen.getByText('SOP.pdf')).toBeTruthy()
+    fireEvent.click(toggle)
+    expect(screen.queryByText('SOP.pdf')).toBeNull()
   })
 })

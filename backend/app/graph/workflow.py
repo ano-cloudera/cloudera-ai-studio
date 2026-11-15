@@ -1078,6 +1078,20 @@ def build_workflow(deps: WorkflowDependencies):
             "governed_partial_caveats": state.get("governed_partial_caveats") or [],
             "metric_labels": _metric_labels(deps),
         }
+        definition = resolution.get("definition") if isinstance(resolution.get("definition"), dict) else {}
+        if definition:
+            # What the figure is, as its author wrote it, so a single figure can be put in context (what it covers, its target).
+            user_payload["metric"] = {
+                key: value
+                for key, value in {
+                    "name": resolution.get("metric"),
+                    "description": " ".join(str(definition.get("description") or "").split())[:400] or None,
+                    "unit": definition.get("unit") or definition.get("unit_format"),
+                    "better": definition.get("better"),
+                    "target": definition.get("target"),
+                }.items()
+                if value not in (None, "")
+            }
         from app.ask_data import answer_context
 
         language = detect_language(str(state.get("original_question") or state.get("question") or ""))

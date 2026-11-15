@@ -103,4 +103,15 @@ describe('Analysis workspace summary', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Query' }))
     expect(screen.getByRole('tab', { name: 'Query' }).getAttribute('aria-selected')).toBe('true')
   })
+
+  it('puts the agent recommended actions in the Analysis tab as a table', () => {
+    const agent = {
+      ...response(8),
+      analysis_report: '### Rekomendasi Tindakan\n\nUrutan tindakan bergantung pada tingkat keterlambatan.',
+      recommendations: [{ priority: 'Tinggi', action: 'Buat tiket prioritas tinggi', basis: 'Papua Maluku 34,54%', owner: 'Regional Distribution Manager', timeframe: '24 jam', source: 'SOP, hal. 1' }],
+    } as ChatResponse
+    render(<ReportDocumentSection response={agent} chatNarrativeShown chatInsightCount={2} chartShownInChat />)
+    expect(screen.getByTestId('recommendations-table').textContent).toContain('Regional Distribution Manager → 24 jam')
+    expect(screen.getAllByText('Recommended actions').length).toBeGreaterThan(0)
+  })
 })

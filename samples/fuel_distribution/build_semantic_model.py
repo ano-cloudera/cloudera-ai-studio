@@ -102,6 +102,7 @@ SPEC = {
          ["pencapaian kuota", "realisasi terhadap kuota", "realisasi vs kuota", "realisasi dibanding kuota", "serapan kuota", "quota attainment", "kuota terpakai"], "Realisasi dibagi kuota. Di atas 100 persen berarti kuota terlampaui."),
         ("sisa_kuota", "Sisa Kuota (KL)", "kuota_subsidi", "SUM(kuota_kl) - SUM(realisasi_kl)", "KL", ["sisa kuota", "kuota tersisa", "remaining quota", "kuota yang belum terpakai"], "Kuota dikurangi realisasi. Negatif berarti kuota sudah terlampaui."),
         ("jumlah_spbu", "Jumlah SPBU", "pelanggan", "COUNT(CASE WHEN segmen_bisnis = 'Ritel_SPBU' THEN kode_pelanggan END)", "stations", ["total spbu", "berapa spbu", "number of stations", "jumlah spbu kita"], "Jumlah SPBU yang terdaftar sebagai pelanggan."),
+        ("jumlah_pelanggan", "Jumlah Pelanggan", "pelanggan", "COUNT(kode_pelanggan)", "customers", ["total pelanggan", "jumlah pelanggan", "berapa pelanggan", "pelanggan kita", "number of customers", "total customers"], "Jumlah seluruh pelanggan yang terdaftar: SPBU dan pelanggan industri (B2B) bersama-sama."),
         ("jumlah_industri", "Jumlah Pelanggan Industri", "pelanggan", "COUNT(CASE WHEN segmen_bisnis = 'Industri_B2B' THEN kode_pelanggan END)", "customers", ["pelanggan b2b", "jumlah industri", "industrial customers", "pelanggan industri"], "Jumlah pelanggan industri (B2B) yang terdaftar."),
     ],
     # (key, term, definition, related metric keys). A term is left unrelated to any metric on purpose: a phrase such as "BBM subsidi" or

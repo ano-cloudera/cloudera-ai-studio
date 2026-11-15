@@ -11,8 +11,8 @@ vi.mock('recharts', () => {
     XAxis: ({ dataKey, tick, interval }: { dataKey?: string; tick?: { fontSize?: number }; interval?: number }) => <div data-testid="x-axis" data-key={dataKey} data-font-size={tick?.fontSize} data-interval={interval} />,
     YAxis: ({ dataKey, tick }: { dataKey?: string; tick?: { fontSize?: number } }) => <div data-testid="y-axis" data-key={dataKey} data-font-size={tick?.fontSize} />,
     Scatter: ({ name }: { name?: string }) => <div data-testid="scatter" data-name={name} />,
-    Bar: ({ dataKey, maxBarSize }: { dataKey?: string; maxBarSize?: number }) => <div data-testid="bar" data-key={dataKey} data-max-size={maxBarSize} />, Area: () => null, Line: () => null,
-    ComposedChart: container, LabelList: () => null, ReferenceLine: () => null,
+    Bar: ({ dataKey, maxBarSize, children }: { dataKey?: string; maxBarSize?: number; children?: React.ReactNode }) => <div data-testid="bar" data-key={dataKey} data-max-size={maxBarSize}>{children}</div>, Area: () => null, Line: () => null,
+    ComposedChart: container, LabelList: () => <div data-testid="value-labels" />, ReferenceLine: () => null,
   }
 })
 
@@ -128,5 +128,14 @@ describe('switching the view of a chart', () => {
     const rates = [{ regional: 'A', metric_value: 10 }, { regional: 'B', metric_value: 12 }]
     render(<AnswerChart chart={{ type: 'bar', title: 'Late rate', x: 'regional', y: 'metric_value' }} rows={rates} metric={{ unitFormat: 'percent' }} />)
     expect(screen.queryByTestId('chart-view-switch')).toBeNull()
+  })
+
+  it('writes the value on each bar in the chat when there are ten bars or fewer, and not when there are more', () => {
+    const rows = (n: number) => Array.from({ length: n }, (_, k) => ({ regional: `R${k}`, metric_value: 30 - k }))
+    render(<AnswerChart embedded chart={{ type: 'bar', title: 'Late rate', x: 'regional', y: 'metric_value' }} rows={rows(8)} metric={{ unitFormat: 'percent' }} />)
+    expect(screen.getAllByTestId('value-labels').length).toBeGreaterThan(0)
+    cleanup()
+    render(<AnswerChart embedded chart={{ type: 'bar', title: 'Late rate', x: 'regional', y: 'metric_value' }} rows={rows(12)} metric={{ unitFormat: 'percent' }} />)
+    expect(screen.queryAllByTestId('value-labels')).toHaveLength(0)
   })
 })

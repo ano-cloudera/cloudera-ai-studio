@@ -1,3 +1,5 @@
+import { ChevronDown } from 'lucide-react'
+import { useState } from 'react'
 import type { CitationRecord } from '../../types/api'
 import { citationPdfUrl } from '../../lib/ragReport'
 import { SourceFileIcon } from './SourceFileIcon'
@@ -7,6 +9,8 @@ type Props = {
   onViewSources?: () => void
   /** At most this many distinct files are listed inline. */
   limit?: number
+  /** Open when first shown (an export of the conversation keeps every source visible). */
+  defaultOpen?: boolean
 }
 
 type SourceGroup = {
@@ -34,11 +38,27 @@ export function groupSources(citations: CitationRecord[], limit: number): Source
 const LINK_CLASS = 'rounded-md outline-offset-2 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2'
 
 /** The sources under a document answer: a white card, one row per file, each page opening the original PDF. */
-export function RagSourcesList({ citations, onViewSources, limit = 5 }: Props) {
+export function RagSourcesList({ citations, onViewSources, limit = 5, defaultOpen = false }: Props) {
+  const [open, setOpen] = useState(defaultOpen)
   const groups = groupSources(citations, limit)
+  const pages = new Set(citations.filter(cite => cite.page_number != null).map(cite => `${cite.document_id || cite.filename}:${cite.page_number}`)).size
+  const summary = `${groups.length} ${groups.length === 1 ? 'document' : 'documents'}${pages ? ` · ${pages} ${pages === 1 ? 'page' : 'pages'}` : ''}`
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm" data-testid="rag-sources-card">
-      <div className="mb-2 text-xs font-semibold text-cloudera-navy">Sources</div>
+    <div className="rounded-xl border border-slate-200 bg-white shadow-sm" data-testid="rag-sources-card">
+      <button
+        type="button"
+        onClick={() => setOpen(previous => !previous)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-cloudera-orange"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-semibold text-cloudera-navy">Sources</span>
+          <span className="block truncate text-xs text-slate-600">{summary}</span>
+        </span>
+        <ChevronDown size={14} className={`shrink-0 text-slate-500 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden />
+      </button>
+      {open ? (
+      <div className="border-t border-slate-200/80 p-3">
       <ul className="space-y-1.5">
         {groups.map((group, index) => {
           const name = group.cite.filename?.trim() || `Document ${index + 1}`
@@ -99,6 +119,8 @@ export function RagSourcesList({ citations, onViewSources, limit = 5 }: Props) {
         >
           {citations.length} source{citations.length === 1 ? '' : 's'} · View sources
         </button>
+      ) : null}
+      </div>
       ) : null}
     </div>
   )

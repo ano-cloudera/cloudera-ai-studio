@@ -375,3 +375,37 @@ def test_a_report_without_a_summary_keeps_its_body_in_the_chat() -> None:
     assert old.executive_summary == "B"
     new = report_to_analysis(AgentReport(headline="H", summary="S", body="B"), unverified=[], language="id", data_reference="")
     assert new.executive_summary == "S"
+
+
+def test_the_recommended_actions_reach_the_response_as_a_table_and_their_figures_are_checked(monkeypatch) -> None:
+    from app.ask_data import value_filters
+
+    value_filters.clear_cache()
+
+    class Advising(AgentModel):
+        async def generate_structured(self, messages, model, **kwargs):
+            if model.__name__ == "AgentTurn":
+                if sum(1 for m in messages if m["role"] == "assistant") == 0:
+                    return model.model_validate({"calls": [_late([CARRIER], why="Per kurir")]})
+                return model.model_validate({"done": True})
+            if model.__name__ == "AgentReport":
+                return model.model_validate(
+                    {
+                        "headline": "NusaCargo paling sering terlambat.",
+                        "summary": "Tindakan pertama menyasar satu kurir.",
+                        "body": "### Rekomendasi Tindakan\n\nUrutan mengikuti dampak.",
+                        "recommendations": [
+                            {"priority": "Tinggi", "action": "Buat tiket tindak lanjut", "basis": "NusaCargo di atas rata-rata", "owner": "Regional Distribution Manager", "timeframe": "24 jam", "source": "SOP, hal. 1"},
+                            {"action": "   "},
+                        ],
+                        "show": 1,
+                    }
+                )
+            return await super().generate_structured(messages, model, **kwargs)
+
+    replay = Replay(monkeypatch, Advising())
+    request = AskDataRequest(session_id=replay.session_id, question="Late delivery rate per carrier, apa yang harus dilakukan?", provider="qwen", model="m", agent_all=True)
+    response = asyncio.run(AskDataAgent(replay.service).run(request))
+    assert response is not None
+    assert [r.action for r in response.recommendations] == ["Buat tiket tindak lanjut"]  # an empty row is dropped
+    assert response.recommendations[0].owner == "Regional Distribution Manager" and response.recommendations[0].source == "SOP, hal. 1"

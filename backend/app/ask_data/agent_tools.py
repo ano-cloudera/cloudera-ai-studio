@@ -96,10 +96,20 @@ class ProposedAction(_Lenient):
     arguments: dict[str, Any] = Field(default_factory=dict)
 
 
+class Recommendation(_Lenient):
+    priority: str = ""
+    action: str = ""
+    basis: str = ""
+    owner: str = ""
+    timeframe: str = ""
+    source: str = ""
+
+
 class AgentReport(_Lenient):
     headline: str
     summary: str = ""  # what the chat shows under the headline: the why, in a few conversational sentences
     body: str = ""  # the full analysis, shown in the analysis panel
+    recommendations: list[Recommendation] = Field(default_factory=list)  # recommended actions as a table, for a what-to-do question
     follow_up_questions: list[str] = Field(default_factory=list)
     show: int | None = None
     actions: list[ProposedAction] = Field(default_factory=list)
@@ -502,7 +512,8 @@ async def write_report(
     )
     allowed = _allowed_figures(calls, f"{question} {documents}".strip())
     has_data = any(item.ok and item.is_data for item in calls)
-    bad = figures_outside([report.headline, report.summary, report.body], allowed) if has_data else []
+    spoken = [report.headline, report.summary, report.body, *[f"{r.action} {r.basis}" for r in report.recommendations]]
+    bad = figures_outside(spoken, allowed) if has_data else []
     if bad:
         logger.info("agent_report_figures_unverified figures=%s", bad)
         messages += [
@@ -516,7 +527,8 @@ async def write_report(
         ]
         try:
             report = await provider.generate_structured(messages, AgentReport, temperature=0.1, max_tokens=2200)
-            bad = figures_outside([report.headline, report.summary, report.body], allowed) if has_data else []
+            spoken = [report.headline, report.summary, report.body, *[f"{r.action} {r.basis}" for r in report.recommendations]]
+            bad = figures_outside(spoken, allowed) if has_data else []
         except Exception:  # noqa: BLE001 - the first report stands, with its figures said to be unverified
             logger.warning("agent_report_repair_failed")
     return report, bad

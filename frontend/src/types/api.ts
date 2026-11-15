@@ -540,6 +540,8 @@ export type ChatResponse = {
   agent_steps?: AgentStepCard[] | null
   /** The agent's full analysis (markdown), shown in the panel; the chat shows its short summary. */
   analysis_report?: string | null
+  /** The agent's recommended actions as a table: what, why, who, by when and from which document. */
+  recommendations?: ActionRecommendation[] | null
   strategy:
     | 'governed'
     | 'sql_fallback'
@@ -1054,6 +1056,15 @@ export type ActionRecord = {
   /** How long the server took to answer, and the answer that proposed the action; older records have neither. */
   duration_ms?: number | null
   request_id?: string
+}
+
+export type ActionRecommendation = {
+  priority: string
+  action: string
+  basis: string
+  owner: string
+  timeframe: string
+  source: string
 }
 
 /** One check an agent made: what it looked at, how it went, a few rows and the governed SQL. */

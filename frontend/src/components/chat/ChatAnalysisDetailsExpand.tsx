@@ -2,7 +2,8 @@
 
 import { ChevronDown, Database } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import type { ChatResponse } from '../../types/api'
+import type { CalculationNote, ChatResponse } from '../../types/api'
+import { CalculationNoteRows } from './CalculationNoteBlock'
 import type { PresentationTier } from '../../lib/presentationTier'
 import { getPresentationTierConfig } from '../../lib/presentationTierConfig'
 import { DataTable } from '../DataTable'
@@ -24,6 +25,8 @@ type Props = {
   embedded?: boolean
   /** The data source note; shown at the bottom of the opened panel instead of as its own box. */
   footer?: ReactNode
+  /** How the figure was calculated: one row with the query, under one title, instead of a row of its own. */
+  calculation?: CalculationNote | null
 }
 
 export function ChatAnalysisDetailsExpand({
@@ -35,6 +38,7 @@ export function ChatAnalysisDetailsExpand({
   executiveQueryOnly = false,
   embedded = false,
   footer = null,
+  calculation = null,
 }: Props) {
   const defaultOpen = getPresentationTierConfig().chat_details_default_open
   const [open, setOpen] = useState(defaultOpen)
@@ -46,9 +50,12 @@ export function ChatAnalysisDetailsExpand({
   const showTableInExpand = hasTable && !executiveQueryOnly
   const [tab, setTab] = useState<DetailTab>(executiveQueryOnly && hasSql ? 'query' : hasTable || hasKpi ? 'data' : 'query')
 
-  if (!hasSql && !showTableInExpand && !hasKpi) return null
+  if (!hasSql && !showTableInExpand && !hasKpi && !calculation) return null
 
-  const label = executiveQueryOnly
+  const warnings = calculation ? calculation.checks.filter(check => check.status === 'warning').length : 0
+  const label = calculation
+    ? 'Query details'
+    : executiveQueryOnly
     ? 'View the executed query'
     : executiveMode
       ? 'Data details'
@@ -70,7 +77,11 @@ export function ChatAnalysisDetailsExpand({
         aria-expanded={open}
       >
         <Database size={14} className="shrink-0 text-cloudera-orange" aria-hidden />
-        {label}
+        <span className="min-w-0 flex-1">
+          <span className="block">{label}</span>
+          {calculation ? <span className="block truncate text-xs font-normal text-slate-600">{calculation.summary}</span> : null}
+        </span>
+        {warnings ? <span className="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">{warnings} to check</span> : null}
         <ChevronDown
           size={14}
           className={`ml-auto shrink-0 transition-transform ${open ? 'rotate-180' : ''}`}
@@ -79,6 +90,11 @@ export function ChatAnalysisDetailsExpand({
       </button>
       {open ? (
         <div className={`border-t border-slate-200/80 py-3 ${embedded ? 'px-4 sm:px-5' : 'px-3'}`}>
+          {calculation ? (
+            <dl className="mb-3 divide-y divide-slate-100 rounded-lg border border-slate-200/90 px-3 py-1" data-testid="query-details-calculation">
+              <CalculationNoteRows note={calculation} />
+            </dl>
+          ) : null}
           {showDataTab && showQueryTab && !executiveMode ? (
             <div className="mb-3 flex gap-1 rounded-lg bg-slate-100/80 p-1" role="tablist">
               <button
