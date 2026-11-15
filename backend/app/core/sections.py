@@ -78,7 +78,10 @@ def title_for(kind: str, language: str) -> str:
 
 
 def _clean(text: str) -> str:
-    return " ".join(str(text).split())
+    """One line of plain text, without the em dash the rest of an answer is also kept free of."""
+    from app.services.text_sanitize import without_em_dash  # noqa: PLC0415
+
+    return without_em_dash(" ".join(str(text).split()))
 
 
 def table_to_markdown(table: SectionTable | None) -> str:

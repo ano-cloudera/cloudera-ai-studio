@@ -289,6 +289,11 @@ class ActionRecommendation(StrictModel):
     timeframe: str = ""  # as a document states it; never made up
     source: str = ""  # the document and page the step comes from
 
+    @field_validator("priority", "action", "basis", "owner", "timeframe", "source", mode="before")
+    @classmethod
+    def _plain(cls, value: object) -> object:
+        return without_em_dash(" ".join(value.split())) if isinstance(value, str) else value
+
 
 class AgentStepCard(StrictModel):
     """One check the agent made, shown in the chat as it works and after: what it looked at, how it went, a few rows."""

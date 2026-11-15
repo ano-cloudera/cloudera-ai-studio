@@ -41,3 +41,12 @@ def test_a_document_answer_is_laid_out_with_steps_a_table_and_action_items_whate
     assert "### Tindak Lanjut\n\n- Regional Distribution Manager → membuat tiket prioritas tinggi → 24 jam" in answer  # an empty item is dropped
     english, *_ = normalize_rag_llm_output(out, "en")
     assert "### Handling Steps" in english and "### Action Items" in english
+
+
+def test_the_laid_out_analysis_and_the_recommendations_carry_no_em_dash() -> None:
+    from app.core.models import ActionRecommendation
+
+    markdown = sections_to_markdown([AnalysisSection(kind="findings", bullets=["Kertapati turun \u2014 Panjang naik"])], "id")
+    assert "\u2014" not in markdown
+    row = ActionRecommendation(action="Alihkan armada \u2014 sementara", basis="2.056 KL \u2014 Agustus")
+    assert "\u2014" not in row.action and "\u2014" not in row.basis

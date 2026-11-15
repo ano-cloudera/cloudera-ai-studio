@@ -781,7 +781,9 @@ class AskDataAgent:
         response = response.model_copy(update={"agent_steps": [AgentStepCard(**agent_tools.step_card(c)) for c in ran]})
         if report.summary.strip() and report.body.strip():
             # The chat shows the headline and the summary; the panel opens on the whole analysis, not on a copy of the chat.
-            response = response.model_copy(update={"analysis_report": report.body.strip()})
+            from app.services.text_sanitize import without_em_dash
+
+            response = response.model_copy(update={"analysis_report": without_em_dash(report.body.strip())})
         rows = [r for r in report.recommendations if r.action.strip()][:8]
         if rows:
             from app.core.models import ActionRecommendation
