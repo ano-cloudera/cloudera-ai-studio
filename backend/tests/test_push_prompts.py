@@ -137,3 +137,23 @@ def test_auto_scope_writes_where_the_prompt_applies_now_and_global_when_only_the
     assert script.target_scope(resolving("project"), "rag.system", "auto") == "project"
     assert script.target_scope(resolving("file"), "rag.system", "auto") == "global"
     assert script.target_scope(resolving("workspace"), "rag.system", "global") == "global"  # an explicit scope is kept
+
+
+def test_backend_version_says_when_a_restart_is_due_after_a_pull() -> None:
+    spec = importlib.util.spec_from_file_location("backend_version_under_test", ROOT / "scripts" / "backend_version.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert module.verdict("bd633f6", "bd633f6")[0] is True
+    ok, sentence = module.verdict("1c3e990", "bd633f6")
+    assert ok is False and "RESTART NEEDED" in sentence and "1c3e990" in sentence and "bd633f6" in sentence
+    assert module.verdict("unknown", "bd633f6")[0] is False
+
+
+def test_version_reports_the_commit_the_process_started_with() -> None:
+    from fastapi.testclient import TestClient
+
+    from app.main import RUNNING_COMMIT, create_app
+
+    assert RUNNING_COMMIT  # a short sha, or "unknown" outside a checkout
+    body = TestClient(create_app()).get("/version").json()
+    assert body["commit"] == RUNNING_COMMIT

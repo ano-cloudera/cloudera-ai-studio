@@ -116,3 +116,8 @@ planning rules in the prompt. So two checks moved into code (`app/ask_data/agent
   nowhere, `write_report` asks for one rewrite with those facts (folded into the figure-check repair; the model may leave it out).
 Also: sections of one kind share one heading (`sections._merged`); the em dash cleaner covers the panel analysis and recommendations; the judge reads the
 panel and the recommendations table; `scripts/judge_show.py <file> [turns]` prints the failed checks, the agent's steps and the full answer.
+
+After the first run with these guardrails the judge showed no "Konteks semua ..." step at all. Checked offline with the real fuel catalog
+(`build_catalog` from `tests/test_fuel_resolution.py`): `_context_calls` does add them for both judge queries, so the running Backend was most
+likely still the old code. `/version` now returns `commit` (read once at process start) and `python scripts/backend_version.py` compares it with
+`git rev-parse HEAD` and says "RESTART NEEDED" when they differ. Run it after every `git pull` before judging.
