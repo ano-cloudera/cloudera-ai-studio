@@ -455,7 +455,7 @@ CATALOG = {"metrics": [{"name": "late_rate", "label": "Late Rate", "breakdowns":
 
 
 def test_a_filtered_call_gets_the_same_call_over_every_group_of_the_filtered_dimension() -> None:
-    from app.ask_data.agent_tools import CONTEXT_CALLS_PER_RUN, _context_calls
+    from app.ask_data.agent_tools import CONTEXT_CALLS_PER_RUN, CONTEXT_CALLS_PER_TURN, _context_calls
 
     named = {"tool": "query_metric", "why": "Per provinsi", "query": {"metric": "late_rate", "breakdown": ["provinsi"], "filters": [{"dimension": "regional", "values": ["A", "B"]}], "by_month": True, "limit": 5}}
     fresh = [_item(1, named)]
@@ -477,7 +477,9 @@ def test_a_filtered_call_gets_the_same_call_over_every_group_of_the_filtered_dim
     seen: dict[str, int] = {}
     assert len(_context_calls(fresh, CATALOG, seen, "id", 0)) == 1 and _context_calls(fresh, CATALOG, seen, "id", 0) == []
     many = [_item(n, {"tool": "query_metric", "query": {"metric": "late_rate", "breakdown": ["provinsi"], "filters": [{"dimension": "regional", "values": [f"R{n}"]}], "period_start": f"2025-0{n}-01"}}) for n in range(1, 8)]
-    assert len(_context_calls(many[:3], CATALOG, {}, "id", 0)) <= CONTEXT_CALLS_PER_RUN
+    assert len(_context_calls(many, CATALOG, {}, "id", 0)) == CONTEXT_CALLS_PER_TURN  # at most this many in one turn
+    assert len(_context_calls(many, CATALOG, {}, "id", 0, earlier=CONTEXT_CALLS_PER_RUN - 1)) == 1  # and the run has a limit too
+    assert _context_calls(many, CATALOG, {}, "id", 0, earlier=CONTEXT_CALLS_PER_RUN) == []
 
 
 def _compare_item(rows: list[dict[str, Any]]):
@@ -537,3 +539,21 @@ def test_the_agent_runs_the_context_call_beside_a_filtered_one_and_the_report_se
     assert len(context) == 1 and context[0]["query"]["breakdown"] == [REGION] and "filters" not in context[0]["query"]  # every region, no filter
     assert context[0]["status"] == "ok" and context[0]["overall_value"] > 0  # with the overall value of everything
     assert any(title.startswith("Konteks semua") for title in titles)
+
+
+def test_a_result_by_two_dimensions_is_marked_so_its_figures_are_not_taken_for_one_of_them() -> None:
+    from types import SimpleNamespace
+
+    from app.ask_data.agent_tools import observation
+
+    data = SimpleNamespace(
+        status="SUCCESS", row_count=2, governed_metric="tingkat_keterlambatan", governed_metric_display_name="Tingkat Keterlambatan", unit_format="percent", governed_metric_expression="",
+        columns=["regional", "produk", "metric_value"], column_labels={"regional": "Regional", "produk": "Produk"}, overall_value=31.71,
+        rows=[{"regional": "Papua Maluku", "produk": "Biosolar", "metric_value": 39.2}, {"regional": "Kalimantan", "produk": "Pertalite", "metric_value": 33.37}],
+    )
+    item = _item(1, {"tool": "query_metric", "query": {"metric": "tingkat_keterlambatan", "breakdown": ["regional", "produk"]}})
+    item.response = SimpleNamespace(status="SUCCESS", data=data, answer=SimpleNamespace(caveats=[], direct_answer=""), calculation=None, citations=None)
+    one = observation(item)
+    assert "Regional x Produk combination" in one["row_grain"] and "never to Regional alone" in one["row_grain"]
+    data.columns = ["regional", "metric_value"]
+    assert "row_grain" not in observation(item)  # a breakdown by one dimension is the group's own figure

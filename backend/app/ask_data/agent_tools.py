@@ -220,6 +220,10 @@ def observation(item: Call) -> dict[str, Any]:
     }
     if data.row_count > len(rows):
         out["rows_shown"] = len(rows)
+    grain = [c for c in data.columns if c not in ("metric_value", "value_a", "value_b", "change", "change_pct") and rows and not isinstance(rows[0].get(c), (int, float))]
+    if len(grain) >= 2:
+        names = [str((data.column_labels or {}).get(c) or c) for c in grain]
+        out["row_grain"] = f"each row is one {' x '.join(names)} combination: a figure in it belongs to that combination, never to {names[0]} alone; for the figure of {names[0]} alone use a result broken down by {names[0]} only"
     computed = computed_figures(rows, data.overall_value, additive=is_additive({"expression": data.governed_metric_expression or ""}))
     if computed:
         out["computed"] = computed
@@ -378,21 +382,22 @@ def _result_word(item: Call, labels: dict[str, str]) -> str:
     return labels["rows"].format(n=len(item.response.citations or []))
 
 
-CONTEXT_CALLS_PER_RUN = 3
+CONTEXT_CALLS_PER_TURN = 4
+CONTEXT_CALLS_PER_RUN = 8  # they do not count against MAX_CALLS: the agent's own budget is for what it chooses to ask
 _SHIFT_SHARE = 0.5  # a group that rose by at least this share of what another fell by is where the amount went
 
 
-def _context_calls(fresh: list[Call], catalog: dict[str, Any], seen: dict[str, int], language: str, used: int) -> list[Call]:
+def _context_calls(fresh: list[Call], catalog: dict[str, Any], seen: dict[str, int], language: str, used: int, earlier: int = 0) -> list[Call]:
     """For a query or a comparison filtered to some groups ("regional: A, B"), the same call over every group of that dimension, with no
     filter on it. A filtered result hides the groups left out: each named group's own figure, the overall value of everything and the
     place an amount moved to are all in the part that was filtered away, and the model does not reliably ask for it. Added by code,
-    at most CONTEXT_CALLS_PER_RUN a run, only for a dimension the metric can be broken down by; an invalid or empty one is dropped
-    after it ran."""
+    at most CONTEXT_CALLS_PER_TURN a turn and CONTEXT_CALLS_PER_RUN a run (`earlier` are those of the turns before), only for a
+    dimension the metric can be broken down by; an invalid or empty one is dropped after it ran."""
     breakdowns = {m.get("name"): set(m.get("breakdowns") or []) for m in (catalog.get("metrics") or []) if isinstance(m, dict)}
     labels = {m.get("name"): m.get("label") or m.get("name") for m in (catalog.get("metrics") or []) if isinstance(m, dict)}
     added: list[Call] = []
     for item in fresh:
-        if used + len(fresh) + len(added) >= MAX_CALLS - 1 or sum(1 for c in fresh if c.context) + len(added) >= CONTEXT_CALLS_PER_RUN:
+        if len(added) >= CONTEXT_CALLS_PER_TURN or earlier + len(added) >= CONTEXT_CALLS_PER_RUN:
             break
         call = item.call
         spec = call.query if call.tool == "query_metric" else call.compare if call.tool == "compare" else None
@@ -508,7 +513,7 @@ async def explore(
         fresh: list[Call] = []
         repeated: list[dict[str, Any]] = []
         for call in turn.calls[:MAX_CALLS_PER_TURN]:
-            if len(calls) + len(fresh) >= MAX_CALLS:
+            if sum(1 for c in calls if not c.context) + len(fresh) >= MAX_CALLS:
                 break
             signature = _signature(call)
             if signature in seen:
@@ -519,7 +524,7 @@ async def explore(
             fresh.append(item)
         if not fresh:
             return  # done, or only repeats: the results so far are the answer
-        fresh.extend(_context_calls(fresh, catalog, seen, language, len(calls)))
+        fresh.extend(_context_calls(fresh, catalog, seen, language, len(calls), sum(1 for c in calls if c.context)))
         for item in fresh:
             yield {"type": "progress", "stage": "agent_step", "label": labels["run"].format(what=item.label())}
         pending = [
@@ -539,7 +544,7 @@ async def explore(
         for item in fresh:
             if item.problems:
                 seen.pop(_signature(item.call), None)  # a corrected call may look the same in a field that was fine
-        left_calls = MAX_CALLS - len(calls)
+        left_calls = MAX_CALLS - sum(1 for c in calls if not c.context)
         elapsed = perf_counter() - started
         if turn.done or left_calls <= 0 or elapsed >= EXPLORE_SECONDS or turn_number == MAX_TURNS:
             return
