@@ -231,3 +231,22 @@ def test_one_value_or_a_value_that_is_already_a_breakdown_needs_no_second_look(c
     both = Model({"metric": "total_volume", "breakdown": ["regional", "produk"], "filters": [{"dimension": "produk", "values": ["Biosolar", "Pertalite"]}], "language": "id"})
     _understand(ctx, both, "Perbandingan volume Biosolar dan Pertalite per regional")
     assert len(both.sent) == 1
+
+
+def test_values_the_question_names_but_the_reading_does_not_filter_are_put_to_the_model_once(ctx) -> None:
+    split_only = {"metric": "total_volume", "breakdown": ["regional", "produk"], "filters": [], "language": "id"}
+    both = {**split_only, "filters": [{"dimension": "produk", "values": ["Biosolar", "Pertalite"]}]}
+    model = Model(split_only, both)
+    resolution = _understand(ctx, model, "Bagaimana perbandingan volume penyaluran Biosolar dan Pertalite per regional?")
+    assert len(model.sent) == 2
+    assert "'Biosolar', 'Pertalite'" in model.sent[1][-1]["content"]
+    assert resolution["intent"]["filters"] == [{"dimension": "produk", "values": ["Biosolar", "Pertalite"]}]
+    assert resolution["intent"]["breakdown"] == ["regional", "produk"]
+
+
+def test_a_value_inside_a_longer_named_value_is_not_counted_and_a_single_name_outside_the_breakdown_is_left_alone(ctx) -> None:
+    assert u._named_values("Volume Pertamax Turbo per regional", ["Pertamax", "Pertamax Turbo", "Pertalite"]) == ["Pertamax Turbo"]
+    assert u._named_values("Volume Biosolar dan Pertalite", ["Biosolar", "Pertalite"]) == ["Biosolar", "Pertalite"]
+    model = Model({"metric": "total_volume", "breakdown": ["regional"], "filters": [], "language": "id"})
+    _understand(ctx, model, "Volume per regional, misalnya Biosolar")  # one name, not in the breakdown: no second look
+    assert len(model.sent) == 1

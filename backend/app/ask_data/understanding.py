@@ -137,7 +137,7 @@ def _canonical(value: str, known: list[str]) -> str | None:
     return next((k for k in known if " ".join(k.casefold().split()) == folded), None)
 
 
-def check(intent: QueryIntent, ctx: Any, values: dict[tuple[str, str], list[str]], *, pinned_metric: str | None = None) -> list[str]:
+def check(intent: QueryIntent, ctx: Any, values: dict[tuple[str, str], list[str]], *, pinned_metric: str | None = None, question: str = "") -> list[str]:
     """What is not valid in the intent, each said so the model can fix it."""
     problems: list[str] = []
     if pinned_metric and intent.metric != pinned_metric:
@@ -160,6 +160,17 @@ def check(intent: QueryIntent, ctx: Any, values: dict[tuple[str, str], list[str]
             problems.append(
                 f"breakdown '{key}' is also filtered to one value, so it gives a single row; break down by the dimension the question "
                 "compares within that value, or leave the breakdown out"
+            )
+    filtered = {f.dimension for f in intent.filters}
+    for key in supported:
+        if key in filtered:
+            continue
+        named = _named_values(question, values.get((dataset, key)) or [])
+        if named and (key in intent.breakdown or len(named) >= 2):
+            problems.append(
+                f"the question names {', '.join(repr(v) for v in named)}, which are values of '{key}', but there is no filter on '{key}', so every "
+                f"other value of '{key}' is included. If the question is about those values, add the filter (values copied exactly), keeping "
+                f"'{key}' in the breakdown when they are compared with each other. If they were only examples, keep it as it is."
             )
     for flt in intent.filters:
         if len({str(v).casefold() for v in flt.values}) >= 2 and flt.dimension in supported and flt.dimension not in intent.breakdown:
@@ -264,6 +275,14 @@ def _mentioned(value: str, question: str) -> bool:
     return any(a.startswith(w) or w.startswith(a) for w in _words(value) for a in asked if len(w) >= 3)
 
 
+def _named_values(question: str, known: list[str]) -> list[str]:
+    """The values of a dimension that the question names as whole words ("Biosolar" in "Biosolar dan Pertalite"). A value inside a
+    longer one that is also named ("Pertamax" in "Pertamax Turbo") is not counted."""
+    text = " ".join(_words(question))
+    found = [v for v in known if re.search(rf"(?<![0-9a-z]){re.escape(' '.join(_words(v)))}(?![0-9a-z])", text) and _words(v)]
+    return [v for v in found if not any(v != other and " ".join(_words(v)) in " ".join(_words(other)) for other in found)]
+
+
 def drop_carried_filters(intent: QueryIntent, question: str, conversation: list[dict[str, Any]] | None) -> tuple[QueryIntent, list[str]]:
     """A filter whose value is named in the earlier conversation but nowhere in the question was copied from it, not asked for.
 
@@ -312,7 +331,7 @@ async def understand(
         {"role": "user", "content": json.dumps(payload, ensure_ascii=False, default=str)},
     ]
     intent = await provider.generate_structured(messages, QueryIntent, temperature=0.0, max_tokens=700)
-    problems = check(intent, ctx, values, pinned_metric=pinned_metric)
+    problems = check(intent, ctx, values, pinned_metric=pinned_metric, question=question)
     if problems:
         logger.info("understanding_repair question=%r problems=%s", question[:160], problems)
         messages += [
