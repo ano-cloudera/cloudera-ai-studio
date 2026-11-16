@@ -283,6 +283,33 @@ def _named_values(question: str, known: list[str]) -> list[str]:
     return [v for v in found if not any(v != other and " ".join(_words(v)) in " ".join(_words(other)) for other in found)]
 
 
+def add_named_filters(intent: QueryIntent, question: str, ctx: Any, values: dict[tuple[str, str], list[str]]) -> tuple[QueryIntent, list[str]]:
+    """Two or more values of a dimension that the question names, and that the reading splits by but does not filter, are the
+    things being compared: the filter is added. (One name is left alone: a breakdown filtered to one value is a single row.)
+
+    This follows the question's own words, after the model has been asked once; a model that keeps leaving the filter out would
+    otherwise show every value of the dimension in a comparison of two."""
+    if not intent.metric or intent.metric not in ctx.metrics or not intent.breakdown:
+        return intent, []
+    dataset = str(ctx.metric_definition(intent.metric).get("base_dataset") or "")
+    filtered = {f.dimension for f in intent.filters}
+    added: list[IntentFilter] = []
+    notes: list[str] = []
+    for key in intent.breakdown:
+        if key in filtered:
+            continue
+        named = _named_values(question, values.get((dataset, key)) or [])
+        if len(named) >= 2:
+            added.append(IntentFilter(dimension=key, values=named))
+            notes.append(
+                f"{', '.join(named)} disebut di pertanyaan, jadi hanya itu yang dibandingkan." if intent.language == "id" else f"{', '.join(named)} named in the question, so only those are compared."
+            )
+    if not added:
+        return intent, []
+    logger.info("understanding_named_filters_added question=%r added=%s", question[:160], [(f.dimension, f.values) for f in added])
+    return intent.model_copy(update={"filters": [*intent.filters, *added]}), notes
+
+
 def drop_carried_filters(intent: QueryIntent, question: str, conversation: list[dict[str, Any]] | None) -> tuple[QueryIntent, list[str]]:
     """A filter whose value is named in the earlier conversation but nowhere in the question was copied from it, not asked for.
 
@@ -346,7 +373,8 @@ async def understand(
         intent = intent.model_copy(update={"metric": pinned_metric})
     intent, notes = _sanitise(intent, ctx, values)
     intent, carried = drop_carried_filters(intent, question, conversation)
-    notes = [*notes, *carried]
+    intent, named = add_named_filters(intent, question, ctx, values)
+    notes = [*notes, *carried, *named]
     logger.info(
         "understanding question=%r metric=%s breakdown=%s by_month=%s filters=%s period=%s..%s language=%s notes=%s",
         question[:160], intent.metric, intent.breakdown, intent.by_month, [(f.dimension, f.values) for f in intent.filters],

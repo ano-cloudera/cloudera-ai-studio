@@ -250,3 +250,19 @@ def test_a_value_inside_a_longer_named_value_is_not_counted_and_a_single_name_ou
     model = Model({"metric": "total_volume", "breakdown": ["regional"], "filters": [], "language": "id"})
     _understand(ctx, model, "Volume per regional, misalnya Biosolar")  # one name, not in the breakdown: no second look
     assert len(model.sent) == 1
+
+
+def test_a_comparison_of_two_named_values_is_filtered_to_them_even_when_the_model_keeps_leaving_the_filter_out(ctx) -> None:
+    split_only = {"metric": "total_volume", "breakdown": ["regional", "produk"], "filters": [], "language": "id"}
+    model = Model(split_only, split_only)  # asked once, and it answers the same
+    resolution = _understand(ctx, model, "Bagaimana perbandingan volume penyaluran Biosolar dan Pertalite per regional?")
+    assert resolution["intent"]["filters"] == [{"dimension": "produk", "values": ["Biosolar", "Pertalite"]}]
+    assert resolution["intent"]["breakdown"] == ["regional", "produk"]
+    assert any("Biosolar, Pertalite" in note for note in resolution["intent"]["notes"])
+
+
+def test_one_named_value_or_no_split_adds_no_filter_by_itself(ctx) -> None:
+    one = Model({"metric": "total_volume", "breakdown": ["regional", "produk"], "filters": [], "language": "id"}, {"metric": "total_volume", "breakdown": ["regional", "produk"], "filters": [], "language": "id"})
+    assert _understand(ctx, one, "Volume Biosolar per regional dan produk")["intent"]["filters"] == []
+    unsplit = Model({"metric": "total_volume", "breakdown": ["regional"], "filters": [], "language": "id"}, {"metric": "total_volume", "breakdown": ["regional"], "filters": [], "language": "id"})
+    assert _understand(ctx, unsplit, "Volume Biosolar dan Pertalite per regional")["intent"]["filters"] == []
