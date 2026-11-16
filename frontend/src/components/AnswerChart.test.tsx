@@ -164,3 +164,35 @@ describe('AnswerChart with many bars', () => {
     expect(screen.getByTestId('chart-more-note').textContent).toContain('first 15 of 30')
   })
 })
+
+describe('AnswerChart comparing two things', () => {
+  afterEach(cleanup)
+  const bar = { type: 'bar', x: 'regional', y: 'metric_value', title: 'Total volume per regional' } as never
+  const dataOf = () => JSON.parse(document.querySelector('[data-chart]')!.getAttribute('data-chart')!) as Record<string, unknown>[]
+
+  it('opens as stacked bars when a regional is split by product and the measure adds up', () => {
+    const rows = ['Jawa', 'Papua', 'Sulawesi'].flatMap((regional, i) => ['Biosolar', 'Pertalite'].map((produk, j) => ({ regional, produk, metric_value: 100 * (i + 1) + 10 * j })))
+    render(<AnswerChart chart={bar} rows={rows} metric={{ unitFormat: 'KL' }} />)
+    expect(screen.getByRole('button', { name: 'Stacked', pressed: true })).toBeTruthy()
+    const points = dataOf()
+    expect(points).toHaveLength(3) // one stack per regional
+    expect(points[0]).toMatchObject({ regional: 'Sulawesi', Biosolar: 300, Pertalite: 310 }) // the largest first
+  })
+
+  it('keeps the five largest products and adds the rest into "Others" for an amount', () => {
+    const products = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+    const rows = ['Jawa', 'Papua'].flatMap(regional => products.map((produk, j) => ({ regional, produk, metric_value: 100 - j * 10 })))
+    render(<AnswerChart chart={bar} rows={rows} metric={{ unitFormat: 'KL' }} />)
+    const first = dataOf()[0]
+    expect(Object.keys(first).filter(key => !['regional'].includes(key)).sort()).toEqual(['A', 'B', 'C', 'D', 'E', 'Others'])
+    expect(first.Others).toBe(50 + 40) // F and G, the two smallest, added together
+  })
+
+  it('never stacks a rate: with many series it falls back to one labelled bar per pair', () => {
+    const products = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+    const rows = ['Jawa', 'Papua'].flatMap(regional => products.map((produk, j) => ({ regional, produk, metric_value: 10 + j })))
+    render(<AnswerChart chart={bar} rows={rows} metric={{ unitFormat: 'percent' }} />)
+    expect(screen.queryByRole('button', { name: 'Stacked' })).toBeNull()
+    expect(String(dataOf()[0].__category)).toContain(' · ')
+  })
+})

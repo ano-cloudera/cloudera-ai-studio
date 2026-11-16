@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { GRAPHIC_FONT, LEGEND_FONT } from '../lib/vizType'
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, LabelList, Legend, Line, LineChart, Pie, PieChart, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts'
-import { chartViews, differenceRows, paretoRows, type ChartView } from '../lib/chartViews'
+import { chartViews, differenceRows, isAdditiveUnit, paretoRows, type ChartView } from '../lib/chartViews'
 import type { ChartSpec } from '../types/api'
 import { truncateAxisLabel } from '../lib/answerFormatting'
 import {
@@ -72,26 +72,59 @@ export function AnswerChart({
   /** The metric over all groups, when known: it allows the "vs overall" view of a rate. */
   overall?: number | null
 }) {
-  const [picked, setPicked] = useState<ChartView>('native')
+  const [picked, setPicked] = useState<ChartView | null>(null)
   if (!chart || chart.type === 'table' || chart.type === 'kpi' || !chart.x || !chart.y || !rows.length) return null
   // A series must be a category: the value column (or the x axis) as a series gives each point its own colour and a
   // legend made of numbers.
   const declaredSeries = chart.series ?? null
-  const seriesSample = declaredSeries ? rows[0]?.[declaredSeries] : undefined
-  const series =
-    declaredSeries &&
-    declaredSeries !== chart.y &&
-    declaredSeries !== chart.x &&
-    typeof seriesSample !== 'number' &&
-    declaredSeries in (rows[0] ?? {})
-      ? declaredSeries
+  // A result with two text columns where the first repeats (a regional for each product) is a comparison: the second column is the
+  // series, even when the model did not say so.
+  const inferredSeries =
+    !declaredSeries && chart.type === 'bar' && new Set(rows.map(row => String(row[chart.x!] ?? ''))).size < rows.length
+      ? Object.keys(rows[0] ?? {}).find(
+          column =>
+            column !== chart.x &&
+            column !== chart.y &&
+            !column.startsWith('__') &&
+            rows.every(row => typeof row[column] === 'string') &&
+            new Set(rows.map(row => `${String(row[chart.x!] ?? '')}\u0000${String(row[column] ?? '')}`)).size === rows.length,
+        ) ?? null
       : null
-  const seriesNames = series ? [...new Set(rows.map(row => String(row[series!] ?? 'Unknown')))] : []
+  const candidateSeries = declaredSeries ?? inferredSeries
+  const seriesSample = candidateSeries ? rows[0]?.[candidateSeries] : undefined
+  const validSeries =
+    candidateSeries &&
+    candidateSeries !== chart.y &&
+    candidateSeries !== chart.x &&
+    typeof seriesSample !== 'number' &&
+    candidateSeries in (rows[0] ?? {})
+      ? candidateSeries
+      : null
+  const additiveMeasure = typeof metric?.additive === 'boolean' ? metric.additive : isAdditiveUnit(metric?.unitFormat)
+  // Six colours are readable. More series are kept as the five largest plus "Others" when the measure adds up (a volume does); a
+  // rate cannot be added, so it falls back to one bar per pair.
+  const MAX_SERIES = 6
+  const othersName = (metric?.locale ?? '').startsWith('id') ? 'Lainnya' : 'Others'
+  const seriesRows: Record<string, unknown>[] = (() => {
+    if (!validSeries) return rows
+    const names = [...new Set(rows.map(row => String(row[validSeries] ?? 'Unknown')))]
+    if (names.length <= MAX_SERIES || !additiveMeasure) return rows
+    const totals = new Map<string, number>()
+    for (const row of rows) {
+      const name = String(row[validSeries] ?? 'Unknown')
+      totals.set(name, (totals.get(name) ?? 0) + (Number(row[chart.y!]) || 0))
+    }
+    const keep = new Set([...names].sort((a, b) => (totals.get(b) ?? 0) - (totals.get(a) ?? 0)).slice(0, MAX_SERIES - 1))
+    return rows.map(row => (keep.has(String(row[validSeries] ?? 'Unknown')) ? row : { ...row, [validSeries]: othersName }))
+  })()
+  const tooManySeries = Boolean(validSeries) && !additiveMeasure && new Set(rows.map(row => String(row[validSeries!] ?? ''))).size > MAX_SERIES
+  const series = tooManySeries ? null : validSeries
+  const seriesNames = series ? [...new Set(seriesRows.map(row => String(row[series!] ?? 'Unknown')))] : []
   const flattenRankingSeries = chart.type === 'bar' && Boolean(series) && rows.length > 1 && seriesNames.length === rows.length
   // The same label on several bars (a terminal that serves three provinces) is not a label: the other text column of the row is
   // added, so each bar says what it is ("Panjang · Lampung").
   const labelExtra =
-    !series && chart.type === 'bar' && new Set(rows.map(row => String(row[chart.x!] ?? ''))).size < rows.length
+    !series && chart.type === 'bar' && !declaredSeries && new Set(rows.map(row => String(row[chart.x!] ?? ''))).size < rows.length
       ? Object.keys(rows[0] ?? {}).find(
           column => column !== chart.x && column !== chart.y && !column.startsWith('__') && rows.every(row => typeof row[column] === 'string'),
         ) ?? null
@@ -123,10 +156,12 @@ export function AnswerChart({
   let data: Record<string, unknown>[] = flattenRankingSeries
     ? rows.map(row => ({ ...row, __category: `${String(row[chart.x!] ?? '')} · ${String(row[series!] ?? 'Unknown')}`, [yField]: toDisplayY(row[yField]) }))
     : seriesNames.length
-    ? [...rows.reduce((groups, row) => {
+    ? [...seriesRows.reduce((groups, row) => {
         const category = String(row[chart.x!] ?? '')
         const point = groups.get(category) || { [chart.x!]: row[chart.x!] }
-        point[String(row[series!] ?? 'Unknown')] = toDisplayY(row[chart.y!])
+        const name = String(row[series!] ?? 'Unknown')
+        // Rows folded into "Others" land on the same key, so they add up.
+        point[name] = (Number(point[name]) || 0) + toDisplayY(row[chart.y!])
         groups.set(category, point)
         return groups
       }, new Map<string, Record<string, unknown>>()).values()]
@@ -146,6 +181,11 @@ export function AnswerChart({
         formatTimeAxisLabel(row[chart.x!]) ??
         truncateAxisLabel(String(row[chart.x!] ?? ''), 16),
     }))
+  }
+  // A comparison reads from the largest group down.
+  if (series && !timeOnX && data.length > 1) {
+    const total = (row: Record<string, unknown>) => seriesNames.reduce((sum, name) => sum + (Number(row[name]) || 0), 0)
+    data = [...data].sort((left, right) => total(right) - total(left))
   }
   const displayXKey = timeOnX ? '__time_tick' : xKey
   const categoryCount = data.length
@@ -229,15 +269,21 @@ export function AnswerChart({
     type: chart.type,
     values: rawYValues,
     unitFormat: metric?.unitFormat,
-    additive: metric?.additive,
+    additive: additiveMeasure,
     overall,
     hasSeries: visibleSeriesNames.length > 0,
     timeOnX,
   })
-  const view: ChartView = views.some(option => option.id === picked) ? picked : 'native'
+  // A comparison of an amount that adds up opens as stacked bars: the whole and its parts in one picture.
+  const preferred: ChartView = series && additiveMeasure && views.some(option => option.id === 'stacked') ? 'stacked' : 'native'
+  const view: ChartView = picked && views.some(option => option.id === picked) ? picked : preferred
   // More than ten bars: horizontal, so every name reads in full on its own line instead of leaning against its neighbours. A very
   // long list shows its first fifteen (the order is the ranking) and says where the rest is.
-  const horizontal = chart.type === 'bar' && !series && !timeOnX && categoryCount > 10 && (view === 'native' || view === 'bar')
+  const longestLabel = Math.max(0, ...data.map(row => String(row[displayXKey] ?? '').length))
+  const horizontal =
+    chart.type === 'bar' &&
+    !timeOnX &&
+    ((!series && categoryCount > 10 && (view === 'native' || view === 'bar')) || (Boolean(series) && view === 'stacked' && (categoryCount > 6 || longestLabel > 14)))
   const HORIZONTAL_MAX = 15
   const horizontalData = horizontal ? data.slice(0, HORIZONTAL_MAX) : data
   const horizontalLabelWidth = Math.min(
@@ -318,7 +364,7 @@ export function AnswerChart({
         </p>
       )}
       {/* No series animation: the chart is whole the moment it appears, so a PDF export never captures it half-drawn. */}
-      <div className={horizontal ? '' : chartHeight} style={horizontal ? { height: Math.max(180, horizontalData.length * 26 + 16) } : undefined} data-testid={horizontal ? 'chart-horizontal' : undefined}>
+      <div className={horizontal ? '' : chartHeight} style={horizontal ? { height: Math.max(180, horizontalData.length * 26 + 16 + (series ? 60 : 0)) } : undefined} data-testid={horizontal ? 'chart-horizontal' : undefined}>
         <ResponsiveContainer width="100%" height="100%">
     {view === 'pareto' ? (
       <ComposedChart data={paretoRows(labelRows, chart.x!, yField)} margin={chartMargin}>
@@ -359,9 +405,13 @@ export function AnswerChart({
     ) : view === 'line' ? (
       <LineChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => <Line key={key} dataKey={key} name={key === 'metric_value' ? valueName : formatBusinessLabel(key)} stroke={COLORS[index % COLORS.length]} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />)}</LineChart>
     ) : horizontal ? (
-      <BarChart layout="vertical" data={horizontalData} margin={{ top: 4, right: 64, bottom: 4, left: 4 }} barCategoryGap={6}>
+      <BarChart layout="vertical" data={horizontalData} margin={{ top: series ? 28 : 4, right: series ? 16 : 64, bottom: series ? 8 : 4, left: 4 }} barCategoryGap={6}>
         <CartesianGrid horizontal={false} stroke="#E7E8F0" />
-        <XAxis type="number" hide domain={[0, yCeiling]} />
+        {series ? (
+          <XAxis type="number" orientation="bottom" tick={tick} axisLine={false} tickLine={false} tickFormatter={formatAxisNumber} />
+        ) : (
+          <XAxis type="number" hide domain={[0, yCeiling]} />
+        )}
         <YAxis
           type="category"
           dataKey={displayXKey}
@@ -373,15 +423,29 @@ export function AnswerChart({
           tickFormatter={value => truncateAxisLabel(value, 36)}
         />
         <Tooltip
-          formatter={(value: unknown) => [formatValue(value), valueName]}
+          formatter={(value: unknown, name: unknown) => [formatValue(value), series ? String(name ?? '') : valueName]}
           labelFormatter={label => String(label)}
         />
-        <Bar dataKey={yField} name={valueName} fill={COLORS[0]} radius={[0, 6, 6, 0]} barSize={14} isAnimationActive={false}>
-          <LabelList dataKey={yField} position="right" formatter={(value: unknown) => formatValue(value)} style={{ fontSize: GRAPHIC_FONT, fill: '#475569' }} />
-        </Bar>
+        {series ? (
+          <>
+            <Legend
+              verticalAlign="top"
+              align="left"
+              wrapperStyle={{ fontSize: LEGEND_FONT, paddingBottom: 6 }}
+              formatter={(value: unknown) => <span style={{ color: '#334155' }}>{String(value)}</span>}
+            />
+            {keys.map((key, index) => (
+              <Bar key={key} dataKey={key} name={key} fill={key === othersName ? '#CBD5E1' : PIE_COLORS[index % PIE_COLORS.length]} stackId="stack" barSize={16} isAnimationActive={false} />
+            ))}
+          </>
+        ) : (
+          <Bar dataKey={yField} name={valueName} fill={COLORS[0]} radius={[0, 6, 6, 0]} barSize={14} isAnimationActive={false}>
+            <LabelList dataKey={yField} position="right" formatter={(value: unknown) => formatValue(value)} style={{ fontSize: GRAPHIC_FONT, fill: '#475569' }} />
+          </Bar>
+        )}
       </BarChart>
     ) : view === 'bar' || view === 'stacked' || chart.type === 'bar' ? <BarChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => (
-            <Bar key={key} dataKey={key} name={key === 'metric_value' ? valueName : key} fill={COLORS[index % COLORS.length]} radius={view === 'stacked' ? [0, 0, 0, 0] : [6, 6, 0, 0]} maxBarSize={54} stackId={view === 'stacked' ? 'stack' : undefined} isAnimationActive={false}>
+            <Bar key={key} dataKey={key} name={key === 'metric_value' ? valueName : key} fill={key === othersName ? '#CBD5E1' : (series ? PIE_COLORS : COLORS)[index % (series ? PIE_COLORS : COLORS).length]} radius={view === 'stacked' ? [0, 0, 0, 0] : [6, 6, 0, 0]} maxBarSize={54} stackId={view === 'stacked' ? 'stack' : undefined} isAnimationActive={false}>
               {valueLabels && <LabelList dataKey={key} position="top" formatter={(value: unknown) => formatValue(value)} style={{ fontSize: GRAPHIC_FONT, fill: '#475569' }} />}
             </Bar>
           ))}</BarChart>
