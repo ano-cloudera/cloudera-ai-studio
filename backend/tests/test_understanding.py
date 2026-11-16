@@ -204,3 +204,30 @@ def test_a_filter_the_question_names_is_kept_even_when_the_conversation_names_it
 def test_without_a_conversation_the_filters_are_untouched(ctx) -> None:
     model = Model({"metric": "tingkat_keterlambatan", "breakdown": [], "filters": [{"dimension": "regional", "values": ["Sulawesi"]}], "language": "id"})
     assert _understand(ctx, model, "Keterlambatan di wilayah timur")["intent"]["filters"] == [{"dimension": "regional", "values": ["Sulawesi"]}]
+
+
+def test_two_values_filtered_but_not_split_are_asked_about_once_and_the_corrected_reading_is_used(ctx) -> None:
+    summed = {"metric": "total_volume", "breakdown": ["regional"], "filters": [{"dimension": "produk", "values": ["Biosolar", "Pertalite"]}], "language": "id"}
+    split = {**summed, "breakdown": ["regional", "produk"]}
+    model = Model(summed, split)
+    resolution = _understand(ctx, model, "Bagaimana perbandingan volume penyaluran Biosolar dan Pertalite per regional?")
+    assert len(model.sent) == 2  # the first reading was questioned once
+    assert "added into one" in model.sent[1][-1]["content"]
+    assert resolution["intent"]["breakdown"] == ["regional", "produk"]
+    assert resolution["intent"]["filters"] == [{"dimension": "produk", "values": ["Biosolar", "Pertalite"]}]
+
+
+def test_the_model_may_keep_two_values_added_together_when_the_question_asks_for_them_together(ctx) -> None:
+    together = {"metric": "total_volume", "breakdown": ["regional"], "filters": [{"dimension": "produk", "values": ["Biosolar", "Pertalite"]}], "language": "id"}
+    model = Model(together, together)
+    resolution = _understand(ctx, model, "Berapa total volume Biosolar dan Pertalite per regional?")
+    assert resolution["intent"]["breakdown"] == ["regional"]  # the second reading stands; the code does not force a split
+
+
+def test_one_value_or_a_value_that_is_already_a_breakdown_needs_no_second_look(ctx) -> None:
+    one = Model({"metric": "total_volume", "breakdown": ["regional"], "filters": [{"dimension": "produk", "values": ["Biosolar"]}], "language": "id"})
+    _understand(ctx, one, "Volume Biosolar per regional")
+    assert len(one.sent) == 1
+    both = Model({"metric": "total_volume", "breakdown": ["regional", "produk"], "filters": [{"dimension": "produk", "values": ["Biosolar", "Pertalite"]}], "language": "id"})
+    _understand(ctx, both, "Perbandingan volume Biosolar dan Pertalite per regional")
+    assert len(both.sent) == 1

@@ -161,6 +161,13 @@ def check(intent: QueryIntent, ctx: Any, values: dict[tuple[str, str], list[str]
                 f"breakdown '{key}' is also filtered to one value, so it gives a single row; break down by the dimension the question "
                 "compares within that value, or leave the breakdown out"
             )
+    for flt in intent.filters:
+        if len({str(v).casefold() for v in flt.values}) >= 2 and flt.dimension in supported and flt.dimension not in intent.breakdown:
+            problems.append(
+                f"the filter on '{flt.dimension}' keeps {len(flt.values)} values, but '{flt.dimension}' is not in the breakdown, so their figures "
+                "are added into one. If the question compares those values with each other (\"perbandingan\", \"bandingkan\", \"vs\"), add "
+                f"'{flt.dimension}' to the breakdown, after the dimension they are compared across. If the question asks for them together, keep it as it is."
+            )
     if intent.by_month and not any(k in times for k in allowed):
         problems.append(f"'{intent.metric}' cannot be split by month")
     for flt in intent.filters:
