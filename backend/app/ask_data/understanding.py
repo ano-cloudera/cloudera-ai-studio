@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from datetime import date
 from pathlib import Path
 from typing import Any, Literal
@@ -246,6 +247,39 @@ def to_resolution(intent: QueryIntent, ctx: Any, notes: list[str]) -> dict[str, 
     }
 
 
+def _words(text: str) -> list[str]:
+    return [w for w in re.split(r"[^0-9a-z]+", str(text).casefold()) if w]
+
+
+def _mentioned(value: str, question: str) -> bool:
+    """Whether the question names the value, in full or by a part or an abbreviation of it ("Jatim" for "Jatimbalinus")."""
+    asked = [w for w in _words(question) if len(w) >= 4]
+    return any(a.startswith(w) or w.startswith(a) for w in _words(value) for a in asked if len(w) >= 3)
+
+
+def drop_carried_filters(intent: QueryIntent, question: str, conversation: list[dict[str, Any]] | None) -> tuple[QueryIntent, list[str]]:
+    """A filter whose value is named in the earlier conversation but nowhere in the question was copied from it, not asked for.
+
+    The question is already written out in full, so what it limits itself to is in it. A value named only in the conversation
+    ("Sulawesi", from a turn before) would silently narrow a question that asks about everything."""
+    if not conversation or not intent.filters:
+        return intent, []
+    history = json.dumps(conversation[-4:], ensure_ascii=False, default=str).casefold()
+    kept: list[IntentFilter] = []
+    notes: list[str] = []
+    indonesian = intent.language == "id"
+    for flt in intent.filters:
+        values = [v for v in flt.values if _mentioned(str(v), question) or " ".join(str(v).casefold().split()) not in history]
+        for value in (v for v in flt.values if v not in values):
+            notes.append(f"{value} hanya disebut di percakapan sebelumnya, jadi tidak dipakai sebagai filter." if indonesian else f"{value} was named only earlier in the conversation, so it was not used as a filter.")
+        if values:
+            kept.append(IntentFilter(dimension=flt.dimension, values=values))
+    if not notes:
+        return intent, []
+    logger.info("understanding_carried_filters_dropped question=%r dropped=%s", question[:160], notes)
+    return intent.model_copy(update={"filters": kept}), notes
+
+
 async def understand(
     provider: Any,
     *,
@@ -285,6 +319,8 @@ async def understand(
     if pinned_metric and intent.metric != pinned_metric and pinned_metric in ctx.metrics:
         intent = intent.model_copy(update={"metric": pinned_metric})
     intent, notes = _sanitise(intent, ctx, values)
+    intent, carried = drop_carried_filters(intent, question, conversation)
+    notes = [*notes, *carried]
     logger.info(
         "understanding question=%r metric=%s breakdown=%s by_month=%s filters=%s period=%s..%s language=%s notes=%s",
         question[:160], intent.metric, intent.breakdown, intent.by_month, [(f.dimension, f.values) for f in intent.filters],

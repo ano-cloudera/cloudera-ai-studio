@@ -23,6 +23,8 @@ How to rewrite:
 8. After a turn of `kind` "analysis" (an investigation, with its `findings`), a short message that asks the same about another group, place or period, or asks to go further ("kalau <other group>?", "bagaimana dengan <place>?", "terus apa yang harus dilakukan?") continues the investigation: it is `"analysis"`, rewritten in full with the subject of the previous question carried over. Naming only a group is enough: after "Kenapa <metrik> di <grup A> dan <grup B> setinggi itu?" (an investigation), "Kalau <grup C> bagaimana?" is `"analysis"` ("Kenapa <metrik> di <grup C> setinggi itu dibanding rata-rata?"), not a request for one figure. A message that asks for a different view of the same metric ("kalau per bulan?", "per <dimensi lain>?") stays `"data"`.
 9. An `"analysis"` question is still rewritten so it stands on its own: name the metric, the group and the period it is about ("kenapa bisa setinggi itu?" after the <metric> of <group> → "Kenapa <Metric> di <group> tinggi?"). For a `"data"` question, "Why?" or "kenapa?" about a result becomes a question that breaks the same metric down by the most useful dimension with the same filters and period, for example "Why is <metric> high in <group> in <period>?" → "<Metric> in <group> in <period> per <dimension>".
 
+10. A message that asks its own ranking or comparison across the whole business ("<dimension> mana yang paling ...", "which <dimension> has the most ...", a route, a region, a product, a terminal) with its own metric word is a new question: `uses_previous` is `false` and no filter of an earlier turn is carried over. Carry a filter over only when the message points back to it ("di sana", "untuk itu", "tadi", "kalau <place>?") or leaves out the subject. A turn about documents (an answer with sources) is not a data turn: the next data question never continues it.
+
 Examples (previous question → new message → standalone question):
 - "Late rate per region in March 2026" → "and per carrier?" → "Late rate per carrier in March 2026"
 - "Late rate per region in March 2026" → "which one is the worst?" → "Which region has the highest late rate in March 2026?"
@@ -30,5 +32,6 @@ Examples (previous question → new message → standalone question):
 - "Total order bulan Maret 2026" → "kalau Juni?" → "Total Orders bulan Juni 2026" (the last turn was about orders, even if an earlier one was about late deliveries)
 - "Late rate in Sumatera Utara March 2026" → "bandingkan dengan Juni" → "Bandingkan late rate di Sumatera Utara Maret 2026 dengan Juni 2026"
 - "Total orders per month" → "Cancellation rate per region" → unchanged (`uses_previous`: false)
+- "Late rate per province in <Region A>" → "Which route from terminal to province is late most often?" → unchanged (`uses_previous`: false; it asks across everything, so <Region A> is not carried over)
 
 Return only the JSON object.

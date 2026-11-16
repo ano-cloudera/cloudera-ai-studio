@@ -88,7 +88,16 @@ export function AnswerChart({
       : null
   const seriesNames = series ? [...new Set(rows.map(row => String(row[series!] ?? 'Unknown')))] : []
   const flattenRankingSeries = chart.type === 'bar' && Boolean(series) && rows.length > 1 && seriesNames.length === rows.length
-  const xKey = flattenRankingSeries ? '__category' : chart.x
+  // The same label on several bars (a terminal that serves three provinces) is not a label: the other text column of the row is
+  // added, so each bar says what it is ("Panjang · Lampung").
+  const labelExtra =
+    !series && chart.type === 'bar' && new Set(rows.map(row => String(row[chart.x!] ?? ''))).size < rows.length
+      ? Object.keys(rows[0] ?? {}).find(
+          column => column !== chart.x && column !== chart.y && !column.startsWith('__') && rows.every(row => typeof row[column] === 'string'),
+        ) ?? null
+      : null
+  const labelRows = labelExtra ? rows.map(row => ({ ...row, [chart.x!]: `${String(row[chart.x!] ?? '')} · ${String(row[labelExtra] ?? '')}` })) : rows
+  const xKey = flattenRankingSeries || labelExtra ? '__category' : chart.x
   const visibleSeriesNames = flattenRankingSeries ? [] : seriesNames
   const yField = chart.y!
   const coerceY = (value: unknown): number | null => {
@@ -111,7 +120,7 @@ export function AnswerChart({
     const numeric = coerceY(value) ?? 0
     return scaleRatioToPercent ? numeric * 100 : numeric
   }
-  let data = flattenRankingSeries
+  let data: Record<string, unknown>[] = flattenRankingSeries
     ? rows.map(row => ({ ...row, __category: `${String(row[chart.x!] ?? '')} · ${String(row[series!] ?? 'Unknown')}`, [yField]: toDisplayY(row[yField]) }))
     : seriesNames.length
     ? [...rows.reduce((groups, row) => {
@@ -121,7 +130,11 @@ export function AnswerChart({
         groups.set(category, point)
         return groups
       }, new Map<string, Record<string, unknown>>()).values()]
-    : rows.map(row => ({ ...row, [yField]: toDisplayY(row[yField]) }))
+    : rows.map(row => ({
+        ...row,
+        ...(labelExtra ? { __category: `${String(row[chart.x!] ?? '')} · ${String(row[labelExtra] ?? '')}` } : {}),
+        [yField]: toDisplayY(row[yField]),
+      }))
   const timeOnX = isTimeAxisField(chart.x ?? '')
   if (timeOnX && data.length > 1) {
     data = [...data].sort((left, right) =>
@@ -222,6 +235,15 @@ export function AnswerChart({
     timeOnX,
   })
   const view: ChartView = views.some(option => option.id === picked) ? picked : 'native'
+  // More than ten bars: horizontal, so every name reads in full on its own line instead of leaning against its neighbours. A very
+  // long list shows its first fifteen (the order is the ranking) and says where the rest is.
+  const horizontal = chart.type === 'bar' && !series && !timeOnX && categoryCount > 10 && (view === 'native' || view === 'bar')
+  const HORIZONTAL_MAX = 15
+  const horizontalData = horizontal ? data.slice(0, HORIZONTAL_MAX) : data
+  const horizontalLabelWidth = Math.min(
+    240,
+    Math.max(96, Math.max(0, ...horizontalData.map(row => Math.min(36, String(row[displayXKey] ?? '').length))) * 6.3 + 14),
+  )
   const pointGap = (value: number) =>
     metric?.unitFormat === 'percent'
       ? `${value > 0 ? '+' : value < 0 ? '-' : ''}${Math.abs(value).toLocaleString(locale, { maximumFractionDigits: 2 })} pts`
@@ -296,10 +318,10 @@ export function AnswerChart({
         </p>
       )}
       {/* No series animation: the chart is whole the moment it appears, so a PDF export never captures it half-drawn. */}
-      <div className={chartHeight}>
+      <div className={horizontal ? '' : chartHeight} style={horizontal ? { height: Math.max(180, horizontalData.length * 26 + 16) } : undefined} data-testid={horizontal ? 'chart-horizontal' : undefined}>
         <ResponsiveContainer width="100%" height="100%">
     {view === 'pareto' ? (
-      <ComposedChart data={paretoRows(rows, chart.x!, yField)} margin={chartMargin}>
+      <ComposedChart data={paretoRows(labelRows, chart.x!, yField)} margin={chartMargin}>
         <CartesianGrid vertical={false} stroke="#E7E8F0" />
         {xAxis}
         <YAxis yAxisId="value" tick={tick} axisLine={false} tickLine={false} width={56} tickFormatter={formatAxisNumber} />
@@ -313,14 +335,14 @@ export function AnswerChart({
         <Line yAxisId="share" dataKey="__cumulative" name="__cumulative" stroke={COLORS[1]} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
       </ComposedChart>
     ) : view === 'vs_overall' && typeof overall === 'number' ? (
-      <BarChart data={differenceRows(rows, chart.x!, yField, overall)} margin={chartMargin}>
+      <BarChart data={differenceRows(labelRows, chart.x!, yField, overall)} margin={chartMargin}>
         <CartesianGrid vertical={false} stroke="#E7E8F0" />
         {xAxis}
         <YAxis tick={tick} axisLine={false} tickLine={false} width={56} />
         <Tooltip formatter={(value: unknown) => [pointGap(Number(value)), `vs overall ${formatValue(overall)}`]} />
         <ReferenceLine y={0} stroke="#17113F" strokeWidth={1} />
         <Bar dataKey="__difference" name="__difference" radius={[4, 4, 4, 4]} maxBarSize={54} isAnimationActive={false}>
-          {differenceRows(rows, chart.x!, yField, overall).map((row, index) => (
+          {differenceRows(labelRows, chart.x!, yField, overall).map((row, index) => (
             <Cell key={index} fill={(row.__difference as number) > 0 ? COLORS[0] : COLORS[1]} />
           ))}
           {labelled && <LabelList dataKey="__difference" position="top" formatter={(value: unknown) => pointGap(Number(value))} style={{ fontSize: GRAPHIC_FONT, fill: '#475569' }} />}
@@ -336,6 +358,28 @@ export function AnswerChart({
       </PieChart>
     ) : view === 'line' ? (
       <LineChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => <Line key={key} dataKey={key} name={key === 'metric_value' ? valueName : formatBusinessLabel(key)} stroke={COLORS[index % COLORS.length]} strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />)}</LineChart>
+    ) : horizontal ? (
+      <BarChart layout="vertical" data={horizontalData} margin={{ top: 4, right: 64, bottom: 4, left: 4 }} barCategoryGap={6}>
+        <CartesianGrid horizontal={false} stroke="#E7E8F0" />
+        <XAxis type="number" hide domain={[0, yCeiling]} />
+        <YAxis
+          type="category"
+          dataKey={displayXKey}
+          width={horizontalLabelWidth}
+          tick={tick}
+          axisLine={false}
+          tickLine={false}
+          interval={0}
+          tickFormatter={value => truncateAxisLabel(value, 36)}
+        />
+        <Tooltip
+          formatter={(value: unknown) => [formatValue(value), valueName]}
+          labelFormatter={label => String(label)}
+        />
+        <Bar dataKey={yField} name={valueName} fill={COLORS[0]} radius={[0, 6, 6, 0]} barSize={14} isAnimationActive={false}>
+          <LabelList dataKey={yField} position="right" formatter={(value: unknown) => formatValue(value)} style={{ fontSize: GRAPHIC_FONT, fill: '#475569' }} />
+        </Bar>
+      </BarChart>
     ) : view === 'bar' || view === 'stacked' || chart.type === 'bar' ? <BarChart data={data} margin={chartMargin}>{axes}{keys.map((key, index) => (
             <Bar key={key} dataKey={key} name={key === 'metric_value' ? valueName : key} fill={COLORS[index % COLORS.length]} radius={view === 'stacked' ? [0, 0, 0, 0] : [6, 6, 0, 0]} maxBarSize={54} stackId={view === 'stacked' ? 'stack' : undefined} isAnimationActive={false}>
               {valueLabels && <LabelList dataKey={key} position="top" formatter={(value: unknown) => formatValue(value)} style={{ fontSize: GRAPHIC_FONT, fill: '#475569' }} />}
@@ -357,6 +401,11 @@ export function AnswerChart({
           ))}</LineChart>}
         </ResponsiveContainer>
       </div>
+      {horizontal && categoryCount > HORIZONTAL_MAX && (
+        <p className="viz-caption mt-1" data-testid="chart-more-note">
+          Showing the first {HORIZONTAL_MAX} of {categoryCount}. The Table tab has all of them.
+        </p>
+      )}
     </>
   )
 

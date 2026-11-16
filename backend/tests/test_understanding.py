@@ -182,3 +182,25 @@ def test_the_top_n_by_month_sql_passes_the_governed_sql_check(ctx) -> None:
     for sql in (top, series):  # the two queries the workflow runs for "top 3 by month"
         checked = validate_ask_data_sql(sql, ctx, state=state)
         assert checked.valid, checked.error
+
+
+def test_a_filter_named_only_in_the_earlier_conversation_is_not_carried_into_a_question_about_everything(ctx) -> None:
+    earlier = [{"question": "Tingkat keterlambatan per provinsi di Sulawesi", "answer": "Sulawesi Barat paling tinggi"}]
+    carried = {"metric": "tingkat_keterlambatan", "breakdown": ["fuel_terminal"], "filters": [{"dimension": "regional", "values": ["Sulawesi"]}], "language": "id"}
+    model = Model(carried)
+    resolution = _understand(ctx, model, "Rute terminal ke provinsi mana yang paling sering terlambat?", conversation=earlier)
+    assert resolution["intent"]["filters"] == []
+    assert any("Sulawesi" in note for note in resolution["intent"]["notes"])
+
+
+def test_a_filter_the_question_names_is_kept_even_when_the_conversation_names_it_too(ctx) -> None:
+    earlier = [{"question": "Tingkat keterlambatan per regional", "answer": "Papua Maluku 34,54%, Kalimantan 29,66%, Jatimbalinus 11,4%"}]
+    for question, value in (("Kenapa keterlambatan di Papua tinggi?", "Papua Maluku"), ("Berapa keterlambatan di Jatim?", "Jatimbalinus")):
+        model = Model({"metric": "tingkat_keterlambatan", "breakdown": [], "filters": [{"dimension": "regional", "values": [value]}], "language": "id"})
+        resolution = _understand(ctx, model, question, conversation=earlier)
+        assert resolution["intent"]["filters"] == [{"dimension": "regional", "values": [value]}], question
+
+
+def test_without_a_conversation_the_filters_are_untouched(ctx) -> None:
+    model = Model({"metric": "tingkat_keterlambatan", "breakdown": [], "filters": [{"dimension": "regional", "values": ["Sulawesi"]}], "language": "id"})
+    assert _understand(ctx, model, "Keterlambatan di wilayah timur")["intent"]["filters"] == [{"dimension": "regional", "values": ["Sulawesi"]}]

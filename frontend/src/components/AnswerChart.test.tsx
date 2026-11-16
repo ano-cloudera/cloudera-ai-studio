@@ -70,12 +70,13 @@ describe('AnswerChart', () => {
     expect(chartRoot?.getAttribute('data-chart')).toMatch(/Agu|Jun|2026/i)
   })
 
-  it('allows automatic tick skipping for long rankings', () => {
+  it('draws a long ranking horizontally, every label on its own line, instead of crowding the x axis', () => {
     render(<AnswerChart chart={{ type: 'bar', title: 'Product ranking', x: 'material', y: 'metric_value' }} rows={
       Array.from({ length: 50 }, (_, index) => ({ material: `very-long-material-label-${index}`, metric_value: 50 - index }))
     } />)
 
-    expect(screen.getByTestId('x-axis').getAttribute('data-interval')).toBe('0')
+    expect(screen.getByTestId('chart-horizontal')).toBeTruthy()
+    expect(screen.getByTestId('y-axis').getAttribute('data-key')).toBe('material')
   })
 })
 
@@ -130,12 +131,36 @@ describe('switching the view of a chart', () => {
     expect(screen.queryByTestId('chart-view-switch')).toBeNull()
   })
 
-  it('writes the value on each bar in the chat when there are ten bars or fewer, and not when there are more', () => {
+  it('writes the value on each column in the chat when there are ten bars or fewer; more bars go horizontal with the value at the end of each', () => {
     const rows = (n: number) => Array.from({ length: n }, (_, k) => ({ regional: `R${k}`, metric_value: 30 - k }))
     render(<AnswerChart embedded chart={{ type: 'bar', title: 'Late rate', x: 'regional', y: 'metric_value' }} rows={rows(8)} metric={{ unitFormat: 'percent' }} />)
     expect(screen.getAllByTestId('value-labels').length).toBeGreaterThan(0)
+    expect(screen.queryByTestId('chart-horizontal')).toBeNull()
     cleanup()
     render(<AnswerChart embedded chart={{ type: 'bar', title: 'Late rate', x: 'regional', y: 'metric_value' }} rows={rows(12)} metric={{ unitFormat: 'percent' }} />)
-    expect(screen.queryAllByTestId('value-labels')).toHaveLength(0)
+    expect(screen.getByTestId('chart-horizontal')).toBeTruthy()
+  })
+})
+
+describe('AnswerChart with many bars', () => {
+  afterEach(cleanup)
+  const bar = { type: 'bar', x: 'fuel_terminal', y: 'metric_value', title: 'Late rate per terminal' } as never
+
+  it('draws more than ten bars horizontally, and says what a repeated label is', () => {
+    const rows = Array.from({ length: 12 }, (_, i) => ({ fuel_terminal: i < 3 ? 'Panjang' : `Terminal ${i}`, provinsi: `Provinsi ${i}`, metric_value: 90 - i }))
+    render(<AnswerChart chart={bar} rows={rows} />)
+    expect(screen.getByTestId('chart-horizontal')).toBeTruthy()
+  })
+
+  it('keeps ten bars or fewer as columns', () => {
+    const rows = Array.from({ length: 6 }, (_, i) => ({ fuel_terminal: `Terminal ${i}`, metric_value: 90 - i }))
+    render(<AnswerChart chart={bar} rows={rows} />)
+    expect(screen.queryByTestId('chart-horizontal')).toBeNull()
+  })
+
+  it('shows the first fifteen of a long ranking and points to the table', () => {
+    const rows = Array.from({ length: 30 }, (_, i) => ({ fuel_terminal: `Terminal ${i}`, metric_value: 90 - i }))
+    render(<AnswerChart chart={bar} rows={rows} />)
+    expect(screen.getByTestId('chart-more-note').textContent).toContain('first 15 of 30')
   })
 })
