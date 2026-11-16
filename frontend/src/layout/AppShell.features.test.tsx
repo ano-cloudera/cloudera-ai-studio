@@ -52,12 +52,12 @@ describe('AppShell with workspace feature switches', () => {
     expect(screen.getByRole('link', { name: /Turn it on in Settings/ }).getAttribute('href')).toBe('/settings')
   })
 
-  it('keeps Ask Data, Settings, Data Sources, Semantic Layer and Usage whatever is stored', () => {
+  it('keeps Chat, Settings, Data Sources, Semantic Layer and Usage whatever is stored', () => {
     path = '/settings'
     show(<div>Settings content</div>)
     act(() => setFeatureOverrides({ prompts: false, skills: false, documents: false, usage: false, semanticLayer: false, connectors: false } as never, { cache: false }))
     expect(screen.getByText('Settings content')).toBeTruthy()
-    expect(labels()).toEqual(expect.arrayContaining(['Ask Data', 'Settings', 'Data Sources', 'Semantic Layer', 'Usage']))
+    expect(labels()).toEqual(expect.arrayContaining(['Chat', 'Settings', 'Data Sources', 'Semantic Layer', 'Usage']))
     expect(labels()).not.toContain('Prompts')
   })
 })

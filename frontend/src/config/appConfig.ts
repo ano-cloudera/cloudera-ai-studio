@@ -71,7 +71,7 @@ export const appConfig = {
   ),
   settingsSubtitle: 'Choose the AI model used for new conversations.',
   settingsModelHelper: 'Select the model you want this assistant to use.',
-  navigationAskData: env('NEXT_PUBLIC_NAV_ASK_DATA', 'Ask Data'),
+  navigationAskData: env('NEXT_PUBLIC_NAV_ASK_DATA', 'Chat'),
   navigationUsage: env('NEXT_PUBLIC_NAV_USAGE', 'Usage'),
   navigationSettings: env('NEXT_PUBLIC_NAV_SETTINGS', 'Settings'),
   navigationKnowledge: env('NEXT_PUBLIC_NAV_KNOWLEDGE', 'Knowledge'),

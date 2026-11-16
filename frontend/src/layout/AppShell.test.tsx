@@ -15,7 +15,7 @@ describe('V2 application shell', () => {
     const nav = buildPrimaryNavigation()
     expect(nav.map(item => item.label)).toEqual([
       'Home',
-      'Ask Data',
+      'Chat',
       'Knowledge',
       'Semantic Layer',
       'Prompts',
@@ -37,7 +37,7 @@ describe('V2 application shell', () => {
       .getAllByRole('link')
       .map(link => link.textContent?.trim())
       .filter(Boolean)
-    expect(labels).toEqual(['Home', 'Ask Data', 'Knowledge', 'Semantic Layer', 'Prompts', 'Data Sources', 'Usage', 'Settings'])
+    expect(labels).toEqual(['Home', 'Chat', 'Knowledge', 'Semantic Layer', 'Prompts', 'Data Sources', 'Usage', 'Settings'])
 
     expect(screen.queryByText('Dashboard')).toBeNull()
     expect(screen.queryByText('AI Monitoring')).toBeNull()
