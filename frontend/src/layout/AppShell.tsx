@@ -375,10 +375,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           className={`flex h-dvh max-h-dvh flex-col overflow-hidden transition-[padding-left] duration-300 ease-in-out ${mainPadClass}`}
         >
           <header className="z-20 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 sm:px-5">
-            {onAskData && chatPageChrome?.minimalHeader ? (
+            {onAskData && chatPageChrome?.minimalHeader && !branding.headerTagline ? (
               <div className="min-w-0 flex-1" aria-hidden />
             ) : (
-              <div className="type-app-title min-w-0 truncate">{branding.headerTitle}</div>
+              <div className="flex min-w-0 items-baseline gap-3">
+                <div className="type-app-title shrink-0 truncate">{branding.headerTitle}</div>
+                {branding.headerTagline ? (
+                  <div className="hidden min-w-0 truncate text-sm text-slate-500 md:block" data-testid="header-tagline">
+                    {branding.headerTagline}
+                  </div>
+                ) : null}
+              </div>
             )}
             <div className="flex shrink-0 items-center gap-2">
               <div className="chip py-1" title="Backend platform readiness">
