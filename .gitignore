@@ -32,3 +32,6 @@ frontend/.next-dev.pid
 # Sample knowledge documents are kept out of git for now
 /demo/knowledge/
 /samples/fulfillment/knowledge/
+
+# The temporary customer logo copied by samples/fuel_distribution/apply_branding.py
+frontend/public/branding/demo/
