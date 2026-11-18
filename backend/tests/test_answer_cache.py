@@ -88,6 +88,16 @@ def test_first_mode_answers_a_repeated_question_from_the_cache_without_querying(
     assert replay.service.history.load("s2")[-1]["session_frame"]  # a follow-up can continue it
 
 
+def test_a_kept_answer_gets_its_place_coordinates_from_the_model_now(replay, tmp_path) -> None:
+    replay.service.answer_cache = AnswerCache(tmp_path, mode="first")
+    _ask(replay, "s1")
+    # The model gained coordinates after the answer was kept: the repeat carries them.
+    coords = {"carrier": {"Acme": [1.0, 2.0]}}
+    replay.service._geo_points = lambda columns: coords
+    again = _ask(replay, "s2")
+    assert again.cache_reason == "repeat" and again.data.geo_points == coords
+
+
 def test_fallback_mode_stands_in_when_the_data_source_fails(replay, tmp_path) -> None:
     replay.service.answer_cache = AnswerCache(tmp_path, mode="fallback")
     live = _ask(replay, "s1")

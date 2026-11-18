@@ -1455,6 +1455,12 @@ class ChatService:
         from app.ask_data.answer_cache import served_note
 
         response = AskDataResponse.model_validate(value["response"])
+        # Where the places are is read from the published model now, not kept with the answer: an answer stored before the model
+        # carried coordinates (or while it was still loading) would otherwise come back without its route map.
+        if not response.data.geo_points:
+            geo = self._geo_points(list(response.data.columns or []))
+            if geo:
+                response = response.model_copy(update={"data": response.data.model_copy(update={"geo_points": geo})})
         note = served_note(value, reason, detect_language(request.question))
         answer = response.answer
         if note:
