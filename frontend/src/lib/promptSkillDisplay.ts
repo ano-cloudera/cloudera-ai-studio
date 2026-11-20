@@ -37,6 +37,7 @@ export function formatPromptKey(key: string | null | undefined): string {
     'ask_data.agent': 'Analyst agent',
     'ask_data.agent_report': 'Analyst agent report',
     'ask_data.turn_reader': 'Question reader',
+    'ask_data.workspace': 'Workspace instructions',
     'rag.insufficient_evidence': 'RAG Insufficient Evidence',
   }
   if (known[key]) return known[key]

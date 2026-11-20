@@ -99,7 +99,7 @@ def test_the_prompts_that_write_a_data_answer_are_managed_keys_with_a_file_defau
     class Winner:
         def __init__(self, *_a, **_k): ...
         def resolve(self, key):
-            return SimpleNamespace(content="  published text  ")
+            return SimpleNamespace(content="" if key == "ask_data.workspace" else "  published text  ")
 
     class Broken(Winner):
         def resolve(self, key):

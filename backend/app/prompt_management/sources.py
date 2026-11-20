@@ -7,6 +7,7 @@ from app.prompt_management.keys import (
     ASK_DATA_ANALYST,
     ASK_DATA_SYSTEM,
     ASK_DATA_TURN_READER,
+    ASK_DATA_WORKSPACE,
     RAG_INSUFFICIENT_EVIDENCE,
     RAG_SYSTEM,
 )
@@ -25,6 +26,7 @@ class FilePromptSource:
         ASK_DATA_AGENT: "agent_tools.md",
         ASK_DATA_AGENT_REPORT: "agent_tool_report.md",
         ASK_DATA_TURN_READER: "conversation_rewrite.md",
+        ASK_DATA_WORKSPACE: "workspace_instructions.md",
     }
 
     TEXT_MAP: dict[str, str] = {

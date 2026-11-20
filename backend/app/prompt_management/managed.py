@@ -13,9 +13,10 @@ from app.core.config import BACKEND_ROOT
 logger = logging.getLogger(__name__)
 
 PROMPT_DIR = BACKEND_ROOT / "prompts"
+WORKSPACE_KEY = "ask_data.workspace"
 
 
-def managed_prompt(key: str, file_name: str) -> str:
+def _resolved(key: str, file_name: str) -> str:
     try:
         from app.core.config import get_settings
         from app.prompt_management.resolver import PromptResolver
@@ -26,6 +27,17 @@ def managed_prompt(key: str, file_name: str) -> str:
     except Exception:  # noqa: BLE001 - a prompt that cannot be resolved must not stop an answer: the file applies
         logger.warning("managed_prompt_fallback key=%s", key)
     return (PROMPT_DIR / file_name).read_text(encoding="utf-8")
+
+
+def managed_prompt(key: str, file_name: str) -> str:
+    """The prompt, with the workspace's own instructions (Prompts: Workspace instructions) added after it when there are any."""
+    text = _resolved(key, file_name)
+    if key == WORKSPACE_KEY:
+        return text
+    extra = _resolved(WORKSPACE_KEY, "workspace_instructions.md").strip()
+    if not extra:
+        return text
+    return f"{text.rstrip()}\n\n## Additional instructions from this workspace\nThese add to the rules above. Where they conflict with the rules about figures, filters or data, the rules above win.\n\n{extra}\n"
 
 
 # The prompts that write a data answer, with their file defaults; their active text is part of what makes an answer.
