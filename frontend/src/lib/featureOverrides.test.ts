@@ -32,7 +32,7 @@ describe('feature overrides', () => {
     setFeatureOverrides({ askData: false, settings: false, aiModelRegistry: false, connectors: false, semanticLayer: false, usage: false } as never)
     expect(getFeatureOverrides()).toEqual({}) // also what an older visit left in the cache for a feature that is locked now
     for (const key of LOCKED_FEATURES) expect(featureEnabled(key, defaults)).toBe(true)
-    expect(SWITCHABLE_FEATURES).toEqual(['documents', 'prompts', 'skills'])
+    expect(SWITCHABLE_FEATURES).toEqual(['home', 'documents', 'prompts', 'skills'])
     expect([...LOCKED_FEATURES].sort()).toEqual(['aiModelRegistry', 'askData', 'connectors', 'semanticLayer', 'settings', 'usage'])
   })
 

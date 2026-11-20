@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 FEATURE_OVERRIDES_KEY = "feature_overrides"
 
 # Names match the Frontend (appConfig.features).
-SWITCHABLE_FEATURES = frozenset({"documents", "prompts", "skills"})
+SWITCHABLE_FEATURES = frozenset({"home", "documents", "prompts", "skills"})
 # Always on: the core of the app, the places that configure it, and the page that holds these switches.
 LOCKED_FEATURES = frozenset({"askData", "settings", "aiModelRegistry", "connectors", "semanticLayer", "usage"})
 

@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react'
 
 export type FeatureKey =
   | 'askData'
+  | 'home'
   | 'usage'
   | 'settings'
   | 'documents'
@@ -15,13 +16,14 @@ export type FeatureKey =
 
 /** Features a workspace may switch. Everything else is always on: the core of the app (Ask Data), the places that configure it
  * (Data Sources, Semantic Layer, AI Models), Usage, and Settings itself, which holds these switches. */
-export const SWITCHABLE_FEATURES: FeatureKey[] = ['documents', 'prompts', 'skills']
+export const SWITCHABLE_FEATURES: FeatureKey[] = ['home', 'documents', 'prompts', 'skills']
 export const LOCKED_FEATURES: FeatureKey[] = ['askData', 'settings', 'aiModelRegistry', 'connectors', 'semanticLayer', 'usage']
 
 export type FeatureOverrides = Partial<Record<FeatureKey, boolean>>
 
 export const FEATURE_LABELS: Record<FeatureKey, string> = {
   askData: 'Ask Data',
+  home: 'Home',
   documents: 'Knowledge',
   prompts: 'Prompts',
   skills: 'Skills',
@@ -34,6 +36,7 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
 
 /** What switching a feature off does, shown next to its switch. */
 export const FEATURE_NOTES: Partial<Record<FeatureKey, string>> = {
+  home: 'Hides the Home dashboard. It shows the metrics marked Show on Home.',
   documents: 'Hides Knowledge and the library choice in the chat. Libraries are kept.',
   prompts: 'Hides Prompts. Published prompts are still used by Ask Data and Knowledge.',
   skills: 'Hides Skills.',
@@ -50,7 +53,7 @@ export const LOCKED_NOTES: Partial<Record<FeatureKey, string>> = {
 
 /** Menu and page prefixes, to find which feature a page belongs to. */
 const ROUTE_FEATURE: [string, FeatureKey][] = [
-  ['/home', 'askData'],
+  ['/home', 'home'],
   ['/actions', 'askData'],
   ['/knowledge', 'documents'],
   ['/prompts', 'prompts'],

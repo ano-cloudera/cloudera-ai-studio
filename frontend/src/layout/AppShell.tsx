@@ -46,7 +46,7 @@ type NavItem = {
 const NAV_SECTIONS: { title?: string; items: NavItem[] }[] = [
   {
     items: [
-      { feature: 'askData', href: '/home', label: () => 'Home', icon: LayoutDashboard },
+      { feature: 'home', href: '/home', label: () => 'Home', icon: LayoutDashboard },
       { feature: 'askData', href: '/', label: () => appConfig.navigationAskData, icon: Bot },
     ],
   },

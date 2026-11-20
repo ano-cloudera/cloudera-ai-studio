@@ -50,7 +50,7 @@ def client(tmp_path):
 
 def test_the_api_stores_resets_and_refuses(client) -> None:
     first = client.get("/api/v1/features/overrides").json()
-    assert first["overrides"] == {} and first["switchable"] == ["documents", "prompts", "skills"]
+    assert first["overrides"] == {} and first["switchable"] == ["documents", "home", "prompts", "skills"]
     assert {"askData", "settings", "connectors", "semanticLayer", "usage"} <= set(first["locked"])
     saved = client.put("/api/v1/features/overrides", json={"overrides": {"skills": True, "prompts": False}})
     assert saved.status_code == 200 and saved.json()["overrides"] == {"skills": True, "prompts": False}

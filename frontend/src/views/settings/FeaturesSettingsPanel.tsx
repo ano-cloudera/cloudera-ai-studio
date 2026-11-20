@@ -17,7 +17,7 @@ import {
 } from '../../lib/featureOverrides'
 
 /** Display order of the menu. AI Models is also always on but has no row of its own. */
-const ORDER: FeatureKey[] = ['askData', 'documents', 'prompts', 'skills', 'semanticLayer', 'connectors', 'usage', 'settings']
+const ORDER: FeatureKey[] = ['askData', 'home', 'documents', 'prompts', 'skills', 'semanticLayer', 'connectors', 'usage', 'settings']
 
 /** The overrides after switching one feature: a value equal to the deployment default needs no override. */
 export function nextOverrides(current: FeatureOverrides, key: FeatureKey, on: boolean, defaults: Record<FeatureKey, boolean>): FeatureOverrides {

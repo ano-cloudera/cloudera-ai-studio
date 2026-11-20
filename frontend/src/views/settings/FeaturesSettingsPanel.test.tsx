@@ -34,7 +34,7 @@ describe('FeaturesSettingsPanel', () => {
       expect(within(row).getByText('Always on')).toBeTruthy()
       expect(within(row).queryByRole('switch')).toBeNull()
     }
-    expect(screen.getAllByRole('switch').map(item => item.getAttribute('aria-label'))).toEqual(['Knowledge on', 'Prompts on', 'Skills off'])
+    expect(screen.getAllByRole('switch').map(item => item.getAttribute('aria-label'))).toEqual(['Home on', 'Knowledge on', 'Prompts on', 'Skills off'])
     expect(screen.getByText(/does not restrict access to the API/)).toBeTruthy()
   })
 

@@ -21,6 +21,7 @@ function envBool(key: string, fallback: boolean): boolean {
 
 const featureDefaults: Record<FeatureKey, boolean> = {
   askData: envBool('NEXT_PUBLIC_FEATURE_ASK_DATA', true),
+  home: envBool('NEXT_PUBLIC_FEATURE_HOME', true),
   usage: envBool('NEXT_PUBLIC_FEATURE_USAGE', true),
   settings: envBool('NEXT_PUBLIC_FEATURE_SETTINGS', true),
   documents: envBool('NEXT_PUBLIC_FEATURE_DOCUMENTS', true),
