@@ -12,7 +12,7 @@ describe('header tagline', () => {
   afterEach(cleanup)
 
   it('shows what the name stands for beside the header title when one is configured', () => {
-    const branding = { ...resolvePublicBranding(), headerTitle: 'PINTAR', headerTagline: 'Pertamina INtelligence for Trusted Analytics and Reporting' }
+    const branding = { ...resolvePublicBranding(), headerTitle: 'ACME', headerTagline: 'Acme INtelligence for Trusted Analytics and Reporting' }
     render(
       <PublicBrandingProvider branding={branding}>
         <AppShell>
@@ -20,7 +20,7 @@ describe('header tagline', () => {
         </AppShell>
       </PublicBrandingProvider>,
     )
-    expect(screen.getByTestId('header-tagline').textContent).toBe('Pertamina INtelligence for Trusted Analytics and Reporting')
+    expect(screen.getByTestId('header-tagline').textContent).toBe('Acme INtelligence for Trusted Analytics and Reporting')
   })
 
   it('shows nothing extra when there is none', () => {
