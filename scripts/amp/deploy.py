@@ -62,7 +62,7 @@ class Cml:
         self.token = token
         self._open = opener
 
-    def request(self, method: str, path: str, body: dict | None = None) -> dict:
+    def request(self, method: str, path: str, body: dict | None = None, timeout: float = 60) -> dict:
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(
             f"{self.base}{path}",
@@ -71,7 +71,7 @@ class Cml:
             headers={"Authorization": f"Bearer {self.token}", "Content-Type": "application/json", "Accept": "application/json"},
         )
         try:
-            with self._open(req, timeout=60) as response:  # noqa: S310 - operator-configured workspace URL
+            with self._open(req, timeout=timeout) as response:  # noqa: S310 - operator-configured workspace URL
                 raw = response.read().decode() or "{}"
         except urllib.error.HTTPError as exc:
             raise ApiError(f"{method} {path} returned HTTP {exc.code}: {exc.read().decode(errors='replace')[:300]}") from None
@@ -107,7 +107,18 @@ class Cml:
         return next((str(j["runtime_identifier"]) for j in jobs if j.get("runtime_identifier")), "")
 
     def create_application(self, payload: dict) -> dict:
-        return self.request("POST", f"/projects/{self.project_id}/applications", payload)
+        """Creating an Application can take longer than a plain call (the workspace answers when it has scheduled it), so it gets
+        five minutes. If the call still times out the Application may exist anyway: look for it by subdomain before giving up,
+        so a second Application is never created and a created one is not reported as a failure."""
+        try:
+            return self.request("POST", f"/projects/{self.project_id}/applications", payload, timeout=300)
+        except ApiError as exc:
+            if "TimeoutError" not in str(exc):
+                raise
+            found = next((a for a in self.list_applications() if a.get("subdomain") == payload.get("subdomain")), None)
+            if found:
+                return found
+            raise
 
     def update_application(self, app_id: str, payload: dict) -> dict:
         """The update call takes `environment` as JSON text (the create call takes a map). If a workspace rejects the text

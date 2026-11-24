@@ -327,3 +327,52 @@ def test_explicit_project_values_win_over_the_reranker_defaults() -> None:
     backend = {p["key"]: p for p in deploy.build_plan(deploy.load_manifest(), env)}["backend"]
     assert backend["environment"]["RERANK_TOP_N"] == "12" and backend["environment"]["RETRIEVAL_TOP_K"] == "40"
     assert backend["memory"] == 24
+
+
+def test_a_create_that_times_out_finds_the_application_the_workspace_made_anyway() -> None:
+    class Resp:
+        def __init__(self, body):
+            self.body = body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps(self.body).encode()
+
+    calls = []
+
+    def opener(req, timeout):
+        calls.append((req.get_method(), timeout))
+        if req.get_method() == "POST":
+            raise TimeoutError()
+        return Resp({"applications": [{"id": "a1", "subdomain": "backend"}]})
+
+    client = deploy.Cml("d.example", "p1", "tok", opener=opener)
+    assert client.create_application({"subdomain": "backend"})["id"] == "a1"
+    assert calls[0] == ("POST", 300)  # more time than a plain call
+
+
+def test_a_create_that_times_out_and_left_nothing_behind_still_fails() -> None:
+    def opener(req, timeout):
+        if req.get_method() == "POST":
+            raise TimeoutError()
+
+        class Resp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return b'{"applications": []}'
+
+        return Resp()
+
+    client = deploy.Cml("d.example", "p1", "tok", opener=opener)
+    with pytest.raises(deploy.ApiError):
+        client.create_application({"subdomain": "backend"})
