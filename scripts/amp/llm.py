@@ -24,16 +24,21 @@ except NameError:  # CAI runs job scripts in an IPython kernel, where __file__ i
     ROOT = Path.cwd()
 HOME = Path(os.environ.get("STUDIO_HOME", "/home/cdsw"))
 
-# A 48 GB L40S holds this model in FP8 (about 31 GB of weights) and leaves room for the KV cache; only 3B parameters are active
-# per token, so answers are fast. Not tested in this workspace: change the id with VLLM_MODEL_ID (a smaller Qwen3 such as
-# Qwen/Qwen3-14B also fits). `hermes` is vLLM's tool-call parser for Qwen3; Qwen3-Coder models use `qwen3_coder`.
+# Qwen3.5-9B (Apache-2.0, about 18 GB in bf16) fits a 48 GB L40S with a large KV cache. Its model card asks for the qwen3_coder tool-call
+# parser and the qwen3 reasoning parser, and the model thinks before it answers by default: thinking is switched off here because Ask
+# Data needs the answer itself (a structured reply), not a think block. The card also asks for a recent vLLM ("main"); the venv
+# pins VLLM_VERSION (0.29.0), so if the Application fails to load the model, set VLLM_VERSION to a newer release and run the job again.
+# Not tested in this workspace. Any other model: set VLLM_MODEL_ID and the parser variables (Qwen3 non-Coder models use `hermes`).
 DEFAULTS = {
     "ENABLE_VLLM": "true",
-    "VLLM_MODEL_ID": "Qwen/Qwen3-30B-A3B-Instruct-2507-FP8",
+    "VLLM_MODEL_ID": "Qwen/Qwen3.5-9B",
     "GPU_PROFILE": "l40s",
-    "VLLM_TOOL_CALL_PARSER": "hermes",
+    "VLLM_TOOL_CALL_PARSER": "qwen3_coder",
+    "VLLM_REASONING_PARSER": "qwen3",
+    "VLLM_DEFAULT_CHAT_TEMPLATE_KWARGS": '{"enable_thinking": false}',
+    "MAX_MODEL_LEN": "32768",
 }
-WEIGHTS_GB = 40  # free space wanted on the project filesystem before downloading
+WEIGHTS_GB = 25  # free space wanted on the project filesystem before downloading
 
 
 def apply_defaults(env: dict[str, str]) -> dict[str, str]:
@@ -69,7 +74,7 @@ def run(script: str, args: list[str], env: dict[str, str]) -> int:
 def main(argv: list[str]) -> int:
     env = apply_defaults(dict(os.environ))
     problems, warnings = preflight(env, shutil.disk_usage(HOME).free if HOME.exists() else sys.maxsize)
-    print(f"Model: {env['VLLM_MODEL_ID']}  GPU profile: {env['GPU_PROFILE']}  tool parser: {env['VLLM_TOOL_CALL_PARSER']}", flush=True)
+    print(f"Model: {env['VLLM_MODEL_ID']}  GPU profile: {env['GPU_PROFILE']}  tool parser: {env['VLLM_TOOL_CALL_PARSER']}  vLLM: {env.get('VLLM_VERSION', 'venv default')}", flush=True)
     for line in warnings:
         print(f"Warning: {line}", flush=True)
     for line in problems:

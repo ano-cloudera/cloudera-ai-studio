@@ -73,9 +73,9 @@ tasks:
   - type: create_job
     name: Deploy Qwen LLM
     entity_label: deploy-qwen-llm
-    short_summary: Builds the vLLM environment, downloads Qwen, and creates the Anywhere vLLM Application on a GPU
+    short_summary: Builds the vLLM environment, downloads Qwen3.5-9B, and creates the Anywhere vLLM Application on a GPU
     long_summary: >-
-      Serves an open model (Qwen3-30B-A3B FP8 by default, set VLLM_MODEL_ID to change it) from this project on one GPU
+      Serves an open model (Qwen3.5-9B by default, set VLLM_MODEL_ID to change it) from this project on one GPU
       (GPU_PROFILE, l40s by default). Separate from the main setup, so adding a model does not repeat it. Needs a GPU runtime in
       AMP_VLLM_RUNTIME_ID. When it finishes, register the printed URL in Settings -> AI Models as an OpenAI-compatible provider.
       Safe to run again; finished steps are skipped.

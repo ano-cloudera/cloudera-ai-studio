@@ -87,6 +87,11 @@ def build_command(env: Mapping[str, str]) -> list[str]:
     ]
     if env.get("VLLM_TOOL_CALL_PARSER"):
         command.extend(["--enable-auto-tool-choice", "--tool-call-parser", env["VLLM_TOOL_CALL_PARSER"]])
+    if env.get("VLLM_REASONING_PARSER"):  # a model that thinks first: its think block goes to reasoning_content, not the answer
+        command.extend(["--reasoning-parser", env["VLLM_REASONING_PARSER"]])
+    if env.get("VLLM_DEFAULT_CHAT_TEMPLATE_KWARGS"):  # JSON, for example {"enable_thinking": false}
+        json.loads(env["VLLM_DEFAULT_CHAT_TEMPLATE_KWARGS"])
+        command.extend(["--default-chat-template-kwargs", env["VLLM_DEFAULT_CHAT_TEMPLATE_KWARGS"]])
     if env.get("VLLM_CHAT_TEMPLATE"):
         command.extend(["--chat-template", env["VLLM_CHAT_TEMPLATE"]])
     if env.get("VLLM_API_KEY"):
