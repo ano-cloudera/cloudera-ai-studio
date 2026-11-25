@@ -376,3 +376,51 @@ def test_a_create_that_times_out_and_left_nothing_behind_still_fails() -> None:
     client = deploy.Cml("d.example", "p1", "tok", opener=opener)
     with pytest.raises(deploy.ApiError):
         client.create_application({"subdomain": "backend"})
+
+
+def _restart_client(statuses, posts):
+    """A client whose restart call times out for the first `posts` tries, then answers; GETs report the given statuses in turn."""
+    state = {"gets": 0, "posts": []}
+
+    class Resp:
+        def __init__(self, body):
+            self.body = body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return json.dumps(self.body).encode()
+
+    def opener(req, timeout):
+        if req.get_method() == "POST":
+            state["posts"].append(timeout)
+            if len(state["posts"]) <= posts:
+                raise TimeoutError()
+            return Resp({})
+        status = statuses[min(state["gets"], len(statuses) - 1)]
+        state["gets"] += 1
+        return Resp({"status": status})
+
+    return deploy.Cml("d.example", "p1", "tok", opener=opener), state
+
+
+def test_a_restart_gets_five_minutes_and_one_call_when_it_answers() -> None:
+    client, state = _restart_client(["APPLICATION_RUNNING"], posts=0)
+    client.restart_application("a1", sleep=lambda _: None)
+    assert state["posts"] == [300]
+
+
+def test_a_restart_that_times_out_but_took_effect_is_not_sent_again() -> None:
+    client, state = _restart_client(["APPLICATION_STOPPING"], posts=1)
+    assert client.restart_application("a1", sleep=lambda _: None) == {}
+    assert state["posts"] == [300]
+
+
+def test_a_restart_that_times_out_and_changed_nothing_is_sent_once_more() -> None:
+    client, state = _restart_client(["APPLICATION_RUNNING"], posts=1)
+    client.restart_application("a1", sleep=lambda _: None)
+    assert state["posts"] == [300, 300]

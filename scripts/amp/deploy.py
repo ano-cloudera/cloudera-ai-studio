@@ -132,8 +132,20 @@ class Cml:
                 return self.request("PATCH", path, payload)
             raise
 
-    def restart_application(self, app_id: str) -> dict:
-        return self.request("POST", f"/projects/{self.project_id}/applications/{app_id}:restart", {})
+    def restart_application(self, app_id: str, *, sleep=time.sleep) -> dict:
+        """A restart can be answered slowly, so it gets five minutes. If the call still times out the workspace may have taken it:
+        watch the status for a minute, and ask once more only if the Application is still the old running instance."""
+        path = f"/projects/{self.project_id}/applications/{app_id}:restart"
+        try:
+            return self.request("POST", path, {}, timeout=300)
+        except ApiError as exc:
+            if "TimeoutError" not in str(exc):
+                raise
+        for _ in range(12):
+            if not is_running(self.get_application(app_id)):
+                return {}  # it left RUNNING: the restart was accepted
+            sleep(5)
+        return self.request("POST", path, {}, timeout=300)
 
     def get_application(self, app_id: str) -> dict:
         return self.request("GET", f"/projects/{self.project_id}/applications/{app_id}")
