@@ -10,8 +10,8 @@ import json
 import urllib.error
 import urllib.request
 
-PROVIDER_KEY = "anywhere-vllm"
-MODEL_KEY = "anywhere-vllm-chat"
+PROVIDER_KEY = "anywhere_vllm"
+MODEL_KEY = "anywhere_vllm_chat"
 CAPABILITIES = ("CHAT_DEFAULT", "ASK_DATA", "RAG_GENERATION", "SKILLS")
 
 

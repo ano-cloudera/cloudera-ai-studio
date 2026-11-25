@@ -138,3 +138,11 @@ def test_the_vllm_key_is_derived_and_the_application_is_reachable_by_the_backend
     apps = {a["key"]: a for a in manifest["applications"]}
     assert apps["vllm"]["bypass_authentication"] is True  # the Backend calls it without a Cloudera AI login
     assert "VLLM_API_KEY" in apps["backend"]["forward_env"] and "VLLM_API_KEY" in apps["vllm"]["forward_env"]
+
+
+def test_the_keys_it_registers_pass_the_registrys_own_key_rules() -> None:
+    from app.ai_registry.validation import validate_model_key, validate_provider_key
+
+    reg = _register_module()
+    validate_provider_key(reg.PROVIDER_KEY)
+    validate_model_key(reg.MODEL_KEY)
