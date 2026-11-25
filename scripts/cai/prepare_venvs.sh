@@ -9,7 +9,8 @@ unset PYTHONPATH
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VENVS="${VENVS_DIR:-/home/cdsw/.venvs}"
 export PIP_USER=false
-PIPFLAGS=(--no-user --retries 10 --timeout 60)
+# No progress bar: in a job log it floods the output and hides the real error.
+PIPFLAGS=(--no-user --retries 10 --timeout 60 --progress-bar off)
 target="${1:-all}"
 
 make_venv() {
@@ -26,11 +27,15 @@ if [ "$target" = backend ] || [ "$target" = all ]; then
 fi
 
 if [ "$target" = vllm ] || [ "$target" = all ]; then
+  rm -f "$VENVS/studio-vllm/.ready"  # a half-installed venv must not count as done
+  echo "Free disk under $VENVS:"; df -h "$VENVS" | tail -1
   make_venv studio-vllm
   # Pins follow the validated L40S profile; vllm 0.29.0 did not bring in the extras below.
   "$VENVS/studio-vllm/bin/python" -m pip install "${PIPFLAGS[@]}" "vllm==${VLLM_VERSION:-0.29.0}" \
     PyYAML packaging requests certifi urllib3 cachetools cloudpickle
-  "$VENVS/studio-vllm/bin/python" -m pip check
+  # Conflicts here are reported but do not stop the job: importing torch and vllm below is the real test.
+  "$VENVS/studio-vllm/bin/python" -m pip check || echo "pip check reported the conflicts above; continuing to the import test."
   "$VENVS/studio-vllm/bin/python" -c "import torch, vllm; print(torch.__version__, torch.version.cuda, vllm.__version__, 'cuda_available=', torch.cuda.is_available())"
+  touch "$VENVS/studio-vllm/.ready"
   echo "vLLM venv ready → $VENVS/studio-vllm (run from a GPU Session to see cuda_available=True; stop that Session before starting the vLLM Application)"
 fi

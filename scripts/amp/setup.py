@@ -78,7 +78,7 @@ def build_steps() -> list[Step]:
 
 def vllm_steps() -> list[Step]:
     sh = ROOT / "scripts" / "cai"
-    steps = [Step("vLLM virtualenv", VLLM_PY.is_file(), ["bash", str(sh / "prepare_venvs.sh"), "vllm"])]
+    steps = [Step("vLLM virtualenv", (VLLM_PY.parent.parent / ".ready").is_file(), ["bash", str(sh / "prepare_venvs.sh"), "vllm"])]
     if VLLM_MODEL_ID:
         steps.append(Step("vLLM model weights", (VLLM_MODEL / "config.json").is_file(), ["bash", str(sh / "prepare_vllm_model.sh"), str(VLLM_MODEL)]))
     else:
