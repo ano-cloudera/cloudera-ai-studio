@@ -108,7 +108,7 @@ applications:
       NEXT_PUBLIC_PRODUCT_LOGO: /branding/anywhere-ai-logo.png
       NEXT_PUBLIC_APP_LOGO: /branding/anywhere-ai-logo.png
       NEXT_PUBLIC_EMPTY_STATE_LOGO: /branding/anywhere-ai-logo.png
-  # Optional: serve your own model on a GPU. Created only when ENABLE_VLLM=true (needs GPU nodes, a GPU runtime and weights on disk).
+  # Optional: serve your own model on a GPU. Created only when ENABLE_VLLM=true (needs a GPU in the quota and weights on disk).
   - key: vllm
     name: Anywhere vLLM
     description: OpenAI-compatible model server
@@ -118,7 +118,7 @@ applications:
     runtime_env: AMP_VLLM_RUNTIME_ID
     startup_timeout_s: 1800
     script: deployment/cai/launchers/studio-vllm/app.py
-    resources: { cpu: 16, memory_gb: 64, nvidia_gpu: 1 }
+    resources: { cpu: 16, memory_gb: 32, nvidia_gpu: 1 }  # the L40S group offers 16 vCPU / 32 GiB; AMP_VLLM_MEMORY_GB raises it for a larger model
     health_path: /health
     environment:
       PYTHON_EXECUTABLE: /home/cdsw/.venvs/studio-vllm/bin/python

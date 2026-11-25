@@ -33,9 +33,8 @@ def test_too_little_disk_stops_the_job_unless_the_weights_are_already_there(tmp_
     assert llm.preflight(env, 5 * GB) == ([], [])
 
 
-def test_a_missing_gpu_runtime_is_a_warning_not_a_stop() -> None:
-    problems, warnings = llm.preflight({"VLLM_MODEL_ID": "Qwen/Other-9B"}, 100 * GB)
-    assert not problems and any("AMP_VLLM_RUNTIME_ID" in w for w in warnings)
+def test_no_special_runtime_is_needed_for_the_gpu() -> None:
+    assert llm.preflight({"VLLM_MODEL_ID": "Qwen/Other-9B"}, 100 * GB) == ([], [])
 
 
 def test_the_launcher_passes_the_reasoning_parser_and_thinking_switch(tmp_path) -> None:

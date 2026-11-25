@@ -79,8 +79,9 @@ Off by default. Most PoCs do not need it: register an external model endpoint or
 in Settings -> AI Models instead. To serve your own model, add `ENABLE_VLLM=true` and `VLLM_MODEL_ID` in Project Settings (and set `GPU_PROFILE`, plus
 `HUGGING_FACE_HUB_TOKEN` for gated models). The setup job then also builds the vLLM virtualenv and downloads the weights, and the deploy job
 creates a fourth Application, `anywhere-vllm`, with one GPU. This needs, outside the AMP:
-- GPU nodes and quota in the workspace, and a **GPU-enabled runtime**: put its identifier in `AMP_VLLM_RUNTIME_ID`
-  (the standard runtime cannot use the GPU). Ask the workspace admin if no GPU runtime is listed.
+- GPU nodes and quota in the workspace (for example an L40S group: 1 GPU, 16 vCPU / 32 GiB). The Application runs on the project's own
+  runtime with GPU enabled, as the **Enable GPU** switch in the Applications form does. Only if your workspace needs a different
+  runtime for GPU, put its identifier in `AMP_VLLM_RUNTIME_ID`.
 - Enough disk on the project filesystem for the weights, and a GPU large enough for the model (adjust `GPU_PROFILE`, `MAX_MODEL_LEN`,
   `GPU_MEMORY_UTILIZATION`; see `deployment/cai/env/studio-vllm.env.example`).
 When the Application runs, the deploy job prints the base URL to register in Settings -> AI Models (OpenAI-compatible provider, `<url>/v1`).

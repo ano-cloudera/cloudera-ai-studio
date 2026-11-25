@@ -299,7 +299,7 @@ def deploy(client: Cml, plan: list[dict], env: dict[str, str], *, skip_build: bo
         runtime_id = item.get("runtime_id") or default_runtime
         log(f"== {item['name']} ({item['subdomain']})")
         if item["nvidia_gpu"] and not item.get("runtime_id"):
-            log("   needs a GPU: set AMP_VLLM_RUNTIME_ID to a GPU-enabled runtime if the workspace rejects this Application")
+            log("   needs a GPU (the project's own runtime with GPU enabled): if the workspace rejects it, check the GPU quota; AMP_VLLM_RUNTIME_ID names another runtime")
         if item["build"] and not skip_build:
             log("   building the Frontend (several minutes)")
             build_frontend(item, env)

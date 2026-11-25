@@ -8,7 +8,8 @@ A separate job, so adding a model does not repeat the main setup (about 20 minut
 Then register it once in Settings -> AI Models as an OpenAI-compatible provider: base URL https://<vllm application URL>/v1,
 model name studio-llm (the deploy log prints both).
 
-Needs a GPU runtime (AMP_VLLM_RUNTIME_ID) and a GPU in the quota. Usage: python scripts/amp/llm.py [--check]
+Needs a GPU in the quota. The Application uses this project's runtime with GPU enabled (the Cloudera AI "Enable GPU" switch), so
+no special runtime is needed; AMP_VLLM_RUNTIME_ID only names a different one. Usage: python scripts/amp/llm.py [--check]
 """
 from __future__ import annotations
 
@@ -57,9 +58,6 @@ def model_dir(env: dict[str, str]) -> Path:
 def preflight(env: dict[str, str], free_bytes: int) -> tuple[list[str], list[str]]:
     """(problems that stop the job, warnings). Nothing is downloaded or created here."""
     problems, warnings = [], []
-    if not env.get("AMP_VLLM_RUNTIME_ID", "").strip():
-        warnings.append("AMP_VLLM_RUNTIME_ID is not set: the standard runtime cannot use the GPU. Set it to a GPU-enabled runtime "
-                        "if the Application starts without CUDA (ask the workspace admin which runtime to use).")
     if "/" not in env.get("VLLM_MODEL_ID", ""):
         problems.append(f"VLLM_MODEL_ID must be a Hugging Face id such as org/name, not '{env.get('VLLM_MODEL_ID', '')}'.")
     elif not (model_dir(env) / "config.json").is_file() and free_bytes < WEIGHTS_GB * 1024**3:

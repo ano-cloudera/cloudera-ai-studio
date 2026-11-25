@@ -69,15 +69,15 @@ tasks:
     memory: 8
     timeout: 90
 
-  # Optional and not run at import: needs a GPU runtime and quota. Run it when you want to serve Qwen from this project.
+  # Optional and not run at import: needs a GPU in the quota. Run it when you want to serve Qwen from this project.
   - type: create_job
     name: Deploy Qwen LLM
     entity_label: deploy-qwen-llm
     short_summary: Builds the vLLM environment, downloads Qwen3.5-9B, and creates the Anywhere vLLM Application on a GPU
     long_summary: >-
       Serves an open model (Qwen3.5-9B by default, set VLLM_MODEL_ID to change it) from this project on one GPU
-      (GPU_PROFILE, l40s by default). Separate from the main setup, so adding a model does not repeat it. Needs a GPU runtime in
-      AMP_VLLM_RUNTIME_ID. When it finishes, register the printed URL in Settings -> AI Models as an OpenAI-compatible provider.
+      (GPU_PROFILE, l40s by default). Separate from the main setup, so adding a model does not repeat it. Needs a GPU in the quota (the
+      Application runs on this project's runtime with GPU enabled). When it finishes, register the printed URL in Settings -> AI Models as an OpenAI-compatible provider.
       Safe to run again; finished steps are skipped.
     script: scripts/amp/llm.py
     kernel: python3
