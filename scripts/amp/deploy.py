@@ -162,15 +162,15 @@ def derive(secret: str, purpose: str) -> str:
 
 
 def with_studio_secrets(env: dict[str, str]) -> dict[str, str]:
-    """Add STUDIO_API_TOKEN (Backend path secret) and QDRANT_API_KEY unless the project sets them."""
+    """Add STUDIO_API_TOKEN (Backend path secret), QDRANT_API_KEY and VLLM_API_KEY unless the project sets them."""
     out = dict(env)
-    if out.get("STUDIO_API_TOKEN") and out.get("QDRANT_API_KEY"):
+    wanted = {"STUDIO_API_TOKEN": "backend", "QDRANT_API_KEY": "qdrant", "VLLM_API_KEY": "vllm"}
+    if all(out.get(name) for name in wanted):
         return out
     secret = studio_secret(out)
-    if not out.get("STUDIO_API_TOKEN"):
-        out["STUDIO_API_TOKEN"] = derive(secret, "backend")
-    if not out.get("QDRANT_API_KEY"):
-        out["QDRANT_API_KEY"] = derive(secret, "qdrant")
+    for name, purpose in wanted.items():
+        if not out.get(name):
+            out[name] = derive(secret, purpose)
     return out
 
 

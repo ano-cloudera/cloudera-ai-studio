@@ -3,10 +3,12 @@
 A separate job, so adding a model does not repeat the main setup (about 20 minutes). It does three things:
   1. applies the Qwen defaults below (a project variable of the same name always wins),
   2. builds the vLLM virtualenv and downloads the weights (scripts/amp/setup.py --vllm-only; finished steps are skipped),
-  3. creates or updates the "Anywhere vLLM" Application (scripts/amp/deploy.py --only vllm) and waits until it runs.
+  3. creates or updates the "Anywhere vLLM" Application (scripts/amp/deploy.py --only vllm) and waits until it runs,
+  4. updates the Backend (it needs the vLLM key in its environment, so it restarts once),
+  5. registers the model in Settings -> AI Models and gives it every capability that has no model yet (scripts/amp/register_llm.py).
+     A model somebody already chose is never replaced.
 
-Then register it once in Settings -> AI Models as an OpenAI-compatible provider: base URL https://<vllm application URL>/v1,
-model name studio-llm (the deploy log prints both).
+Nothing here is needed when the project already uses a hosted model (Gemini, OpenAI, Anthropic) or an endpoint of its own.
 
 Needs a GPU in the quota. The Application uses this project's runtime with GPU enabled (the Cloudera AI "Enable GPU" switch), so
 no special runtime is needed; AMP_VLLM_RUNTIME_ID only names a different one. Usage: python scripts/amp/llm.py [--check]
@@ -65,6 +67,31 @@ def preflight(env: dict[str, str], free_bytes: int) -> tuple[list[str], list[str
     return problems, warnings
 
 
+def backend_url(env: dict[str, str]) -> str:
+    """The Backend URL with its secret path, derived exactly as the deploy job does."""
+    sys.path.insert(0, str(ROOT / "scripts" / "amp"))
+    import deploy  # noqa: PLC0415 - the deploy job owns the secret handling
+
+    secured = deploy.with_studio_secrets(env)
+    prefix = env.get("AMP_SUBDOMAIN_PREFIX", "").strip() or "anywhere"
+    return f"https://{prefix}-backend.{env['CDSW_DOMAIN']}/{secured['STUDIO_API_TOKEN']}"
+
+
+def vllm_url(env: dict[str, str]) -> str:
+    prefix = env.get("AMP_SUBDOMAIN_PREFIX", "").strip() or "anywhere"
+    return f"https://{prefix}-vllm.{env['CDSW_DOMAIN']}/v1"
+
+
+def register(env: dict[str, str]) -> dict:
+    sys.path.insert(0, str(ROOT / "scripts" / "amp"))
+    import register_llm  # noqa: PLC0415
+
+    name = env["VLLM_MODEL_ID"].rsplit("/", 1)[-1] + " (vLLM)"
+    served = env.get("VLLM_MODEL") or "studio-llm"
+    window = int(env["MAX_MODEL_LEN"]) if env.get("MAX_MODEL_LEN", "").isdigit() else None
+    return register_llm.register(register_llm.make_call(backend_url(env)), base_url=vllm_url(env), name=name, served_name=served, context_window=window)
+
+
 def run(script: str, args: list[str], env: dict[str, str]) -> int:
     return subprocess.run([sys.executable, str(ROOT / "scripts" / "amp" / script), *args], cwd=ROOT, env=env).returncode
 
@@ -86,7 +113,23 @@ def main(argv: list[str]) -> int:
     if code:
         print("The vLLM environment or the weights could not be prepared; fix the error above and run this job again.", file=sys.stderr)
         return code
-    return run("deploy.py", ["--only", "vllm"], env)
+    code = run("deploy.py", ["--only", "vllm"], env)
+    if code:
+        return code
+    # The Backend reads the vLLM key from its environment (env://VLLM_API_KEY), so it is updated and restarted once.
+    code = run("deploy.py", ["--only", "backend", "--skip-build"], env)
+    if code:
+        return code
+    try:
+        result = register(env)
+    except Exception as exc:  # noqa: BLE001 - the Application runs; the registration can be done by hand
+        print(f"The Application is running but the registration failed: {exc}", file=sys.stderr)
+        print(f"Register it by hand in Settings -> AI Models: OpenAI-compatible, base URL {vllm_url(env)}, "
+              f"secret env://VLLM_API_KEY, model name {env.get('VLLM_MODEL') or 'studio-llm'}.", file=sys.stderr)
+        return 1
+    print(f"Registered in AI Models. Given to: {', '.join(result['assigned']) or 'nothing (a model was already chosen for each)'}. "
+          f"Connection test: {result['status']}.", flush=True)
+    return 0
 
 
 if __name__ == "__main__":

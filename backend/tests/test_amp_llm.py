@@ -57,3 +57,84 @@ def test_the_launcher_passes_the_reasoning_parser_and_thinking_switch(tmp_path) 
         pass
     else:
         raise AssertionError("invalid JSON must be refused before the Application starts")
+
+
+def _fake_registry(assignments):
+    """A Backend double: stores providers/models, answers the registry routes the registration uses."""
+    state = {"providers": [], "models": [], "puts": []}
+
+    def call(method, path, body=None):
+        if path == "/api/v1/ai/providers" and method == "GET":
+            return {"providers": state["providers"]}
+        if path == "/api/v1/ai/providers" and method == "POST":
+            row = {**body, "id": "p1"}
+            state["providers"].append(row)
+            return {"provider": row}
+        if path.startswith("/api/v1/ai/providers/") and method == "PATCH":
+            state["providers"][0].update(body)
+            return {"provider": state["providers"][0]}
+        if path == "/api/v1/ai/models" and method == "GET":
+            return {"models": state["models"]}
+        if path == "/api/v1/ai/models" and method == "POST":
+            row = {**body, "id": "m1"}
+            state["models"].append(row)
+            return {"model": row}
+        if path.startswith("/api/v1/ai/models/") and method == "PATCH":
+            state["models"][0].update(body)
+            return {"model": state["models"][0]}
+        if path.startswith("/api/v1/ai/models/") and path.endswith("/test"):
+            return {"status": "READY"}
+        if path == "/api/v1/ai/assignments" and method == "GET":
+            return {"assignments": assignments}
+        if path.startswith("/api/v1/ai/assignments/") and method == "PUT":
+            state["puts"].append(path.rsplit("/", 1)[1])
+            return {"assignment": {}}
+        raise AssertionError((method, path))
+
+    return call, state
+
+
+def _register_module():
+    spec = importlib.util.spec_from_file_location("amp_register_llm", REPO / "scripts" / "amp" / "register_llm.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_registration_gives_the_model_only_to_capabilities_nobody_chose() -> None:
+    reg = _register_module()
+    assignments = [
+        {"capability": "ASK_DATA", "source": "PROJECT", "model_id": "chosen"},
+        {"capability": "CHAT_DEFAULT", "source": "LEGACY_FALLBACK", "model_id": None},
+        {"capability": "RAG_GENERATION", "source": "LEGACY_FALLBACK", "model_id": None},
+    ]
+    call, state = _fake_registry(assignments)
+    result = reg.register(call, base_url="https://x-vllm.d/v1", name="M (vLLM)", served_name="studio-llm", context_window=32768)
+    assert "ASK_DATA" not in state["puts"] and set(state["puts"]) == {"CHAT_DEFAULT", "RAG_GENERATION", "SKILLS"}
+    assert result["status"] == "READY"
+    provider = state["providers"][0]
+    assert provider["provider_type"] == "OPENAI_COMPATIBLE" and provider["secret_ref"] == "env://VLLM_API_KEY"
+    assert provider["config_json"] == {"guided_json": True, "disable_thinking": True}
+    assert state["models"][0]["model_id"] == "studio-llm" and state["models"][0]["context_window"] == 32768
+
+
+def test_registering_twice_updates_instead_of_duplicating() -> None:
+    reg = _register_module()
+    call, state = _fake_registry([])
+    for _ in range(2):
+        reg.register(call, base_url="https://x-vllm.d/v1", name="M (vLLM)", served_name="studio-llm", context_window=None)
+    assert len(state["providers"]) == 1 and len(state["models"]) == 1
+
+
+def test_the_vllm_key_is_derived_and_the_application_is_reachable_by_the_backend() -> None:
+    import yaml
+
+    spec = importlib.util.spec_from_file_location("amp_deploy2", REPO / "scripts" / "amp" / "deploy.py")
+    dep = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(dep)
+    out = dep.with_studio_secrets({"CAI_DATA_DIR": "/tmp/anywhere-test-secret-dir"})
+    assert out["VLLM_API_KEY"] and out["VLLM_API_KEY"] != out["STUDIO_API_TOKEN"]
+    manifest = yaml.safe_load((REPO / "deployment/cai/manifests/applications.yaml").read_text(encoding="utf-8"))
+    apps = {a["key"]: a for a in manifest["applications"]}
+    assert apps["vllm"]["bypass_authentication"] is True  # the Backend calls it without a Cloudera AI login
+    assert "VLLM_API_KEY" in apps["backend"]["forward_env"] and "VLLM_API_KEY" in apps["vllm"]["forward_env"]

@@ -62,6 +62,7 @@ applications:
       ASK_DATA_UNDERSTANDING: llm
     forward_env:
       - STUDIO_API_TOKEN
+      - VLLM_API_KEY  # the secret behind the env://VLLM_API_KEY reference of the registered vLLM provider
       - ASK_DATA_UNDERSTANDING
       - ANSWER_CACHE
       - ANSWER_CACHE_TTL_SECONDS
@@ -113,6 +114,8 @@ applications:
     name: Anywhere vLLM
     description: OpenAI-compatible model server
     subdomain: vllm
+    # Called by the Backend server to server, so no Cloudera AI login; the Backend sends VLLM_API_KEY (derived like the other secrets).
+    bypass_authentication: true
     enabled: false
     enabled_env: ENABLE_VLLM
     runtime_env: AMP_VLLM_RUNTIME_ID
