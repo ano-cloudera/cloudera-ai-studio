@@ -48,6 +48,9 @@ def test_the_launcher_passes_the_reasoning_parser_and_thinking_switch(tmp_path) 
     assert command[command.index("--reasoning-parser") + 1] == "qwen3"
     assert command[command.index("--default-chat-template-kwargs") + 1] == '{"enable_thinking": false}'
     assert command[command.index("--tool-call-parser") + 1] == "qwen3_coder"
+    assert "--language-model-only" not in command and "--max-cudagraph-capture-size" not in command  # opt-in only
+    more = app.build_command({**env, "VLLM_LANGUAGE_MODEL_ONLY": "true", "VLLM_MAX_CUDAGRAPH_CAPTURE_SIZE": "16"})
+    assert "--language-model-only" in more and more[more.index("--max-cudagraph-capture-size") + 1] == "16"
     try:
         app.build_command({**env, "VLLM_DEFAULT_CHAT_TEMPLATE_KWARGS": "not json"})
     except ValueError:

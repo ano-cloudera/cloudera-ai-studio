@@ -92,6 +92,10 @@ def build_command(env: Mapping[str, str]) -> list[str]:
     if env.get("VLLM_DEFAULT_CHAT_TEMPLATE_KWARGS"):  # JSON, for example {"enable_thinking": false}
         json.loads(env["VLLM_DEFAULT_CHAT_TEMPLATE_KWARGS"])
         command.extend(["--default-chat-template-kwargs", env["VLLM_DEFAULT_CHAT_TEMPLATE_KWARGS"]])
+    if env.get("VLLM_MAX_CUDAGRAPH_CAPTURE_SIZE"):  # Qwen3.5 (Gated DeltaNet): lower it if start-up stops on a causal_conv1d_update assertion
+        command.extend(["--max-cudagraph-capture-size", env["VLLM_MAX_CUDAGRAPH_CAPTURE_SIZE"]])
+    if env.get("VLLM_LANGUAGE_MODEL_ONLY", "").strip().lower() in ("1", "true", "yes"):  # drops the vision part: more KV cache for text
+        command.append("--language-model-only")
     if env.get("VLLM_CHAT_TEMPLATE"):
         command.extend(["--chat-template", env["VLLM_CHAT_TEMPLATE"]])
     if env.get("VLLM_API_KEY"):
