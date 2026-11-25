@@ -102,7 +102,10 @@ def run(step: Step) -> None:
 
 def main(argv: list[str]) -> int:
     dry = "--dry-run" in argv
-    steps = build_steps() + (reranker_steps() if reranker_enabled() else []) + (vllm_steps() if vllm_enabled() else [])
+    if "--vllm-only" in argv:  # the "Deploy Qwen LLM" job: only the model server's venv and weights
+        steps = vllm_steps()
+    else:
+        steps = build_steps() + (reranker_steps() if reranker_enabled() else []) + (vllm_steps() if vllm_enabled() else [])
     for number, step in enumerate(steps, 1):
         status = "skip (already done)" if step.done else ("would run" if dry else "run")
         print(f"[{number}/{len(steps)}] {step.name}: {status}", flush=True)
