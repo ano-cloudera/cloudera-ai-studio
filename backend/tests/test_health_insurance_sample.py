@@ -1,0 +1,107 @@
+"""The health insurance sample: the data carries its planted patterns, the example model flags them with readable reasons, the scoring
+service answers like the contract says, and the warehouse SQL is what the loader runs. A small data set in a temporary folder."""
+from __future__ import annotations
+
+import csv
+import importlib.util
+import sys
+from collections import Counter
+from pathlib import Path
+
+import pytest
+
+SAMPLE = Path(__file__).resolve().parents[2] / "samples" / "health_insurance"
+
+
+def _load(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture(scope="module")
+def data(tmp_path_factory):
+    out = tmp_path_factory.mktemp("health_insurance")
+    generator = _load("health_insurance_generate_data", SAMPLE / "generate_data.py")
+    generator.OUT = out
+    assert generator.main(["--claims", "60000", "--members", "30000"]) == 0
+    return out
+
+
+def _rows(folder: Path, name: str) -> list[dict]:
+    with (folder / name).open(newline="", encoding="utf-8") as fh:
+        return list(csv.DictReader(fh))
+
+
+def test_every_pattern_is_planted_and_every_name_is_fictional(data) -> None:
+    truth = Counter(r["pola"] for r in _rows(data, "ground_truth.csv"))
+    assert set(truth) == {"upcoding", "jaringan", "volume_dokter", "lama_rawat", "klaim_ganda", "rawat_ulang"}
+    providers = _rows(data, "penyedia.csv")
+    assert all(" Demo " in p["nama_penyedia"] for p in providers)
+    claims = _rows(data, "klaim.csv")
+    ring = {r["id_klaim"] for r in _rows(data, "ground_truth.csv") if r["pola"] == "jaringan"}
+    accounts = {c["rekening_penggantian_hash"] for c in claims if c["id_klaim"] in ring}
+    assert len(accounts) == 6 and all(c["metode_klaim"] == "Reimbursement" for c in claims if c["id_klaim"] in ring)
+    assert {c["status_klaim"] for c in claims} == {"Dibayar", "Ditolak", "Diproses"}
+
+
+def test_the_generator_is_deterministic(data, tmp_path) -> None:
+    generator = _load("health_insurance_generate_data_again", SAMPLE / "generate_data.py")
+    generator.OUT = tmp_path
+    generator.main(["--claims", "60000", "--members", "30000"])
+    assert (tmp_path / "klaim.csv").read_bytes() == (data / "klaim.csv").read_bytes()
+
+
+@pytest.fixture(scope="module")
+def scoring(data):
+    sys.path.insert(0, str(SAMPLE / "scoring"))
+    model = _load("model", SAMPLE / "scoring" / "model.py")
+    model.DATA = data
+    service = _load("health_insurance_service", SAMPLE / "scoring" / "service.py")
+    service.read = model.read
+    return model, service
+
+
+def test_the_example_model_flags_the_ring_with_its_own_figures(data, scoring) -> None:
+    model, _ = scoring
+    scorer = model.Model.load()
+    context = model.new_context(scorer.spec)
+    truth = {r["id_klaim"]: r["pola"] for r in _rows(data, "ground_truth.csv")}
+    ring_scores, normal_alerts, normal = [], 0, 0
+    reasons: list[str] = []
+    for claim in model.arrival_order(_rows(data, "klaim.csv")):
+        values, facts = context.features(claim)
+        context.remember(claim)
+        result = scorer.score(values, facts)
+        if truth.get(claim["id_klaim"]) == "jaringan":
+            ring_scores.append(result["skor_fraud"])
+            reasons += result["alasan"]
+        elif claim["id_klaim"] not in truth:
+            normal += 1
+            normal_alerts += result["skor_fraud"] >= scorer.alert_at
+    assert sum(s >= scorer.alert_at for s in ring_scores) / len(ring_scores) > 0.9
+    assert normal_alerts / normal < 0.01
+    assert any(r.startswith("Rekening penggantian dipakai") and "peserta berbeda" in r for r in reasons)
+
+
+def test_the_service_scores_once_and_refuses_an_incomplete_claim(data, scoring) -> None:
+    _, service = scoring
+    scorer = service.Scorer()
+    claim = next(c for c in _rows(data, "klaim.csv") if c["metode_klaim"] == "Cashless")
+    fresh = {**claim, "id_klaim": "KLM-9999999"}
+    first = scorer.score(fresh)
+    again = scorer.score(fresh)
+    assert first == again and set(first) >= {"skor_fraud", "tingkat_risiko", "alasan", "versi_model", "alert"}
+    with pytest.raises(ValueError, match="missing"):
+        scorer.score({"id_klaim": "KLM-1"})
+
+
+def test_the_claims_table_is_partitioned_by_month_on_iceberg_only() -> None:
+    warehouse = _load("health_insurance_warehouse", SAMPLE / "warehouse.py")
+    iceberg = warehouse.create_table_sql('"iceberg"."demo"', "hi_klaim", True)
+    plain = warehouse.create_table_sql('"memory"."demo"', "hi_klaim", False)
+    assert "partitioning = ARRAY['month(tanggal_masuk)']" in iceberg and "format = 'PARQUET'" in iceberg
+    assert "WITH" not in plain
+    assert warehouse.literal("O'Brien", "VARCHAR") == "'O''Brien'" and warehouse.literal("", "BIGINT") == "NULL"
