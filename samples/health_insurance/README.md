@@ -50,13 +50,14 @@ Melatih ulang model (perlu scikit-learn, hanya bila data atau fitur diubah): `py
 | 4 | Dokter mana yang rata-rata klaim per hari praktiknya paling tinggi? | Satu dokter di Kenanga, sekitar 21 klaim per hari |
 | 5 | Berapa total klaim dibayar ke rekening yang dipakai bersama? | Rp 916 juta |
 | 6 | Klaim dengan rekening dipakai bersama terjadi di penyedia mana? | Satu klinik: Klinik Demo Melati |
-| 6b | Rekening penggantian mana yang dipakai paling banyak peserta? | Enam rekening, masing-masing 11-12 peserta |
+| 6b | Untuk klaim reimbursement, rekening penggantian mana yang dipakai paling banyak peserta? | Enam rekening, masing-masing 11-12 peserta |
 | 7 | Kenapa klaim di Klinik Demo Melati Jakarta Timur mencurigakan? | Agen: rekening bersama, malam dan akhir pekan, satu dokter, tagihan 5,9x |
 | 8 | Apa yang harus dilakukan menurut SOP bila ada rekening dipakai banyak peserta? | Dari dokumen SOP, dengan halaman |
 | 9 | Berapa kerugian dari fraud yang sudah terbukti? | Uang yang hilang |
 | 10 | Lonjakan klaim DBD di awal 2026 itu wabah atau fraud? | Agen: wabah, tersebar di banyak penyedia |
 
-Tanyakan rekening yang dipakai bersama (5, 6) **sebelum** daftar nomor rekening (6b). Bila ditanyakan sesudahnya, "rekening yang dipakai
+Tanyakan rekening yang dipakai bersama (5, 6) **sebelum** daftar nomor rekening (6b), dan sebut "reimbursement" di 6b: hanya klaim
+reimbursement yang punya rekening, dan tanpa itu klaim cashless (tanpa rekening) berada di urutan teratas. Bila ditanyakan sesudahnya, "rekening yang dipakai
 bersama" dibaca sebagai nomor-nomor yang baru disebut, dan filternya tidak bisa diterapkan pada pertanyaan lanjutan.
 
 ## Opsional: data bergerak

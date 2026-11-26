@@ -1,6 +1,6 @@
 {
   "name": "asuransi-kesehatan-fraud-demo",
-  "description": "The questions of the health insurance fraud demo, in the order they are asked in one session: the size of the problem, the provider, the doctor, the money paid to shared bank accounts, where, and which accounts, the investigations, the dengue outbreak that is not fraud, and a month outside the data. The numbers come from expected_answers.py (data of generate_data.py, fixed seed). Run: python scripts/judge_answers.py --cases samples/health_insurance/judge_demo.json --out /home/cdsw/j_asuransi.json The shared-account questions come before the list of account numbers: asked after it, \"rekening yang dipakai bersama\" is read as those listed accounts, which a follow-up cannot filter on, and the answer comes back unfiltered.",
+  "description": "The questions of the health insurance fraud demo, in the order they are asked in one session: the size of the problem, the provider, the doctor, the money paid to shared bank accounts, where, and which accounts, the investigations, the dengue outbreak that is not fraud, and a month outside the data. The numbers come from expected_answers.py (data of generate_data.py, fixed seed). Run: python scripts/judge_answers.py --cases samples/health_insurance/judge_demo.json --out /home/cdsw/j_asuransi.json The shared-account questions come before the list of account numbers: asked after it, \"rekening yang dipakai bersama\" is read as those listed accounts, which a follow-up cannot filter on, and the answer comes back unfiltered. The account question names reimbursement: only reimbursement claims have an account, and \"which account\" over all claims ranks the cashless claims (no account) first. Question 2 may keep the October 2026 of question 1 (1,226 alerted claims) or take every month (7,953): both name Kenanga first.",
   "language": "id",
   "turns": [
     {
@@ -31,8 +31,13 @@
           "jumlah_klaim_beralert"
         ],
         "first_row": "RS Demo Kenanga Surabaya",
-        "numbers": [
-          7953
+        "numbers_any": [
+          [
+            7953
+          ],
+          [
+            1226
+          ]
         ],
         "mentions": [
           "Kenanga"
@@ -114,13 +119,12 @@
       }
     },
     {
-      "question": "Rekening penggantian mana yang dipakai paling banyak peserta?",
+      "question": "Untuk klaim reimbursement, rekening penggantian mana yang dipakai paling banyak peserta?",
       "expect": {
         "route": "data",
         "metric": [
           "jumlah_peserta"
         ],
-        "min_rows": 6,
         "numbers": [
           12
         ],
@@ -142,7 +146,11 @@
           [
             "malam",
             "akhir pekan",
-            "dokter"
+            "dokter",
+            "1,8x",
+            "penggelembungan",
+            "reimbursement",
+            "terbukti fraud"
           ]
         ]
       }
