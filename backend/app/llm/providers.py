@@ -271,6 +271,15 @@ class GeminiProvider:
         self._client = genai.Client(api_key=api_key) if api_key else genai.Client()
         return self._client
 
+    # Error codes, so a subclass (a model registered in AI Models) keeps its own.
+    _EMPTY_CODE = "PROVIDER_ERROR"
+    _TIMEOUT_CODE = "TIMEOUT"
+    _SDK_ERROR_CODE = "PROVIDER_ERROR"
+    _MAX_OUTPUT_TOKENS = 65536
+
+    def _model_name(self) -> str:
+        return self.settings.gemini_model
+
     async def generate_structured(
         self,
         messages: list[dict[str, str]],
@@ -279,6 +288,9 @@ class GeminiProvider:
         temperature: float,
         max_tokens: int,
     ) -> StructuredT:
+        """A thinking model spends output tokens on its thinking before it writes the answer, so the limit is the answer's tokens plus
+        headroom. When the thinking still ran out the limit and the answer came back cut (finish reason MAX_TOKENS), it is asked once
+        more with twice the limit: a cut answer would otherwise fail, and the caller would quietly fall back to something weaker."""
         from google.genai import types
 
         system_instruction = "\n\n".join(
@@ -288,50 +300,65 @@ class GeminiProvider:
         if not contents:
             contents = [types.Content(role="user", parts=[types.Part.from_text(text="Proceed.")])]
 
-        config = types.GenerateContentConfig(
-            system_instruction=system_instruction or None,
-            temperature=temperature,
-            max_output_tokens=max_tokens + max(0, int(self.settings.gemini_thinking_headroom_tokens)),
-            response_mime_type="application/json",
-            response_json_schema=_gemini_json_schema(response_model),
-        )
-        try:
-            response = await self._client_instance().aio.models.generate_content(
-                model=self.settings.gemini_model,
-                contents=contents,
-                config=config,
+        limit = max_tokens + max(0, int(self.settings.gemini_thinking_headroom_tokens))
+        for attempt in (1, 2):
+            config = types.GenerateContentConfig(
+                system_instruction=system_instruction or None,
+                temperature=temperature,
+                max_output_tokens=limit,
+                response_mime_type="application/json",
+                response_json_schema=_gemini_json_schema(response_model),
             )
-            text = (response.text or "").strip()
-            if not text:
-                candidates = getattr(response, "candidates", None) or []
-                logger.warning(
-                    "llm_empty_response provider=gemini model=%s finish_reason=%s",
-                    self.settings.gemini_model,
-                    getattr(candidates[0], "finish_reason", None) if candidates else None,
+            try:
+                response = await self._client_instance().aio.models.generate_content(
+                    model=self._model_name(),
+                    contents=contents,
+                    config=config,
                 )
-                raise ProviderError("PROVIDER_ERROR")
-            meta = getattr(response, "usage_metadata", None)
-            prompt_t = completion_t = 0
-            if meta is not None:
-                prompt_t = int(getattr(meta, "prompt_token_count", 0) or 0)
-                completion_t = int(getattr(meta, "candidates_token_count", 0) or 0)
-                if completion_t <= 0:
-                    total = int(getattr(meta, "total_token_count", 0) or 0)
-                    if total > prompt_t:
-                        completion_t = total - prompt_t
-            record_llm_usage(provider="gemini", prompt_tokens=prompt_t, completion_tokens=completion_t)
-            return response_model.model_validate(_structured_json(text))
-        except ProviderError:
-            raise
-        except ValidationError as exc:
-            raise ProviderError("INVALID_STRUCTURED_OUTPUT") from exc
-        except TimeoutError as exc:
-            raise ProviderError("TIMEOUT") from exc
-        except Exception as exc:
-            logger.warning(
-                "llm_sdk_error provider=gemini model=%s error_type=%s detail=%s",
-                self.settings.gemini_model,
-                type(exc).__name__,
-                str(exc)[:500],
-            )
-            raise ProviderError("PROVIDER_ERROR") from exc
+                candidates = getattr(response, "candidates", None) or []
+                finish = str(getattr(candidates[0], "finish_reason", "") if candidates else "")
+                cut = "MAX_TOKENS" in finish
+                text = (response.text or "").strip()
+                meta = getattr(response, "usage_metadata", None)
+                prompt_t = completion_t = 0
+                if meta is not None:
+                    prompt_t = int(getattr(meta, "prompt_token_count", 0) or 0)
+                    completion_t = int(getattr(meta, "candidates_token_count", 0) or 0)
+                    if completion_t <= 0:
+                        total = int(getattr(meta, "total_token_count", 0) or 0)
+                        if total > prompt_t:
+                            completion_t = total - prompt_t
+                record_llm_usage(provider="gemini", prompt_tokens=prompt_t, completion_tokens=completion_t)
+                try:
+                    if not text:
+                        logger.warning("llm_empty_response provider=gemini model=%s finish_reason=%s limit=%s", self._model_name(), finish, limit)
+                        raise ProviderError(self._EMPTY_CODE)
+                    parsed = _structured_json(text)
+                except ProviderError:
+                    if text:
+                        logger.warning(
+                            "llm_unreadable_json provider=gemini model=%s finish_reason=%s answer_tokens=%s thinking_tokens=%s limit=%s chars=%s",
+                            self._model_name(), finish, completion_t,
+                            getattr(meta, "thoughts_token_count", None) if meta is not None else None, limit, len(text),
+                        )
+                    if cut and attempt == 1 and limit < self._MAX_OUTPUT_TOKENS:
+                        limit = min(limit * 2, self._MAX_OUTPUT_TOKENS)
+                        logger.info("llm_retry_cut_answer provider=gemini model=%s new_limit=%s", self._model_name(), limit)
+                        continue
+                    raise
+                return response_model.model_validate(parsed)
+            except ProviderError:
+                raise
+            except ValidationError as exc:
+                raise ProviderError("INVALID_STRUCTURED_OUTPUT") from exc
+            except TimeoutError as exc:
+                raise ProviderError(self._TIMEOUT_CODE) from exc
+            except Exception as exc:
+                logger.warning(
+                    "llm_sdk_error provider=gemini model=%s error_type=%s detail=%s",
+                    self._model_name(),
+                    type(exc).__name__,
+                    str(exc)[:500],
+                )
+                raise ProviderError(self._SDK_ERROR_CODE) from exc
+        raise ProviderError("INVALID_STRUCTURED_OUTPUT")  # not reached: the second attempt returns or raises

@@ -215,7 +215,64 @@ async def test_gemini_headroom_can_be_set_to_zero_and_an_empty_reply_is_logged(c
         with pytest.raises(ProviderError):
             await provider.generate_structured([{"role": "user", "content": "q"}], Result, temperature=0, max_tokens=50)
     assert "llm_empty_response" in caplog.text and "MAX_TOKENS" in caplog.text
-    assert client.aio.models.generate_content.await_args.kwargs["config"].max_output_tokens == 50
+    # Cut by the limit: asked once more with twice the room, then given up.
+    limits = [call.kwargs["config"].max_output_tokens for call in client.aio.models.generate_content.await_args_list]
+    assert limits == [50, 100]
+
+
+def _gemini_reply(text: str, finish: str = "STOP", thinking: int = 0):
+    from unittest.mock import MagicMock
+
+    reply = MagicMock()
+    reply.text = text
+    reply.candidates = [MagicMock(finish_reason=finish)]
+    reply.usage_metadata = MagicMock(prompt_token_count=10, candidates_token_count=5, thoughts_token_count=thinking)
+    return reply
+
+
+@pytest.mark.asyncio
+async def test_a_gemini_answer_cut_by_its_thinking_is_asked_again_with_more_room(caplog) -> None:
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    settings = Settings(_env_file=None, gemini_model="gemini-model", gemini_api_key="k", gemini_thinking_headroom_tokens=4096)
+    provider = GeminiProvider(settings)
+    client = MagicMock()
+    client.aio.models.generate_content = AsyncMock(side_effect=[_gemini_reply('{"answer": "cu', "MAX_TOKENS", 4604), _gemini_reply('{"answer": "whole"}')])
+    with patch.object(provider, "_client_instance", return_value=client), caplog.at_level("INFO"):
+        result = await provider.generate_structured([{"role": "user", "content": "q"}], Result, temperature=0, max_tokens=700)
+    assert result == Result(answer="whole")
+    limits = [call.kwargs["config"].max_output_tokens for call in client.aio.models.generate_content.await_args_list]
+    assert limits == [4796, 9592]
+    assert "thinking_tokens=4604" in caplog.text and "llm_retry_cut_answer" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_broken_json_that_was_not_cut_is_not_asked_again() -> None:
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    provider = GeminiProvider(Settings(_env_file=None, gemini_model="gemini-model", gemini_api_key="k"))
+    client = MagicMock()
+    client.aio.models.generate_content = AsyncMock(return_value=_gemini_reply("not json at all"))
+    with patch.object(provider, "_client_instance", return_value=client):
+        with pytest.raises(ProviderError):
+            await provider.generate_structured([{"role": "user", "content": "q"}], Result, temperature=0, max_tokens=700)
+    assert client.aio.models.generate_content.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_a_gemini_model_registered_in_ai_models_gets_the_same_room_to_think() -> None:
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from app.ai_registry.runtime_llm import _RegistryGeminiProvider
+
+    settings = Settings(_env_file=None, gemini_thinking_headroom_tokens=4096)
+    provider = _RegistryGeminiProvider(settings, model_id="gemini-registered", api_key="k")
+    client = MagicMock()
+    client.aio.models.generate_content = AsyncMock(return_value=_gemini_reply('{"answer": "ok"}'))
+    with patch.object(provider, "_client_instance", return_value=client):
+        assert await provider.generate_structured([{"role": "user", "content": "q"}], Result, temperature=0, max_tokens=700) == Result(answer="ok")
+    call = client.aio.models.generate_content.await_args
+    assert call.kwargs["model"] == "gemini-registered" and call.kwargs["config"].max_output_tokens == 4796
 
 
 def _qwen_settings() -> Settings:

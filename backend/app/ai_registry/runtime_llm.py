@@ -33,56 +33,14 @@ class _RegistryGeminiProvider(GeminiProvider):
         self._client = genai.Client(api_key=self._registry_api_key) if self._registry_api_key else genai.Client()
         return self._client
 
-    async def generate_structured(
-        self,
-        messages: list[dict[str, str]],
-        response_model: type[StructuredT],
-        *,
-        temperature: float,
-        max_tokens: int,
-    ) -> StructuredT:
-        from google.genai import types
+    # Same structured call as the configured Gemini (headroom for thinking, one retry when the answer was cut); only the model, the
+    # key and the error codes differ.
+    _EMPTY_CODE = "INVALID_PROVIDER_RESPONSE"
+    _TIMEOUT_CODE = "REQUEST_TIMEOUT"
+    _SDK_ERROR_CODE = "PROVIDER_UNREACHABLE"
 
-        from app.llm.providers import _gemini_json_schema, _gemini_messages_to_contents
-
-        system_instruction = "\n\n".join(
-            str(item.get("content") or "") for item in messages if item.get("role") == "system"
-        ).strip()
-        contents = _gemini_messages_to_contents(messages)
-        if not contents:
-            contents = [types.Content(role="user", parts=[types.Part.from_text(text="Proceed.")])]
-        config = types.GenerateContentConfig(
-            system_instruction=system_instruction or None,
-            temperature=temperature,
-            max_output_tokens=max_tokens,
-            response_mime_type="application/json",
-            response_json_schema=_gemini_json_schema(response_model),
-        )
-        try:
-            response = await self._client_instance().aio.models.generate_content(
-                model=self._registry_model_id,
-                contents=contents,
-                config=config,
-            )
-            text = (response.text or "").strip()
-            if not text:
-                raise ProviderError("INVALID_PROVIDER_RESPONSE")
-            meta = getattr(response, "usage_metadata", None)
-            prompt_t = completion_t = 0
-            if meta is not None:
-                prompt_t = int(getattr(meta, "prompt_token_count", 0) or 0)
-                completion_t = int(getattr(meta, "candidates_token_count", 0) or 0)
-            record_llm_usage(provider="gemini", prompt_tokens=prompt_t, completion_tokens=completion_t)
-            return response_model.model_validate(_structured_json(text))
-        except ProviderError:
-            raise
-        except ValidationError as exc:
-            raise ProviderError("INVALID_STRUCTURED_OUTPUT") from exc
-        except TimeoutError as exc:
-            raise ProviderError("REQUEST_TIMEOUT") from exc
-        except Exception as exc:
-            logger.warning("registry_gemini_error error_type=%s", type(exc).__name__)
-            raise ProviderError("PROVIDER_UNREACHABLE") from exc
+    def _model_name(self) -> str:
+        return self._registry_model_id
 
 
 class AnthropicStructuredProvider:
