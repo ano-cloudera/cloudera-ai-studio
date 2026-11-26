@@ -75,6 +75,8 @@ def answer_text(response: dict[str, Any]) -> str:
 def numbers_in(text: str) -> list[float]:
     """Every number in the text, reading "23,15" and "23.15" alike and "1.074" / "1,074" as thousands."""
     found: list[float] = []
+    # A currency written against its figure ("Rp22.531.266.000", "IDR1.808") is still a figure.
+    text = re.sub(r"\b(Rp|IDR|USD)(?=\d)", r"\1 ", text)
     for token in _NUMBER.findall(text):
         cleaned = token
         if re.fullmatch(r"-?\d{1,3}(?:[.,]\d{3})+", token):

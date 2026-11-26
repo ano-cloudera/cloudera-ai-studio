@@ -10,6 +10,7 @@ from typing import Any
 
 from app.ask_data.comparisons import find_periods
 from app.ask_data.intent_satisfaction import parse_requested_constraints, parse_yearless_period
+from app.core.language import detect_language
 from app.core.models import CalculationCheck
 
 _DATE_IN_SQL = re.compile(r"(?:DATE|TIMESTAMP)\s*'\d{4}-\d{2}-\d{2}|CAST\(\s*'\d{4}-\d{2}-\d{2}", re.I)
@@ -45,36 +46,44 @@ def verify_answer(
     drill: dict[str, Any] | None,
     truncated: bool = False,
 ) -> list[CalculationCheck]:
-    """Only the checks that apply to this question; an ordinary question may return an empty list."""
+    """Only the checks that apply to this question; an ordinary question may return an empty list. The messages are in the
+    language of the question: a warning is also a caveat of the answer, and an Indonesian answer must not carry an English line."""
     checks: list[CalculationCheck] = []
     constraints = parse_requested_constraints(question)
     kind = (drill or {}).get("kind")
     sql_text = sql or ""
+    indonesian = detect_language(question) == "id"
+
+    def add(name: str, status: str, english: str, bahasa: str) -> None:
+        checks.append(CalculationCheck(name=name, status=status, message=bahasa if indonesian else english))  # type: ignore[arg-type]
+
+    def period_check(label: str) -> None:
+        if _DATE_IN_SQL.search(sql_text):
+            add("period", "ok", f"The period asked for ({label}) is applied as a date filter.",
+                f"Periode yang ditanyakan ({label}) diterapkan sebagai filter tanggal.")
+        else:
+            add("period", "warning", f"The question names {label} but the query has no date filter, so the figures cover every date.",
+                f"Pertanyaan menyebut {label}, tetapi query tidak memakai filter tanggal, sehingga angkanya mencakup semua tanggal.")
 
     period = constraints.explicit_range
     if period is not None and kind != "periods":
-        if _DATE_IN_SQL.search(sql_text):
-            checks.append(CalculationCheck(name="period", status="ok", message=f"The period asked for ({period.label}) is applied as a date filter."))
-        else:
-            checks.append(CalculationCheck(name="period", status="warning", message=f"The question names {period.label} but the query has no date filter, so the figures cover every date."))
+        period_check(period.label)
     elif kind == "periods":
-        checks.append(CalculationCheck(name="period", status="ok", message="Both periods were computed separately and merged."))
+        add("period", "ok", "Both periods were computed separately and merged.", "Kedua periode dihitung terpisah lalu digabungkan.")
     elif kind != "benchmark":
         # Months named without a year ("between March and June") still have to show up as a date filter.
         named = find_periods(question)
         single = parse_yearless_period(question)
         label = named[0][2].label if named else (single.label if single else None)
         if label:
-            if _DATE_IN_SQL.search(sql_text):
-                checks.append(CalculationCheck(name="period", status="ok", message=f"The period asked for ({label}) is applied as a date filter."))
-            else:
-                checks.append(CalculationCheck(name="period", status="warning", message=f"The question names {label} but the query has no date filter, so the figures cover every date."))
+            period_check(label)
 
     if "time_month" in constraints.requested_grouping:
         if _MONTH_GROUP.search(sql_text):
-            checks.append(CalculationCheck(name="grouping", status="ok", message="The result is split by month, in date order."))
+            add("grouping", "ok", "The result is split by month, in date order.", "Hasil dipecah per bulan, berurutan menurut tanggal.")
         else:
-            checks.append(CalculationCheck(name="grouping", status="warning", message="The question asks for a monthly breakdown but the result is not split by month."))
+            add("grouping", "warning", "The question asks for a monthly breakdown but the result is not split by month.",
+                "Pertanyaan meminta rincian per bulan, tetapi hasilnya tidak dipecah per bulan.")
 
     if definition and rows and _is_percentage(definition):
         metric_columns = [c for c in columns if c in {"metric_value", "overall_value"}] or ["metric_value"]
@@ -82,12 +91,14 @@ def verify_answer(
         # An attainment (101.9% of a quota), a growth or a margin can lawfully pass 100 or fall below 0, so only a value no
         # percentage would take (a rate scaled twice) is warned about.
         if values and (min(values) < -1000 or max(values) > 1000):
-            checks.append(CalculationCheck(name="range", status="warning", message=f"A percentage metric returned values from {min(values):g} to {max(values):g}, which looks like a scaling error."))
+            add("range", "warning", f"A percentage metric returned values from {min(values):g} to {max(values):g}, which looks like a scaling error.",
+                f"Metrik persentase menghasilkan nilai dari {min(values):g} sampai {max(values):g}; kemungkinan ada kesalahan skala.")
         elif values and 0 <= min(values) and max(values) <= 100:
-            checks.append(CalculationCheck(name="range", status="ok", message="Percentage values stay between 0 and 100."))
+            add("range", "ok", "Percentage values stay between 0 and 100.", "Nilai persentase berada di antara 0 dan 100.")
 
     if truncated:
-        checks.append(CalculationCheck(name="rows", status="warning", message="The result was cut at the row limit; narrow the question to see everything."))
+        add("rows", "warning", "The result was cut at the row limit; narrow the question to see everything.",
+            "Hasil dipotong pada batas jumlah baris; persempit pertanyaan untuk melihat semuanya.")
     return checks
 
 

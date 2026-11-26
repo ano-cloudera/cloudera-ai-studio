@@ -140,3 +140,7 @@ def test_the_judge_reads_what_the_reader_is_shown_in_the_chat_and_in_the_panel()
     }
     text = judge.answer_text(response)
     assert "172 km" in text and "Buat tiket prioritas tinggi" in text  # the panel counts, not only the chat
+
+
+def test_a_figure_written_against_its_currency_is_read() -> None:
+    assert ja.numbers_in("Kerugian mencapai Rp22.531.266.000, atau IDR1.808 juta") == [22531266000.0, 1808.0]

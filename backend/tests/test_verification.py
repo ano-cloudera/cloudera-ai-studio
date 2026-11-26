@@ -47,3 +47,13 @@ def test_months_without_a_year_must_still_be_a_date_filter() -> None:
     dated = "SELECT 1 FROM t WHERE d.order_date >= DATE '2026-03-01' AND d.order_date < DATE '2026-07-01'"
     checks = verify_answer(question=question, sql=dated, columns=[], rows=[], definition=None, drill=None)
     assert [c.status for c in checks if c.name == "period"] == ["ok"]
+
+
+def test_the_checks_speak_the_language_of_the_question() -> None:
+    # A warning is also a caveat of the answer: an Indonesian answer must not carry an English line.
+    indonesian = verify_answer(question="Dokter mana yang klaim per harinya paling tinggi?", sql="SELECT 1", columns=["metric_value"],
+                               rows=[{"metric_value": 5}], definition=None, drill=None, truncated=True)
+    english = verify_answer(question="Which doctor has the most claims per day?", sql="SELECT 1", columns=["metric_value"],
+                            rows=[{"metric_value": 5}], definition=None, drill=None, truncated=True)
+    assert indonesian[-1].message == "Hasil dipotong pada batas jumlah baris; persempit pertanyaan untuk melihat semuanya."
+    assert english[-1].message == "The result was cut at the row limit; narrow the question to see everything."

@@ -41,6 +41,14 @@ class ConnectorDatasourceExecutor:
         self._registry = ConnectorRegistryService(session, settings=settings)
         self._factory = ConnectorFactory(settings=settings)
 
+    def prepare(self, *, context: DatasourceExecutionContext, workspace_id: uuid.UUID, project_id: uuid.UUID) -> "PreparedQuery":
+        """Everything a query needs from the platform database (the data source and its credentials), read now, so the warehouse
+        query itself runs after the session is closed."""
+        if context.legacy_fallback or not context.connector_id:
+            raise ConnectorError("DATASOURCE_UNRESOLVED", "No connector context", 422)
+        row = self._registry.get_connector(context.connector_id, workspace_id=workspace_id, project_id=project_id)
+        return PreparedQuery(adapter=self._registry.build_adapter(row), context=context)
+
     def execute_sync(
         self,
         sql: str,
@@ -50,14 +58,22 @@ class ConnectorDatasourceExecutor:
         project_id: uuid.UUID,
         max_rows: int,
     ) -> dict[str, Any]:
-        if context.legacy_fallback or not context.connector_id:
-            raise ConnectorError("DATASOURCE_UNRESOLVED", "No connector context", 422)
-        row = self._registry.get_connector(context.connector_id, workspace_id=workspace_id, project_id=project_id)
+        return self.prepare(context=context, workspace_id=workspace_id, project_id=project_id).run(sql, max_rows=max_rows)
+
+
+class PreparedQuery:
+    """A data source ready to run read-only SQL, holding no platform database connection."""
+
+    def __init__(self, *, adapter: Any, context: DatasourceExecutionContext) -> None:
+        self._adapter = adapter
+        self._context = context
+
+    def run(self, sql: str, *, max_rows: int) -> dict[str, Any]:
+        context = self._context
         assert_connector_readonly_sql(sql)
-        adapter = self._registry.build_adapter(row)
         started = perf_counter()
         try:
-            result = adapter.execute_readonly_query(sql, max_rows=max_rows)
+            result = self._adapter.execute_readonly_query(sql, max_rows=max_rows)
         except ConnectorError:
             raise
         except Exception as exc:
@@ -95,16 +111,16 @@ class RoutedQueryExecutor:
             workspace_id, project_id = self._project_scope(state)
             if workspace_id is None or project_id is None:
                 raise ConnectorError("DATASOURCE_UNRESOLVED", "Project context unavailable", 503)
+            # The platform database is read for the data source, then its connection goes back to the pool before the warehouse
+            # query starts: a query of several seconds must not hold one of the few connections (they ran out with a wide model).
             with self._session_factory() as session:
-                executor = ConnectorDatasourceExecutor(session, settings=self._settings)
-                return await asyncio.to_thread(
-                    executor.execute_sync,
-                    sql,
+                prepared = await asyncio.to_thread(
+                    ConnectorDatasourceExecutor(session, settings=self._settings).prepare,
                     context=ctx,
                     workspace_id=workspace_id,
                     project_id=project_id,
-                    max_rows=self._settings.sql_max_rows,
                 )
+            return await asyncio.to_thread(prepared.run, sql, max_rows=self._settings.sql_max_rows)
         return await self._legacy.execute(sql, state)
 
     def _project_scope(self, state: dict[str, Any]) -> tuple[uuid.UUID | None, uuid.UUID | None]:
