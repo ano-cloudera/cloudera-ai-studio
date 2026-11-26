@@ -88,6 +88,13 @@ class SemanticSuggestionAcceptService:
         result = SuggestionAcceptResult(version_id=str(version.id))
         existing_keys = self._existing_keys(version.id, workspace_id=workspace_id, project_id=project_id)
 
+        # Accepted data models first: a drafted one carries its source type and columns, and the plain bootstrap entity of the
+        # same table is then skipped instead of taking its key.
+        ordered = sorted(selections, key=lambda sel: 0 if self._kind(sel) == "entity" else 1)
+        for sel in [s for s in ordered if self._kind(s) == "entity"]:
+            if sel.get("accepted"):
+                self._accept_one(sel, version.id, workspace_id, project_id, existing_keys, result)
+
         for raw in bootstrap_tables or []:
             self._bootstrap_entity(
                 version.id,
@@ -98,34 +105,41 @@ class SemanticSuggestionAcceptService:
                 result=result,
             )
 
-        for sel in selections:
-            if not sel.get("accepted"):
-                continue
-            suggestion_id = str(sel.get("suggestion_id") or "")
-            payload = dict(sel.get("payload") or {})
-            changes = dict(sel.get("changes") or {})
-            payload.update(changes)
-            kind = str(sel.get("type") or suggestion_id.split(":", 1)[0] if ":" in suggestion_id else "")
-            try:
-                if kind == "entity":
-                    self._create_entity(version.id, workspace_id, project_id, payload, existing_keys, suggestion_id, result)
-                elif kind == "metric":
-                    self._create_metric(version.id, workspace_id, project_id, payload, existing_keys, suggestion_id, result)
-                elif kind == "dimension":
-                    self._create_dimension(version.id, workspace_id, project_id, payload, existing_keys, suggestion_id, result)
-                elif kind == "relationship":
-                    self._create_relationship(version.id, workspace_id, project_id, payload, existing_keys, suggestion_id, result)
-                elif kind in ("term", "glossary"):
-                    self._create_term(version.id, workspace_id, project_id, payload, existing_keys, suggestion_id, result)
-            except SemanticRegistryError as exc:
-                if exc.code in ("duplicate", "conflict"):
-                    result.conflicts.append(AcceptConflict(suggestion_id, exc.code, exc.message))
-                else:
-                    raise
+        for sel in [s for s in ordered if self._kind(s) != "entity"]:
+            if sel.get("accepted"):
+                self._accept_one(sel, version.id, workspace_id, project_id, existing_keys, result)
 
         self._session.flush()
         result.counts = self._count_objects(version.id, workspace_id=workspace_id, project_id=project_id)
         return result
+
+    @staticmethod
+    def _kind(sel: dict) -> str:
+        suggestion_id = str(sel.get("suggestion_id") or "")
+        return str(sel.get("type") or (suggestion_id.split(":", 1)[0] if ":" in suggestion_id else ""))
+
+    def _accept_one(self, sel: dict, version_id, workspace_id, project_id, existing_keys: set[str], result: "SuggestionAcceptResult") -> None:
+        suggestion_id = str(sel.get("suggestion_id") or "")
+        payload = dict(sel.get("payload") or {})
+        changes = dict(sel.get("changes") or {})
+        payload.update(changes)
+        kind = self._kind(sel)
+        try:
+            if kind == "entity":
+                self._create_entity(version_id, workspace_id, project_id, payload, existing_keys, suggestion_id, result)
+            elif kind == "metric":
+                self._create_metric(version_id, workspace_id, project_id, payload, existing_keys, suggestion_id, result)
+            elif kind == "dimension":
+                self._create_dimension(version_id, workspace_id, project_id, payload, existing_keys, suggestion_id, result)
+            elif kind == "relationship":
+                self._create_relationship(version_id, workspace_id, project_id, payload, existing_keys, suggestion_id, result)
+            elif kind in ("term", "glossary"):
+                self._create_term(version_id, workspace_id, project_id, payload, existing_keys, suggestion_id, result)
+        except SemanticRegistryError as exc:
+            if exc.code in ("duplicate", "conflict"):
+                result.conflicts.append(AcceptConflict(suggestion_id, exc.code, exc.message))
+            else:
+                raise
 
     def _resolve_draft(
         self,
@@ -195,7 +209,10 @@ class SemanticSuggestionAcceptService:
         if f"entity:{key}" in existing_keys:
             result.conflicts.append(AcceptConflict(sid, "duplicate", f"Data model `{key}` already exists."))
             return
-        row = self._registry.create_entity(version_id, workspace_id=ws, project_id=proj, data={**payload, "key": key})
+        fields = ("name", "description", "source_type", "connection_id", "catalog", "schema", "db_schema", "table_name", "view_name", "primary_key", "metadata")
+        data = {k: payload.get(k) for k in fields if payload.get(k) is not None}
+        data.setdefault("name", key)
+        row = self._registry.create_entity(version_id, workspace_id=ws, project_id=proj, data={**data, "key": key})
         existing_keys.add(f"entity:{key}")
         result.persisted.append(AcceptPersisted(sid, "entity", str(row.id), key))
 
@@ -224,10 +241,14 @@ class SemanticSuggestionAcceptService:
                 "business_definition": payload.get("business_definition")
                 or payload.get("description")
                 or business_definition,
+                "description": payload.get("description"),
                 "expression": expr,
                 "aggregation": payload.get("aggregation") or _infer_aggregation(expr),
                 "source_entity_key": payload.get("source_entity_key"),
+                "unit": payload.get("unit") or None,
+                "format": payload.get("format") or None,
                 "synonyms": synonyms,
+                "metadata": dict(payload.get("metadata") or {}),
             },
         )
         existing_keys.add(f"metric:{key}")

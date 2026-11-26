@@ -32,6 +32,8 @@ const api = vi.hoisted(() => ({
   createSemanticModel: vi.fn(),
   acceptSemanticSuggestions: vi.fn(),
   semanticSuggestions: vi.fn(),
+  startSemanticDraft: vi.fn(),
+  getSemanticDraft: vi.fn(),
   listConnectorTables: vi.fn(),
   listConnectorSchemas: vi.fn(),
   rollbackSemanticVersion: vi.fn(),
@@ -117,6 +119,8 @@ function basePageMocks() {
     relationships: [],
     glossary_suggestions: [],
   })
+  // No AI model assigned: the wizard falls back to the basic suggestions these tests check.
+  api.startSemanticDraft.mockRejectedValue({ ...appErr(409), code: 'no_model' })
 }
 
 async function advanceWizardToReview(name = 'Wizard Model') {

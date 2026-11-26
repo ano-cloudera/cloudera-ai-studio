@@ -90,6 +90,7 @@ export function SemanticLayerPage() {
   const [suggestionsApply, setSuggestionsApply] = useState<{
     connectionId: string
     tables: string[]
+    entityKey?: string
   } | null>(null)
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -980,7 +981,7 @@ export function SemanticLayerPage() {
               connectors={connectors}
               onChanged={() => void refreshAuthoringKeys()}
               onEntityImported={ctx =>
-                setSuggestionsApply({ connectionId: ctx.connectionId, tables: [ctx.qualified] })
+                setSuggestionsApply({ connectionId: ctx.connectionId, tables: [ctx.qualified], entityKey: ctx.entityKey })
               }
             />
           ) : null}
@@ -1076,6 +1077,7 @@ export function SemanticLayerPage() {
           versionId={draftVersion.id}
           connectionId={suggestionsApply.connectionId}
           tables={suggestionsApply.tables}
+          entityKey={suggestionsApply.entityKey}
           onClose={() => setSuggestionsApply(null)}
           onApplied={() => {
             void refreshAuthoringKeys()

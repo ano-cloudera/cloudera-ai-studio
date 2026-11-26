@@ -428,6 +428,15 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  startSemanticDraft: (body: { connection_id: string; tables: string[]; language?: string; context?: string }) =>
+    request<import('../views/semantic/semanticSuggestionsUi').SemanticDraftJob>('/v1/semantic/suggestions/draft', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  getSemanticDraft: (jobId: string) =>
+    request<import('../views/semantic/semanticSuggestionsUi').SemanticDraftJob>(
+      `/v1/semantic/suggestions/draft/${encodeURIComponent(jobId)}`,
+    ),
   acceptSemanticSuggestions: (
     modelId: string,
     body: {

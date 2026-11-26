@@ -6,6 +6,18 @@ import type { ConnectorRecord } from '../../types/api'
 import { api } from '../../lib/api'
 import { isAppApiError } from '../../lib/apiError'
 import { displayModelName } from '../../lib/semanticNames'
+import { SuggestionReview } from './SuggestionReview'
+import {
+  DRAFT_LANGUAGES,
+  DraftCancelled,
+  draftSuggestions,
+  initSuggestionDecisions,
+  rememberDraftLanguage,
+  rememberedDraftLanguage,
+  selectionsFromDecisions,
+  type SuggestionBucket,
+  type SuggestionDecision,
+} from './semanticSuggestionsUi'
 
 type Props = {
   open: boolean
@@ -22,38 +34,6 @@ type SelectedTable = {
   tableName: string
   catalog?: string | null
 }
-
-type SuggestionItem = Record<string, unknown> & {
-  suggestion_id?: string
-  key?: string
-  status?: string
-}
-
-type SuggestionBucket = {
-  entities?: SuggestionItem[]
-  metrics?: SuggestionItem[]
-  dimensions?: SuggestionItem[]
-  relationships?: SuggestionItem[]
-  glossary_suggestions?: SuggestionItem[]
-  terms?: SuggestionItem[]
-}
-
-type SuggestionDecision = {
-  suggestion_id: string
-  type: string
-  accepted: boolean
-  payload: SuggestionItem
-  edits: Record<string, string>
-  editing: boolean
-}
-
-const SECTIONS: Array<{ key: keyof SuggestionBucket; label: string; type: string }> = [
-  { key: 'entities', label: 'Data Models', type: 'entity' },
-  { key: 'metrics', label: 'Metrics', type: 'metric' },
-  { key: 'dimensions', label: 'Dimensions', type: 'dimension' },
-  { key: 'relationships', label: 'Relationships', type: 'relationship' },
-  { key: 'glossary_suggestions', label: 'Glossary', type: 'term' },
-]
 
 function slugKey(name: string): string {
   return name.trim().toLowerCase().replace(/\s+/g, '_').slice(0, 64)
@@ -84,6 +64,9 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [completion, setCompletion] = useState<{ modelId: string; counts: Record<string, number> } | null>(null)
+  const [language, setLanguage] = useState('en')
+  const [stage, setStage] = useState('')
+  const draftRun = useRef(0)
 
   const primaryConnectionId = selectedTables[0]?.connectionId ?? connectors[0]?.id ?? ''
 
@@ -152,6 +135,12 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
     setBusy(false)
     setError('')
     setCompletion(null)
+    setStage('')
+    draftRun.current += 1 // a draft still running for the closed wizard stops polling
+  }, [open])
+
+  useEffect(() => {
+    if (open) setLanguage(rememberedDraftLanguage())
   }, [open])
 
   useEffect(() => {
@@ -182,45 +171,40 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
     })
   }
 
-  function initDecisions(bucket: SuggestionBucket) {
-    const next: Record<string, SuggestionDecision> = {}
-    for (const section of SECTIONS) {
-      const items = (bucket[section.key] as SuggestionItem[] | undefined) ?? []
-      for (const item of items) {
-        const sid = String(item.suggestion_id ?? `${section.type}:${item.key ?? ''}`)
-        next[sid] = {
-          suggestion_id: sid,
-          type: section.type,
-          accepted: true,
-          payload: item,
-          edits: {},
-          editing: false,
-        }
-      }
-    }
-    setDecisions(next)
-  }
-
   async function loadSuggestions() {
     if (!primaryConnectionId || !selectedTables.length) return
+    const run = ++draftRun.current
     setBusy(true)
     setError('')
+    setStage('Starting')
     try {
-      const res = await api.semanticSuggestions({
-        connection_id: primaryConnectionId,
-        tables: selectedTables.map(t => t.qualified),
-      })
-      const bucket = res as SuggestionBucket
+      const bucket = await draftSuggestions(
+        {
+          connection_id: primaryConnectionId,
+          tables: selectedTables.filter(t => t.connectionId === primaryConnectionId).map(t => t.qualified),
+          language,
+          context: description.trim(),
+        },
+        next => {
+          if (run === draftRun.current) setStage(next)
+        },
+        { cancelled: () => run !== draftRun.current },
+      )
+      if (run !== draftRun.current) return
       setSuggestions(bucket)
-      initDecisions(bucket)
+      setDecisions(initSuggestionDecisions(bucket))
       setStep(3)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Suggestions unavailable')
+      if (err instanceof DraftCancelled || run !== draftRun.current) return
+      setError(err instanceof Error ? err.message : isAppApiError(err) ? err.message : 'Suggestions unavailable')
       setSuggestions(null)
       setDecisions({})
       setStep(3)
     } finally {
-      setBusy(false)
+      if (run === draftRun.current) {
+        setBusy(false)
+        setStage('')
+      }
     }
   }
 
@@ -255,13 +239,7 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
           table_name: parsed.tableName,
         }
       })
-      const selections = Object.values(decisions).map(d => ({
-        suggestion_id: d.suggestion_id,
-        type: d.type,
-        accepted: d.accepted,
-        payload: { ...d.payload, ...d.edits },
-        changes: d.edits,
-      }))
+      const selections = selectionsFromDecisions(decisions)
       const accept = await api.acceptSemanticSuggestions(model.id, { bootstrap_tables, selections })
       setCompletion({ modelId: model.id, counts: accept.counts ?? {} })
       setStep(4)
@@ -274,10 +252,6 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
     } finally {
       setBusy(false)
     }
-  }
-
-  function labelFor(item: SuggestionItem): string {
-    return String(item.name ?? item.term ?? item.key ?? 'Suggestion')
   }
 
   return (
@@ -305,8 +279,35 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
               </span>
             </label>
             <label className="block text-sm">
-              <span className="text-xs font-semibold text-slate-600">Description (optional)</span>
-              <textarea className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2" value={description} onChange={e => setDescription(e.target.value)} rows={2} />
+              <span className="text-xs font-semibold text-slate-600">What is this data about? (optional)</span>
+              <textarea
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                rows={2}
+                placeholder="For example: deliveries from our depots to customers; amounts are in IDR."
+              />
+              <span className="mt-1 block text-xs text-slate-500">
+                Saved as the model description, and given to the AI model that drafts the metrics: mention the business, the currency and
+                any rule a number must follow.
+              </span>
+            </label>
+            <label className="block text-sm">
+              <span className="text-xs font-semibold text-slate-600">Language for names and descriptions</span>
+              <select
+                className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2"
+                value={language}
+                onChange={e => {
+                  setLanguage(e.target.value)
+                  rememberDraftLanguage(e.target.value)
+                }}
+              >
+                {DRAFT_LANGUAGES.map(l => (
+                  <option key={l.value} value={l.value}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
         ) : null}
@@ -321,6 +322,15 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
               onChange={e => setTableSearch(e.target.value)}
             />
             <p className="text-xs text-slate-600">{selectedTables.length} table(s) selected</p>
+            {busy && stage ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700" role="status" data-testid="wizard-draft-progress">
+                <span className="font-semibold">Drafting from your data:</span> {stage}
+                <span className="mt-0.5 block text-slate-500">
+                  The tables are profiled, the AI model writes the draft, and every metric is run once on the data. This usually takes one
+                  to three minutes.
+                </span>
+              </div>
+            ) : null}
             <div className="max-h-72 space-y-3 overflow-y-auto">
               {filteredConnectors.map(({ connector, tables }) => {
                 const loadState = tablesLoadState[connector.id] ?? 'idle'
@@ -375,50 +385,7 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
                 Reject all
               </button>
             </div>
-            {SECTIONS.map(section => {
-              const items = (suggestions?.[section.key] as SuggestionItem[] | undefined) ?? []
-              if (!items.length) return null
-              return (
-                <div key={section.key} className="rounded-lg border border-slate-100 p-3">
-                  <div className="text-xs font-semibold uppercase text-slate-500">{section.label}</div>
-                  <ul className="mt-2 space-y-2">
-                    {items.map(item => {
-                      const sid = String(item.suggestion_id ?? `${section.type}:${item.key}`)
-                      const d = decisions[sid]
-                      if (!d) return null
-                      return (
-                        <li key={sid} className="rounded border border-slate-100 px-2 py-2">
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                              <span className="rounded bg-violet-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-800">Suggested</span>
-                              <span className="ml-2 font-medium">{d.editing ? d.edits.name ?? labelFor(item) : labelFor({ ...item, ...d.edits })}</span>
-                            </div>
-                            <div className="flex gap-1">
-                              <button type="button" className="text-xs text-slate-700" onClick={() => setDecision(sid, { editing: !d.editing })}>
-                                Edit
-                              </button>
-                              <button type="button" className={`text-xs ${d.accepted ? 'font-semibold text-emerald-700' : 'text-slate-500'}`} onClick={() => setDecision(sid, { accepted: true })}>
-                                Accept
-                              </button>
-                              <button type="button" className={`text-xs ${!d.accepted ? 'font-semibold text-red-700' : 'text-slate-500'}`} onClick={() => setDecision(sid, { accepted: false })}>
-                                Reject
-                              </button>
-                            </div>
-                          </div>
-                          {d.editing ? (
-                            <input
-                              className="mt-2 w-full rounded border border-slate-200 px-2 py-1 text-sm"
-                              value={d.edits.name ?? labelFor(item)}
-                              onChange={e => setDecision(sid, { edits: { ...d.edits, name: e.target.value } })}
-                            />
-                          ) : null}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              )
-            })}
+            {suggestions ? <SuggestionReview bucket={suggestions} decisions={decisions} onDecision={setDecision} editable /> : null}
             {!suggestions ? <p className="text-xs text-slate-500">No suggestions loaded. Selected tables will still be imported as data models.</p> : null}
           </div>
         ) : null}
@@ -462,7 +429,7 @@ export function CreateSemanticModelWizard({ open, connectors, onClose, onCreated
               ) : null}
               {step === 2 ? (
                 <button type="button" className="btn-primary h-9 px-3 text-sm" disabled={!selectedTables.length || busy} onClick={() => void loadSuggestions()}>
-                  Review suggestions
+                  {busy ? 'Drafting…' : 'Review suggestions'}
                 </button>
               ) : null}
               {step === 3 ? (

@@ -25,9 +25,14 @@ the platform stays the same. This guide lists what to change and where. Use it a
    (Ask Data, Knowledge, MCP). No GPU is needed for hosted models. To serve your own model, see "Optional: vLLM" at the end of this guide.
 3. **Data Source.** Data Sources -> new connection (Trino, Impala or PostgreSQL). Passwords are entered as `env://VARIABLE`, never as text.
    Test the connection, then browse the tables.
-4. **Semantic layer.** Semantic Layer -> create a model, add each table as an entity, import columns as dimensions, define metrics with a
-   plain-language description and synonyms, then **Publish**. Only published metrics answer questions. Pin the model in Settings -> Ask Data
-   so questions resolve to it without typing `@`. Write each metric as a formula over columns (for example a ratio of two counts).
+4. **Semantic layer.** Semantic Layer -> **Create semantic model**: name it, say in one line what the data is about (the business, the
+   currency, any rule a number must follow), pick the language, then select the tables and click **Review suggestions**. The model
+   assigned to Ask Data drafts the data models, dimensions, metrics (with units, direction and the Home overview order), joins and
+   glossary from a profile of the data, in one to three minutes. Before anything is offered, every metric is run once on the data and
+   every join is checked against it; what failed is listed with the reason. Review, edit or reject, **Finish**, then **Publish**. Only
+   published metrics answer questions. Pin the model in Settings -> Ask Data so questions resolve to it without typing `@`. Without an
+   assigned model the wizard offers basic suggestions from column names, and you write the metrics by hand: each one a formula over
+   columns (for example a ratio of two counts) with a plain-language description and synonyms.
 5. **Knowledge.** Knowledge -> create a library per topic and upload the documents (PDF, text). Wait for **Ready**. Attach a library with `@`
    to answer from it; answers cite the document and page.
 6. **MCP tools.** Settings -> MCP -> add a server (stdio command or HTTP URL), pass secrets by variable name, **Test connection**, **Save**.

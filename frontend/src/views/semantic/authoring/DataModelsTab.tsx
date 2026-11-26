@@ -26,7 +26,7 @@ type Props = {
   readOnly: boolean
   connectors: ConnectorRecord[]
   onChanged: () => void
-  onEntityImported?: (ctx: { connectionId: string; qualified: string }) => void
+  onEntityImported?: (ctx: { connectionId: string; qualified: string; entityKey: string }) => void
 }
 
 type DrawerMode = 'create' | 'edit' | null
@@ -133,7 +133,7 @@ export function DataModelsTab({ versionId, readOnly, connectors, onChanged, onEn
           description: form.description,
         })
         const qualified = [form.catalog, form.schema, form.table_name].filter(Boolean).join('.')
-        onEntityImported?.({ connectionId: form.connection_id!, qualified })
+        onEntityImported?.({ connectionId: form.connection_id!, qualified, entityKey: key })
       } else {
         await api.patchSemanticEntity(versionId, form.id, {
           name: form.name,

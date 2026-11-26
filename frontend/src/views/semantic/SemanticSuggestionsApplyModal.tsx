@@ -1,15 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../../lib/api'
+import { SuggestionReview } from './SuggestionReview'
 import {
+  DraftCancelled,
+  draftSuggestions,
   initSuggestionDecisions,
-  labelForSuggestion,
+  rememberedDraftLanguage,
+  remapEntityKey,
   selectionsFromDecisions,
-  SUGGESTION_SECTIONS,
   type SuggestionBucket,
   type SuggestionDecision,
-  type SuggestionItem,
 } from './semanticSuggestionsUi'
 
 type Props = {
@@ -18,6 +20,8 @@ type Props = {
   versionId: string
   connectionId: string
   tables: string[]
+  /** The key the table was imported under; the draft's suggestions are pointed at it. */
+  entityKey?: string
   onClose: () => void
   onApplied: () => void
 }
@@ -28,22 +32,33 @@ export function SemanticSuggestionsApplyModal({
   versionId,
   connectionId,
   tables,
+  entityKey,
   onClose,
   onApplied,
 }: Props) {
   const [suggestions, setSuggestions] = useState<SuggestionBucket | null>(null)
   const [decisions, setDecisions] = useState<Record<string, SuggestionDecision>>({})
   const [busy, setBusy] = useState(false)
+  const [stage, setStage] = useState('')
   const [error, setError] = useState('')
+  const run = useRef(0)
 
   const load = useCallback(async () => {
+    const mine = ++run.current
     setBusy(true)
     setError('')
+    setStage('Starting')
     try {
-      const res = (await api.semanticSuggestions({
-        connection_id: connectionId,
-        tables,
-      })) as SuggestionBucket
+      let res = await draftSuggestions(
+        { connection_id: connectionId, tables, language: rememberedDraftLanguage() },
+        next => {
+          if (mine === run.current) setStage(next)
+        },
+        { cancelled: () => mine !== run.current },
+      )
+      if (mine !== run.current) return
+      const drafted = res.entities?.[0]?.key
+      if (entityKey && typeof drafted === 'string') res = remapEntityKey(res, drafted, entityKey)
       setSuggestions(res)
       setDecisions(
         initSuggestionDecisions(res, {
@@ -51,17 +66,24 @@ export function SemanticSuggestionsApplyModal({
         }),
       )
     } catch (err) {
+      if (err instanceof DraftCancelled || mine !== run.current) return
       setError(err instanceof Error ? err.message : 'Could not load suggestions')
       setSuggestions(null)
       setDecisions({})
     } finally {
-      setBusy(false)
+      if (mine === run.current) {
+        setBusy(false)
+        setStage('')
+      }
     }
-  }, [connectionId, tables])
+  }, [connectionId, tables, entityKey])
 
   useEffect(() => {
     if (!open) return
     void load()
+    return () => {
+      run.current += 1 // closing stops the polling
+    }
   }, [open, load])
 
   if (!open) return null
@@ -97,53 +119,30 @@ export function SemanticSuggestionsApplyModal({
           Data model imported. Accept recommendations for this table (data model already created).
         </p>
         {error ? <p className="mt-2 text-sm text-red-700">{error}</p> : null}
-        {busy && !suggestions ? <p className="mt-4 text-sm text-slate-600">Loading suggestions…</p> : null}
+        {busy && !suggestions ? (
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700" role="status">
+            <span className="font-semibold">Loading suggestions…</span> {stage && stage !== 'Starting' ? stage : null}
+            <span className="mt-0.5 block text-slate-500">The table is profiled and every suggested metric is run once on the data.</span>
+          </div>
+        ) : null}
 
-        <div className="mt-3 space-y-3 text-sm">
-          {SUGGESTION_SECTIONS.filter(s => s.type !== 'entity').map(section => {
-            const items = (suggestions?.[section.key] as SuggestionItem[] | undefined) ?? []
-            if (!items.length) return null
-            return (
-              <div key={section.key} className="rounded-lg border border-slate-100 p-3">
-                <div className="text-xs font-semibold uppercase text-slate-500">{section.label}</div>
-                <ul className="mt-2 space-y-2">
-                  {items.map(item => {
-                    const sid = String(item.suggestion_id ?? `${section.type}:${item.key}`)
-                    const d = decisions[sid]
-                    if (!d) return null
-                    return (
-                      <li key={sid} className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-100 px-2 py-2">
-                        <span className="font-medium">{labelForSuggestion({ ...item, ...d.edits })}</span>
-                        <div className="flex gap-2 text-xs">
-                          <button
-                            type="button"
-                            className={d.accepted ? 'font-semibold text-emerald-700' : 'text-slate-500'}
-                            onClick={() => setDecision(sid, { accepted: true })}
-                          >
-                            Accept
-                          </button>
-                          <button
-                            type="button"
-                            className={!d.accepted ? 'font-semibold text-red-700' : 'text-slate-500'}
-                            onClick={() => setDecision(sid, { accepted: false })}
-                          >
-                            Skip
-                          </button>
-                        </div>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            )
-          })}
-          {suggestions && !Object.keys(decisions).some(k => decisions[k]?.type !== 'entity') ? (
-            <p className="text-xs text-slate-500">No extra metrics or dimensions suggested for this table.</p>
-          ) : null}
-        </div>
+        {suggestions ? (
+          <div className="mt-3">
+            <SuggestionReview
+              bucket={suggestions}
+              decisions={decisions}
+              onDecision={setDecision}
+              types={['metric', 'dimension', 'relationship', 'term']}
+              rejectLabel="Skip"
+            />
+            {!Object.keys(decisions).some(k => decisions[k]?.type !== 'entity') ? (
+              <p className="mt-2 text-xs text-slate-500">No extra metrics or dimensions suggested for this table.</p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="mt-4 flex flex-wrap justify-end gap-2">
-          <button type="button" className="h-9 rounded-lg border border-slate-200 px-3 text-sm font-semibold" onClick={onClose} disabled={busy}>
+          <button type="button" className="h-9 rounded-lg border border-slate-200 px-3 text-sm font-semibold" onClick={onClose} disabled={busy && !!suggestions}>
             Skip for now
           </button>
           <button

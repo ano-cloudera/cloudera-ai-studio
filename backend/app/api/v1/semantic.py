@@ -209,6 +209,13 @@ class SemanticSuggestionsRequest(StrictModel):
     tables: list[str] = Field(default_factory=list, max_length=50)
 
 
+class SemanticDraftRequest(StrictModel):
+    connection_id: str
+    tables: list[str] = Field(min_length=1, max_length=12)
+    language: str = Field(default="en", pattern="^(en|id)$")
+    context: str = Field(default="", max_length=2000)
+
+
 class SuggestionSelectionRequest(StrictModel):
     suggestion_id: str
     type: str
@@ -507,6 +514,107 @@ def semantic_suggestions(
     except Exception as exc:
         raise HTTPException(status_code=400, detail={"code": "suggestion_failed", "message": str(exc)}) from exc
     return result.to_dict()
+
+
+def _draft_model_available(request: Request) -> bool:
+    chat = getattr(request.app.state, "chat_service", None)
+    if chat is None:
+        return False
+    try:
+        if chat.assigned_model("ask_data") is not None:
+            return True
+    except Exception:  # noqa: BLE001
+        pass
+    registry = getattr(request.app.state, "provider_registry", None)
+    return bool(registry and any(m.available for m in registry.list_models()))
+
+
+def _draft_provider_resolver(request: Request):
+    """The model assigned to Ask Data (or the first configured one), with more time per call than an answer gets: a draft writes
+    a whole table's dimensions and metrics in one reply."""
+    from app.core.models import AskDataRequest
+
+    chat = getattr(request.app.state, "chat_service", None)
+    registry = getattr(request.app.state, "provider_registry", None)
+
+    def resolve():
+        if chat is None:
+            return None
+        chosen = None
+        try:
+            chosen = chat.assigned_model("ask_data")
+        except Exception:  # noqa: BLE001
+            chosen = None
+        if chosen is None and registry is not None:
+            chosen = next((m for m in registry.list_models() if m.available), None)
+        if chosen is None:
+            return None
+        probe = AskDataRequest(session_id="semantic-draft", question="draft", provider=chosen.provider, model=chosen.id)
+        _, provider = chat.provider_for(probe)
+        settings = getattr(provider, "settings", None)
+        if settings is not None and hasattr(settings, "model_copy"):
+            provider.settings = settings.model_copy(update={"llm_request_timeout_seconds": max(settings.llm_request_timeout_seconds, 240)})
+        return provider, chosen.label or chosen.id
+
+    return resolve
+
+
+@router.post("/suggestions/draft", status_code=202)
+async def start_semantic_draft(
+    body: SemanticDraftRequest,
+    request: Request,
+    session: Session = Depends(postgres_session),
+    ctx=Depends(default_project_context),
+):
+    """Start drafting a semantic model from the selected tables: profile the data, let the AI model write the draft, check it
+    against the data. Poll GET /suggestions/draft/{job_id}."""
+    from app.db.platform_engine import get_session_factory
+    from app.semantic_registry.draft_jobs import DRAFT_JOBS, run_draft
+    from app.connectors.service import ConnectorRegistryService
+
+    ws, proj = _ctx_ids(ctx)
+    try:
+        connection_id = uuid.UUID(body.connection_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail={"code": "invalid_connection_id", "message": str(exc)}) from exc
+    if not _draft_model_available(request):
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "no_model", "message": "No AI model is available to draft with. Assign one to Ask Data in Settings → AI Models."},
+        )
+    try:
+        ConnectorRegistryService(session).get_connector(connection_id, workspace_id=ws, project_id=proj)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=404, detail={"code": "connector_not_found", "message": "Data source not found."}) from exc
+    settings = getattr(request.app.state, "settings", None) or get_settings()
+    resolve = _draft_provider_resolver(request)
+
+    async def work(say):
+        return await run_draft(
+            say,
+            settings=settings,
+            session_factory=get_session_factory(settings.database_url),
+            workspace_id=ws,
+            project_id=proj,
+            connection_id=connection_id,
+            tables=body.tables,
+            language=body.language,
+            context=body.context,
+            resolve_provider=resolve,
+        )
+
+    return DRAFT_JOBS.start(work, owner=str(proj)).to_dict()
+
+
+@router.get("/suggestions/draft/{job_id}")
+def semantic_draft_status(job_id: str, ctx=Depends(default_project_context)):
+    from app.semantic_registry.draft_jobs import DRAFT_JOBS
+
+    _, proj = _ctx_ids(ctx)
+    job = DRAFT_JOBS.get(job_id, owner=str(proj))
+    if job is None:
+        raise HTTPException(status_code=404, detail={"code": "draft_not_found", "message": "This draft is no longer available. Start it again."})
+    return job.to_dict()
 
 
 @router.post("/models/{model_id}/suggestions/accept")
