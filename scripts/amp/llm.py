@@ -109,6 +109,9 @@ def main(argv: list[str]) -> int:
     if "--check" in argv:
         print("Checks passed.", flush=True)
         return 0
+    if register_only(argv, env):
+        # The Application already runs: only (re)register it, in seconds, instead of reinstalling and restarting the model server.
+        return finish_registration(env)
     code = run("setup.py", ["--vllm-only"], env)
     if code:
         print("The vLLM environment or the weights could not be prepared; fix the error above and run this job again.", file=sys.stderr)
@@ -120,6 +123,14 @@ def main(argv: list[str]) -> int:
     code = run("deploy.py", ["--only", "backend", "--skip-build"], env)
     if code:
         return code
+    return finish_registration(env)
+
+
+def register_only(argv: list[str], env: dict[str, str]) -> bool:
+    return "--register-only" in argv or env.get("VLLM_REGISTER_ONLY", "").strip().lower() in ("1", "true", "yes")
+
+
+def finish_registration(env: dict[str, str]) -> int:
     try:
         result = register(env)
     except Exception as exc:  # noqa: BLE001 - the Application runs; the registration can be done by hand

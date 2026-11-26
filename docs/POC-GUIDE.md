@@ -81,7 +81,15 @@ and run the deploy Job again. The workspace still limits the maximum per Applica
 ## Optional: vLLM (your own model on a GPU)
 
 Off by default. Most PoCs do not need it: register an external model endpoint or an API key
-in Settings -> AI Models instead. To serve your own model, add `ENABLE_VLLM=true` and `VLLM_MODEL_ID` in Project Settings (and set `GPU_PROFILE`, plus
+in Settings -> AI Models instead.
+
+**The easy way: the `Deploy Qwen LLM` Job.** After the first deploy, run it once. It prepares the vLLM environment and the Qwen3.5-9B weights,
+creates the GPU Application, lets the Backend reach it, and registers the model in Settings -> AI Models (given to every capability that has
+no model chosen yet). It needs no variables; `VLLM_MODEL_ID`, `GPU_PROFILE` and the others below change its defaults. The first run takes
+tens of minutes (install and download). If the Application already runs and only the registration failed, set `VLLM_REGISTER_ONLY=true` in
+Project Settings and run the Job again: it only registers, in seconds, without reinstalling or restarting the model server.
+
+**By hand.** To serve your own model, add `ENABLE_VLLM=true` and `VLLM_MODEL_ID` in Project Settings (and set `GPU_PROFILE`, plus
 `HUGGING_FACE_HUB_TOKEN` for gated models). The setup job then also builds the vLLM virtualenv and downloads the weights, and the deploy job
 creates a fourth Application, `anywhere-vllm`, with one GPU. This needs, outside the AMP:
 - GPU nodes and quota in the workspace (for example an L40S group: 1 GPU, 16 vCPU / 32 GiB). The Application runs on the project's own

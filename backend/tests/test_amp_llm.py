@@ -146,3 +146,28 @@ def test_the_keys_it_registers_pass_the_registrys_own_key_rules() -> None:
     reg = _register_module()
     validate_provider_key(reg.PROVIDER_KEY)
     validate_model_key(reg.MODEL_KEY)
+
+
+def test_register_only_skips_the_install_and_the_deploys_and_goes_straight_to_the_registry(monkeypatch) -> None:
+    ran: list[str] = []
+    monkeypatch.setattr(llm, "run", lambda script, args, env: ran.append(script) or 0)
+    monkeypatch.setattr(llm, "register", lambda env: {"assigned": ["ASK_DATA"], "status": "READY"})
+    monkeypatch.setenv("VLLM_MODEL_ID", "Qwen/Qwen3.5-9B")
+    monkeypatch.setenv("HOME", "/nonexistent")
+    assert llm.main(["--register-only"]) == 0 and ran == []
+    monkeypatch.setenv("VLLM_REGISTER_ONLY", "true")
+    assert llm.main([]) == 0 and ran == []
+    monkeypatch.delenv("VLLM_REGISTER_ONLY")
+    assert llm.main([]) == 0 and ran == ["setup.py", "deploy.py", "deploy.py"]  # the full job still does everything
+
+
+def test_a_failed_registration_still_fails_the_job_and_says_how_to_do_it_by_hand(monkeypatch, capsys) -> None:
+    def broken(env):
+        raise RuntimeError("POST /api/v1/ai/providers returned HTTP 422")
+
+    monkeypatch.setattr(llm, "register", broken)
+    monkeypatch.setenv("CDSW_DOMAIN", "ml-1.example.site")
+    monkeypatch.setenv("VLLM_MODEL_ID", "Qwen/Qwen3.5-9B")
+    monkeypatch.setenv("HOME", "/nonexistent")
+    assert llm.main(["--register-only"]) == 1
+    assert "Register it by hand" in capsys.readouterr().err
