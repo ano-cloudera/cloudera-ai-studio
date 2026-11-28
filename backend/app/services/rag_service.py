@@ -45,11 +45,12 @@ def normalize_rag_llm_output(llm_out: RagLlmOutput, language: str = "en") -> tup
     items = [
         " → ".join(part for part in (item.owner.strip(), item.action.strip(), item.deadline.strip()) if part)
         for item in llm_out.action_items
-        if item.action.strip()
+        # An action with neither an owner nor a deadline only says again what the steps say; it is shown when it adds one of them.
+        if item.action.strip() and (item.owner.strip() or item.deadline.strip())
     ]
     if items:
         sections.append(AnalysisSection(kind="action_items", bullets=items))
-    laid = sections_to_markdown(sections, language)
+    laid = sections_to_markdown(sections, language, lone_heading=False)
     if laid:
         extras.append(laid)
     if extras:

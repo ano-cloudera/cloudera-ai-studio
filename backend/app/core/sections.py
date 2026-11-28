@@ -119,9 +119,10 @@ def _merged(sections: list[AnalysisSection]) -> list[AnalysisSection]:
     return [by_kind[kind] for kind in order]
 
 
-def sections_to_markdown(sections: list[AnalysisSection], language: str) -> str:
-    """The sections as markdown: a `###` heading from the kind, the paragraphs, a bullet list, the table. An empty section is dropped."""
-    blocks: list[str] = []
+def sections_to_markdown(sections: list[AnalysisSection], language: str, *, lone_heading: bool = True) -> str:
+    """The sections as markdown: a `###` heading from the kind, the paragraphs, a bullet list, the table. An empty section is dropped.
+    `lone_heading=False` leaves the heading out when only one section is left: a short answer needs no heading to say what it is."""
+    laid: list[tuple[str, str]] = []
     for section in _merged(sections):
         parts: list[str] = []
         parts += [_clean(p) for p in section.paragraphs if _clean(p)]
@@ -135,5 +136,6 @@ def sections_to_markdown(sections: list[AnalysisSection], language: str) -> str:
         if table:
             parts.append(table)
         if parts:
-            blocks.append(f"### {title_for(section.kind, language)}\n\n" + "\n\n".join(parts))
-    return "\n\n".join(blocks)
+            laid.append((title_for(section.kind, language), "\n\n".join(parts)))
+    with_headings = lone_heading or len(laid) > 1
+    return "\n\n".join(f"### {title}\n\n{body}" if with_headings else body for title, body in laid)

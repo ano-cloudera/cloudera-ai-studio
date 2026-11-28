@@ -17,17 +17,19 @@ function Arrow({ direction }: { direction: 'down' | 'right' }) {
 /** A procedure drawn as boxes joined by arrows: numbered steps go down the page, hand-overs (who, what, by when) go across. */
 export function FlowDiagram({ block, renderText, textClass = '' }: { block: FlowBlock; renderText: (text: string) => ReactNode; textClass?: string }) {
   if (block.kind === 'steps') {
+    // A vertical timeline: one numbered dot per step on a single line, no boxes and no arrows between them.
     return (
       <ol className={`m-0 list-none p-0 ${textClass}`} data-testid="flow-diagram" aria-label="Flow">
-        {block.items.map((item, index) => (
-          <li key={index} className="flex flex-col">
-            <div className="flex items-start gap-3 rounded-lg border border-violet-100 bg-white px-3 py-2.5 shadow-[0_1px_2px_rgba(36,19,95,0.04)]">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cloudera-violet text-xs font-bold text-white">{index + 1}</span>
-              <span className="min-w-0 text-slate-700">{renderText(item)}</span>
-            </div>
-            {index < block.items.length - 1 ? <Arrow direction="down" /> : null}
-          </li>
-        ))}
+        {block.items.map((item, index) => {
+          const last = index === block.items.length - 1
+          return (
+            <li key={index} className="relative flex gap-3 pb-3 last:pb-0">
+              {!last ? <span className="absolute left-[11px] top-6 h-[calc(100%-1.5rem)] w-px bg-violet-200" aria-hidden /> : null}
+              <span className="relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cloudera-violet text-xs font-bold text-white">{index + 1}</span>
+              <span className="min-w-0 pt-0.5 text-slate-700">{renderText(item)}</span>
+            </li>
+          )
+        })}
       </ol>
     )
   }

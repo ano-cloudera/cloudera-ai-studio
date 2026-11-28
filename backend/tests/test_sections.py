@@ -44,6 +44,31 @@ def test_a_document_answer_is_laid_out_with_steps_a_table_and_action_items_whate
     assert "### Handling Steps" in english and "### Action Items" in english
 
 
+def test_an_action_item_without_an_owner_or_a_deadline_is_not_shown_again_under_follow_up() -> None:
+    out = RagLlmOutput(
+        grounding="SUPPORTED",
+        direct_answer="Rekening yang dipakai 3 peserta atau lebih dianggap tanda bahaya.",
+        executive_summary="Berlaku untuk semua klaim penggantian biaya.",
+        steps=["Verifikasi kuitansi (hal. 2).", "Konfirmasi ke penyedia (hal. 2).", "Analisis keterkaitan klaim (hal. 2)."],
+        action_items=[RagActionItem(action="Verifikasi kuitansi"), RagActionItem(owner="SIU", action="memeriksa klaim", deadline="2 hari kerja")],
+    )
+    answer, *_ = normalize_rag_llm_output(out, "id")
+    assert "Verifikasi kuitansi\n" not in answer.split("### Tindak Lanjut")[-1]
+    assert "- SIU → memeriksa klaim → 2 hari kerja" in answer
+    only_repeats = out.model_copy(update={"action_items": [RagActionItem(action="Verifikasi kuitansi")]})
+    answer, *_ = normalize_rag_llm_output(only_repeats, "id")
+    assert "Tindak Lanjut" not in answer
+
+
+def test_a_lone_section_has_no_heading_in_a_document_answer_but_several_keep_theirs() -> None:
+    steps = AnalysisSection(kind="steps", steps=["Verifikasi kuitansi (hal. 2).", "Konfirmasi ke penyedia (hal. 2)."])
+    points = AnalysisSection(kind="provisions", bullets=["Ambang 3 peserta (hal. 1)."])
+    assert sections_to_markdown([steps], "id", lone_heading=False) == "1. Verifikasi kuitansi (hal. 2).\n2. Konfirmasi ke penyedia (hal. 2)."
+    assert sections_to_markdown([steps], "id").startswith("### Langkah Penanganan")  # the analysis keeps its heading
+    both = sections_to_markdown([points, steps], "id", lone_heading=False)
+    assert "### Ketentuan Utama" in both and "### Langkah Penanganan" in both
+
+
 def test_the_laid_out_analysis_and_the_recommendations_carry_no_em_dash() -> None:
     from app.core.models import ActionRecommendation
 
