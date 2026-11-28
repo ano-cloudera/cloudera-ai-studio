@@ -5,7 +5,8 @@ lengkap dengan data historis, alert dan investigasi. NiFi menambahkan "data berg
 di Ask Data dalam hitungan menit.
 
 Aliran NiFi-nya sendiri tidak dibuat di sini. Setelah lingkungan siap dan laporan di bagian 5 dikembalikan, aliran dibuat dan diuji
-dari repo `cloudera-ai-studio` (folder `samples/health_insurance/nifi/`).
+dari repo `cloudera-ai-studio` (folder `samples/health_insurance/nifi/`). Aliran yang sudah jadi dan diuji ada di
+`flow/insurance_claims_demo.json`, dengan langkah memasangnya di `README.md` folder ini.
 
 ## 1. Prompt siap tempel
 

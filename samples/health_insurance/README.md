@@ -62,9 +62,17 @@ bersama" dibaca sebagai nomor-nomor yang baru disebut, dan filternya tidak bisa 
 
 ## Opsional: data bergerak
 
+Klaim baru dibuat di NiFi, dinilai oleh API skoring, ditulis ke Iceberg, dan terbaca di Trino sekitar 5 detik kemudian. Aliran,
+cara memasangnya, pengukuran latensi dan cara mengembalikan angka dasar ada di `nifi/README.md`.
+
 - `scoring/service.py`: API skoring (Python standar, tanpa paket tambahan). Sebagai Application CAI: script
   `samples/health_insurance/scoring/service.py`, runtime standar, 1 vCPU / 2 GiB (membaca seluruh riwayat saat mulai, sekitar 1,1 GB,
-  beberapa detik). Isi `SCORING_API_KEY` di environment Application agar setiap panggilan wajib membawa
-  `Authorization: Bearer <kunci>`. Uji: `GET /health`, lalu `POST /score` dengan satu baris klaim (kolom `hi_klaim`).
-- `nifi/CURSOR-BRIEF.md`: kebutuhan lingkungan NiFi di CDP. Aliran NiFi dan simulator klaim dibuat setelah lingkungannya siap.
-- Untuk angka yang bergerak, matikan cache jawaban (`ANSWER_CACHE=off`) dan pakai Ask Data, bukan Home (Home disimpan per versi model).
+  beberapa detik), tanpa SSO CAI (`bypass_authentication`), dan `SCORING_API_KEY` di environment Application agar setiap panggilan wajib
+  membawa `Authorization: Bearer <kunci>`. Uji: `GET /health`, lalu `POST /score` dengan satu baris klaim (kolom `hi_klaim`).
+- `nifi/flow/insurance_claims_demo.json`: aliran NiFi yang siap diunggah. `nifi/CURSOR-BRIEF.md`: kebutuhan lingkungan NiFi di CDP.
+- Klaim dan alert yang baru masuk ada di `hi_klaim_baru` dan `hi_alert_baru`; view `v_hi_klaim_gabungan` dan `v_hi_alert_gabungan`
+  menambahkannya ke riwayat, jadi setiap view dan jawaban Ask Data ikut melihatnya.
+- Angka di `judge_demo.json` untuk data **tanpa** klaim baru. Kosongkan tabel aliran sebelum menjalankannya:
+  `python samples/health_insurance/nifi/reset_stream.py --yes`.
+- Untuk angka yang bergerak, tanyakan lewat Ask Data, bukan Home (Home disimpan per versi model). Cache jawaban bawaan (`fallback`)
+  menjawab langsung dari data; jangan memakai `ANSWER_CACHE=first` saat angkanya harus bergerak.

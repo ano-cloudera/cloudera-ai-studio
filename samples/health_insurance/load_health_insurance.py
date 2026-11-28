@@ -122,14 +122,14 @@ def main(argv: list[str] | None = None) -> int:
         existing = {r[0] for r in run(f"SHOW TABLES FROM {prefix}")}
         for table in wanted:
             csv_name, columns, _ = TABLES[table]
-            path = DATA / csv_name
+            path = DATA / csv_name if csv_name else None
             fq = f"{prefix}.{table}"
-            if not path.exists():
+            if path is None or not path.exists():
                 if table in existing:
-                    print(f"[SKIP] {table}: {csv_name} not found; the table is left as it is")
+                    print(f"[SKIP] {table}: {csv_name or 'filled by the stream'} not found; the table is left as it is")
                 else:
                     run(create_table_sql(prefix, table, iceberg))  # empty, so the views exist and a stream can append to it
-                    print(f"[EMPTY] {table}: created without rows ({csv_name} comes from scoring/score_history.py)")
+                    print(f"[EMPTY] {table}: created without rows ({csv_name + ' comes from scoring/score_history.py' if csv_name else 'the NiFi flow fills it'})")
                 continue
             if table in existing:
                 rows = run(f"SELECT count(*) FROM {fq}")[0][0]
@@ -165,11 +165,13 @@ def main(argv: list[str] | None = None) -> int:
 
     present = {r[0] for r in run(f"SHOW TABLES FROM {prefix}")}
     for view in VIEW_ORDER:
-        needs = {"v_hi_alert": {"hi_alert", "hi_hasil_investigasi"}, "v_hi_klaim": {"hi_klaim", "hi_alert"}, "v_hi_rasio_klaim": {"hi_premi_bulanan"}}[view]
+        needs = {"v_hi_klaim_gabungan": {"hi_klaim", "hi_klaim_baru"}, "v_hi_alert_gabungan": {"hi_alert", "hi_alert_baru"}, "v_hi_alert": {"v_hi_alert_gabungan", "hi_hasil_investigasi"},
+                 "v_hi_klaim": {"v_hi_klaim_gabungan", "v_hi_alert"}, "v_hi_rasio_klaim": {"v_hi_klaim_gabungan", "hi_premi_bulanan"}}[view]
         if not needs <= present:
             print(f"[SKIP] {view}: needs {', '.join(sorted(needs - present))} first")
             continue
         run(create_view_sql(prefix, view))
+        present.add(view)
         started = time.monotonic()
         rows = run(f"SELECT count(*) FROM {prefix}.{view}")[0][0]
         print(f"[VIEW] {view}: {rows:,} rows ({time.monotonic() - started:.1f}s to count)")

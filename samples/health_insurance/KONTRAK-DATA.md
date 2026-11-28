@@ -30,6 +30,8 @@ Semua data **sintetis**. Nama penyedia selalu "RS Demo ..." atau "Klinik Demo ..
 | `hi_premi_bulanan` | premi diperoleh per bulan dan produk | `bulan, produk` | 115 |
 | `hi_alert` | alert dari model skoring | `id_alert` | ±12.500 |
 | `hi_hasil_investigasi` | hasil pemeriksaan sebuah alert, pada satu waktu | `id_alert, waktu_hasil` | ±20.000 |
+| `hi_klaim_baru` | klaim yang baru masuk lewat aliran NiFi (kolom dan partisi sama dengan `hi_klaim`) | `id_klaim` | 0 |
+| `hi_alert_baru` | alert untuk klaim yang baru masuk (kolom sama dengan `hi_alert`) | `id_alert` | 0 |
 
 ### `hi_klaim` (yang dikirim aliran langsung, satu event = satu baris)
 
@@ -66,6 +68,8 @@ Semua data **sintetis**. Nama penyedia selalu "RS Demo ..." atau "Klinik Demo ..
 
 | View | Isi |
 |---|---|
+| `v_hi_klaim_gabungan` | `hi_klaim` ditambah `hi_klaim_baru` (UNION ALL). Semua view lain membaca ini, jadi klaim yang baru masuk ikut di setiap jawaban |
+| `v_hi_alert_gabungan` | `hi_alert` ditambah `hi_alert_baru` |
 | `v_hi_klaim` | klaim + penyedia, dokter, diagnosis, peserta, alert terakhir, dan tanda keterkaitan: `peserta_per_rekening`, `rekening_dipakai_bersama` (`Rekening dipakai bersama` bila 3 peserta atau lebih, `Rekening sendiri`, `Tanpa rekening (Cashless)`), `telepon_dipakai_bersama`, `klaim_dokter_hari_itu`, `klaim_ganda` (kunjungan sama di dua penyedia), `rawat_ulang_7_hari`, `hari_kunjungan`, `jenis_hari`, `waktu_kunjungan`, `hari_sampai_pengajuan`, `hari_sampai_keputusan` |
 | `v_hi_alert` | alert + status investigasi terakhir (`Belum diperiksa` bila belum ada hasil) |
 | `v_hi_rasio_klaim` | premi dan klaim dibayar per bulan dan produk, untuk rasio klaim |

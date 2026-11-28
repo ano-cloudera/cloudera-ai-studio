@@ -6,8 +6,8 @@ a doctor has on one day, a second claim of the same visit, a readmission), so ro
 """
 from __future__ import annotations
 
-# table -> (csv file in data/, columns, Iceberg partitioning or None)
-TABLES: dict[str, tuple[str, list[tuple[str, str]], list[str] | None]] = {
+# table -> (csv file in data/ or None for a table only a stream fills, columns, Iceberg partitioning or None)
+TABLES: dict[str, tuple[str | None, list[tuple[str, str]], list[str] | None]] = {
     "hi_peserta": ("peserta.csv", [
         ("id_peserta", "VARCHAR"), ("id_polis", "VARCHAR"), ("produk", "VARCHAR"), ("segmen", "VARCHAR"), ("pemegang_polis", "VARCHAR"),
         ("jenis_kelamin", "VARCHAR"), ("kelompok_usia", "VARCHAR"), ("provinsi", "VARCHAR"), ("kota", "VARCHAR"), ("tanggal_mulai", "DATE"),
@@ -38,6 +38,18 @@ TABLES: dict[str, tuple[str, list[tuple[str, str]], list[str] | None]] = {
         ("id_alert", "VARCHAR"), ("id_klaim", "VARCHAR"), ("waktu_alert", "TIMESTAMP(3)"), ("skor_fraud", "DOUBLE"), ("tingkat_risiko", "VARCHAR"),
         ("alasan_1", "VARCHAR"), ("alasan_2", "VARCHAR"), ("alasan_3", "VARCHAR"), ("versi_model", "VARCHAR"),
     ], None),
+    # Filled only by the NiFi flow (claims as they arrive, and the alerts the scoring API raises for them); the views add them to the history.
+    "hi_klaim_baru": (None, [
+        ("id_klaim", "VARCHAR"), ("id_peserta", "VARCHAR"), ("kode_penyedia", "VARCHAR"), ("kode_dokter", "VARCHAR"),
+        ("tanggal_masuk", "DATE"), ("tanggal_keluar", "DATE"), ("jam_kunjungan", "INTEGER"), ("tanggal_pengajuan", "DATE"),
+        ("tanggal_keputusan", "DATE"), ("jenis_layanan", "VARCHAR"), ("kode_diagnosis", "VARCHAR"), ("tindakan_utama", "VARCHAR"),
+        ("lama_rawat_hari", "INTEGER"), ("jumlah_tagihan_idr", "BIGINT"), ("jumlah_disetujui_idr", "BIGINT"), ("jumlah_dibayar_idr", "BIGINT"),
+        ("metode_klaim", "VARCHAR"), ("rekening_penggantian_hash", "VARCHAR"), ("status_klaim", "VARCHAR"), ("alasan_penolakan", "VARCHAR"),
+    ], ["month(tanggal_masuk)"]),
+    "hi_alert_baru": (None, [
+        ("id_alert", "VARCHAR"), ("id_klaim", "VARCHAR"), ("waktu_alert", "TIMESTAMP(3)"), ("skor_fraud", "DOUBLE"), ("tingkat_risiko", "VARCHAR"),
+        ("alasan_1", "VARCHAR"), ("alasan_2", "VARCHAR"), ("alasan_3", "VARCHAR"), ("versi_model", "VARCHAR"),
+    ], None),
     # The investigators' findings, appended as they come; the latest per alert counts.
     "hi_hasil_investigasi": ("hasil_investigasi.csv", [
         ("id_alert", "VARCHAR"), ("waktu_hasil", "TIMESTAMP(3)"), ("status_investigasi", "VARCHAR"), ("catatan", "VARCHAR"),
@@ -46,11 +58,24 @@ TABLES: dict[str, tuple[str, list[tuple[str, str]], list[str] | None]] = {
 
 # The views the semantic model reads. {t} is the quoted catalog.schema prefix.
 VIEWS: dict[str, str] = {
+    # The history and what the stream has added since: every other view reads these two, so a claim that arrives is part of every answer.
+    "v_hi_klaim_gabungan": """
+SELECT id_klaim, id_peserta, kode_penyedia, kode_dokter, tanggal_masuk, tanggal_keluar, jam_kunjungan, tanggal_pengajuan, tanggal_keputusan, jenis_layanan, kode_diagnosis, tindakan_utama, lama_rawat_hari, jumlah_tagihan_idr, jumlah_disetujui_idr, jumlah_dibayar_idr, metode_klaim, rekening_penggantian_hash, status_klaim, alasan_penolakan
+FROM {t}.hi_klaim
+UNION ALL
+SELECT id_klaim, id_peserta, kode_penyedia, kode_dokter, tanggal_masuk, tanggal_keluar, jam_kunjungan, tanggal_pengajuan, tanggal_keputusan, jenis_layanan, kode_diagnosis, tindakan_utama, lama_rawat_hari, jumlah_tagihan_idr, jumlah_disetujui_idr, jumlah_dibayar_idr, metode_klaim, rekening_penggantian_hash, status_klaim, alasan_penolakan
+FROM {t}.hi_klaim_baru""",
+    "v_hi_alert_gabungan": """
+SELECT id_alert, id_klaim, waktu_alert, skor_fraud, tingkat_risiko, alasan_1, alasan_2, alasan_3, versi_model
+FROM {t}.hi_alert
+UNION ALL
+SELECT id_alert, id_klaim, waktu_alert, skor_fraud, tingkat_risiko, alasan_1, alasan_2, alasan_3, versi_model
+FROM {t}.hi_alert_baru""",
     "v_hi_alert": """
 SELECT a.id_alert, a.id_klaim, a.waktu_alert, CAST(a.waktu_alert AS DATE) AS tanggal_alert, a.skor_fraud, a.tingkat_risiko,
        a.alasan_1, a.alasan_2, a.alasan_3, a.versi_model,
        COALESCE(h.status_investigasi, 'Belum diperiksa') AS status_investigasi, h.waktu_hasil
-FROM {t}.hi_alert a
+FROM {t}.v_hi_alert_gabungan a
 LEFT JOIN (
   SELECT id_alert, status_investigasi, waktu_hasil,
          row_number() OVER (PARTITION BY id_alert ORDER BY waktu_hasil DESC) AS urutan
@@ -59,7 +84,7 @@ LEFT JOIN (
     "v_hi_klaim": """
 WITH rekening AS (
   SELECT rekening_penggantian_hash, COUNT(DISTINCT id_peserta) AS peserta_per_rekening
-  FROM {t}.hi_klaim
+  FROM {t}.v_hi_klaim_gabungan
   WHERE rekening_penggantian_hash IS NOT NULL AND rekening_penggantian_hash <> ''
   GROUP BY rekening_penggantian_hash
 ),
@@ -72,7 +97,7 @@ klaim AS (
          min(k.kode_penyedia) OVER (PARTITION BY k.id_peserta, k.tanggal_masuk, k.kode_diagnosis) AS penyedia_pertama,
          max(k.kode_penyedia) OVER (PARTITION BY k.id_peserta, k.tanggal_masuk, k.kode_diagnosis) AS penyedia_terakhir,
          lag(k.tanggal_keluar) OVER (PARTITION BY k.id_peserta, k.kode_diagnosis, k.jenis_layanan ORDER BY k.tanggal_masuk, k.id_klaim) AS keluar_sebelumnya
-  FROM {t}.hi_klaim k
+  FROM {t}.v_hi_klaim_gabungan k
 )
 SELECT k.id_klaim, k.id_peserta, k.tanggal_masuk, k.tanggal_keluar, k.tanggal_pengajuan, k.tanggal_keputusan, k.jam_kunjungan,
        CASE day_of_week(k.tanggal_masuk) WHEN 1 THEN 'Senin' WHEN 2 THEN 'Selasa' WHEN 3 THEN 'Rabu' WHEN 4 THEN 'Kamis'
@@ -112,11 +137,11 @@ SELECT pr.bulan, pr.produk, pr.segmen, pr.jumlah_peserta_aktif, pr.premi_idr, CO
 FROM {t}.hi_premi_bulanan pr
 LEFT JOIN (
   SELECT date_trunc('month', k.tanggal_masuk) AS bulan, ps.produk, SUM(k.jumlah_dibayar_idr) AS klaim_dibayar_idr
-  FROM {t}.hi_klaim k JOIN {t}.hi_peserta ps ON ps.id_peserta = k.id_peserta
+  FROM {t}.v_hi_klaim_gabungan k JOIN {t}.hi_peserta ps ON ps.id_peserta = k.id_peserta
   GROUP BY 1, 2
 ) k ON k.bulan = pr.bulan AND k.produk = pr.produk""",
 }
-VIEW_ORDER = ["v_hi_alert", "v_hi_klaim", "v_hi_rasio_klaim"]  # v_hi_klaim reads v_hi_alert
+VIEW_ORDER = ["v_hi_klaim_gabungan", "v_hi_alert_gabungan", "v_hi_alert", "v_hi_klaim", "v_hi_rasio_klaim"]  # each reads the ones before it
 
 
 def create_table_sql(prefix: str, table: str, iceberg: bool) -> str:
