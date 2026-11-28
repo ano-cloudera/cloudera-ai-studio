@@ -27,7 +27,10 @@ from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+try:
+    HERE = Path(__file__).resolve().parent
+except NameError:  # a Cloudera AI Application script runs in a kernel, where __file__ is not defined: the project root is the working directory
+    HERE = Path(os.environ.get("HI_SCORING_DIR") or Path.cwd() / "samples" / "health_insurance" / "scoring").resolve()
 sys.path.insert(0, str(HERE))
 
 from model import Model, arrival_order, new_context, read  # noqa: E402

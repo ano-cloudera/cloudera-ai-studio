@@ -105,3 +105,18 @@ def test_the_claims_table_is_partitioned_by_month_on_iceberg_only() -> None:
     assert "partitioning = ARRAY['month(tanggal_masuk)']" in iceberg and "format = 'PARQUET'" in iceberg
     assert "WITH" not in plain
     assert warehouse.literal("O'Brien", "VARCHAR") == "'O''Brien'" and warehouse.literal("", "BIGINT") == "NULL"
+
+
+def test_the_scoring_service_starts_when_the_application_script_runs_in_a_kernel_without___file__(monkeypatch) -> None:
+    """Cloudera AI runs an Application script in a kernel cell, where __file__ is not defined: the service finds itself from the working directory."""
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    monkeypatch.chdir(root)
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    source = (root / "samples" / "health_insurance" / "scoring" / "service.py").read_text()
+    namespace: dict = {"__name__": "kernel_cell"}  # no __file__, and not "__main__": the server is not started
+    exec(compile(source, "<cell>", "exec"), namespace)  # noqa: S102 - the repo's own file
+    assert namespace["HERE"] == root / "samples" / "health_insurance" / "scoring"
+    assert callable(namespace["main"])
